@@ -1088,3 +1088,209 @@ button:active {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* ------------------------------------------------------------------ FILE EXPLORER WORKSPACE */
+.explorer-card {
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.drive-pill-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.drive-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: var(--round);
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.drive-pill:hover, .drive-pill.active {
+  border-color: var(--accent);
+  background: var(--ink-2);
+  color: var(--accent);
+}
+
+.drive-pill-bar {
+  width: 36px;
+  height: 4px;
+  background: var(--ink-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.drive-pill-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.explorer-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: var(--space-3) var(--space-5);
+  background: var(--ink-0);
+  border-bottom: 1px solid var(--line);
+}
+
+.breadcrumb-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+
+.breadcrumb-item {
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all var(--dur-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breadcrumb-item:hover {
+  color: var(--accent);
+  background: var(--ink-2);
+}
+
+.breadcrumb-item.active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.breadcrumb-sep {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+
+.explorer-path-input-wrap {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  align-items: center;
+}
+
+.explorer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--ink-1);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.explorer-toolbar-left, .explorer-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.explorer-drop-container {
+  position: relative;
+  min-height: 400px;
+}
+
+.explorer-drop-container.drag-over::after {
+  content: 'Thả tệp vào đây để tải lên thư mục này';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  border: 2px dashed var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-family: var(--font-brand);
+  font-size: var(--step-1);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.explorer-grid-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  padding: var(--space-4);
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 14px 10px;
+  border-radius: 8px;
+  background: var(--ink-0);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  position: relative;
+}
+
+.grid-item:hover {
+  background: var(--ink-2);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.grid-item-icon {
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+
+.grid-item-name {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+}
+
+.grid-item-size {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.explorer-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--ink-0);
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+

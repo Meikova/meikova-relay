@@ -42,6 +42,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
         <span>Màn hình</span>
       </button>
+      <button type="button" data-view="files" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span>Tệp &amp; Thư mục</span>
+      </button>
       <button type="button" data-view="terminal" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
         <span>Terminal</span>
@@ -49,10 +53,6 @@
       <button type="button" data-view="tasks" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
         <span>Tiến trình</span>
-      </button>
-      <button type="button" data-view="shelf" role="tab" aria-selected="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-        <span>Tệp &amp; Clip</span>
       </button>
     </nav>
 
@@ -343,6 +343,114 @@
       </div>
     </section>
 
+    <!-- VIEW 6: FULL DEDICATED FILE EXPLORER STAGE -->
+    <section id="filesSection" class="dashboard-container hidden">
+      <div class="dashboard-header" style="margin-bottom: var(--space-4);">
+        <div>
+          <h2 class="section-title">Trình quản lý tệp tin máy trạm</h2>
+          <p class="card-subtitle">Truyền tải tệp tin và duyệt cây thư mục đa luồng qua WebSocket 443 (Bypass Firewall/NAT)</p>
+        </div>
+        <div class="drive-pill-row" id="explorerDrivesRow">
+          <!-- Populated dynamically with C:\, D:\, etc. -->
+        </div>
+      </div>
+
+      <div class="explorer-card">
+        <!-- Explorer Header: Breadcrumb & Actions -->
+        <div class="explorer-topbar">
+          <div class="breadcrumb-container" id="explorerBreadcrumbs">
+            <!-- Breadcrumb segments injected here -->
+          </div>
+          <div class="explorer-path-input-wrap hidden" id="explorerPathInputWrap">
+            <input type="text" id="explorerDirectPathInput" class="instrument-input mono-font" placeholder="Nhập đường dẫn đầy đủ (vd: C:\Windows)..." style="flex: 1; padding: 6px 12px; font-size: 0.8rem;">
+            <button id="btnGoDirectPath" class="btn-pill" style="border-color: var(--accent); color: var(--accent); padding: 6px 12px;">Đến</button>
+            <button id="btnCancelDirectPath" class="btn-pill" style="padding: 6px 12px;">Hủy</button>
+          </div>
+          <button id="btnTogglePathInput" class="btn-pill" title="Chỉnh sửa đường dẫn trực tiếp">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        </div>
+
+        <!-- Explorer Toolbar -->
+        <div class="explorer-toolbar">
+          <div class="explorer-toolbar-left">
+            <button id="btnExpUp" class="btn-pill" title="Thư mục cha">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+              <span>Lên</span>
+            </button>
+            <button id="btnExpRefresh" class="btn-pill" title="Làm mới">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              <span>Làm mới</span>
+            </button>
+            <button id="btnExpNewFolder" class="btn-pill" title="Tạo thư mục mới">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+              <span>Thư mục mới</span>
+            </button>
+            <button id="btnExpUpload" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Tải tệp tin lên thư mục này">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Tải tệp lên</span>
+            </button>
+            <input type="file" id="expFileInput" class="hidden">
+          </div>
+
+          <div class="explorer-toolbar-right">
+            <input type="text" id="explorerSearchInput" class="instrument-input mono-font" placeholder="Lọc tệp trong thư mục..." style="width: 200px; padding: 6px 12px; font-size: 0.8rem;">
+            <div class="seg" id="viewModeSeg" style="padding: 2px;">
+              <button type="button" class="on" id="btnModeList" title="Xem danh sách">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+              <button type="button" id="btnModeGrid" title="Xem dạng lưới">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Explorer Upload/Download Progress Bar -->
+        <div id="expTransferProgress" class="hidden" style="padding: 10px 16px; background: var(--ink-2); border-bottom: 1px solid var(--line);">
+          <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-family: var(--font-mono); margin-bottom: 4px;">
+            <span id="expTransferLabel">Đang truyền tải...</span>
+            <span id="expTransferPercent">0%</span>
+          </div>
+          <div class="file-progress-bar">
+            <div id="expTransferFill" class="file-progress-fill"></div>
+          </div>
+        </div>
+
+        <!-- Explorer Drag-Drop Overlay Zone -->
+        <div id="explorerDropTarget" class="explorer-drop-container">
+          <!-- List View Table -->
+          <div class="table-scroll-area" id="explorerListContainer" style="max-height: 520px; overflow-y: auto;">
+            <table class="process-table mono-font" id="explorerTable">
+              <thead>
+                <tr>
+                  <th style="width: 48%;">Tên tệp / Thư mục</th>
+                  <th style="width: 16%;">Kích thước</th>
+                  <th style="width: 22%;">Ngày sửa đổi</th>
+                  <th style="width: 14%; text-align: right;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="explorerTableBody">
+                <tr><td colspan="4" style="text-align: center; color: var(--text-faint);">Chưa kết nối máy trạm</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Grid View Container -->
+          <div class="explorer-grid-view hidden" id="explorerGridContainer">
+            <!-- Grid cards injected here -->
+          </div>
+        </div>
+
+        <!-- Explorer Status Bar -->
+        <div class="explorer-footer mono-font" id="explorerStatusBar">
+          <span id="expStatusCount">0 mục</span>
+          <span id="expStatusSelected" style="color: var(--accent);"></span>
+          <span id="expStatusSize">0 B</span>
+        </div>
+      </div>
+    </section>
+
     <!-- SLIDE-OVER SHELF (SIDE DRAWER 390px) -->
     <aside id="shelfDrawer" class="shelf-drawer">
       <div class="shelf-header">
@@ -371,6 +479,10 @@
       <div class="shelf-body">
         <!-- Tab 1: Files -->
         <div id="shelfFilesTab">
+          <button id="btnExpandExplorer" class="btn-pill" style="width: 100%; margin-bottom: 12px; justify-content: center; border-color: var(--accent); color: var(--accent);">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            <span>Mở File Explorer toàn màn hình</span>
+          </button>
           <div id="fileDropzone" class="file-dropzone">
             <svg style="width: 32px; height: 32px; margin-bottom: 8px; color: var(--accent);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

@@ -226,6 +226,28 @@ class HostService:
                     }))
                     continue
 
+                # File Delete Request
+                elif ev_type == "file_delete_request":
+                    filepath = event.get("filepath", "")
+                    ok = self.file_manager.delete_item(filepath)
+                    await ws.send(json.dumps({
+                        "type": "file_delete_response",
+                        "filepath": filepath,
+                        "success": ok
+                    }))
+                    continue
+
+                # File Create Folder Request
+                elif ev_type == "file_create_folder_request":
+                    parent_dir = event.get("parent_dir", "")
+                    folder_name = event.get("name", "")
+                    res = self.file_manager.create_folder(parent_dir, folder_name)
+                    await ws.send(json.dumps({
+                        "type": "file_create_folder_response",
+                        "result": res
+                    }))
+                    continue
+
                 # File Download Request
                 elif ev_type == "file_download_request":
                     filepath = event.get("filepath", "")
@@ -283,7 +305,8 @@ class HostService:
                     filename = event.get("filename", "unknown.bin")
                     filesize = int(event.get("filesize", 0))
                     checksum = event.get("checksum", "")
-                    dest_path = self.file_manager.start_upload(transfer_id, filename, filesize, checksum)
+                    target_dir = event.get("target_dir", "")
+                    dest_path = self.file_manager.start_upload(transfer_id, filename, filesize, checksum, target_dir)
                     await ws.send(json.dumps({
                         "type": "file_upload_ack",
                         "transfer_id": transfer_id,

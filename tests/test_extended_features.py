@@ -34,13 +34,43 @@ class TestExtendedFeatures(unittest.TestCase):
         # Browse drives
         drives = fm.browse_path("")
         self.assertIn("items", drives)
+        self.assertIn("drives", drives)
         self.assertGreater(len(drives["items"]), 0)
+        first_drive = drives["drives"][0]
+        self.assertIn("total", first_drive)
+        self.assertIn("free", first_drive)
 
         # Browse current folder
         curr = fm.browse_path(os.path.dirname(__file__))
         self.assertIn("items", curr)
+        self.assertIn("drives", curr)
+        self.assertIn("parent_path", curr)
         found_self = any(item["name"] == "test_extended_features.py" for item in curr["items"])
         self.assertTrue(found_self)
+
+    def test_file_manager_folder_ops_and_target_upload(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fm = FileManager(download_dir=tmpdir)
+            # Create folder
+            res = fm.create_folder(tmpdir, "test_subfolder")
+            self.assertTrue(res["success"])
+            subpath = res["path"]
+            self.assertTrue(os.path.isdir(subpath))
+
+            # Targeted upload into subfolder
+            data = b"Enterprise Targeted File Data"
+            dest = fm.start_upload("tx_target", "inner.txt", len(data), target_dir=subpath)
+            self.assertTrue(dest.startswith(subpath))
+            fm.write_chunk("tx_target", data)
+            fin = fm.finish_upload("tx_target")
+            self.assertTrue(fin["valid"])
+            self.assertTrue(os.path.isfile(dest))
+
+            # Delete folder
+            ok = fm.delete_item(subpath)
+            self.assertTrue(ok)
+            self.assertFalse(os.path.exists(subpath))
 
     def test_terminal_interaction(self):
         output_received = []

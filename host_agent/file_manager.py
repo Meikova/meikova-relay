@@ -16,9 +16,10 @@ class FileManager:
 
         self.active_transfers: Dict[str, Dict[str, Any]] = {}
 
-    def start_upload(self, transfer_id: str, filename: str, filesize: int, expected_sha256: str = "") -> str:
+    def start_upload(self, transfer_id: str, filename: str, filesize: int, expected_sha256: str = "", target_dir: Optional[str] = None) -> str:
+        upload_folder = target_dir if (target_dir and os.path.isdir(target_dir)) else self.download_dir
         safe_name = os.path.basename(filename)
-        dest_path = os.path.join(self.download_dir, safe_name)
+        dest_path = os.path.join(upload_folder, safe_name)
 
         file_handle = open(dest_path, "wb")
         self.active_transfers[transfer_id] = {
@@ -68,45 +69,87 @@ class FileManager:
             "valid": is_valid
         }
 
+    @staticmethod
+    def get_drives() -> List[Dict[str, Any]]:
+        import shutil
+        drives = []
+        for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+            drive = f"{letter}:\\"
+            if os.path.exists(drive):
+                try:
+                    total, used, free = shutil.disk_usage(drive)
+                except Exception:
+                    total, used, free = 0, 0, 0
+                drives.append({
+                    "name": drive,
+                    "path": drive,
+                    "is_dir": True,
+                    "total": total,
+                    "used": used,
+                    "free": free,
+                    "percent": int((used / max(1, total)) * 100) if total > 0 else 0
+                })
+        return drives
+
     def browse_path(self, req_path: str = "") -> Dict[str, Any]:
-        """Lists folders and files in a specific directory or available drives if empty."""
+        """Lists folders and files with stats, breadcrumbs parent, and drive capacities."""
+        drives = self.get_drives()
         if not req_path:
-            # List available drives
-            drives = []
-            for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
-                drive = f"{letter}:\\"
-                if os.path.exists(drive):
-                    drives.append({"name": drive, "is_dir": True, "size": 0})
-            return {"current_path": "", "items": drives}
+            return {"current_path": "", "parent_path": "", "items": drives, "drives": drives}
 
         target = os.path.abspath(req_path)
         if not os.path.exists(target) or not os.path.isdir(target):
-            return {"current_path": req_path, "items": [], "error": "Folder not found"}
+            return {"current_path": req_path, "parent_path": "", "items": [], "drives": drives, "error": "Folder not found"}
+
+        parent_path = os.path.dirname(target)
+        if parent_path == target:
+            parent_path = ""
+
+        skip_folders = {'System Volume Information', '$RECYCLE.BIN', 'Config.Msi', 'pagefile.sys', 'DumpStack.log.tmp', 'swapfile.sys'}
 
         items = []
         try:
             for entry in os.scandir(target):
+                if entry.name in skip_folders:
+                    continue
                 try:
                     is_dir = entry.is_dir()
                     stat = entry.stat()
+                    ext = "" if is_dir else os.path.splitext(entry.name)[1].lower()
                     items.append({
                         "name": entry.name,
                         "path": entry.path,
                         "is_dir": is_dir,
                         "size": 0 if is_dir else stat.st_size,
-                        "modified": int(stat.st_mtime * 1000)
+                        "modified": int(stat.st_mtime * 1000),
+                        "ext": ext
                     })
                 except Exception:
                     pass
         except Exception as e:
-            return {"current_path": target, "items": [], "error": str(e)}
+            return {"current_path": target, "parent_path": parent_path, "items": [], "drives": drives, "error": str(e)}
 
         items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
-        return {"current_path": target, "items": items[:150]}
+        return {"current_path": target, "parent_path": parent_path, "items": items[:500], "drives": drives}
+
+    def create_folder(self, parent_dir: str, folder_name: str) -> Dict[str, Any]:
+        try:
+            safe_name = os.path.basename(folder_name.strip())
+            if not safe_name:
+                return {"success": False, "error": "Tên thư mục không hợp lệ"}
+            new_path = os.path.join(parent_dir, safe_name)
+            os.makedirs(new_path, exist_ok=False)
+            return {"success": True, "path": new_path}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def delete_item(self, filepath: str) -> bool:
+        import shutil
         try:
-            if os.path.isfile(filepath):
+            if os.path.isdir(filepath):
+                shutil.rmtree(filepath)
+                return True
+            elif os.path.isfile(filepath):
                 os.remove(filepath)
                 return True
         except Exception:

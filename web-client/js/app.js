@@ -10,6 +10,38 @@
   const terminalSection = document.getElementById('terminalSection');
   const tasksSection = document.getElementById('tasksSection');
   const shelfDrawer = document.getElementById('shelfDrawer');
+  const filesSection = document.getElementById('filesSection');
+  const explorerDrivesRow = document.getElementById('explorerDrivesRow');
+  const explorerBreadcrumbs = document.getElementById('explorerBreadcrumbs');
+  const explorerPathInputWrap = document.getElementById('explorerPathInputWrap');
+  const explorerDirectPathInput = document.getElementById('explorerDirectPathInput');
+  const btnTogglePathInput = document.getElementById('btnTogglePathInput');
+  const btnGoDirectPath = document.getElementById('btnGoDirectPath');
+  const btnCancelDirectPath = document.getElementById('btnCancelDirectPath');
+  const btnExpUp = document.getElementById('btnExpUp');
+  const btnExpRefresh = document.getElementById('btnExpRefresh');
+  const btnExpNewFolder = document.getElementById('btnExpNewFolder');
+  const btnExpUpload = document.getElementById('btnExpUpload');
+  const expFileInput = document.getElementById('expFileInput');
+  const explorerSearchInput = document.getElementById('explorerSearchInput');
+  const btnModeList = document.getElementById('btnModeList');
+  const btnModeGrid = document.getElementById('btnModeGrid');
+  const expTransferProgress = document.getElementById('expTransferProgress');
+  const expTransferLabel = document.getElementById('expTransferLabel');
+  const expTransferPercent = document.getElementById('expTransferPercent');
+  const expTransferFill = document.getElementById('expTransferFill');
+  const explorerDropTarget = document.getElementById('explorerDropTarget');
+  const explorerListContainer = document.getElementById('explorerListContainer');
+  const explorerTableBody = document.getElementById('explorerTableBody');
+  const explorerGridContainer = document.getElementById('explorerGridContainer');
+  const expStatusCount = document.getElementById('expStatusCount');
+  const expStatusSize = document.getElementById('expStatusSize');
+  const btnExpandExplorer = document.getElementById('btnExpandExplorer');
+
+  let currentExplorerItems = [];
+  let currentExplorerDrives = [];
+  let explorerViewMode = 'list';
+  let remoteParentPath = '';
 
   // --- Auth DOM ---
   const authTabs = document.getElementById('authTabs');
@@ -340,6 +372,7 @@
     remoteSection.classList.add('hidden');
     terminalSection.classList.add('hidden');
     tasksSection.classList.add('hidden');
+    filesSection.classList.add('hidden');
 
     mainNav.querySelectorAll('button').forEach(btn => {
       const isTarget = btn.dataset.view === view;
@@ -359,6 +392,10 @@
       remoteSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TRỰC TUYẾN` : 'CHƯA KẾT NỐI';
       resetDeckIdle();
+    } else if (view === 'files') {
+      filesSection.classList.remove('hidden');
+      roStatus.textContent = isConnected ? `${currentRoom} // TỆP & THƯ MỤC` : 'CHƯA KẾT NỐI';
+      if (isConnected) requestBrowsePath(remoteCurrentPath || '');
     } else if (view === 'terminal') {
       terminalSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TERMINAL` : 'CHƯA KẾT NỐI';
@@ -375,14 +412,6 @@
     const btn = e.target.closest('button');
     if (!btn) return;
     const view = btn.dataset.view;
-    if (view === 'shelf') {
-      if (!authToken || !currentUser) { switchView('auth'); return; }
-      shelfDrawer.classList.toggle('open');
-      if (shelfDrawer.classList.contains('open') && isConnected) {
-        requestBrowsePath(remoteCurrentPath);
-      }
-      return;
-    }
     if (view !== 'auth' && (!authToken || !currentUser)) {
       switchView('auth');
       return;
@@ -629,23 +658,53 @@
           if (currentView === 'tasks') requestTelemetryAndTasks();
         } else if (msg.type === 'file_browse_response') {
           renderFolderBrowser(msg.data);
+          renderFullFileExplorer(msg.data);
+        } else if (msg.type === 'file_delete_response') {
+          showToast(msg.success ? 'Đã xóa tệp/thư mục thành công' : 'Không thể xóa (tệp đang được dùng hoặc bị khóa quyền)', msg.success ? 'success' : 'error');
+          requestBrowsePath(remoteCurrentPath);
+        } else if (msg.type === 'file_create_folder_response') {
+          if (msg.result && msg.result.success) {
+            showToast('Đã tạo thư mục mới thành công', 'success');
+            requestBrowsePath(remoteCurrentPath);
+          } else {
+            showToast(`Lỗi tạo thư mục: ${msg.result?.error || 'Không xác định'}`, 'error');
+          }
         } else if (msg.type === 'file_upload_progress') {
           uploadPercent.textContent = `${msg.progress}%`;
           uploadProgressBar.style.width = `${msg.progress}%`;
+          if (expTransferProgress && !expTransferProgress.classList.contains('hidden')) {
+            expTransferPercent.textContent = `${msg.progress}%`;
+            expTransferFill.style.width = `${msg.progress}%`;
+          }
         } else if (msg.type === 'file_upload_result') {
           uploadProgressContainer.classList.add('hidden');
+          if (expTransferProgress) expTransferProgress.classList.add('hidden');
           showToast(`Đã truyền tệp thành công: ${msg.result.filename}`, 'success');
           requestBrowsePath(remoteCurrentPath);
         } else if (msg.type === 'file_download_start') {
           activeDownloads[msg.transfer_id] = {
             filename: msg.filename,
             totalBytes: msg.filesize,
+            receivedBytes: 0,
             chunks: []
           };
+          if (expTransferProgress) {
+            expTransferProgress.classList.remove('hidden');
+            expTransferLabel.textContent = `Đang tải về: ${msg.filename} (${formatBytes(msg.filesize)})`;
+            expTransferPercent.textContent = '0%';
+            expTransferFill.style.width = '0%';
+          }
         } else if (msg.type === 'file_download_chunk') {
           const dl = activeDownloads[msg.transfer_id];
           if (dl) {
-            dl.chunks.push(base64ToArrayBuffer(msg.data));
+            const buf = base64ToArrayBuffer(msg.data);
+            dl.chunks.push(buf);
+            dl.receivedBytes = (dl.receivedBytes || 0) + buf.byteLength;
+            const pct = Math.min(100, Math.round((dl.receivedBytes / Math.max(1, dl.totalBytes)) * 100));
+            if (expTransferProgress && !expTransferProgress.classList.contains('hidden')) {
+              expTransferPercent.textContent = `${pct}%`;
+              expTransferFill.style.width = `${pct}%`;
+            }
           }
         } else if (msg.type === 'file_download_finish') {
           const dl = activeDownloads[msg.transfer_id];
@@ -653,8 +712,11 @@
             const blob = new Blob(dl.chunks, { type: 'application/octet-stream' });
             downloadBlob(blob, dl.filename);
             delete activeDownloads[msg.transfer_id];
+            if (expTransferProgress) expTransferProgress.classList.add('hidden');
+            showToast(`Đã tải xuống thành công: ${dl.filename}`, 'success');
           }
         } else if (msg.type === 'file_download_error') {
+          if (expTransferProgress) expTransferProgress.classList.add('hidden');
           showToast(`Lỗi tải tệp: ${msg.message}`, 'error');
           delete activeDownloads[msg.transfer_id];
         } else if (msg.type === 'pong') {
@@ -1338,7 +1400,7 @@
     }
   });
 
-  async function uploadFileToHost(file) {
+  async function uploadFileToHost(file, targetDir) {
     if (!isConnected) {
       showToast('Vui lòng kết nối vào máy trạm trước khi gửi tệp tin!', 'info');
       return;
@@ -1349,6 +1411,13 @@
     uploadProgressBar.style.width = '0%';
     uploadProgressContainer.classList.remove('hidden');
 
+    if (expTransferProgress) {
+      expTransferProgress.classList.remove('hidden');
+      expTransferLabel.textContent = `Đang tải lên: ${file.name} (${formatBytes(file.size)})`;
+      expTransferPercent.textContent = '0%';
+      expTransferFill.style.width = '0%';
+    }
+
     const transferId = 'transfer_' + Date.now();
     const chunkSize = 64 * 1024;
     const totalChunks = Math.ceil(file.size / chunkSize);
@@ -1357,7 +1426,8 @@
       type: 'file_upload_start',
       transfer_id: transferId,
       filename: file.name,
-      filesize: file.size
+      filesize: file.size,
+      target_dir: targetDir || remoteCurrentPath || ''
     }));
 
     for (let i = 0; i < totalChunks; i++) {
@@ -1376,6 +1446,10 @@
       const progress = Math.round(((i + 1) / totalChunks) * 100);
       uploadPercent.textContent = `${progress}%`;
       uploadProgressBar.style.width = `${progress}%`;
+      if (expTransferProgress) {
+        expTransferPercent.textContent = `${progress}%`;
+        expTransferFill.style.width = `${progress}%`;
+      }
     }
 
     ws.send(JSON.stringify({
@@ -1384,7 +1458,7 @@
     }));
   }
 
-  // Remote Directory Browser
+  // --- Remote File Explorer Engine ---
   function requestBrowsePath(p) {
     if (!isConnected || !ws) return;
     ws.send(JSON.stringify({
@@ -1395,19 +1469,55 @@
 
   btnBrowseUp.addEventListener('click', () => {
     if (!remoteCurrentPath) return;
-    const parts = remoteCurrentPath.replace(/\\$/, '').split('\\');
-    if (parts.length <= 1) {
-      remoteCurrentPath = '';
-    } else {
-      parts.pop();
-      remoteCurrentPath = parts.join('\\') + (parts.length === 1 ? '\\' : '');
-    }
-    requestBrowsePath(remoteCurrentPath);
+    requestBrowsePath(remoteParentPath);
   });
 
+  if (btnExpandExplorer) {
+    btnExpandExplorer.addEventListener('click', () => {
+      shelfDrawer.classList.remove('open');
+      switchView('files');
+    });
+  }
+
+  function getFileSvgIcon(item) {
+    if (item.is_dir) {
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent); vertical-align: middle; margin-right: 8px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    }
+    const ext = (item.ext || (item.name ? item.name.slice(item.name.lastIndexOf('.')).toLowerCase() : '')).toLowerCase();
+
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'].includes(ext)) {
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #38BDF8; vertical-align: middle; margin-right: 8px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+    }
+    if (['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.webm', '.flv'].includes(ext)) {
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #F43F5E; vertical-align: middle; margin-right: 8px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`;
+    }
+    if (['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'].includes(ext)) {
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #A855F7; vertical-align: middle; margin-right: 8px;"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+    }
+    if (['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.iso'].includes(ext)) {
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #EAB308; vertical-align: middle; margin-right: 8px;"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`;
+    }
+    if (['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.json', '.c', '.cpp', '.cs', '.java', '.go', '.rs', '.bat', '.ps1', '.sh', '.sql', '.yaml', '.yml'].includes(ext)) {
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #34D399; vertical-align: middle; margin-right: 8px;"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`;
+    }
+    if (['.txt', '.md', '.doc', '.docx', '.pdf', '.rtf', '.odt', '.csv', '.xlsx', '.xls'].includes(ext)) {
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #818CF8; vertical-align: middle; margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`;
+    }
+    return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-muted); vertical-align: middle; margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+  }
+
+  function formatDate(mtime) {
+    if (!mtime) return '—';
+    const d = new Date(mtime);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  // 1. Shelf Folder Browser (Drawer view)
   function renderFolderBrowser(data) {
     if (!data) return;
     remoteCurrentPath = data.current_path || '';
+    remoteParentPath = data.parent_path || '';
     currentFolderPath.textContent = remoteCurrentPath || 'Danh sách ổ đĩa';
 
     if (data.error) {
@@ -1422,9 +1532,7 @@
 
     remoteFolderList.innerHTML = data.items.map(item => {
       const isDir = item.is_dir;
-      const icon = isDir 
-        ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;display:inline-block;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-        : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;display:inline-block;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+      const icon = getFileSvgIcon(item);
       const sizeStr = isDir ? '' : ` (${formatBytes(item.size)})`;
       return `
         <div class="folder-item" data-path="${escapeHtml(item.path || item.name)}" data-isdir="${isDir}">
@@ -1450,10 +1558,412 @@
     });
   }
 
+  // 2. Full Dedicated File Explorer
+  function renderFullFileExplorer(data) {
+    if (!data) return;
+    remoteCurrentPath = data.current_path || '';
+    remoteParentPath = data.parent_path || '';
+    currentExplorerDrives = data.drives || [];
+    currentExplorerItems = data.items || [];
+
+    // Render Quick Drive Selector Pills
+    if (explorerDrivesRow) {
+      if (currentExplorerDrives.length > 0) {
+        explorerDrivesRow.innerHTML = currentExplorerDrives.map(d => {
+          const isAct = remoteCurrentPath.toLowerCase().startsWith(d.path.toLowerCase());
+          return `
+            <div class="drive-pill ${isAct ? 'active' : ''}" data-drive="${escapeHtml(d.path)}" title="${escapeHtml(d.name)} (${formatBytes(d.used)} / ${formatBytes(d.total)})">
+              <span>${escapeHtml(d.name)}</span>
+              <div class="drive-pill-bar"><div class="drive-pill-fill" style="width: ${d.percent || 0}%;"></div></div>
+              <span style="font-size: 0.7rem; color: var(--text-faint);">${d.total ? formatBytes(d.free) + ' trống' : ''}</span>
+            </div>
+          `;
+        }).join('');
+
+        explorerDrivesRow.querySelectorAll('.drive-pill').forEach(pill => {
+          pill.addEventListener('click', () => {
+            requestBrowsePath(pill.dataset.drive);
+          });
+        });
+      } else {
+        explorerDrivesRow.innerHTML = '';
+      }
+    }
+
+    // Render Breadcrumbs
+    renderBreadcrumbs(remoteCurrentPath);
+
+    // Render Items Table & Grid
+    filterAndRenderItems();
+  }
+
+  function renderBreadcrumbs(path) {
+    if (!explorerBreadcrumbs) return;
+
+    if (!path) {
+      explorerBreadcrumbs.innerHTML = `<span class="breadcrumb-item active"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg> Danh sách ổ đĩa</span>`;
+      return;
+    }
+
+    const segments = [];
+    segments.push({
+      name: 'Ổ đĩa',
+      path: '',
+      isHome: true
+    });
+
+    const isWindows = path.includes(':\\') || path.includes(':/');
+    if (isWindows) {
+      const parts = path.split(/[/\\]/).filter(Boolean);
+      if (parts.length > 0) {
+        const drive = parts[0];
+        segments.push({
+          name: drive.toUpperCase(),
+          path: drive + '\\'
+        });
+
+        let current = drive;
+        for (let i = 1; i < parts.length; i++) {
+          current += '\\' + parts[i];
+          segments.push({
+            name: parts[i],
+            path: current
+          });
+        }
+      }
+    } else {
+      const parts = path.split('/').filter(Boolean);
+      let current = '';
+      for (const part of parts) {
+        current += '/' + part;
+        segments.push({
+          name: part,
+          path: current
+        });
+      }
+    }
+
+    explorerBreadcrumbs.innerHTML = segments.map((seg, idx) => {
+      const isLast = idx === segments.length - 1;
+      const sep = idx > 0 ? '<span class="breadcrumb-sep">/</span>' : '';
+      if (seg.isHome) {
+        return `
+          <button class="breadcrumb-item" data-path="" title="Trang chủ ổ đĩa">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </button>
+        `;
+      }
+      return `
+        ${sep}
+        <button class="breadcrumb-item ${isLast ? 'active' : ''}" data-path="${escapeHtml(seg.path)}">
+          ${escapeHtml(seg.name)}
+        </button>
+      `;
+    }).join('');
+
+    explorerBreadcrumbs.querySelectorAll('.breadcrumb-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        requestBrowsePath(btn.dataset.path);
+      });
+    });
+  }
+
+  function filterAndRenderItems() {
+    if (!explorerTableBody) return;
+
+    const searchTerm = (explorerSearchInput?.value || '').trim().toLowerCase();
+    const filtered = currentExplorerItems.filter(item => {
+      if (!searchTerm) return true;
+      return item.name.toLowerCase().includes(searchTerm);
+    });
+
+    let totalDirs = 0;
+    let totalFiles = 0;
+    let totalSizeBytes = 0;
+
+    filtered.forEach(it => {
+      if (it.is_dir) {
+        totalDirs++;
+      } else {
+        totalFiles++;
+        totalSizeBytes += (it.size || 0);
+      }
+    });
+
+    if (expStatusCount) expStatusCount.textContent = `${filtered.length} mục (${totalDirs} thư mục, ${totalFiles} tệp)`;
+    if (expStatusSize) expStatusSize.textContent = `Tổng kích thước: ${formatBytes(totalSizeBytes)}`;
+
+    if (filtered.length === 0) {
+      explorerTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-faint); padding: 30px;">${searchTerm ? 'Không tìm thấy tệp phù hợp' : 'Thư mục trống'}</td></tr>`;
+      if (explorerGridContainer) explorerGridContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-faint); padding: 30px;">${searchTerm ? 'Không tìm thấy tệp phù hợp' : 'Thư mục trống'}</div>`;
+      return;
+    }
+
+    // Render Table (List view)
+    explorerTableBody.innerHTML = filtered.map(item => {
+      const isDir = item.is_dir;
+      const icon = getFileSvgIcon(item);
+      const sizeStr = isDir ? '—' : formatBytes(item.size);
+      const dateStr = formatDate(item.modified);
+      const itemPath = escapeHtml(item.path || item.name);
+
+      return `
+        <tr class="explorer-row" data-path="${itemPath}" data-isdir="${isDir}">
+          <td style="cursor: pointer;">
+            <div style="display: flex; align-items: center;">
+              ${icon}
+              <span class="file-name-text" style="font-weight: ${isDir ? '600' : '400'}; color: ${isDir ? 'var(--text)' : 'var(--text-muted)'};">${escapeHtml(item.name)}</span>
+            </div>
+          </td>
+          <td style="color: var(--text-faint);">${sizeStr}</td>
+          <td style="color: var(--text-faint); font-size: 0.75rem;">${dateStr}</td>
+          <td style="text-align: right;">
+            <div style="display: inline-flex; gap: 6px;">
+              ${!isDir ? `
+                <button class="btn-pill btn-action-dl" data-path="${itemPath}" title="Tải về máy tính" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--accent); color: var(--accent);">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Tải</span>
+                </button>
+              ` : ''}
+              <button class="btn-pill btn-action-del" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="Xóa" style="padding: 2px 8px; font-size: 0.7rem; border-color: #EF4444; color: #EF4444;">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>Xóa</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Render Grid Cards
+    if (explorerGridContainer) {
+      explorerGridContainer.innerHTML = filtered.map(item => {
+        const isDir = item.is_dir;
+        const icon = getFileSvgIcon(item);
+        const sizeStr = isDir ? 'Thư mục' : formatBytes(item.size);
+        const itemPath = escapeHtml(item.path || item.name);
+
+        return `
+          <div class="grid-item" data-path="${itemPath}" data-isdir="${isDir}" title="${escapeHtml(item.name)} (${sizeStr})">
+            <div class="grid-item-icon" style="transform: scale(1.6); margin-bottom: 12px;">${icon}</div>
+            <div class="grid-item-name">${escapeHtml(item.name)}</div>
+            <div class="grid-item-size">${sizeStr}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Bind Row Double-click & Click
+    explorerTableBody.querySelectorAll('.explorer-row').forEach(row => {
+      row.addEventListener('dblclick', () => {
+        const p = row.dataset.path;
+        const isDir = row.dataset.isdir === 'true';
+        if (isDir) {
+          requestBrowsePath(p);
+        } else {
+          ws.send(JSON.stringify({ type: 'file_download_request', filepath: p }));
+        }
+      });
+      row.querySelector('.file-name-text')?.addEventListener('click', (e) => {
+        const p = row.dataset.path;
+        const isDir = row.dataset.isdir === 'true';
+        if (isDir) {
+          requestBrowsePath(p);
+        }
+      });
+    });
+
+    explorerTableBody.querySelectorAll('.btn-action-dl').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ws.send(JSON.stringify({ type: 'file_download_request', filepath: btn.dataset.path }));
+      });
+    });
+
+    explorerTableBody.querySelectorAll('.btn-action-del').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const itemName = btn.dataset.name;
+        const itemPath = btn.dataset.path;
+        if (confirm(`Bạn có chắc chắn muốn xóa "${itemName}" trên máy trạm?`)) {
+          ws.send(JSON.stringify({ type: 'file_delete_request', filepath: itemPath }));
+        }
+      });
+    });
+
+    if (explorerGridContainer) {
+      explorerGridContainer.querySelectorAll('.grid-item').forEach(card => {
+        card.addEventListener('dblclick', () => {
+          const p = card.dataset.path;
+          const isDir = card.dataset.isdir === 'true';
+          if (isDir) {
+            requestBrowsePath(p);
+          } else {
+            ws.send(JSON.stringify({ type: 'file_download_request', filepath: p }));
+          }
+        });
+        card.addEventListener('click', () => {
+          const p = card.dataset.path;
+          const isDir = card.dataset.isdir === 'true';
+          if (isDir) {
+            requestBrowsePath(p);
+          }
+        });
+      });
+    }
+  }
+
+  // Bind Explorer Controls
+  if (btnExpUp) {
+    btnExpUp.addEventListener('click', () => {
+      if (remoteParentPath !== undefined) {
+        requestBrowsePath(remoteParentPath);
+      }
+    });
+  }
+
+  if (btnExpRefresh) {
+    btnExpRefresh.addEventListener('click', () => {
+      requestBrowsePath(remoteCurrentPath);
+    });
+  }
+
+  if (btnExpNewFolder) {
+    btnExpNewFolder.addEventListener('click', () => {
+      if (!remoteCurrentPath) {
+        showToast('Vui lòng chọn ổ đĩa trước khi tạo thư mục', 'info');
+        return;
+      }
+      const folderName = prompt('Nhập tên thư mục mới cần tạo trên máy trạm:');
+      if (folderName && folderName.trim()) {
+        ws.send(JSON.stringify({
+          type: 'file_create_folder_request',
+          parent_dir: remoteCurrentPath,
+          name: folderName.trim()
+        }));
+      }
+    });
+  }
+
+  if (btnExpUpload && expFileInput) {
+    btnExpUpload.addEventListener('click', () => {
+      if (!remoteCurrentPath) {
+        showToast('Vui lòng chọn ổ đĩa hoặc thư mục trước khi tải tệp lên', 'info');
+        return;
+      }
+      expFileInput.click();
+    });
+
+    expFileInput.addEventListener('change', () => {
+      if (!expFileInput.files || expFileInput.files.length === 0) return;
+      Array.from(expFileInput.files).forEach(file => {
+        uploadFileToHost(file, remoteCurrentPath);
+      });
+      expFileInput.value = '';
+    });
+  }
+
+  // Direct Path Input Toggling
+  if (btnTogglePathInput) {
+    btnTogglePathInput.addEventListener('click', () => {
+      const isHidden = explorerPathInputWrap.classList.contains('hidden');
+      if (isHidden) {
+        explorerPathInputWrap.classList.remove('hidden');
+        explorerBreadcrumbs.classList.add('hidden');
+        explorerDirectPathInput.value = remoteCurrentPath;
+        explorerDirectPathInput.focus();
+        explorerDirectPathInput.select();
+      } else {
+        explorerPathInputWrap.classList.add('hidden');
+        explorerBreadcrumbs.classList.remove('hidden');
+      }
+    });
+  }
+
+  if (btnGoDirectPath) {
+    btnGoDirectPath.addEventListener('click', () => {
+      const pathVal = explorerDirectPathInput.value.trim();
+      if (pathVal) {
+        requestBrowsePath(pathVal);
+        explorerPathInputWrap.classList.add('hidden');
+        explorerBreadcrumbs.classList.remove('hidden');
+      }
+    });
+  }
+
+  if (explorerDirectPathInput) {
+    explorerDirectPathInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const pathVal = explorerDirectPathInput.value.trim();
+        if (pathVal) {
+          requestBrowsePath(pathVal);
+          explorerPathInputWrap.classList.add('hidden');
+          explorerBreadcrumbs.classList.remove('hidden');
+        }
+      } else if (e.key === 'Escape') {
+        explorerPathInputWrap.classList.add('hidden');
+        explorerBreadcrumbs.classList.remove('hidden');
+      }
+    });
+  }
+
+  if (btnCancelDirectPath) {
+    btnCancelDirectPath.addEventListener('click', () => {
+      explorerPathInputWrap.classList.add('hidden');
+      explorerBreadcrumbs.classList.remove('hidden');
+    });
+  }
+
+  // Search Filter
+  if (explorerSearchInput) {
+    explorerSearchInput.addEventListener('input', () => {
+      filterAndRenderItems();
+    });
+  }
+
+  // View Mode: List vs Grid
+  if (btnModeList && btnModeGrid) {
+    btnModeList.addEventListener('click', () => {
+      explorerViewMode = 'list';
+      btnModeList.classList.add('on');
+      btnModeGrid.classList.remove('on');
+      explorerListContainer.classList.remove('hidden');
+      explorerGridContainer.classList.add('hidden');
+    });
+
+    btnModeGrid.addEventListener('click', () => {
+      explorerViewMode = 'grid';
+      btnModeGrid.classList.add('on');
+      btnModeList.classList.remove('on');
+      explorerListContainer.classList.add('hidden');
+      explorerGridContainer.classList.remove('hidden');
+    });
+  }
+
+  // Drag and drop onto Explorer
+  if (explorerDropTarget) {
+    explorerDropTarget.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      explorerDropTarget.classList.add('drag-over');
+    });
+    explorerDropTarget.addEventListener('dragleave', () => {
+      explorerDropTarget.classList.remove('drag-over');
+    });
+    explorerDropTarget.addEventListener('drop', (e) => {
+      e.preventDefault();
+      explorerDropTarget.classList.remove('drag-over');
+      if (e.dataTransfer && e.dataTransfer.files) {
+        Array.from(e.dataTransfer.files).forEach(f => {
+          uploadFileToHost(f, remoteCurrentPath);
+        });
+      }
+    });
+  }
+
   function formatBytes(bytes) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
