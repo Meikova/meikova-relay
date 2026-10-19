@@ -1,0 +1,173 @@
+import os
+import json
+import time
+import urllib.request
+import urllib.error
+import subprocess
+import unittest
+from pathlib import Path
+import websockets
+import asyncio
+
+class TestFullSystemE2E(unittest.IsolatedAsyncioTestCase):
+    server_process = None
+    port = "9005"
+    base_url = f"http://127.0.0.1:{port}"
+    ws_url = f"ws://127.0.0.1:{port}"
+
+    @classmethod
+    def setUpClass(cls):
+        server_path = str(Path(__file__).resolve().parent.parent / "relay-server" / "server.js")
+        env = dict(**dict(os.environ), PORT=cls.port)
+        cls.server_process = subprocess.Popen(
+            ["node", server_path],
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        time.sleep(1.5)
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.server_process:
+            cls.server_process.terminate()
+            cls.server_process.wait()
+
+    def test_01_static_assets_serving(self):
+        """Verifies Relay HTTP server serves web-client UI assets with 200 OK."""
+        assets = [
+            ("/", "text/html"),
+            ("/index.html", "text/html"),
+            ("/css/tokens.css", "text/css"),
+            ("/css/style.css", "text/css"),
+            ("/js/app.js", "application/javascript"),
+        ]
+        for path, expected_mime in assets:
+            req = urllib.request.Request(f"{self.base_url}{path}")
+            with urllib.request.urlopen(req) as resp:
+                self.assertEqual(resp.status, 200)
+                content_type = resp.headers.get("Content-Type", "")
+                self.assertIn(expected_mime, content_type)
+                body = resp.read()
+                self.assertGreater(len(body), 50)
+
+    def test_02_rest_api_auth_lifecycle(self):
+        """Tests user registration, login, and token session verification."""
+        username = f"admin_{int(time.time())}"
+        password = "EnterprisePassword!123"
+
+        # 1. Register
+        reg_data = json.dumps({"username": username, "password": password}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.base_url}/api/auth/register",
+            data=reg_data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 201)
+            res = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res.get("success"))
+            token = res.get("token")
+            self.assertIsNotNone(token)
+
+        # 2. Login
+        login_data = json.dumps({"username": username, "password": password}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.base_url}/api/auth/login",
+            data=login_data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            res = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res.get("success"))
+            new_token = res.get("token")
+            self.assertIsNotNone(new_token)
+
+        # 3. /api/auth/me using new_token
+        req = urllib.request.Request(
+            f"{self.base_url}/api/auth/me",
+            headers={"Authorization": f"Bearer {new_token}"}
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            res = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res.get("success"))
+            self.assertEqual(res["user"]["username"], username)
+
+    async def test_03_enterprise_features_over_relay(self):
+        """Simulates full host-client session: telemetry, terminal, file browse, power actions."""
+        room_id = f"ROOM-{int(time.time())}"
+        pin = "654321"
+
+        # Host connects
+        host_ws = await websockets.connect(self.ws_url)
+        await host_ws.send(json.dumps({
+            "type": "init_host",
+            "room_id": room_id,
+            "pin": pin,
+            "width": 1920,
+            "height": 1080,
+            "device_name": "Titan-Enterprise-Host",
+            "os_info": "Windows 11 x64",
+            "monitors": [{"id": 1, "name": "Primary", "width": 1920, "height": 1080}]
+        }))
+        host_ack = json.loads(await host_ws.recv())
+        self.assertEqual(host_ack.get("status"), "ok")
+
+        # Client connects
+        client_ws = await websockets.connect(self.ws_url)
+        await client_ws.send(json.dumps({
+            "type": "init_client",
+            "room_id": room_id,
+            "pin": pin
+        }))
+        client_ack = json.loads(await client_ws.recv())
+        self.assertEqual(client_ack.get("status"), "ok")
+
+        # Drain host's client_connected message
+        notif = json.loads(await host_ws.recv())
+        self.assertEqual(notif.get("type"), "client_connected")
+
+        # Test A: Telemetry Request -> Response
+        await client_ws.send(json.dumps({"type": "telemetry_request"}))
+        req = json.loads(await host_ws.recv())
+        self.assertEqual(req.get("type"), "telemetry_request")
+
+        # Host replies with telemetry
+        await host_ws.send(json.dumps({
+            "type": "telemetry_response",
+            "data": {"ram": {"used_gb": 8.5, "total_gb": 32.0, "percent": 26}}
+        }))
+        res = json.loads(await client_ws.recv())
+        self.assertEqual(res["type"], "telemetry_response")
+        self.assertEqual(res["data"]["ram"]["percent"], 26)
+
+        # Test B: Terminal Input -> Terminal Output
+        await client_ws.send(json.dumps({"type": "terminal_input", "command": "dir\n"}))
+        term_req = json.loads(await host_ws.recv())
+        self.assertEqual(term_req["command"], "dir\n")
+
+        await host_ws.send(json.dumps({"type": "terminal_output", "data": "Volume in drive C is OS\n"}))
+        term_res = json.loads(await client_ws.recv())
+        self.assertEqual(term_res["type"], "terminal_output")
+        self.assertIn("Volume in drive C", term_res["data"])
+
+        # Test C: File Browse Request -> Response
+        await client_ws.send(json.dumps({"type": "file_browse_request", "path": ""}))
+        browse_req = json.loads(await host_ws.recv())
+        self.assertEqual(browse_req["type"], "file_browse_request")
+
+        await host_ws.send(json.dumps({
+            "type": "file_browse_response",
+            "data": {"current_path": "", "items": [{"name": "C:\\", "is_dir": True, "size": 0}]}
+        }))
+        browse_res = json.loads(await client_ws.recv())
+        self.assertEqual(browse_res["type"], "file_browse_response")
+        self.assertEqual(len(browse_res["data"]["items"]), 1)
+
+        await client_ws.close()
+        await host_ws.close()
+
+if __name__ == "__main__":
+    unittest.main()
