@@ -169,5 +169,59 @@ class TestFullSystemE2E(unittest.IsolatedAsyncioTestCase):
         await client_ws.close()
         await host_ws.close()
 
+    async def test_04_google_auth_and_account_device_link(self):
+        """Tests Google OAuth JWT payload decoding, session creation, and host device auto-linking."""
+        import base64
+        email = f"google_user_{int(time.time())}@gmail.com"
+        header_b64 = base64.urlsafe_b64encode(b'{"alg":"RS256","typ":"JWT"}').decode().rstrip("=")
+        payload_json = json.dumps({"email": email, "name": "Google User", "sub": "12345"}).encode()
+        payload_b64 = base64.urlsafe_b64encode(payload_json).decode().rstrip("=")
+        mock_id_token = f"{header_b64}.{payload_b64}.mock_sig"
+
+        # 1. Google Auth endpoint
+        req_data = json.dumps({"credential": mock_id_token}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.base_url}/api/auth/google",
+            data=req_data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            res = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res.get("success"))
+            user_token = res.get("token")
+            self.assertEqual(res["user"]["username"], email)
+
+        # 2. Host Agent connects and links using account email
+        host_room = f"G-ROOM-{int(time.time())}"
+        host_ws = await websockets.connect(self.ws_url)
+        await host_ws.send(json.dumps({
+            "type": "init_host",
+            "room_id": host_room,
+            "pin": "888888",
+            "device_name": "Google-Linked-Workstation",
+            "account": email,
+            "width": 1920,
+            "height": 1080
+        }))
+        host_ack = json.loads(await host_ws.recv())
+        self.assertEqual(host_ack.get("status"), "ok")
+
+        # 3. Call GET /api/devices with Google user's token
+        req = urllib.request.Request(
+            f"{self.base_url}/api/devices",
+            headers={"Authorization": f"Bearer {user_token}"}
+        )
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(data.get("success"))
+            devices = data.get("devices", [])
+            self.assertGreaterEqual(len(devices), 1)
+            matched = any(d["room_id"] == host_room for d in devices)
+            self.assertTrue(matched)
+
+        await host_ws.close()
+
 if __name__ == "__main__":
     unittest.main()

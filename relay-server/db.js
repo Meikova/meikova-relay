@@ -98,6 +98,13 @@ const DB = {
     return stmt.get(token) || null;
   },
 
+  getUserByUsername(username) {
+    if (!username) return null;
+    const trimmedUser = String(username).trim().toLowerCase();
+    const stmt = db.prepare('SELECT id, username FROM users WHERE username = ?');
+    return stmt.get(trimmedUser) || null;
+  },
+
   // --- Device Management ---
   getDevices(userId) {
     const stmt = db.prepare(`
@@ -139,6 +146,31 @@ const DB = {
     const now = Date.now();
     const stmt = db.prepare('UPDATE devices SET is_online = ?, last_seen = ? WHERE room_id = ?');
     stmt.run(isOnline ? 1 : 0, now, roomId);
+  },
+
+  googleAuth(email, displayName) {
+    const trimmedEmail = String(email).trim().toLowerCase();
+    const stmt = db.prepare('SELECT id, username FROM users WHERE username = ?');
+    let user = stmt.get(trimmedEmail);
+    
+    if (!user) {
+      // Auto-register Google user with random password
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = hashPassword(crypto.randomBytes(32).toString('hex'), salt);
+      const userId = crypto.randomUUID();
+      const now = Date.now();
+      const insertStmt = db.prepare('INSERT INTO users (id, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)');
+      insertStmt.run(userId, trimmedEmail, hash, salt, now);
+      user = { id: userId, username: trimmedEmail };
+    }
+    
+    // Create session
+    const token = crypto.randomBytes(32).toString('hex');
+    const now = Date.now();
+    const sessStmt = db.prepare('INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)');
+    sessStmt.run(token, user.id, now);
+    
+    return { token, user: { id: user.id, username: user.username, displayName: displayName || user.username } };
   }
 };
 

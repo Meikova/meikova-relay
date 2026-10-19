@@ -20,7 +20,7 @@ class TitanHostGUI:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Titan Remote - Host Control Panel")
-        self.root.geometry("480x560")
+        self.root.geometry("480x620")
         self.root.resizable(False, False)
         self.root.configure(bg="#0B0F19")
 
@@ -38,6 +38,7 @@ class TitanHostGUI:
     def _load_config(self):
         self.config = {
             "relay": "wss://titan-remote.onrender.com",
+            "account": "",
             "device_name": "Workstation-Office",
             "room_id": "RD-8888",
             "pin": "123456"
@@ -96,12 +97,14 @@ class TitanHostGUI:
         self.status_label.pack(side="left")
 
         # Inputs
-        self.relay_var = tk.StringVar(value=self.config["relay"])
-        self.name_var = tk.StringVar(value=self.config["device_name"])
-        self.room_var = tk.StringVar(value=self.config["room_id"])
-        self.pin_var = tk.StringVar(value=self.config["pin"])
+        self.relay_var = tk.StringVar(value=self.config.get("relay", "wss://titan-remote.onrender.com"))
+        self.account_var = tk.StringVar(value=self.config.get("account", ""))
+        self.name_var = tk.StringVar(value=self.config.get("device_name", "Workstation"))
+        self.room_var = tk.StringVar(value=self.config.get("room_id", "RD-8888"))
+        self.pin_var = tk.StringVar(value=self.config.get("pin", "123456"))
 
         self._create_field(card, "Relay Server URL:", self.relay_var)
+        self._create_field(card, "Tài khoản liên kết (Email / Username Web):", self.account_var)
         self._create_field(card, "Tên máy hiển thị (Device Name):", self.name_var)
 
         row2 = tk.Frame(card, bg="#111827")
@@ -243,6 +246,7 @@ class TitanHostGUI:
 
     def _start_service(self):
         self.config["relay"] = self.relay_var.get().strip()
+        self.config["account"] = self.account_var.get().strip()
         self.config["device_name"] = self.name_var.get().strip()
         self.config["room_id"] = self.room_var.get().strip()
         self.config["pin"] = self.pin_var.get().strip()
@@ -252,7 +256,8 @@ class TitanHostGUI:
             relay_url=self.config["relay"],
             room_id=self.config["room_id"],
             pin=self.config["pin"],
-            device_name=self.config["device_name"]
+            device_name=self.config["device_name"],
+            account=self.config["account"]
         )
 
         def runner():

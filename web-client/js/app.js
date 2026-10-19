@@ -49,11 +49,9 @@
   const monitorSelector = document.getElementById('monitorSelector');
   const qualitySelector = document.getElementById('qualitySelector');
   const btnScaleToggle = document.getElementById('btnScaleToggle');
-  const scaleLabel = document.getElementById('scaleLabel');
   const btnFullscreen = document.getElementById('btnFullscreen');
   const btnToggleLaser = document.getElementById('btnToggleLaser');
   const btnRecord = document.getElementById('btnRecord');
-  const recordLabel = document.getElementById('recordLabel');
   const btnScreenshot = document.getElementById('btnScreenshot');
   const btnToggleOSK = document.getElementById('btnToggleOSK');
   const oskOverlay = document.getElementById('oskOverlay');
@@ -220,6 +218,56 @@
     }
   }
 
+  // --- GOOGLE SIGN-IN (GIS) ---
+  const GOOGLE_CLIENT_ID = '252846031545-sjt92eekdgq26vvlehmvji4o9sqs0er8.apps.googleusercontent.com';
+
+  function initGoogleSignIn() {
+    if (typeof google === 'undefined' || !google.accounts) {
+      setTimeout(initGoogleSignIn, 500);
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredentialResponse,
+      auto_select: false
+    });
+    const container = document.getElementById('googleSignInBtn');
+    if (container) {
+      google.accounts.id.renderButton(container, {
+        theme: 'filled_black',
+        size: 'large',
+        shape: 'pill',
+        width: 300,
+        text: 'signin_with',
+        locale: 'vi'
+      });
+    }
+  }
+
+  async function handleGoogleCredentialResponse(response) {
+    try {
+      const res = await apiFetch('/api/auth/google', 'POST', {
+        credential: response.credential
+      });
+      if (res.success && res.token) {
+        authToken = res.token;
+        localStorage.setItem('titan_token', authToken);
+        currentUser = res.user;
+        renderUserBadge();
+        switchView('dashboard');
+        loadDeviceFleet();
+      } else {
+        authError.textContent = res.message || 'Google đăng nhập thất bại';
+        authError.classList.remove('hidden');
+      }
+    } catch (err) {
+      authError.textContent = `Lỗi: ${err.message}`;
+      authError.classList.remove('hidden');
+    }
+  }
+
+  initGoogleSignIn();
+
   function switchView(view) {
     currentView = view;
     authSection.classList.add('hidden');
@@ -263,10 +311,15 @@
     if (!btn) return;
     const view = btn.dataset.view;
     if (view === 'shelf') {
+      if (!authToken || !currentUser) { switchView('auth'); return; }
       shelfDrawer.classList.toggle('open');
       if (shelfDrawer.classList.contains('open') && isConnected) {
         requestBrowsePath(remoteCurrentPath);
       }
+      return;
+    }
+    if (view !== 'auth' && (!authToken || !currentUser)) {
+      switchView('auth');
       return;
     }
     switchView(view);
@@ -596,7 +649,8 @@
   btnScaleToggle.addEventListener('click', () => {
     isFitMode = !isFitMode;
     remoteSection.classList.toggle('fit-mode', isFitMode);
-    scaleLabel.textContent = isFitMode ? 'Fit' : '1:1';
+    document.getElementById('scaleSvgFit')?.classList.toggle('hidden', !isFitMode);
+    document.getElementById('scaleSvg1to1')?.classList.toggle('hidden', isFitMode);
     scale = 1.0;
     panX = 0;
     panY = 0;
@@ -788,7 +842,7 @@
       mediaRecorder.start();
       isRecording = true;
       btnRecord.classList.add('btn-active');
-      recordLabel.textContent = 'Đang ghi...';
+      btnRecord.title = 'Đang ghi hình...';
     } catch (err) {
       alert(`Không thể bắt đầu ghi hình: ${err.message}`);
     }
@@ -799,7 +853,7 @@
       mediaRecorder.stop();
       isRecording = false;
       btnRecord.classList.remove('btn-active');
-      recordLabel.textContent = 'Ghi';
+      btnRecord.title = 'Ghi hình phiên làm việc';
     }
   }
 
@@ -1191,11 +1245,13 @@
 
     remoteFolderList.innerHTML = data.items.map(item => {
       const isDir = item.is_dir;
-      const icon = isDir ? '📁' : '📄';
+      const icon = isDir 
+        ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;display:inline-block;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;display:inline-block;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
       const sizeStr = isDir ? '' : ` (${formatBytes(item.size)})`;
       return `
         <div class="folder-item" data-path="${escapeHtml(item.path || item.name)}" data-isdir="${isDir}">
-          <span>${icon} ${escapeHtml(item.name)}${sizeStr}</span>
+          <span style="display:flex;align-items:center;">${icon} ${escapeHtml(item.name)}${sizeStr}</span>
           <span>${isDir ? '→' : '⇣ Tải'}</span>
         </div>
       `;

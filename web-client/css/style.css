@@ -350,6 +350,29 @@ button:active {
   text-align: center;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: var(--text-faint);
+  font-size: var(--step--1);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.google-btn-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
 /* ------------------------------------------------------------------ VIEW 2: DASHBOARD */
 .dashboard-container {
   padding: 60px 48px 40px;

@@ -81,6 +81,31 @@ const server = http.createServer(async (req, res) => {
       return jsonResponse(res, 200, { success: true, token: auth.token, user: auth.user });
     }
 
+    // 2.5 Auth: Google Sign-In
+    if (pathname === '/api/auth/google' && req.method === 'POST') {
+      const { credential } = await parseBody(req);
+      if (!credential) {
+        return jsonResponse(res, 400, { success: false, message: 'Missing Google credential' });
+      }
+      try {
+        // Decode JWT payload (Google ID token is a standard JWT)
+        const parts = credential.split('.');
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+        const email = payload.email;
+        const name = payload.name || email.split('@')[0];
+        
+        if (!email) {
+          return jsonResponse(res, 400, { success: false, message: 'Token không hợp lệ' });
+        }
+        
+        // Auto-register or login by email
+        const auth = DB.googleAuth(email, name);
+        return jsonResponse(res, 200, { success: true, token: auth.token, user: auth.user });
+      } catch (err) {
+        return jsonResponse(res, 400, { success: false, message: 'Google token không hợp lệ: ' + err.message });
+      }
+    }
+
     // Auth Middleware for protected endpoints
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
@@ -225,8 +250,16 @@ wss.on('connection', (ws) => {
       };
 
       // Register device in DB
+      let targetUserId = data.user_id || null;
+      if (!targetUserId && (data.account || data.user_email)) {
+        const matchedUser = DB.getUserByUsername(data.account || data.user_email);
+        if (matchedUser) {
+          targetUserId = matchedUser.id;
+        }
+      }
+
       DB.upsertDevice({
-        userId: data.user_id || null,
+        userId: targetUserId,
         deviceName: room.hostMeta.deviceName,
         roomId: roomId,
         pin: pin,

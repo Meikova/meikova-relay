@@ -32,11 +32,12 @@ logger = logging.getLogger("HostAgent")
 class HostService:
     """Manages outbound WebSocket connection to Relay Server and streams desktop + handles all remote events."""
 
-    def __init__(self, relay_url: str, room_id: str, pin: str, device_name: str = "Workstation", fps: int = 25, quality: int = 65):
+    def __init__(self, relay_url: str, room_id: str, pin: str, device_name: str = "Workstation", account: str = "", fps: int = 25, quality: int = 65):
         self.relay_url = relay_url
         self.room_id = room_id
         self.pin = pin
         self.device_name = device_name
+        self.account = account
         self.fps = fps
         self.frame_interval = 1.0 / max(1, fps)
         self.quality = quality
@@ -352,6 +353,7 @@ class HostService:
                         "width": w,
                         "height": h,
                         "device_name": self.device_name,
+                        "account": self.account,
                         "os_info": "Windows 11 x64",
                         "monitors": self.capture.monitors
                     })
@@ -389,6 +391,7 @@ def main():
     parser.add_argument("--room", default="RD-8888", help="Room ID / Session Code")
     parser.add_argument("--pin", default="123456", help="Security PIN")
     parser.add_argument("--name", default="Workstation-PC", help="Device Name")
+    parser.add_argument("--account", default="", help="Linked user account (email or username)")
     parser.add_argument("--fps", type=int, default=25, help="Target capture FPS")
     parser.add_argument("--quality", type=int, default=65, help="JPEG quality 1-100")
 
@@ -398,6 +401,7 @@ def main():
         room_id=args.room,
         pin=args.pin,
         device_name=args.name,
+        account=args.account,
         fps=args.fps,
         quality=args.quality
     )
