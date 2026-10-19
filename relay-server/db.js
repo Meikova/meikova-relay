@@ -34,6 +34,24 @@ db.exec(`
     created_at INTEGER NOT NULL,
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
+
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    timestamp INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    user_id TEXT,
+    username TEXT,
+    client_ip TEXT NOT NULL,
+    client_device TEXT,
+    room_id TEXT,
+    target_device TEXT,
+    target_os TEXT,
+    details TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_logs(timestamp DESC);
+  CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
+  CREATE INDEX IF NOT EXISTS idx_audit_room ON audit_logs(room_id);
 `);
 
 function hashPassword(password, salt) {
@@ -171,6 +189,72 @@ const DB = {
     sessStmt.run(token, user.id, now);
     
     return { token, user: { id: user.id, username: user.username, displayName: displayName || user.username } };
+  },
+
+  // --- Audit Logging ---
+  logAudit({ action, userId, username, clientIp, clientDevice, roomId, targetDevice, targetOs, details }) {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    const detailsStr = typeof details === 'object' ? JSON.stringify(details) : (details ? String(details) : '{}');
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO audit_logs (id, timestamp, action, user_id, username, client_ip, client_device, room_id, target_device, target_os, details)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        id,
+        now,
+        String(action || 'UNKNOWN'),
+        userId || null,
+        username || 'Khách (Ẩn danh)',
+        String(clientIp || '127.0.0.1'),
+        String(clientDevice || 'Unknown'),
+        roomId || null,
+        targetDevice || null,
+        targetOs || null,
+        detailsStr
+      );
+      return id;
+    } catch (err) {
+      console.error('[DB Audit Error]:', err.message);
+      return null;
+    }
+  },
+
+  getAuditLogs({ limit = 50, offset = 0, action = null, roomId = null, search = null } = {}) {
+    let whereClauses = [];
+    let params = [];
+
+    if (action && action !== 'all') {
+      whereClauses.push('action = ?');
+      params.push(action);
+    }
+    if (roomId) {
+      whereClauses.push('room_id = ?');
+      params.push(roomId);
+    }
+    if (search && search.trim()) {
+      whereClauses.push('(username LIKE ? OR client_ip LIKE ? OR client_device LIKE ? OR target_device LIKE ? OR room_id LIKE ? OR details LIKE ?)');
+      const s = `%${search.trim()}%`;
+      params.push(s, s, s, s, s, s);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const countStmt = db.prepare(`SELECT COUNT(*) as count FROM audit_logs ${whereSql}`);
+    const countRow = countStmt.get(...params);
+    const total = countRow ? countRow.count : 0;
+
+    const queryStmt = db.prepare(`
+      SELECT id, timestamp, action, user_id, username, client_ip, client_device, room_id, target_device, target_os, details
+      FROM audit_logs
+      ${whereSql}
+      ORDER BY timestamp DESC
+      LIMIT ? OFFSET ?
+    `);
+    const logs = queryStmt.all(...params, Math.min(Number(limit) || 50, 500), Math.max(Number(offset) || 0, 0));
+
+    return { logs, total };
   }
 };
 

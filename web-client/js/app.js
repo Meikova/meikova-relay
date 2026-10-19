@@ -179,6 +179,18 @@
   const diskCSub = document.getElementById('diskCSub');
   const processSearchInput = document.getElementById('processSearchInput');
   const processTableBody = document.getElementById('processTableBody');
+  
+  // --- Audit View DOM ---
+  const auditSection = document.getElementById('auditSection');
+  const auditTableBody = document.getElementById('auditTableBody');
+  const auditSearchInput = document.getElementById('auditSearchInput');
+  const auditActionFilter = document.getElementById('auditActionFilter');
+  const btnRefreshAudit = document.getElementById('btnRefreshAudit');
+  const btnExportAuditCsv = document.getElementById('btnExportAuditCsv');
+  const btnAuditPrev = document.getElementById('btnAuditPrev');
+  const btnAuditNext = document.getElementById('btnAuditNext');
+  const auditPageSummary = document.getElementById('auditPageSummary');
+  const auditPageIndicator = document.getElementById('auditPageIndicator');
 
   // --- Shelf Drawer DOM ---
   const shelfTabs = document.getElementById('shelfTabs');
@@ -252,6 +264,12 @@
   let remoteCurrentPath = '';
   let activeDownloads = {};
 
+  // Audit State
+  let auditPage = 0;
+  const auditLimit = 25;
+  let auditTotal = 0;
+  let auditSearchDebounce = null;
+
   // Key code mapping
   const JS_TO_VK = {
     Backspace: 0x08, Tab: 0x09, Clear: 0x0C, Enter: 0x0D, NumpadEnter: 0x0D,
@@ -315,6 +333,7 @@
     else if (rawPath === 'files') view = 'files';
     else if (rawPath === 'terminal') view = 'terminal';
     else if (rawPath === 'tasks') view = 'tasks';
+    else if (rawPath === 'audit' || rawPath === 'audit-logs') view = 'audit';
     else if (rawPath === 'dashboard' || rawPath === '') view = 'dashboard';
 
     return {
@@ -510,6 +529,7 @@
     terminalSection.classList.add('hidden');
     tasksSection.classList.add('hidden');
     filesSection.classList.add('hidden');
+    auditSection.classList.add('hidden');
 
     mainNav.querySelectorAll('button').forEach(btn => {
       const isTarget = btn.dataset.view === view;
@@ -541,6 +561,10 @@
       tasksSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TIẾN TRÌNH` : 'CHƯA KẾT NỐI';
       if (isConnected) requestTelemetryAndTasks();
+    } else if (view === 'audit') {
+      auditSection.classList.remove('hidden');
+      roStatus.textContent = isConnected ? `${currentRoom} // NHẬT KÝ KIỂM TOÁN` : 'NHẬT KÝ KIỂM TOÁN (AUDIT)';
+      loadAuditLogs();
     }
 
     if (updateUrl) {
@@ -760,7 +784,9 @@
       ws.send(JSON.stringify({
         type: 'init_client',
         room_id: roomId,
-        pin: pin
+        pin: pin,
+        token: authToken || '',
+        username: currentUser ? currentUser.username : 'Khách'
       }));
     };
 
@@ -2647,6 +2673,236 @@
       bytes[i] = binary.charCodeAt(i);
     }
     return bytes.buffer;
+  }
+
+  // --- AUDIT LOGS MANAGEMENT ---
+  async function loadAuditLogs() {
+    if (!authToken) {
+      if (auditTableBody) {
+        auditTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-faint); padding: 24px;">Vui lòng đăng nhập để xem nhật ký kiểm toán</td></tr>';
+      }
+      return;
+    }
+
+    const action = auditActionFilter ? auditActionFilter.value : 'all';
+    const search = auditSearchInput ? auditSearchInput.value.trim() : '';
+    const offset = auditPage * auditLimit;
+
+    const params = new URLSearchParams({
+      limit: auditLimit,
+      offset: offset
+    });
+    if (action && action !== 'all') params.set('action', action);
+    if (search) params.set('search', search);
+
+    try {
+      const res = await apiFetch(`/api/audit-logs?${params.toString()}`);
+      if (res && res.success) {
+        auditTotal = res.total || 0;
+        renderAuditLogs(res.logs || [], auditTotal);
+      } else {
+        showToast(res.message || 'Không thể tải nhật ký', 'error');
+      }
+    } catch (err) {
+      showToast(`Lỗi tải nhật ký: ${err.message}`, 'error');
+    }
+  }
+
+  function getActionBadge(action) {
+    let color = '#94A3B8';
+    let bg = 'rgba(148, 163, 184, 0.12)';
+    let text = action;
+
+    switch (action) {
+      case 'SESSION_CONNECTED':
+        color = '#22C55E'; bg = 'rgba(34, 197, 94, 0.15)'; text = 'KẾT NỐI PHIÊN'; break;
+      case 'SESSION_DISCONNECTED':
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'NGẮT KẾT NỐI'; break;
+      case 'CONNECT_PIN_FAILED':
+        color = '#F43F5E'; bg = 'rgba(244, 63, 94, 0.15)'; text = 'SAI MÃ PIN'; break;
+      case 'HOST_ONLINE':
+        color = '#38BDF8'; bg = 'rgba(56, 189, 248, 0.15)'; text = 'TRẠM ONLINE'; break;
+      case 'HOST_OFFLINE':
+        color = '#64748B'; bg = 'rgba(100, 116, 139, 0.15)'; text = 'TRẠM OFFLINE'; break;
+      case 'CMD_EXEC':
+        color = '#38BDF8'; bg = 'rgba(56, 189, 248, 0.15)'; text = 'LỆNH CMD'; break;
+      case 'FILE_BROWSE':
+        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = 'XEM THƯ MỤC'; break;
+      case 'FILE_DOWNLOAD':
+        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = 'TẢI FILE VỀ'; break;
+      case 'FILE_UPLOAD':
+        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = 'TẢI FILE LÊN'; break;
+      case 'FILE_DELETE':
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'XÓA TỆP'; break;
+      case 'FILE_MKDIR':
+        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = 'TẠO THƯ MỤC'; break;
+      case 'PROCESS_KILL':
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'DỪNG TIẾN TRÌNH'; break;
+      case 'POWER_ACTION':
+        color = '#F59E0B'; bg = 'rgba(245, 158, 11, 0.15)'; text = 'NGUỒN / KHÓA'; break;
+      case 'BLOCK_INPUT':
+        color = '#EAB308'; bg = 'rgba(234, 179, 8, 0.15)'; text = 'KHÓA THAO TÁC'; break;
+      case 'CLIPBOARD_SYNC':
+        color = '#06B6D4'; bg = 'rgba(6, 182, 212, 0.15)'; text = 'CLIPBOARD'; break;
+      case 'AUTH_LOGIN':
+        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = 'ĐĂNG NHẬP'; break;
+      case 'AUTH_LOGIN_FAILED':
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'ĐĂNG NHẬP LỖI'; break;
+      case 'AUTH_REGISTER':
+        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = 'ĐĂNG KÝ'; break;
+      case 'DEVICE_LINKED':
+        color = '#38BDF8'; bg = 'rgba(56, 189, 248, 0.15)'; text = 'LIÊN KẾT TRẠM'; break;
+    }
+
+    return `<span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: ${color}; background: ${bg}; border: 1px solid ${color}40;">${text}</span>`;
+  }
+
+  function formatAuditDetails(action, detailsStr) {
+    if (!detailsStr) return '--';
+    let d;
+    try {
+      d = typeof detailsStr === 'object' ? detailsStr : JSON.parse(detailsStr);
+    } catch {
+      return escapeHtml(String(detailsStr));
+    }
+
+    if (action === 'CMD_EXEC') {
+      return `<code style="color: var(--accent); background: var(--ink-2); padding: 2px 6px; border-radius: 4px;">${escapeHtml(d.command || '')}</code>`;
+    }
+    if (action === 'FILE_BROWSE') {
+      return `Thư mục: <code style="color: var(--text);">${escapeHtml(d.path || '')}</code>`;
+    }
+    if (action === 'FILE_DOWNLOAD') {
+      return `Tệp: <strong style="color: var(--text);">${escapeHtml(d.filename || '')}</strong> (${escapeHtml(d.path || '')})`;
+    }
+    if (action === 'FILE_UPLOAD') {
+      return `Tệp: <strong style="color: var(--text);">${escapeHtml(d.filename || '')}</strong> (${formatBytes(d.size || 0)}) → ${escapeHtml(d.path || '')}`;
+    }
+    if (action === 'FILE_DELETE') {
+      return `Đã xóa: <code style="color: #EF4444;">${escapeHtml(d.path || '')}</code>`;
+    }
+    if (action === 'PROCESS_KILL') {
+      return `PID: <strong>${d.pid}</strong> (${escapeHtml(d.name || '')})`;
+    }
+    if (action === 'POWER_ACTION') {
+      return `Hành động: <strong>${escapeHtml(d.action || '')}</strong>`;
+    }
+    if (action === 'BLOCK_INPUT') {
+      return `Trạng thái: <strong>${d.blocked ? 'Đã khóa chuột/phím' : 'Đã mở khóa'}</strong>`;
+    }
+    if (action === 'SESSION_DISCONNECTED') {
+      return `Thời lượng phiên: <strong>${escapeHtml(d.durationText || (d.durationSec + 's'))}</strong>`;
+    }
+
+    const items = Object.entries(d).map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(String(v))}`);
+    return items.join(' | ') || '--';
+  }
+
+  function renderAuditLogs(logs, total) {
+    if (!auditTableBody) return;
+    if (!logs || logs.length === 0) {
+      auditTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-faint); padding: 24px;">Không tìm thấy bản ghi nhật ký phù hợp</td></tr>';
+      if (auditPageSummary) auditPageSummary.textContent = 'Hiển thị 0 / 0 bản ghi';
+      if (btnAuditPrev) btnAuditPrev.disabled = true;
+      if (btnAuditNext) btnAuditNext.disabled = true;
+      if (auditPageIndicator) auditPageIndicator.textContent = '1 / 1';
+      return;
+    }
+
+    const totalPages = Math.ceil(total / auditLimit) || 1;
+    const startIdx = auditPage * auditLimit + 1;
+    const endIdx = Math.min((auditPage + 1) * auditLimit, total);
+    if (auditPageSummary) auditPageSummary.textContent = `Hiển thị ${startIdx} - ${endIdx} / ${total} bản ghi`;
+    if (auditPageIndicator) auditPageIndicator.textContent = `${auditPage + 1} / ${totalPages}`;
+
+    if (btnAuditPrev) btnAuditPrev.disabled = auditPage <= 0;
+    if (btnAuditNext) btnAuditNext.disabled = auditPage >= totalPages - 1;
+
+    auditTableBody.innerHTML = logs.map(l => {
+      const dt = new Date(l.timestamp);
+      const timeStr = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}:${String(dt.getSeconds()).padStart(2, '0')}`;
+      const actionBadge = getActionBadge(l.action);
+      const userDisplay = escapeHtml(l.username || 'Ẩn danh');
+      const ipDisplay = escapeHtml(l.client_ip || '127.0.0.1');
+      const deviceDisplay = escapeHtml(l.client_device || 'Unknown');
+      const targetDisplay = l.room_id
+        ? `<strong style="color: var(--accent);">${escapeHtml(l.target_device || 'Workstation')}</strong><br><span style="color: var(--text-faint); font-size: 0.7rem;">${escapeHtml(l.room_id)} (${escapeHtml(l.target_os || 'Win')})</span>`
+        : '<span style="color: var(--text-faint);">--</span>';
+      const detailsHtml = formatAuditDetails(l.action, l.details);
+
+      return `
+        <tr>
+          <td style="color: var(--text-muted); font-size: 0.75rem;">${timeStr}</td>
+          <td>${actionBadge}</td>
+          <td>
+            <strong style="color: var(--text);">${userDisplay}</strong>
+            <div style="font-size: 0.7rem; color: var(--accent); font-family: var(--font-mono);">${ipDisplay}</div>
+            <div style="font-size: 0.68rem; color: var(--text-muted);">${deviceDisplay}</div>
+          </td>
+          <td>${targetDisplay}</td>
+          <td style="font-size: 0.75rem; word-break: break-all;">${detailsHtml}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  if (btnRefreshAudit) {
+    btnRefreshAudit.addEventListener('click', () => {
+      loadAuditLogs();
+      showToast('Đã làm mới nhật ký kiểm toán', 'info');
+    });
+  }
+
+  if (btnExportAuditCsv) {
+    btnExportAuditCsv.addEventListener('click', () => {
+      const action = auditActionFilter ? auditActionFilter.value : 'all';
+      const search = auditSearchInput ? auditSearchInput.value.trim() : '';
+      const params = new URLSearchParams({ format: 'csv' });
+      if (action && action !== 'all') params.set('action', action);
+      if (search) params.set('search', search);
+
+      const downloadUrl = `/api/audit-logs/export?${params.toString()}`;
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `titan-audit-logs-${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('Đang tải tệp CSV nhật ký...', 'success');
+    });
+  }
+
+  if (btnAuditPrev) {
+    btnAuditPrev.addEventListener('click', () => {
+      if (auditPage > 0) {
+        auditPage--;
+        loadAuditLogs();
+      }
+    });
+  }
+
+  if (btnAuditNext) {
+    btnAuditNext.addEventListener('click', () => {
+      auditPage++;
+      loadAuditLogs();
+    });
+  }
+
+  if (auditActionFilter) {
+    auditActionFilter.addEventListener('change', () => {
+      auditPage = 0;
+      loadAuditLogs();
+    });
+  }
+
+  if (auditSearchInput) {
+    auditSearchInput.addEventListener('input', () => {
+      clearTimeout(auditSearchDebounce);
+      auditSearchDebounce = setTimeout(() => {
+        auditPage = 0;
+        loadAuditLogs();
+      }, 300);
+    });
   }
 
   // Start app

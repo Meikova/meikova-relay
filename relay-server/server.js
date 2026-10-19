@@ -18,6 +18,42 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
+function getClientIp(req) {
+  if (!req) return '127.0.0.1';
+  const fwd = req.headers['x-forwarded-for'];
+  if (fwd) {
+    const parts = fwd.split(',').map(s => s.trim());
+    if (parts.length > 0 && parts[0]) return parts[0].replace(/^::ffff:/, '');
+  }
+  const realIp = req.headers['x-real-ip'];
+  if (realIp) return realIp.replace(/^::ffff:/, '');
+  const addr = req.socket?.remoteAddress || req.connection?.remoteAddress || '127.0.0.1';
+  return addr.replace(/^::ffff:/, '');
+}
+
+function parseClientDevice(ua) {
+  if (!ua) return 'Không xác định';
+  let os = 'Khác';
+  if (/windows nt 10/i.test(ua)) os = 'Windows 10/11';
+  else if (/windows nt 6\.3/i.test(ua)) os = 'Windows 8.1';
+  else if (/windows nt 6\.1/i.test(ua)) os = 'Windows 7';
+  else if (/windows/i.test(ua)) os = 'Windows';
+  else if (/iphone/i.test(ua)) os = 'iPhone iOS';
+  else if (/ipad/i.test(ua)) os = 'iPadOS';
+  else if (/macintosh|mac os x/i.test(ua)) os = 'macOS';
+  else if (/android/i.test(ua)) os = 'Android';
+  else if (/linux/i.test(ua)) os = 'Linux';
+
+  let browser = 'Browser';
+  if (/edg/i.test(ua)) browser = 'Edge';
+  else if (/opr|opera/i.test(ua)) browser = 'Opera';
+  else if (/chrome|crios/i.test(ua)) browser = 'Chrome';
+  else if (/firefox|fxios/i.test(ua)) browser = 'Firefox';
+  else if (/safari/i.test(ua)) browser = 'Safari';
+
+  return `${os} // ${browser}`;
+}
+
 function parseBody(req) {
   return new Promise((resolve) => {
     let body = '';
@@ -62,11 +98,28 @@ const server = http.createServer(async (req, res) => {
     // 1. Auth: Register
     if (pathname === '/api/auth/register' && req.method === 'POST') {
       const { username, password } = await parseBody(req);
+      const clientIp = getClientIp(req);
+      const clientDevice = parseClientDevice(req.headers['user-agent']);
       try {
         const user = DB.registerUser(username, password);
         const auth = DB.authenticateUser(username, password);
+        DB.logAudit({
+          action: 'AUTH_REGISTER',
+          userId: user.id,
+          username: user.username,
+          clientIp,
+          clientDevice,
+          details: { status: 'success' }
+        });
         return jsonResponse(res, 201, { success: true, token: auth.token, user: auth.user });
       } catch (err) {
+        DB.logAudit({
+          action: 'AUTH_REGISTER_FAILED',
+          username: username || 'Unknown',
+          clientIp,
+          clientDevice,
+          details: { status: 'failed', reason: err.message }
+        });
         return jsonResponse(res, 400, { success: false, message: err.message });
       }
     }
@@ -74,16 +127,35 @@ const server = http.createServer(async (req, res) => {
     // 2. Auth: Login
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       const { username, password } = await parseBody(req);
+      const clientIp = getClientIp(req);
+      const clientDevice = parseClientDevice(req.headers['user-agent']);
       const auth = DB.authenticateUser(username, password);
       if (!auth) {
+        DB.logAudit({
+          action: 'AUTH_LOGIN_FAILED',
+          username: username || 'Unknown',
+          clientIp,
+          clientDevice,
+          details: { status: 'failed', reason: 'Sai tên đăng nhập hoặc mật khẩu' }
+        });
         return jsonResponse(res, 401, { success: false, message: 'Sai tên đăng nhập hoặc mật khẩu' });
       }
+      DB.logAudit({
+        action: 'AUTH_LOGIN',
+        userId: auth.user.id,
+        username: auth.user.username,
+        clientIp,
+        clientDevice,
+        details: { status: 'success', method: 'password' }
+      });
       return jsonResponse(res, 200, { success: true, token: auth.token, user: auth.user });
     }
 
     // 2.5 Auth: Google Sign-In
     if (pathname === '/api/auth/google' && req.method === 'POST') {
       const { credential } = await parseBody(req);
+      const clientIp = getClientIp(req);
+      const clientDevice = parseClientDevice(req.headers['user-agent']);
       if (!credential) {
         return jsonResponse(res, 400, { success: false, message: 'Missing Google credential' });
       }
@@ -100,6 +172,14 @@ const server = http.createServer(async (req, res) => {
         
         // Auto-register or login by email
         const auth = DB.googleAuth(email, name);
+        DB.logAudit({
+          action: 'AUTH_GOOGLE',
+          userId: auth.user.id,
+          username: auth.user.username,
+          clientIp,
+          clientDevice,
+          details: { status: 'success', email }
+        });
         return jsonResponse(res, 200, { success: true, token: auth.token, user: auth.user });
       } catch (err) {
         return jsonResponse(res, 400, { success: false, message: 'Google token không hợp lệ: ' + err.message });
@@ -143,7 +223,72 @@ const server = http.createServer(async (req, res) => {
         pin,
         deviceName: deviceName || 'Workstation'
       });
+      DB.logAudit({
+        action: 'DEVICE_LINKED',
+        userId: session.id,
+        username: session.username,
+        clientIp: getClientIp(req),
+        clientDevice: parseClientDevice(req.headers['user-agent']),
+        roomId,
+        targetDevice: deviceName,
+        details: { roomId, deviceName }
+      });
       return jsonResponse(res, 200, { success: true, message: 'Đã liên kết thiết bị thành công' });
+    }
+
+    // 5.5 Audit Logs: Query
+    if (pathname === '/api/audit-logs' && req.method === 'GET') {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
+      }
+      const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+      const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+      const action = url.searchParams.get('action') || null;
+      const roomId = url.searchParams.get('roomId') || null;
+      const search = url.searchParams.get('search') || null;
+
+      const result = DB.getAuditLogs({ limit, offset, action, roomId, search });
+      return jsonResponse(res, 200, { success: true, ...result });
+    }
+
+    // 5.6 Audit Logs: Export
+    if (pathname === '/api/audit-logs/export' && req.method === 'GET') {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
+      }
+      const format = url.searchParams.get('format') || 'csv';
+      const action = url.searchParams.get('action') || null;
+      const roomId = url.searchParams.get('roomId') || null;
+      const search = url.searchParams.get('search') || null;
+      const { logs } = DB.getAuditLogs({ limit: 5000, offset: 0, action, roomId, search });
+
+      if (format === 'json') {
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="titan-audit-logs.json"'
+        });
+        return res.end(JSON.stringify(logs, null, 2));
+      }
+
+      const headers = ['ID', 'Thời gian', 'Hành động', 'Người dùng', 'IP Nguồn', 'Thiết bị Nguồn', 'Room ID', 'Máy đích', 'HĐH Đích', 'Chi tiết'];
+      const rows = logs.map(l => [
+        l.id,
+        new Date(l.timestamp).toLocaleString('vi-VN'),
+        `"${(l.action || '').replace(/"/g, '""')}"`,
+        `"${(l.username || '').replace(/"/g, '""')}"`,
+        l.client_ip,
+        `"${(l.client_device || '').replace(/"/g, '""')}"`,
+        l.room_id || '',
+        `"${(l.target_device || '').replace(/"/g, '""')}"`,
+        `"${(l.target_os || '').replace(/"/g, '""')}"`,
+        `"${(l.details || '').replace(/"/g, '""')}"`
+      ].join(','));
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="titan-audit-logs.csv"'
+      });
+      return res.end(csvContent);
     }
 
     // 6. Download: Pre-configured Setup Batch Script
@@ -294,11 +439,17 @@ function getOrCreateRoom(roomId) {
   return rooms.get(roomId);
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   let role = null;
   let currentRoomId = null;
 
   ws.isAlive = true;
+  ws.clientIp = getClientIp(req);
+  ws.clientDevice = parseClientDevice(req.headers['user-agent']);
+  ws.connectTime = Date.now();
+  ws.username = 'Khách (Ẩn danh)';
+  ws.userId = null;
+
   ws.on('pong', () => { ws.isAlive = true; });
 
   ws.on('message', (message, isBinary) => {
@@ -369,7 +520,17 @@ wss.on('connection', (ws) => {
         osInfo: room.hostMeta.osInfo
       });
 
-      console.log(`[Host Online] Room: ${roomId} | Device: ${room.hostMeta.deviceName}`);
+      DB.logAudit({
+        action: 'HOST_ONLINE',
+        roomId,
+        clientIp: ws.clientIp,
+        clientDevice: ws.clientDevice,
+        targetDevice: room.hostMeta.deviceName,
+        targetOs: room.hostMeta.osInfo,
+        details: { width: data.width, height: data.height, monitors: (data.monitors || []).length }
+      });
+
+      console.log(`[Host Online] Room: ${roomId} | Device: ${room.hostMeta.deviceName} | IP: ${ws.clientIp}`);
       ws.send(JSON.stringify({ status: 'ok', role: 'host', room_id: roomId }));
 
       if (room.clientWs && room.clientWs.readyState === WebSocket.OPEN) {
@@ -391,12 +552,42 @@ wss.on('connection', (ws) => {
       const pin = String(data.pin || '').trim();
       const room = rooms.get(roomId);
 
+      if (data.token) {
+        const sess = DB.validateSession(data.token);
+        if (sess) {
+          ws.username = sess.username;
+          ws.userId = sess.id;
+        }
+      } else if (data.username) {
+        ws.username = data.username;
+      }
+
       if (!room || !room.hostWs || room.hostWs.readyState !== WebSocket.OPEN) {
+        DB.logAudit({
+          action: 'CONNECT_FAILED_OFFLINE',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId,
+          details: { status: 'failed', reason: 'Máy trạm đang Offline' }
+        });
         ws.send(JSON.stringify({ status: 'error', message: 'Máy trạm đang Offline hoặc không tồn tại' }));
         return;
       }
 
       if (room.pin && room.pin !== pin) {
+        DB.logAudit({
+          action: 'CONNECT_PIN_FAILED',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId,
+          targetDevice: room.hostMeta?.deviceName,
+          targetOs: room.hostMeta?.osInfo,
+          details: { status: 'failed', reason: 'Sai mã PIN bảo mật' }
+        });
         ws.send(JSON.stringify({ status: 'error', message: 'Mã PIN bảo mật không chính xác' }));
         return;
       }
@@ -405,7 +596,19 @@ wss.on('connection', (ws) => {
       currentRoomId = roomId;
       room.clientWs = ws;
 
-      console.log(`[Client Connected] Room: ${roomId}`);
+      DB.logAudit({
+        action: 'SESSION_CONNECTED',
+        userId: ws.userId,
+        username: ws.username,
+        clientIp: ws.clientIp,
+        clientDevice: ws.clientDevice,
+        roomId,
+        targetDevice: room.hostMeta?.deviceName,
+        targetOs: room.hostMeta?.osInfo,
+        details: { status: 'connected', resolution: `${room.hostMeta?.width}x${room.hostMeta?.height}` }
+      });
+
+      console.log(`[Client Connected] Room: ${roomId} | User: ${ws.username} | IP: ${ws.clientIp} | Device: ${ws.clientDevice}`);
       ws.send(JSON.stringify({
         status: 'ok',
         role: 'client',
@@ -421,6 +624,135 @@ wss.on('connection', (ws) => {
     if (type === 'ping') {
       ws.send(JSON.stringify({ type: 'pong', ts: data.ts }));
       return;
+    }
+
+    // --- Deep Operation Audit Logging (From Client to Host) ---
+    if (role === 'client' && currentRoomId) {
+      const room = rooms.get(currentRoomId);
+      const targetDevice = room?.hostMeta?.deviceName || 'Host-PC';
+      const targetOs = room?.hostMeta?.osInfo || 'Windows';
+
+      if (type === 'terminal_input') {
+        DB.logAudit({
+          action: 'CMD_EXEC',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { command: (data.input || data.cmd || '').trim() }
+        });
+      } else if (type === 'file_browse_request') {
+        DB.logAudit({
+          action: 'FILE_BROWSE',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { path: data.path || '' }
+        });
+      } else if (type === 'file_download_request') {
+        DB.logAudit({
+          action: 'FILE_DOWNLOAD',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { path: data.path || '', filename: data.filename || '' }
+        });
+      } else if (type === 'file_upload_start') {
+        DB.logAudit({
+          action: 'FILE_UPLOAD',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { filename: data.filename, size: data.total_size, path: data.dest_path }
+        });
+      } else if (type === 'file_delete_request') {
+        DB.logAudit({
+          action: 'FILE_DELETE',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { path: data.path || '' }
+        });
+      } else if (type === 'file_create_folder_request') {
+        DB.logAudit({
+          action: 'FILE_MKDIR',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { path: data.path || '', folderName: data.name || '' }
+        });
+      } else if (type === 'process_kill_request') {
+        DB.logAudit({
+          action: 'PROCESS_KILL',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { pid: data.pid, name: data.name || '' }
+        });
+      } else if (type === 'power_action') {
+        DB.logAudit({
+          action: 'POWER_ACTION',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { action: data.action }
+        });
+      } else if (type === 'block_input') {
+        DB.logAudit({
+          action: 'BLOCK_INPUT',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { blocked: !!data.blocked }
+        });
+      } else if (type === 'clipboard_sync') {
+        DB.logAudit({
+          action: 'CLIPBOARD_SYNC',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { length: (data.text || '').length }
+        });
+      }
     }
 
     // --- Forward Bidirectional Control / Inputs / Files / Clipboard ---
@@ -442,6 +774,15 @@ wss.on('connection', (ws) => {
       const room = rooms.get(currentRoomId);
       if (role === 'host') {
         console.log(`[Host Offline] Room: ${currentRoomId}`);
+        DB.logAudit({
+          action: 'HOST_OFFLINE',
+          roomId: currentRoomId,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          targetDevice: room?.hostMeta?.deviceName,
+          targetOs: room?.hostMeta?.osInfo,
+          details: { status: 'offline' }
+        });
         room.hostWs = null;
         DB.setDeviceOnlineStatus(currentRoomId, false);
         if (room.clientWs && room.clientWs.readyState === WebSocket.OPEN) {
@@ -449,6 +790,18 @@ wss.on('connection', (ws) => {
         }
       } else if (role === 'client') {
         console.log(`[Client Disconnected] Room: ${currentRoomId}`);
+        const durationSec = Math.round((Date.now() - (ws.connectTime || Date.now())) / 1000);
+        DB.logAudit({
+          action: 'SESSION_DISCONNECTED',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice: room?.hostMeta?.deviceName,
+          targetOs: room?.hostMeta?.osInfo,
+          details: { durationSec, durationText: `${durationSec}s` }
+        });
         room.clientWs = null;
         if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
           room.hostWs.send(JSON.stringify({ type: 'client_disconnected' }));
