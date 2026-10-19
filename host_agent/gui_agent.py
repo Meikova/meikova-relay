@@ -7,6 +7,8 @@ import threading
 import asyncio
 import tkinter as tk
 from tkinter import ttk, messagebox
+import random
+import string
 from pathlib import Path
 
 # Ensure package is resolvable
@@ -124,6 +126,40 @@ class TitanHostGUI:
         col2.pack(side="left", fill="x", expand=True, padx=(6, 0))
         self._create_field(col2, "Mã PIN bảo mật:", self.pin_var, show="*")
 
+        # Quick Room Actions Row
+        quick_row = tk.Frame(card, bg="#111827")
+        quick_row.pack(fill="x", pady=(4, 6))
+
+        tk.Button(
+            quick_row,
+            text="Tạo Mã Ngẫu Nhiên",
+            font=("Segoe UI", 8),
+            bg="#1E293B",
+            fg="#38BDF8",
+            activebackground="#334155",
+            activeforeground="#FFFFFF",
+            relief="flat",
+            padx=8,
+            pady=3,
+            cursor="hand2",
+            command=self._generate_random_room
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            quick_row,
+            text="Sao Chép Mã Gửi Đối Tác",
+            font=("Segoe UI", 8),
+            bg="#1E293B",
+            fg="#22C55E",
+            activebackground="#334155",
+            activeforeground="#FFFFFF",
+            relief="flat",
+            padx=8,
+            pady=3,
+            cursor="hand2",
+            command=self._copy_connect_info
+        ).pack(side="left")
+
         # Autostart Checkbox
         self.autostart_var = tk.BooleanVar(value=False)
         chk = tk.Checkbutton(
@@ -213,6 +249,22 @@ class TitanHostGUI:
         self.log_text.insert("end", f"[{time.strftime('%H:%M:%S')}] {msg}\n")
         self.log_text.see("end")
         self.log_text.config(state="disabled")
+
+    def _generate_random_room(self):
+        rand_id = "RD-" + "".join(random.choices(string.digits, k=4))
+        rand_pin = "".join(random.choices(string.digits, k=6))
+        self.room_var.set(rand_id)
+        self.pin_var.set(rand_pin)
+        self._log(f"Đã tạo mã phòng mới: {rand_id} | PIN: {rand_pin}")
+
+    def _copy_connect_info(self):
+        room = self.room_var.get().strip()
+        pin = self.pin_var.get().strip()
+        relay = self.relay_var.get().strip()
+        text = f"Titan Remote - Mã kết nối nhanh:\nRoom ID: {room}\nMã PIN: {pin}\nRelay: {relay}"
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self._log("Đã sao chép Room ID & PIN vào clipboard! Hãy gửi cho người điều khiển.")
 
     def _check_autostart_status(self):
         try:
