@@ -44,6 +44,10 @@
       'ro.connecting': 'ĐANG KẾT NỐI...',
       'ro.connected': 'ĐÃ KẾT NỐI',
       'ro.reconnecting': 'TỰ ĐỘNG KẾT NỐI LẠI...',
+      'ro.auth': 'ĐĂNG NHẬP',
+      'ro.dashboard': 'DANH SÁCH MÁY TRẠM',
+      'ro.authenticating': 'XÁC THỰC...',
+      'ro.rebooting': 'MÁY TRẠM ĐANG KHỞI ĐỘNG LẠI...',
 
       // View 1: Auth
       'auth.title': 'Đăng nhập quản trị',
@@ -68,6 +72,8 @@
       'dashboard.btn_quick_connect': 'Kết nối bằng Room ID',
       'dashboard.empty': 'Chưa có máy trạm nào được liên kết',
       'dashboard.empty_hint': 'Tải và chạy file cài đặt máy trạm (.bat) để thiết bị tự động xuất hiện tại đây.',
+      'dashboard.loading': 'Đang tải danh sách máy trạm...',
+      'dashboard.load_error': 'Không thể tải danh sách thiết bị.',
       'dashboard.status_online': 'Trực tuyến',
       'dashboard.status_offline': 'Ngoại tuyến',
       'dashboard.btn_connect': 'Kết nối',
@@ -101,6 +107,8 @@
       'deck.shelf_title': 'Truyền tệp & Clipboard',
       'deck.disconnect_title': 'Ngắt kết nối',
       'deck.face_cam_badge': 'FACE CAM',
+      'deck.drop_title': 'Thả tệp để truyền sang máy trạm',
+      'deck.drop_hint': 'Tệp sẽ được lưu trực tiếp vào thư mục tải về của máy trạm',
 
       // View 4: Terminal
       'terminal.title': 'PS REMOTE // HOST SHELL',
@@ -170,6 +178,8 @@
       'files.delete_confirm': 'Bạn có chắc chắn muốn xóa {name}?',
       'files.folder_type': 'Thư mục tệp',
       'files.file_type': 'Tệp {ext}',
+      'files.drives_list': 'Danh sách ổ đĩa',
+      'files.drives_root': 'Ổ đĩa',
 
       // View 7: Deep Audit Logs
       'audit.title': 'Nhật ký truy vết & Kiểm toán (Deep Audit Logs)',
@@ -321,6 +331,10 @@
       'ro.connecting': 'CONNECTING...',
       'ro.connected': 'CONNECTED',
       'ro.reconnecting': 'AUTO RECONNECTING...',
+      'ro.auth': 'AUTHENTICATION',
+      'ro.dashboard': 'WORKSTATION FLEET',
+      'ro.authenticating': 'AUTHENTICATING...',
+      'ro.rebooting': 'REBOOTING WORKSTATION...',
 
       // View 1: Auth
       'auth.title': 'Admin Login',
@@ -345,6 +359,8 @@
       'dashboard.btn_quick_connect': 'Connect via Room ID',
       'dashboard.empty': 'No workstations linked yet',
       'dashboard.empty_hint': 'Download and run the host installer (.bat) so your device appears here automatically.',
+      'dashboard.loading': 'Loading workstation fleet...',
+      'dashboard.load_error': 'Failed to load device list.',
       'dashboard.status_online': 'Online',
       'dashboard.status_offline': 'Offline',
       'dashboard.btn_connect': 'Connect',
@@ -378,6 +394,8 @@
       'deck.shelf_title': 'File Shelf & Clipboard',
       'deck.disconnect_title': 'Disconnect',
       'deck.face_cam_badge': 'FACE CAM',
+      'deck.drop_title': 'Drop files to transfer to host',
+      'deck.drop_hint': 'Files will be saved directly to the remote host Downloads folder',
 
       // View 4: Terminal
       'terminal.title': 'PS REMOTE // HOST SHELL',
@@ -447,6 +465,8 @@
       'files.delete_confirm': 'Are you sure you want to delete {name}?',
       'files.folder_type': 'File folder',
       'files.file_type': '{ext} File',
+      'files.drives_list': 'Drive List',
+      'files.drives_root': 'Drives',
 
       // View 7: Deep Audit Logs
       'audit.title': 'Deep Audit Logs & Traceability',

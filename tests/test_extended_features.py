@@ -157,9 +157,15 @@ class TestExtendedFeatures(unittest.TestCase):
 
         term = TerminalManager(on_output=on_out)
         term.start()
-        time.sleep(1.0)
+        for _ in range(30):
+            if any("POWERSHELL" in o for o in output_received):
+                break
+            time.sleep(0.1)
         term.send_input("Write-Output 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'")
-        time.sleep(1.5)
+        for _ in range(30):
+            if any("Hà Nội" in o for o in output_received):
+                break
+            time.sleep(0.1)
         term.stop()
 
         full_output = "".join(output_received)

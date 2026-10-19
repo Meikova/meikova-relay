@@ -69,5 +69,32 @@ class TestI18nEngine(unittest.TestCase):
         self.assertIn("setLang", self.content)
         self.assertIn("titan-lang-changed", self.content)
 
+    def test_app_js_dashboard_instant_i18n_render(self):
+        app_js_path = Path(__file__).resolve().parent.parent / "web-client" / "js" / "app.js"
+        self.assertTrue(app_js_path.exists(), "app.js must exist")
+        app_content = app_js_path.read_text(encoding="utf-8")
+
+        # 1. Verify deviceGrid empty state contains data-i18n attributes
+        self.assertIn('data-i18n="dashboard.empty"', app_content)
+        self.assertIn('data-i18n="dashboard.empty_hint"', app_content)
+        self.assertIn('data-i18n="dashboard.btn_download_host"', app_content)
+        self.assertIn('data-i18n="dashboard.btn_quick_connect"', app_content)
+
+        # 2. Verify deviceGrid device cards contain data-i18n attributes
+        self.assertIn('data-i18n="dashboard.btn_connect"', app_content)
+
+        # 3. Verify currentDeviceList caching
+        self.assertIn('let currentDeviceList = [];', app_content)
+
+        # 4. Verify titan-lang-changed immediately re-renders dashboard
+        pattern = r"window\.addEventListener\('titan-lang-changed',.*?\n\s*if\s*\(\s*currentView\s*===\s*'dashboard'\s*\)\s*\{\s*renderDeviceGrid\(currentDeviceList\);\s*\}"
+        self.assertIsNotNone(
+            re.search(pattern, app_content, re.DOTALL),
+            "titan-lang-changed listener must immediately re-render deviceGrid on dashboard view"
+        )
+
+        # 5. Verify updateRoStatus is called in titan-lang-changed
+        self.assertIn("updateRoStatus();", app_content)
+
 if __name__ == "__main__":
     unittest.main()

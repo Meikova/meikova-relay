@@ -415,6 +415,12 @@
 
   window.addEventListener('titan-lang-changed', () => {
     syncUrlWithState(true);
+    updateRoStatus();
+    updateTerminalStatusBadge();
+    requestAnimationFrame(placeAllIndicators);
+    if (currentView === 'dashboard') {
+      renderDeviceGrid(currentDeviceList);
+    }
     if (currentView === 'tasks' && currentProcessList && currentProcessList.length > 0) {
       renderProcessTable();
     }
@@ -582,6 +588,27 @@
 
   initGoogleSignIn();
 
+  function updateRoStatus() {
+    if (!roStatus) return;
+    if (currentView === 'auth') {
+      roStatus.textContent = t('ro.auth');
+    } else if (currentView === 'dashboard') {
+      roStatus.textContent = t('ro.dashboard');
+    } else if (currentView === 'remote') {
+      roStatus.textContent = isConnected
+        ? `${currentRoom} // ${t('ro.connected')}`
+        : (currentRoom ? `${currentRoom} // ${t('ro.connecting')}` : t('ro.disconnected'));
+    } else if (currentView === 'files') {
+      roStatus.textContent = isConnected ? `${currentRoom} // ${t('nav.files').toUpperCase()}` : t('ro.disconnected');
+    } else if (currentView === 'terminal') {
+      roStatus.textContent = isConnected ? `${currentRoom} // ${t('nav.terminal').toUpperCase()}` : t('ro.disconnected');
+    } else if (currentView === 'tasks') {
+      roStatus.textContent = isConnected ? `${currentRoom} // ${t('nav.tasks').toUpperCase()}` : t('ro.disconnected');
+    } else if (currentView === 'audit') {
+      roStatus.textContent = isConnected ? `${currentRoom} // ${t('nav.audit').toUpperCase()}` : t('nav.audit').toUpperCase();
+    }
+  }
+
   function switchView(view, updateUrl = true) {
     currentView = view;
     authSection.classList.add('hidden');
@@ -601,33 +628,28 @@
 
     if (view === 'auth') {
       authSection.classList.remove('hidden');
-      roStatus.textContent = 'ĐĂNG NHẬP';
     } else if (view === 'dashboard') {
       dashboardSection.classList.remove('hidden');
-      roStatus.textContent = 'DANH SÁCH MÁY TRẠM';
       loadDeviceFleet();
     } else if (view === 'remote') {
       remoteSection.classList.remove('hidden');
-      roStatus.textContent = isConnected ? `${currentRoom} // TRỰC TUYẾN` : (currentRoom ? `${currentRoom} // ĐANG KẾT NỐI...` : 'CHƯA KẾT NỐI');
       resetDeckIdle();
     } else if (view === 'files') {
       filesSection.classList.remove('hidden');
-      roStatus.textContent = isConnected ? `${currentRoom} // TỆP & THƯ MỤC` : 'CHƯA KẾT NỐI';
       if (isConnected) requestBrowsePath(remoteCurrentPath || '');
     } else if (view === 'terminal') {
       terminalSection.classList.remove('hidden');
-      roStatus.textContent = isConnected ? `${currentRoom} // TERMINAL` : 'CHƯA KẾT NỐI';
       updateTerminalStatusBadge();
       setTimeout(() => terminalCmdInput?.focus(), 50);
     } else if (view === 'tasks') {
       tasksSection.classList.remove('hidden');
-      roStatus.textContent = isConnected ? `${currentRoom} // TIẾN TRÌNH` : 'CHƯA KẾT NỐI';
       if (isConnected) requestTelemetryAndTasks();
     } else if (view === 'audit') {
       auditSection.classList.remove('hidden');
-      roStatus.textContent = isConnected ? `${currentRoom} // NHẬT KÝ KIỂM TOÁN` : 'NHẬT KÝ KIỂM TOÁN (AUDIT)';
       loadAuditLogs();
     }
+
+    updateRoStatus();
 
     if (updateUrl) {
       syncUrlWithState(false);
@@ -655,7 +677,9 @@
     placeIndicator(authTabs);
 
     authMode = btn.dataset.authMode;
-    btnSubmitAuth.textContent = authMode === 'login' ? 'Vào bảng điều khiển' : 'Đăng ký tài khoản';
+    const authBtnKey = authMode === 'login' ? 'auth.btn_login' : 'auth.btn_register';
+    btnSubmitAuth.setAttribute('data-i18n', authBtnKey);
+    btnSubmitAuth.textContent = t(authBtnKey);
     authError.classList.add('hidden');
   });
 
@@ -690,6 +714,7 @@
   });
 
   // --- DASHBOARD FLEET ---
+  let currentDeviceList = [];
   const btnDownloadHost = document.getElementById('btnDownloadHost');
   function downloadHostInstaller() {
     const accountName = currentUser ? currentUser.username : 'User';
@@ -700,16 +725,17 @@
 
   async function loadDeviceFleet(silent = false) {
     if (!silent) {
-      deviceGrid.innerHTML = '<p class="mono-font" style="color: var(--text-faint); padding: 20px;">Đang tải danh sách máy trạm...</p>';
+      deviceGrid.innerHTML = `<p class="mono-font" data-i18n="dashboard.loading" style="color: var(--text-faint); padding: 20px;">${t('dashboard.loading')}</p>`;
     }
     try {
       const data = await apiFetch('/api/devices');
       if (data.success && data.devices) {
-        renderDeviceGrid(data.devices);
+        currentDeviceList = data.devices;
+        renderDeviceGrid(currentDeviceList);
       }
     } catch {
       if (!silent) {
-        deviceGrid.innerHTML = '<p class="mono-font" style="color: #EF4444; padding: 20px;">Không thể tải danh sách thiết bị.</p>';
+        deviceGrid.innerHTML = `<p class="mono-font" data-i18n="dashboard.load_error" style="color: #EF4444; padding: 20px;">${t('dashboard.load_error')}</p>`;
       }
     }
   }
@@ -739,19 +765,20 @@
   const roomSvg = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
 
   function renderDeviceGrid(devices) {
-    if (!devices || devices.length === 0) {
+    const devList = devices !== undefined ? devices : currentDeviceList;
+    if (!devList || devList.length === 0) {
       deviceGrid.innerHTML = `
         <div class="empty-fleet" style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--ink-1); border: 1px dashed var(--line); border-radius: var(--radius);">
-          <p class="brand-font" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">${t('dashboard.empty')}</p>
-          <p style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">${t('dashboard.empty_hint')}</p>
+          <p class="brand-font" data-i18n="dashboard.empty" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">${t('dashboard.empty')}</p>
+          <p data-i18n="dashboard.empty_hint" style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">${t('dashboard.empty_hint')}</p>
           <div style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-            <button id="btnEmptyDownload" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;">
+            <button id="btnEmptyDownload" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;" data-i18n-title="dashboard.btn_download_host_title" title="${t('dashboard.btn_download_host_title')}">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>${t('dashboard.btn_download_host')}</span>
+              <span data-i18n="dashboard.btn_download_host">${t('dashboard.btn_download_host')}</span>
             </button>
             <button id="btnEmptyAdd" class="btn-pill">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span>${t('dashboard.btn_quick_connect')}</span>
+              <span data-i18n="dashboard.btn_quick_connect">${t('dashboard.btn_quick_connect')}</span>
             </button>
           </div>
         </div>
@@ -765,14 +792,14 @@
     const offlineLabel = t('dashboard.status_offline').toUpperCase();
     const connectLabel = t('dashboard.btn_connect');
 
-    deviceGrid.innerHTML = devices.map(d => {
+    deviceGrid.innerHTML = devList.map(d => {
       const isOnline = d.is_online === 1;
       return `
         <div class="device-card">
           <div class="device-card-header">
             <span class="device-name brand-font">${escapeHtml(d.device_name)}</span>
             <span class="status-badge ${isOnline ? 'online' : 'offline'}">
-              <span class="status-dot"></span> <span>${isOnline ? onlineLabel : offlineLabel}</span>
+              <span class="status-dot"></span> <span data-i18n="${isOnline ? 'dashboard.status_online' : 'dashboard.status_offline'}">${isOnline ? onlineLabel : offlineLabel}</span>
             </span>
           </div>
           <div class="device-specs">
@@ -782,7 +809,7 @@
           </div>
           <button class="btn-connect-device" data-room="${d.room_id}" data-pin="${d.pin}">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            <span>${connectLabel}</span>
+            <span data-i18n="dashboard.btn_connect">${connectLabel}</span>
           </button>
         </div>
       `;
@@ -830,7 +857,7 @@
     } else {
       syncUrlWithState(false);
     }
-    roStatus.textContent = `${roomId} // ĐANG KẾT NỐI...`;
+    roStatus.textContent = `${roomId} // ${t('ro.connecting')}`;
 
     if (ws) {
       ws.close();
@@ -846,7 +873,7 @@
     }
 
     ws.onopen = () => {
-      roStatus.textContent = `${roomId} // XÁC THỰC...`;
+      roStatus.textContent = `${roomId} // ${t('ro.authenticating')}`;
       ws.send(JSON.stringify({
         type: 'init_client',
         room_id: roomId,
@@ -873,7 +900,7 @@
             stopRestartReconnectPolling();
             showToast('Máy trạm đã khởi động lại và kết nối thành công!', 'success');
           }
-          roStatus.textContent = `${roomId} // TRỰC TUYẾN`;
+          roStatus.textContent = `${roomId} // ${t('ro.connected')}`;
           updateTerminalStatusBadge();
           if (msg.hostMeta) {
             updateHostResolution(msg.hostMeta.width, msg.hostMeta.height);
@@ -1038,7 +1065,7 @@
       ws = null;
     }
     isConnected = false;
-    roStatus.textContent = `${restartReconnectRoom} // MÁY TRẠM ĐANG KHỞI ĐỘNG LẠI... (TỰ KẾT NỐI)`;
+    roStatus.textContent = `${restartReconnectRoom} // ${t('ro.rebooting')}`;
 
     if (restartReconnectTimer) return;
 
@@ -1052,7 +1079,7 @@
         return;
       }
       restartAttemptCount++;
-      roStatus.textContent = `${restartReconnectRoom} // TỰ KẾT NỐI LẠI (LẦN ${restartAttemptCount})...`;
+      roStatus.textContent = `${restartReconnectRoom} // ${t('ro.reconnecting')} (${restartAttemptCount})`;
       startRemoteSession(restartReconnectRelay || defaultWsUrl, restartReconnectRoom, restartReconnectPin);
     }, 5000);
   }
@@ -2288,8 +2315,8 @@
   screenDropOverlay.innerHTML = `
     <div class="screen-drop-modal">
       <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent); margin-bottom: 12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <div style="font-size: 1.1rem; font-weight: 600; color: #fff;">Thả tệp để truyền sang máy trạm</div>
-      <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Tệp sẽ được lưu trực tiếp vào thư mục tải về của máy trạm</div>
+      <div style="font-size: 1.1rem; font-weight: 600; color: #fff;" data-i18n="deck.drop_title">${t('deck.drop_title')}</div>
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;" data-i18n="deck.drop_hint">${t('deck.drop_hint')}</div>
     </div>
   `;
   remoteSection.appendChild(screenDropOverlay);
@@ -2493,13 +2520,13 @@
     if (!explorerBreadcrumbs) return;
 
     if (!path) {
-      explorerBreadcrumbs.innerHTML = `<span class="breadcrumb-item active"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg> Danh sách ổ đĩa</span>`;
+      explorerBreadcrumbs.innerHTML = `<span class="breadcrumb-item active"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg> <span data-i18n="files.drives_list">${t('files.drives_list')}</span></span>`;
       return;
     }
 
     const segments = [];
     segments.push({
-      name: 'Ổ đĩa',
+      name: t('files.drives_root'),
       path: '',
       isHome: true
     });
