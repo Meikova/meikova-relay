@@ -375,6 +375,28 @@ class HostService:
                     }))
                     continue
 
+                # Direct File Read (Online Editor)
+                elif ev_type == "file_read_request":
+                    filepath = unicodedata.normalize('NFC', event.get("filepath", ""))
+                    res = self.file_manager.read_file_content(filepath)
+                    await ws.send(json.dumps({
+                        "type": "file_read_response",
+                        **res
+                    }))
+                    continue
+
+                # Direct File Save (Online Editor)
+                elif ev_type == "file_save_request":
+                    filepath = unicodedata.normalize('NFC', event.get("filepath", ""))
+                    content = event.get("content", "")
+                    encoding = event.get("encoding", "utf-8")
+                    res = self.file_manager.save_file_content(filepath, content, encoding)
+                    await ws.send(json.dumps({
+                        "type": "file_save_response",
+                        **res
+                    }))
+                    continue
+
                 # File Download Request
                 elif ev_type == "file_download_request":
                     filepath = unicodedata.normalize('NFC', event.get("filepath", ""))

@@ -43,6 +43,23 @@
   let explorerViewMode = 'list';
   let remoteParentPath = '';
 
+  // --- Online File Editor DOM ---
+  const fileEditorModal = document.getElementById('fileEditorModal');
+  const editorFileName = document.getElementById('editorFileName');
+  const editorFilePath = document.getElementById('editorFilePath');
+  const editorDirtyBadge = document.getElementById('editorDirtyBadge');
+  const editorEncodingBadge = document.getElementById('editorEncodingBadge');
+  const editorWrapCheckbox = document.getElementById('editorWrapCheckbox');
+  const btnSaveFile = document.getElementById('btnSaveFile');
+  const btnCloseFileEditor = document.getElementById('btnCloseFileEditor');
+  const fileEditorTextarea = document.getElementById('fileEditorTextarea');
+  const editorCursorPos = document.getElementById('editorCursorPos');
+  const editorStats = document.getElementById('editorStats');
+  const editorSaveTime = document.getElementById('editorSaveTime');
+
+  let currentEditingFilePath = '';
+  let currentEditorOriginalContent = '';
+
   // --- Auth DOM ---
   const authTabs = document.getElementById('authTabs');
   const authForm = document.getElementById('authForm');
@@ -864,6 +881,10 @@
           } else {
             showToast(`Lỗi tạo thư mục: ${msg.result?.error || 'Không xác định'}`, 'error');
           }
+        } else if (msg.type === 'file_read_response') {
+          handleFileReadResponse(msg);
+        } else if (msg.type === 'file_save_response') {
+          handleFileSaveResponse(msg);
         } else if (msg.type === 'file_upload_progress') {
           uploadPercent.textContent = `${msg.progress}%`;
           uploadProgressBar.style.width = `${msg.progress}%`;
@@ -2351,23 +2372,36 @@
       return `
         <div class="folder-item" data-path="${escapeHtml(item.path || item.name)}" data-isdir="${isDir}">
           <span style="display:flex;align-items:center;">${icon} ${escapeHtml(item.name)}${sizeStr}</span>
-          <span>${isDir ? '→' : '⇣ Tải'}</span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            ${!isDir && isEditableFile(item.name) ? `<button class="btn-pill btn-shelf-edit" data-path="${escapeHtml(item.path || item.name)}" style="padding:1px 6px;font-size:0.65rem;border-color:#38BDF8;color:#38BDF8;">Sửa</button>` : ''}
+            <span>${isDir ? '→' : '⇣ Tải'}</span>
+          </span>
         </div>
       `;
     }).join('');
 
     remoteFolderList.querySelectorAll('.folder-item').forEach(el => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-shelf-edit')) return;
         const itemPath = el.dataset.path;
         const isDir = el.dataset.isdir === 'true';
         if (isDir) {
           requestBrowsePath(itemPath);
+        } else if (isEditableFile(itemPath)) {
+          openFileInEditor(itemPath);
         } else {
           ws.send(JSON.stringify({
             type: 'file_download_request',
             filepath: itemPath
           }));
         }
+      });
+    });
+
+    remoteFolderList.querySelectorAll('.btn-shelf-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openFileInEditor(btn.dataset.path);
       });
     });
   }
@@ -2552,6 +2586,12 @@
           <td style="color: var(--text-faint); font-size: 0.75rem;">${dateStr}</td>
           <td style="text-align: right;">
             <div style="display: inline-flex; gap: 6px;">
+              ${!isDir && isEditableFile(item.name) ? `
+                <button class="btn-pill btn-action-edit" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="Mở & Chỉnh sửa trực tiếp trên máy trạm" style="padding: 2px 8px; font-size: 0.7rem; border-color: #38BDF8; color: #38BDF8;">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <span>Sửa</span>
+                </button>
+              ` : ''}
               ${!isDir ? `
                 <button class="btn-pill btn-action-dl" data-path="${itemPath}" title="Tải về máy tính" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--accent); color: var(--accent);">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -2593,6 +2633,8 @@
         const isDir = row.dataset.isdir === 'true';
         if (isDir) {
           requestBrowsePath(p);
+        } else if (isEditableFile(p)) {
+          openFileInEditor(p);
         } else {
           ws.send(JSON.stringify({ type: 'file_download_request', filepath: p }));
         }
@@ -2603,6 +2645,13 @@
         if (isDir) {
           requestBrowsePath(p);
         }
+      });
+    });
+
+    explorerTableBody.querySelectorAll('.btn-action-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openFileInEditor(btn.dataset.path);
       });
     });
 
@@ -2631,6 +2680,8 @@
           const isDir = card.dataset.isdir === 'true';
           if (isDir) {
             requestBrowsePath(p);
+          } else if (isEditableFile(p)) {
+            openFileInEditor(p);
           } else {
             ws.send(JSON.stringify({ type: 'file_download_request', filepath: p }));
           }
@@ -2819,6 +2870,174 @@
       bytes[i] = binary.charCodeAt(i);
     }
     return bytes.buffer;
+  }
+
+  // --- DIRECT ONLINE FILE EDITOR CONTROLLER ---
+  const EDITABLE_EXTENSIONS = new Set([
+    '.txt', '.json', '.js', '.jsx', '.ts', '.tsx', '.py', '.html', '.htm',
+    '.css', '.scss', '.sass', '.less', '.log', '.bat', '.cmd', '.ps1', '.sh',
+    '.ini', '.cfg', '.conf', '.config', '.xml', '.yaml', '.yml', '.md', '.markdown',
+    '.env', '.csv', '.sql', '.php', '.java', '.c', '.cpp', '.h', '.hpp',
+    '.cs', '.go', '.rs', '.lua', '.properties', '.toml', '.gitignore',
+    '.dockerfile', '.vue', '.svelte', '.rb', '.pl', '.r', '.dart', '.swift',
+    '.kt', '.gradle', '.svg', '.lock'
+  ]);
+
+  function isEditableFile(filename) {
+    if (!filename) return false;
+    const cleanName = filename.split(/[/\\]/).pop();
+    const dotIdx = cleanName.lastIndexOf('.');
+    if (dotIdx === -1) return true; // Extensionless file like Makefile, .env, Dockerfile
+    const ext = cleanName.substring(dotIdx).toLowerCase();
+    return EDITABLE_EXTENSIONS.has(ext);
+  }
+
+  function openFileInEditor(filepath) {
+    if (!isConnected) {
+      showToast('Vui lòng kết nối vào máy trạm để sửa tệp', 'info');
+      return;
+    }
+    showToast('Đang mở tệp từ máy trạm...', 'info', 1500);
+    currentEditingFilePath = filepath;
+    ws.send(JSON.stringify({
+      type: 'file_read_request',
+      filepath: filepath
+    }));
+  }
+
+  function handleFileReadResponse(msg) {
+    if (!msg.success) {
+      showToast(`Không thể mở tệp: ${msg.error}`, 'error');
+      return;
+    }
+    editorFileName.textContent = msg.filename || 'Tệp không tên';
+    editorFilePath.textContent = msg.filepath || '';
+    editorFilePath.title = msg.filepath || '';
+    fileEditorTextarea.value = msg.content || '';
+    currentEditorOriginalContent = msg.content || '';
+    editorDirtyBadge.textContent = 'ĐÃ LƯU';
+    editorDirtyBadge.className = 'editor-badge editor-badge--clean';
+    editorEncodingBadge.textContent = (msg.encoding || 'UTF-8').toUpperCase();
+    editorSaveTime.textContent = 'Đã mở lúc ' + new Date().toLocaleTimeString();
+    updateEditorStats();
+    fileEditorModal.classList.remove('hidden');
+    setTimeout(() => fileEditorTextarea.focus(), 60);
+  }
+
+  function handleFileSaveResponse(msg) {
+    btnSaveFile.disabled = false;
+    btnSaveFile.style.opacity = '1';
+    if (msg.success) {
+      currentEditorOriginalContent = fileEditorTextarea.value;
+      editorDirtyBadge.textContent = 'ĐÃ LƯU';
+      editorDirtyBadge.className = 'editor-badge editor-badge--clean';
+      editorSaveTime.textContent = 'Đã lưu lúc ' + new Date().toLocaleTimeString();
+      showToast(`Đã lưu tệp ${msg.filename} trực tiếp trên máy trạm!`, 'success');
+      if (currentView === 'files') {
+        requestBrowsePath(remoteCurrentPath);
+      }
+    } else {
+      editorSaveTime.textContent = 'Lỗi lưu tệp!';
+      showToast(`Lỗi lưu tệp: ${msg.error}`, 'error');
+    }
+  }
+
+  function saveCurrentFile() {
+    if (!currentEditingFilePath) return;
+    if (!isConnected) {
+      showToast('Chưa kết nối máy trạm, không thể lưu tệp', 'error');
+      return;
+    }
+    btnSaveFile.disabled = true;
+    btnSaveFile.style.opacity = '0.6';
+    editorSaveTime.textContent = 'Đang lưu tệp...';
+    ws.send(JSON.stringify({
+      type: 'file_save_request',
+      filepath: currentEditingFilePath,
+      content: fileEditorTextarea.value,
+      encoding: 'utf-8'
+    }));
+  }
+
+  function closeFileEditor() {
+    const isDirty = fileEditorTextarea.value !== currentEditorOriginalContent;
+    if (isDirty) {
+      if (!confirm('Tệp có thay đổi chưa lưu. Bạn có chắc muốn đóng mà không lưu?')) {
+        return;
+      }
+    }
+    fileEditorModal.classList.add('hidden');
+    currentEditingFilePath = '';
+    currentEditorOriginalContent = '';
+  }
+
+  function updateEditorStats() {
+    const val = fileEditorTextarea.value || '';
+    const lines = val.split('\n').length;
+    const chars = val.length;
+    editorStats.textContent = `${lines.toLocaleString()} dòng, ${chars.toLocaleString()} ký tự`;
+    updateCursorPos();
+  }
+
+  function updateCursorPos() {
+    const val = fileEditorTextarea.value || '';
+    const selStart = fileEditorTextarea.selectionStart || 0;
+    const upToCursor = val.substring(0, selStart);
+    const lineNum = upToCursor.split('\n').length;
+    const lastNewline = upToCursor.lastIndexOf('\n');
+    const colNum = lastNewline === -1 ? selStart + 1 : selStart - lastNewline;
+    editorCursorPos.textContent = `Dòng ${lineNum}, Cột ${colNum}`;
+  }
+
+  if (fileEditorTextarea) {
+    fileEditorTextarea.addEventListener('input', () => {
+      const isDirty = fileEditorTextarea.value !== currentEditorOriginalContent;
+      editorDirtyBadge.textContent = isDirty ? '● ĐÃ SỬA (CHƯA LƯU)' : 'ĐÃ LƯU';
+      editorDirtyBadge.className = isDirty ? 'editor-badge editor-badge--dirty' : 'editor-badge editor-badge--clean';
+      updateEditorStats();
+    });
+
+    fileEditorTextarea.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveCurrentFile();
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = fileEditorTextarea.selectionStart;
+        const end = fileEditorTextarea.selectionEnd;
+        fileEditorTextarea.value = fileEditorTextarea.value.substring(0, start) + '  ' + fileEditorTextarea.value.substring(end);
+        fileEditorTextarea.selectionStart = fileEditorTextarea.selectionEnd = start + 2;
+        fileEditorTextarea.dispatchEvent(new Event('input'));
+      } else if (e.key === 'Escape') {
+        closeFileEditor();
+      }
+    });
+
+    fileEditorTextarea.addEventListener('keyup', updateCursorPos);
+    fileEditorTextarea.addEventListener('click', updateCursorPos);
+  }
+
+  if (editorWrapCheckbox) {
+    editorWrapCheckbox.addEventListener('change', () => {
+      fileEditorTextarea.style.whiteSpace = editorWrapCheckbox.checked ? 'pre-wrap' : 'pre';
+      fileEditorTextarea.style.wordBreak = editorWrapCheckbox.checked ? 'break-all' : 'normal';
+    });
+  }
+
+  if (btnSaveFile) {
+    btnSaveFile.addEventListener('click', saveCurrentFile);
+  }
+
+  if (btnCloseFileEditor) {
+    btnCloseFileEditor.addEventListener('click', closeFileEditor);
+  }
+
+  if (fileEditorModal) {
+    fileEditorModal.addEventListener('click', (e) => {
+      if (e.target === fileEditorModal) {
+        closeFileEditor();
+      }
+    });
   }
 
   // --- AUDIT LOGS MANAGEMENT ---

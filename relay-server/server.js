@@ -713,6 +713,30 @@ wss.on('connection', (ws, req) => {
           targetOs,
           details: { path: data.path || '', folderName: data.name || '' }
         });
+      } else if (type === 'file_read_request') {
+        DB.logAudit({
+          action: 'FILE_READ',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { path: data.filepath || '' }
+        });
+      } else if (type === 'file_save_request') {
+        DB.logAudit({
+          action: 'FILE_SAVE',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { path: data.filepath || '', length: (data.content || '').length }
+        });
       } else if (type === 'process_kill_request') {
         DB.logAudit({
           action: 'PROCESS_KILL',

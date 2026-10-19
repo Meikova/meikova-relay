@@ -1433,5 +1433,174 @@ button:active {
   pointer-events: none;
 }
 
+/* Online File Editor Modal */
+.file-editor-card {
+  width: 92vw;
+  max-width: 1240px;
+  height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: #060911;
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.file-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--ink-1);
+  border-bottom: 1px solid var(--line);
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.file-editor-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.file-editor-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  background: rgba(56, 189, 248, 0.12);
+  color: #38BDF8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.file-editor-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.file-editor-filename {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.file-editor-filepath {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 550px;
+}
+
+.editor-badge {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: var(--round);
+  font-weight: 600;
+}
+
+.editor-badge--clean {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22C55E;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.editor-badge--dirty {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.editor-badge--meta {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border: 1px solid var(--line);
+}
+
+.file-editor-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.editor-wrap-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-save-file {
+  background: var(--accent);
+  color: #05070C;
+  border-color: var(--accent);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+}
+
+.btn-save-file:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.file-editor-body {
+  flex: 1;
+  position: relative;
+  background: #000000;
+  display: flex;
+  overflow: hidden;
+}
+
+.file-editor-textarea {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: #020408;
+  color: #E2E8F0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 16px 20px;
+  tab-size: 4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: var(--font-mono);
+}
+
+.file-editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 18px;
+  background: var(--ink-1);
+  border-top: 1px solid var(--line);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.file-editor-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 
 
