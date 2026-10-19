@@ -2,14 +2,16 @@
 (function () {
   'use strict';
 
-  // DOM Navigation & Views
+  // --- DOM Navigation & Views ---
   const mainNav = document.getElementById('mainNav');
   const authSection = document.getElementById('authSection');
   const dashboardSection = document.getElementById('dashboardSection');
   const remoteSection = document.getElementById('remoteSection');
+  const terminalSection = document.getElementById('terminalSection');
+  const tasksSection = document.getElementById('tasksSection');
   const shelfDrawer = document.getElementById('shelfDrawer');
 
-  // Auth DOM
+  // --- Auth DOM ---
   const authTabs = document.getElementById('authTabs');
   const authForm = document.getElementById('authForm');
   const authUsername = document.getElementById('authUsername');
@@ -20,7 +22,7 @@
   const userNameDisplay = document.getElementById('userNameDisplay');
   const btnLogout = document.getElementById('btnLogout');
 
-  // Dashboard DOM
+  // --- Dashboard DOM ---
   const deviceGrid = document.getElementById('deviceGrid');
   const btnOpenLinkModal = document.getElementById('btnOpenLinkModal');
   const btnQuickConnect = document.getElementById('btnQuickConnect');
@@ -31,26 +33,51 @@
   const qcRoomId = document.getElementById('qcRoomId');
   const qcPin = document.getElementById('qcPin');
 
-  // Remote Canvas & HUD DOM
+  // --- Remote Canvas & HUD DOM ---
   const remoteCanvas = document.getElementById('remoteCanvas');
   const ctx = remoteCanvas.getContext('2d');
+  const laserCanvas = document.getElementById('laserCanvas');
+  const laserCtx = laserCanvas.getContext('2d');
   const roStatus = document.getElementById('roStatus');
   const metricPing = document.getElementById('metricPing');
   const metricFps = document.getElementById('metricFps');
   const metricRes = document.getElementById('metricRes');
 
-  // Bottom Deck Controls DOM
+  // --- Bottom Deck Controls DOM ---
   const monitorSelector = document.getElementById('monitorSelector');
+  const qualitySelector = document.getElementById('qualitySelector');
   const btnScaleToggle = document.getElementById('btnScaleToggle');
   const scaleLabel = document.getElementById('scaleLabel');
   const btnFullscreen = document.getElementById('btnFullscreen');
+  const btnToggleLaser = document.getElementById('btnToggleLaser');
+  const btnRecord = document.getElementById('btnRecord');
+  const btnScreenshot = document.getElementById('btnScreenshot');
   const btnToggleOSK = document.getElementById('btnToggleOSK');
   const oskOverlay = document.getElementById('oskOverlay');
+  const btnPowerMenu = document.getElementById('btnPowerMenu');
+  const powerMenuDropdown = document.getElementById('powerMenuDropdown');
   const btnOpenShelf = document.getElementById('btnOpenShelf');
   const btnCloseShelf = document.getElementById('btnCloseShelf');
   const btnDisconnect = document.getElementById('btnDisconnect');
 
-  // Shelf Drawer DOM
+  // --- Terminal View DOM ---
+  const terminalOutput = document.getElementById('terminalOutput');
+  const terminalInputForm = document.getElementById('terminalInputForm');
+  const terminalCmdInput = document.getElementById('terminalCmdInput');
+  const btnClearTerminal = document.getElementById('btnClearTerminal');
+
+  // --- Task Manager DOM ---
+  const btnRefreshTasks = document.getElementById('btnRefreshTasks');
+  const ramValue = document.getElementById('ramValue');
+  const ramGaugeBar = document.getElementById('ramGaugeBar');
+  const ramSub = document.getElementById('ramSub');
+  const diskCValue = document.getElementById('diskCValue');
+  const diskCGaugeBar = document.getElementById('diskCGaugeBar');
+  const diskCSub = document.getElementById('diskCSub');
+  const processSearchInput = document.getElementById('processSearchInput');
+  const processTableBody = document.getElementById('processTableBody');
+
+  // --- Shelf Drawer DOM ---
   const shelfTabs = document.querySelectorAll('.shelf-tabs button');
   const shelfFilesTab = document.getElementById('shelfFilesTab');
   const shelfClipboardTab = document.getElementById('shelfClipboardTab');
@@ -60,13 +87,16 @@
   const uploadFileName = document.getElementById('uploadFileName');
   const uploadPercent = document.getElementById('uploadPercent');
   const uploadProgressBar = document.getElementById('uploadProgressBar');
+  const btnBrowseUp = document.getElementById('btnBrowseUp');
+  const currentFolderPath = document.getElementById('currentFolderPath');
+  const remoteFolderList = document.getElementById('remoteFolderList');
   const clipboardViewer = document.getElementById('clipboardViewer');
   const btnPushClipboard = document.getElementById('btnPushClipboard');
 
-  // Application State
+  // --- Application State ---
   let authToken = localStorage.getItem('titan_token') || null;
   let currentUser = null;
-  let authMode = 'login'; // 'login' | 'register'
+  let authMode = 'login';
   let currentView = 'dashboard';
 
   let ws = null;
@@ -75,18 +105,35 @@
   let hostResolution = { width: 1920, height: 1080 };
   let isFitMode = true;
 
-  // Zoom & Pan for Touch/Canvas
+  // Zoom & Pan
   let scale = 1.0;
   let panX = 0;
   let panY = 0;
   let touchStartDist = 0;
   let touchStartScale = 1.0;
 
-  // Telemetry Metrics
+  // Telemetry
   let frameCount = 0;
   let lastFpsUpdate = performance.now();
   let lastPingSend = 0;
   let pingIntervalId = null;
+
+  // Laser Pointer State
+  let isLaserActive = false;
+  let laserPos = { x: -100, y: -100 };
+  let laserAnimId = null;
+
+  // Recording State
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let isRecording = false;
+
+  // Process Manager State
+  let currentProcessList = [];
+
+  // File Manager State
+  let remoteCurrentPath = '';
+  let activeDownloads = {}; // transfer_id -> { filename, chunks: [], totalBytes, receivedBytes }
 
   // Key code mapping
   const JS_TO_VK = {
@@ -126,14 +173,16 @@
   // --- INITIALIZATION ---
   async function initApp() {
     if (authToken) {
-      const data = await apiFetch('/api/auth/me');
-      if (data.success && data.user) {
-        currentUser = data.user;
-        renderUserBadge();
-        switchView('dashboard');
-        loadDeviceFleet();
-        return;
-      }
+      try {
+        const data = await apiFetch('/api/auth/me');
+        if (data.success && data.user) {
+          currentUser = data.user;
+          renderUserBadge();
+          switchView('dashboard');
+          loadDeviceFleet();
+          return;
+        }
+      } catch {}
     }
     switchView('auth');
   }
@@ -152,6 +201,8 @@
     authSection.classList.add('hidden');
     dashboardSection.classList.add('hidden');
     remoteSection.classList.add('hidden');
+    terminalSection.classList.add('hidden');
+    tasksSection.classList.add('hidden');
 
     document.querySelectorAll('.segmented-nav .seg-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.view === view);
@@ -167,6 +218,17 @@
     } else if (view === 'remote') {
       remoteSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TRỰC TUYẾN` : 'CHƯA KẾT NỐI';
+      syncLaserCanvasSize();
+    } else if (view === 'terminal') {
+      terminalSection.classList.remove('hidden');
+      roStatus.textContent = isConnected ? `${currentRoom} // TERMINAL` : 'CHƯA KẾT NỐI';
+      terminalCmdInput.focus();
+    } else if (view === 'tasks') {
+      tasksSection.classList.remove('hidden');
+      roStatus.textContent = isConnected ? `${currentRoom} // TIẾN TRÌNH` : 'CHƯA KẾT NỐI';
+      if (isConnected) {
+        requestTelemetryAndTasks();
+      }
     }
   }
 
@@ -177,6 +239,9 @@
     const view = btn.dataset.view;
     if (view === 'shelf') {
       shelfDrawer.classList.toggle('open');
+      if (shelfDrawer.classList.contains('open') && isConnected) {
+        requestBrowsePath(remoteCurrentPath);
+      }
       return;
     }
     switchView(view);
@@ -243,10 +308,10 @@
   function renderDeviceGrid(devices) {
     if (!devices || devices.length === 0) {
       deviceGrid.innerHTML = `
-        <div class="empty-fleet">
+        <div class="empty-fleet" style="grid-column: 1 / -1; text-align: center; padding: 40px; background: var(--ink-1); border: 1px dashed var(--line); border-radius: 16px;">
           <p class="brand-font" style="font-size: 1.1rem; color: #F8FAFC; margin-bottom: 8px;">Chưa có máy trạm nào được liên kết</p>
-          <p style="font-size: 0.85rem; margin-bottom: 16px;">Khởi chạy Host Agent trên máy công ty để kết nối vào hệ thống</p>
-          <button id="btnEmptyAdd" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">+ Thêm Máy Đầu Tiên</button>
+          <p style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 16px;">Khởi chạy Host Agent trên máy tính để kết nối vào hệ thống</p>
+          <button id="btnEmptyAdd" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">+ Kết Nối Bằng Room ID</button>
         </div>
       `;
       document.getElementById('btnEmptyAdd')?.addEventListener('click', () => quickConnectModal.classList.remove('hidden'));
@@ -275,7 +340,6 @@
       `;
     }).join('');
 
-    // Attach click events
     deviceGrid.querySelectorAll('.btn-connect-device').forEach(btn => {
       btn.addEventListener('click', () => {
         const room = btn.dataset.room;
@@ -343,6 +407,7 @@
       // 2. Control Messages
       try {
         const msg = JSON.parse(event.data);
+
         if (msg.status === 'ok' && msg.role === 'client') {
           isConnected = true;
           roStatus.textContent = `${roomId} // TRỰC TUYẾN`;
@@ -351,6 +416,8 @@
             if (msg.hostMeta.monitors) populateMonitors(msg.hostMeta.monitors);
           }
           startPingLoop();
+          // Initial terminal sync
+          ws.send(JSON.stringify({ type: 'terminal_input', command: '\r\n' }));
         } else if (msg.status === 'error') {
           alert(`Lỗi: ${msg.message}`);
           disconnect();
@@ -361,12 +428,45 @@
           populateMonitors(msg.monitors, msg.active_id);
         } else if (msg.type === 'clipboard_sync') {
           clipboardViewer.value = msg.text || '';
+        } else if (msg.type === 'terminal_output') {
+          handleTerminalOutput(msg.data || '');
+        } else if (msg.type === 'telemetry_response') {
+          handleTelemetryData(msg.data);
+        } else if (msg.type === 'process_list_response') {
+          handleProcessList(msg.processes || []);
+        } else if (msg.type === 'process_kill_response') {
+          alert(msg.success ? `Đã dừng tiến trình PID ${msg.pid}` : `Không thể dừng tiến trình PID ${msg.pid}`);
+          if (currentView === 'tasks') requestTelemetryAndTasks();
+        } else if (msg.type === 'file_browse_response') {
+          renderFolderBrowser(msg.data);
         } else if (msg.type === 'file_upload_progress') {
           uploadPercent.textContent = `${msg.progress}%`;
           uploadProgressBar.style.width = `${msg.progress}%`;
         } else if (msg.type === 'file_upload_result') {
           uploadProgressContainer.classList.add('hidden');
           alert(`Đã truyền tệp thành công: ${msg.result.filename}`);
+          requestBrowsePath(remoteCurrentPath);
+        } else if (msg.type === 'file_download_start') {
+          activeDownloads[msg.transfer_id] = {
+            filename: msg.filename,
+            totalBytes: msg.filesize,
+            chunks: []
+          };
+        } else if (msg.type === 'file_download_chunk') {
+          const dl = activeDownloads[msg.transfer_id];
+          if (dl) {
+            dl.chunks.push(base64ToArrayBuffer(msg.data));
+          }
+        } else if (msg.type === 'file_download_finish') {
+          const dl = activeDownloads[msg.transfer_id];
+          if (dl) {
+            const blob = new Blob(dl.chunks, { type: 'application/octet-stream' });
+            downloadBlob(blob, dl.filename);
+            delete activeDownloads[msg.transfer_id];
+          }
+        } else if (msg.type === 'file_download_error') {
+          alert(`Lỗi tải tệp: ${msg.message}`);
+          delete activeDownloads[msg.transfer_id];
         } else if (msg.type === 'pong') {
           const rtt = Math.round(performance.now() - lastPingSend);
           metricPing.textContent = rtt;
@@ -392,6 +492,7 @@
       ws.close();
       ws = null;
     }
+    stopRecording();
     switchView('dashboard');
   }
 
@@ -413,6 +514,12 @@
     remoteCanvas.width = w;
     remoteCanvas.height = h;
     metricRes.textContent = `${w}x${h}`;
+    syncLaserCanvasSize();
+  }
+
+  function syncLaserCanvasSize() {
+    laserCanvas.width = remoteCanvas.clientWidth || remoteCanvas.width;
+    laserCanvas.height = remoteCanvas.clientHeight || remoteCanvas.height;
   }
 
   async function handleIncomingFrame(blob) {
@@ -455,6 +562,15 @@
     }));
   });
 
+  // --- QUALITY & BANDWIDTH SELECTOR ---
+  qualitySelector.addEventListener('change', () => {
+    if (!isConnected) return;
+    ws.send(JSON.stringify({
+      type: 'set_quality_preset',
+      preset: qualitySelector.value
+    }));
+  });
+
   // --- SCALE & FULLSCREEN ---
   btnScaleToggle.addEventListener('click', () => {
     isFitMode = !isFitMode;
@@ -464,12 +580,12 @@
     panX = 0;
     panY = 0;
     applyCanvasTransform();
+    syncLaserCanvasSize();
   });
 
   btnFullscreen.addEventListener('click', () => {
     if (!document.fullscreenElement) {
       remoteSection.requestFullscreen().then(() => {
-        // Request pointer lock for gaming / native precision
         if (remoteCanvas.requestPointerLock) {
           remoteCanvas.requestPointerLock().catch(() => {});
         }
@@ -481,6 +597,7 @@
 
   function applyCanvasTransform() {
     remoteCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    laserCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
   }
 
   // --- TOUCH PINCH-TO-ZOOM & PAN ---
@@ -507,25 +624,33 @@
     }
   }, { passive: false });
 
-  // --- MOUSE TRACKING ---
+  // --- MOUSE TRACKING & LASER POINTER ---
   function getNormalizedCoords(e) {
     const rect = remoteCanvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
     return {
       x: Math.max(0.0, Math.min(1.0, x)),
-      y: Math.max(0.0, Math.min(1.0, y))
+      y: Math.max(0.0, Math.min(1.0, y)),
+      clientX: e.clientX - rect.left,
+      clientY: e.clientY - rect.top
     };
   }
 
   let lastMove = 0;
   remoteCanvas.addEventListener('mousemove', (e) => {
     if (!isConnected) return;
+    const coords = getNormalizedCoords(e);
+
+    if (isLaserActive) {
+      laserPos.x = coords.clientX;
+      laserPos.y = coords.clientY;
+    }
+
     const now = performance.now();
     if (now - lastMove < 25) return;
     lastMove = now;
 
-    const coords = getNormalizedCoords(e);
     ws.send(JSON.stringify({
       type: 'mouse_move',
       x: coords.x,
@@ -562,6 +687,117 @@
       delta_y: -e.deltaY
     }));
   }, { passive: false });
+
+  // --- LASER POINTER OVERLAY RENDERING ---
+  btnToggleLaser.addEventListener('click', () => {
+    isLaserActive = !isLaserActive;
+    btnToggleLaser.classList.toggle('btn-active', isLaserActive);
+    syncLaserCanvasSize();
+    if (isLaserActive) {
+      startLaserLoop();
+    } else {
+      cancelAnimationFrame(laserAnimId);
+      laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
+    }
+  });
+
+  function startLaserLoop() {
+    function drawLaser() {
+      if (!isLaserActive) return;
+      laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
+
+      if (laserPos.x >= 0 && laserPos.y >= 0) {
+        // Red phosphor halo
+        laserCtx.save();
+        const rad = 14;
+        const grad = laserCtx.createRadialGradient(laserPos.x, laserPos.y, 2, laserPos.x, laserPos.y, rad);
+        grad.addColorStop(0, 'rgba(239, 68, 68, 1)');
+        grad.addColorStop(0.4, 'rgba(239, 68, 68, 0.7)');
+        grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+        laserCtx.fillStyle = grad;
+        laserCtx.beginPath();
+        laserCtx.arc(laserPos.x, laserPos.y, rad, 0, Math.PI * 2);
+        laserCtx.fill();
+
+        // White hot center
+        laserCtx.fillStyle = '#FFFFFF';
+        laserCtx.beginPath();
+        laserCtx.arc(laserPos.x, laserPos.y, 3, 0, Math.PI * 2);
+        laserCtx.fill();
+        laserCtx.restore();
+      }
+      laserAnimId = requestAnimationFrame(drawLaser);
+    }
+    laserAnimId = requestAnimationFrame(drawLaser);
+  }
+
+  // --- SESSION RECORDING (WEBM) ---
+  btnRecord.addEventListener('click', () => {
+    if (!isConnected) {
+      alert('Vui lòng kết nối vào máy trạm trước khi ghi hình!');
+      return;
+    }
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  });
+
+  function startRecording() {
+    try {
+      const stream = remoteCanvas.captureStream(30);
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        downloadBlob(blob, `titan-session-${Date.now()}.webm`);
+        recordedChunks = [];
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      btnRecord.classList.add('btn-active');
+      btnRecord.textContent = 'Ghi ●';
+    } catch (err) {
+      alert(`Không thể bắt đầu ghi hình: ${err.message}`);
+    }
+  }
+
+  function stopRecording() {
+    if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      isRecording = false;
+      btnRecord.classList.remove('btn-active');
+      btnRecord.textContent = 'Record';
+    }
+  }
+
+  // --- CANVAS SCREENSHOT (PNG) ---
+  btnScreenshot.addEventListener('click', () => {
+    if (!isConnected) {
+      alert('Chưa kết nối máy trạm');
+      return;
+    }
+    remoteCanvas.toBlob((blob) => {
+      if (blob) {
+        downloadBlob(blob, `titan-screenshot-${Date.now()}.png`);
+      }
+    }, 'image/png');
+  });
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   // --- KEYBOARD CAPTURE ---
   window.addEventListener('keydown', (e) => {
@@ -625,6 +861,38 @@
     }, 100);
   }
 
+  // --- POWER ACTIONS MENU ---
+  btnPowerMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    powerMenuDropdown.classList.toggle('hidden');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!powerMenuDropdown.contains(e.target) && e.target !== btnPowerMenu) {
+      powerMenuDropdown.classList.add('hidden');
+    }
+  });
+
+  document.querySelectorAll('[data-power]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const act = btn.dataset.power;
+      powerMenuDropdown.classList.add('hidden');
+      if (!isConnected) {
+        alert('Chưa kết nối máy trạm');
+        return;
+      }
+      if (act === 'lock') {
+        if (confirm('Khóa màn hình máy trạm (Lock Workstation)?')) {
+          ws.send(JSON.stringify({ type: 'power_action', action: 'lock' }));
+        }
+      } else if (act === 'restart') {
+        if (confirm('Khởi động lại máy trạm sẽ ngắt phiên làm việc. Bạn có chắc chắn?')) {
+          ws.send(JSON.stringify({ type: 'power_action', action: 'restart' }));
+        }
+      }
+    });
+  });
+
   // --- ON-SCREEN KEYBOARD (OSK) ---
   btnToggleOSK.addEventListener('click', () => {
     oskOverlay.classList.toggle('hidden');
@@ -641,8 +909,111 @@
     }
   });
 
-  // --- SIDE SHELF: FILE TRANSFER & CLIPBOARD ---
-  btnOpenShelf.addEventListener('click', () => shelfDrawer.classList.add('open'));
+  // --- VIEW 4: REMOTE TERMINAL (POWERSHELL) ---
+  terminalInputForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!isConnected) {
+      alert('Vui lòng kết nối vào máy trạm để sử dụng Terminal');
+      return;
+    }
+    const cmd = terminalCmdInput.value;
+    ws.send(JSON.stringify({
+      type: 'terminal_input',
+      command: cmd + '\r\n'
+    }));
+    terminalCmdInput.value = '';
+  });
+
+  btnClearTerminal.addEventListener('click', () => {
+    terminalOutput.textContent = '';
+  });
+
+  function handleTerminalOutput(text) {
+    terminalOutput.textContent += text;
+    terminalOutput.scrollTop = terminalOutput.scrollHeight;
+  }
+
+  // --- VIEW 5: TASK MANAGER & DIAGNOSTICS ---
+  btnRefreshTasks.addEventListener('click', () => {
+    if (!isConnected) {
+      alert('Chưa kết nối máy trạm');
+      return;
+    }
+    requestTelemetryAndTasks();
+  });
+
+  function requestTelemetryAndTasks() {
+    if (!isConnected || !ws) return;
+    ws.send(JSON.stringify({ type: 'telemetry_request' }));
+    ws.send(JSON.stringify({ type: 'process_list_request' }));
+  }
+
+  function handleTelemetryData(stats) {
+    if (!stats) return;
+    // RAM
+    if (stats.ram) {
+      ramValue.textContent = `${stats.ram.used_gb} / ${stats.ram.total_gb} GB`;
+      ramGaugeBar.style.width = `${stats.ram.percent}%`;
+      ramSub.textContent = `${stats.ram.percent}% Đang sử dụng (${stats.ram.free_gb} GB còn trống)`;
+    }
+    // Disk C:
+    if (stats.disks && stats.disks.length > 0) {
+      const diskC = stats.disks[0];
+      diskCValue.textContent = `${diskC.used_gb} / ${diskC.total_gb} GB`;
+      diskCGaugeBar.style.width = `${diskC.percent}%`;
+      diskCSub.textContent = `${diskC.percent}% Đã dùng (${diskC.free_gb} GB trống)`;
+    }
+  }
+
+  function handleProcessList(processes) {
+    currentProcessList = processes;
+    renderProcessTable();
+  }
+
+  processSearchInput.addEventListener('input', () => {
+    renderProcessTable();
+  });
+
+  function renderProcessTable() {
+    const term = processSearchInput.value.toLowerCase().trim();
+    const filtered = currentProcessList.filter(p => {
+      return p.name.toLowerCase().includes(term) || String(p.pid).includes(term);
+    });
+
+    if (filtered.length === 0) {
+      processTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748B;">Không tìm thấy tiến trình phù hợp</td></tr>`;
+      return;
+    }
+
+    processTableBody.innerHTML = filtered.map(p => `
+      <tr>
+        <td style="color: var(--accent);">${p.pid}</td>
+        <td><strong>${escapeHtml(p.name)}</strong></td>
+        <td>${p.memory_mb} MB</td>
+        <td>
+          <button class="btn-kill-proc" data-pid="${p.pid}">Diệt (Kill)</button>
+        </td>
+      </tr>
+    `).join('');
+
+    processTableBody.querySelectorAll('.btn-kill-proc').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = parseInt(btn.dataset.pid, 10);
+        if (confirm(`Bạn có chắc chắn muốn dừng tiến trình PID ${pid}?`)) {
+          ws.send(JSON.stringify({
+            type: 'process_kill_request',
+            pid: pid
+          }));
+        }
+      });
+    });
+  }
+
+  // --- SIDE SHELF: FILE EXPLORER & CLIPBOARD ---
+  btnOpenShelf.addEventListener('click', () => {
+    shelfDrawer.classList.add('open');
+    if (isConnected) requestBrowsePath(remoteCurrentPath);
+  });
   btnCloseShelf.addEventListener('click', () => shelfDrawer.classList.remove('open'));
 
   shelfTabs.forEach(btn => {
@@ -699,7 +1070,7 @@
     uploadProgressContainer.classList.remove('hidden');
 
     const transferId = 'transfer_' + Date.now();
-    const chunkSize = 64 * 1024; // 64KB chunks
+    const chunkSize = 64 * 1024;
     const totalChunks = Math.ceil(file.size / chunkSize);
 
     ws.send(JSON.stringify({
@@ -733,6 +1104,79 @@
     }));
   }
 
+  // Remote Directory Browser
+  function requestBrowsePath(p) {
+    if (!isConnected || !ws) return;
+    ws.send(JSON.stringify({
+      type: 'file_browse_request',
+      path: p || ''
+    }));
+  }
+
+  btnBrowseUp.addEventListener('click', () => {
+    if (!remoteCurrentPath) return;
+    const parts = remoteCurrentPath.replace(/\\$/, '').split('\\');
+    if (parts.length <= 1) {
+      remoteCurrentPath = '';
+    } else {
+      parts.pop();
+      remoteCurrentPath = parts.join('\\') + (parts.length === 1 ? '\\' : '');
+    }
+    requestBrowsePath(remoteCurrentPath);
+  });
+
+  function renderFolderBrowser(data) {
+    if (!data) return;
+    remoteCurrentPath = data.current_path || '';
+    currentFolderPath.textContent = remoteCurrentPath || 'Danh sách ổ đĩa';
+
+    if (data.error) {
+      remoteFolderList.innerHTML = `<div style="color: #EF4444; font-size: 0.75rem;">${escapeHtml(data.error)}</div>`;
+      return;
+    }
+
+    if (!data.items || data.items.length === 0) {
+      remoteFolderList.innerHTML = `<div style="color: #64748B; font-size: 0.75rem;">Thư mục trống</div>`;
+      return;
+    }
+
+    remoteFolderList.innerHTML = data.items.map(item => {
+      const isDir = item.is_dir;
+      const icon = isDir ? '📁' : '📄';
+      const sizeStr = isDir ? '' : ` (${formatBytes(item.size)})`;
+      return `
+        <div class="folder-item" data-path="${escapeHtml(item.path || item.name)}" data-isdir="${isDir}">
+          <span>${icon} ${escapeHtml(item.name)}${sizeStr}</span>
+          <span>${isDir ? '→' : '⇣ Tải'}</span>
+        </div>
+      `;
+    }).join('');
+
+    remoteFolderList.querySelectorAll('.folder-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const itemPath = el.dataset.path;
+        const isDir = el.dataset.isdir === 'true';
+        if (isDir) {
+          requestBrowsePath(itemPath);
+        } else {
+          // Download file from host
+          ws.send(JSON.stringify({
+            type: 'file_download_request',
+            filepath: itemPath
+          }));
+        }
+      });
+    });
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
   function arrayBufferToBase64(buffer) {
     let binary = '';
     const bytes = new Uint8Array(buffer);
@@ -741,6 +1185,16 @@
       binary += String.fromCharCode(bytes[i]);
     }
     return window.btoa(binary);
+  }
+
+  function base64ToArrayBuffer(base64) {
+    const binary = window.atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
   }
 
   // Start app

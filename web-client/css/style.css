@@ -96,7 +96,7 @@ button:active {
 }
 
 .seg-btn {
-  padding: 6px 18px;
+  padding: 6px 16px;
   border-radius: 999px;
   font-size: 0.85rem;
   font-weight: 500;
@@ -384,16 +384,6 @@ button:active {
   box-shadow: var(--glow);
 }
 
-/* Empty State */
-.empty-fleet {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 60px 20px;
-  border: 1px dashed var(--line);
-  border-radius: 16px;
-  color: #94A3B8;
-}
-
 /* --- VIEW 3: ACTIVE REMOTE STAGE --- */
 .remote-stage {
   width: 100%;
@@ -420,7 +410,7 @@ button:active {
   object-fit: contain;
 }
 
-/* The Floating Pill Deck (Bottom Controller) */
+/* Floating Pill Deck */
 .floating-deck {
   position: absolute;
   bottom: 20px;
@@ -475,7 +465,219 @@ button:active {
   color: #F87171;
 }
 
-/* Slide-over Shelf (Side Drawer 380px) */
+/* Power Menu Dropdown */
+.power-menu {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.8);
+}
+
+.power-menu-item {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.power-menu-item:hover {
+  background: var(--ink-2);
+  color: var(--accent);
+}
+
+.power-menu-item.danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #FCA5A5;
+}
+
+/* --- VIEW 4: REMOTE WEB TERMINAL --- */
+.terminal-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #05070C;
+  padding: 40px 60px 20px;
+}
+
+.terminal-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.terminal-screen {
+  flex: 1;
+  background: #000000;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  color: #22C55E;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-input-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 16px;
+}
+
+.prompt-symbol {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.terminal-input-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #F8FAFC;
+  font-size: 0.9rem;
+}
+
+/* --- VIEW 5: TASK MANAGER & DIAGNOSTICS --- */
+.tasks-container {
+  padding: 60px 40px 40px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.tasks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.telemetry-card {
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.telemetry-card-title {
+  font-size: 0.8rem;
+  color: #94A3B8;
+  margin-bottom: 6px;
+}
+
+.telemetry-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #F8FAFC;
+}
+
+.gauge-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--ink-0);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 10px 0 6px;
+}
+
+.gauge-fill {
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  transition: width 0.3s ease;
+}
+
+.telemetry-sub {
+  font-size: 0.75rem;
+  color: #64748B;
+}
+
+/* Process Table */
+.process-table-card {
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.process-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.table-scroll-area {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.process-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.process-table th {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+.process-table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line-subtle);
+  color: #F8FAFC;
+}
+
+.process-table tr:hover td {
+  background: var(--ink-2);
+}
+
+.btn-kill-proc {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--status-offline);
+  color: #FCA5A5;
+  font-size: 0.72rem;
+}
+
+.btn-kill-proc:hover {
+  background: var(--status-offline);
+  color: #000000;
+  font-weight: 600;
+}
+
+/* Shelf Drawer & Folder Browser */
 .shelf-drawer {
   position: fixed;
   top: 64px;
@@ -521,14 +723,12 @@ button:active {
   overflow-y: auto;
 }
 
-/* File Transfer Dropzone */
 .file-dropzone {
   border: 2px dashed var(--line);
   border-radius: 14px;
-  padding: 32px 16px;
+  padding: 24px 16px;
   text-align: center;
   color: #94A3B8;
-  transition: all 0.2s var(--ease-smooth);
   cursor: pointer;
 }
 
@@ -538,24 +738,30 @@ button:active {
   color: #F8FAFC;
 }
 
-.file-progress-bar {
-  width: 100%;
-  height: 6px;
+.folder-browser-list {
   background: var(--ink-0);
-  border-radius: 999px;
-  overflow: hidden;
-  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 6px;
 }
 
-.file-progress-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-  transition: width 0.15s ease;
+.folder-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
 }
 
-/* Virtual Keyboard Overlay */
+.folder-item:hover {
+  background: var(--ink-2);
+  color: var(--accent);
+}
+
 .osk-overlay {
   position: absolute;
   bottom: 80px;
@@ -597,10 +803,5 @@ button:active {
   color: var(--accent);
 }
 
-.osk-key.wide {
-  min-width: 60px;
-}
-
-.osk-key.space {
-  min-width: 220px;
-}
+.osk-key.wide { min-width: 60px; }
+.osk-key.space { min-width: 220px; }

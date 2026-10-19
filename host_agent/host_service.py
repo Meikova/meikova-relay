@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import json
@@ -6,6 +7,7 @@ import asyncio
 import logging
 import argparse
 from pathlib import Path
+from typing import Optional
 import websockets
 
 # Ensure package is resolvable
@@ -16,6 +18,9 @@ from host_agent.screen_capture import ScreenCapture
 from host_agent.input_injector import InputInjector
 from host_agent.clipboard_manager import ClipboardManager
 from host_agent.file_manager import FileManager
+from host_agent.terminal_manager import TerminalManager
+from host_agent.system_manager import SystemManager
+from host_agent.power_manager import PowerManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,13 +51,26 @@ class HostService:
         self.clipboard = ClipboardManager(on_clipboard_change=self._on_local_clipboard_change)
         self.clipboard.start_listener()
 
+        # Terminal Session
+        self.terminal = TerminalManager(on_output=self._on_terminal_output)
+        self.terminal.start()
+
     def _on_local_clipboard_change(self, text: str):
-        """Callback when local host clipboard changes -> push to client."""
         if self.ws and self.has_active_client and self.loop and self.loop.is_running():
             asyncio.run_coroutine_threadsafe(
                 self.ws.send(json.dumps({
                     "type": "clipboard_sync",
                     "text": text
+                })),
+                self.loop
+            )
+
+    def _on_terminal_output(self, output_text: str):
+        if self.ws and self.has_active_client and self.loop and self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(
+                self.ws.send(json.dumps({
+                    "type": "terminal_output",
+                    "data": output_text
                 })),
                 self.loop
             )
@@ -63,7 +81,6 @@ class HostService:
         while self.running:
             start_time = time.perf_counter()
 
-            # Always capture and stream if client is connected or on interval
             frame_bytes = self.capture.capture_frame(force=False)
             if frame_bytes:
                 try:
@@ -72,7 +89,6 @@ class HostService:
                     logger.warning(f"Error sending frame: {e}")
                     break
 
-            # Send keepalive ping every 10s if idle
             if time.time() - last_heartbeat > 10:
                 try:
                     await ws.send(json.dumps({"type": "ping", "ts": time.time()}))
@@ -87,11 +103,6 @@ class HostService:
     async def _receive_events_loop(self, ws: websockets.WebSocketClientProtocol):
         logger.info("Event listener started")
         async for raw_msg in ws:
-            # Binary frame = File chunk from client
-            if isinstance(raw_msg, bytes):
-                # Custom binary tag or file chunk
-                continue
-
             if isinstance(raw_msg, str):
                 try:
                     event = json.loads(raw_msg)
@@ -102,19 +113,16 @@ class HostService:
 
                 # System & Room Control
                 if ev_type == "client_connected":
-                    logger.info("[+] Client connected to room! Streaming live.")
+                    logger.info("[+] Client connected! Streaming live.")
                     self.has_active_client = True
-                    # Force full initial keyframe
                     initial_frame = self.capture.capture_frame(force=True)
                     if initial_frame:
                         await ws.send(initial_frame)
-                    # Send monitors list to client
                     await ws.send(json.dumps({
                         "type": "monitors_list",
                         "monitors": self.capture.monitors,
                         "active_id": self.capture.active_monitor_id
                     }))
-                    # Send current clipboard state
                     clip_text = self.clipboard.get_clipboard_text()
                     if clip_text:
                         await ws.send(json.dumps({
@@ -124,7 +132,7 @@ class HostService:
                     continue
 
                 elif ev_type == "client_disconnected":
-                    logger.info("[-] Client disconnected from room.")
+                    logger.info("[-] Client disconnected.")
                     self.has_active_client = False
                     continue
 
@@ -133,8 +141,6 @@ class HostService:
                     mon_id = int(event.get("monitor_id", 1))
                     self.capture.set_active_monitor(mon_id)
                     w, h = self.capture.resolution
-                    logger.info(f"Switched to Monitor {mon_id} ({w}x{h})")
-                    # Send resolution update
                     await ws.send(json.dumps({
                         "type": "host_ready",
                         "width": w,
@@ -147,6 +153,122 @@ class HostService:
                         await ws.send(initial_frame)
                     continue
 
+                # Quality / FPS Preset
+                elif ev_type == "set_quality_preset":
+                    preset = event.get("preset", "balanced")
+                    if preset == "speed_60":
+                        self.capture.quality = 45
+                        self.frame_interval = 1.0 / 60.0
+                    elif preset == "crisp_hd":
+                        self.capture.quality = 85
+                        self.frame_interval = 1.0 / 20.0
+                    elif preset == "grayscale":
+                        self.capture.quality = 35
+                        self.frame_interval = 1.0 / 25.0
+                    else: # balanced
+                        self.capture.quality = 65
+                        self.frame_interval = 1.0 / 30.0
+                    logger.info(f"Applied Quality Preset: {preset} (Quality: {self.capture.quality})")
+                    continue
+
+                # Terminal Input
+                elif ev_type == "terminal_input":
+                    cmd = event.get("command", "")
+                    self.terminal.send_input(cmd)
+                    continue
+
+                # Telemetry & Diagnostics
+                elif ev_type == "telemetry_request":
+                    stats = SystemManager.get_hardware_telemetry()
+                    await ws.send(json.dumps({
+                        "type": "telemetry_response",
+                        "data": stats
+                    }))
+                    continue
+
+                elif ev_type == "process_list_request":
+                    procs = SystemManager.get_process_list(limit=50)
+                    await ws.send(json.dumps({
+                        "type": "process_list_response",
+                        "processes": procs
+                    }))
+                    continue
+
+                elif ev_type == "process_kill_request":
+                    pid = int(event.get("pid", 0))
+                    ok = SystemManager.kill_process(pid)
+                    await ws.send(json.dumps({
+                        "type": "process_kill_response",
+                        "pid": pid,
+                        "success": ok
+                    }))
+                    continue
+
+                # Power Management
+                elif ev_type == "power_action":
+                    action = event.get("action")
+                    if action == "lock":
+                        PowerManager.lock_workstation()
+                    elif action == "restart":
+                        PowerManager.restart_machine()
+                    elif action == "shutdown":
+                        PowerManager.shutdown_machine()
+                    continue
+
+                # File Browser
+                elif ev_type == "file_browse_request":
+                    path = event.get("path", "")
+                    data = self.file_manager.browse_path(path)
+                    await ws.send(json.dumps({
+                        "type": "file_browse_response",
+                        "data": data
+                    }))
+                    continue
+
+                # File Download Request
+                elif ev_type == "file_download_request":
+                    filepath = event.get("filepath", "")
+                    transfer_id = event.get("transfer_id", f"dl_{int(time.time()*1000)}")
+                    if os.path.isfile(filepath):
+                        fname = os.path.basename(filepath)
+                        fsize = os.path.getsize(filepath)
+                        await ws.send(json.dumps({
+                            "type": "file_download_start",
+                            "transfer_id": transfer_id,
+                            "filename": fname,
+                            "filesize": fsize
+                        }))
+                        chunk_size = 64 * 1024
+                        try:
+                            with open(filepath, "rb") as f:
+                                while True:
+                                    chunk = f.read(chunk_size)
+                                    if not chunk:
+                                        break
+                                    await ws.send(json.dumps({
+                                        "type": "file_download_chunk",
+                                        "transfer_id": transfer_id,
+                                        "data": base64.b64encode(chunk).decode("ascii")
+                                    }))
+                            await ws.send(json.dumps({
+                                "type": "file_download_finish",
+                                "transfer_id": transfer_id,
+                                "filename": fname
+                            }))
+                        except Exception as e:
+                            await ws.send(json.dumps({
+                                "type": "file_download_error",
+                                "transfer_id": transfer_id,
+                                "message": str(e)
+                            }))
+                    else:
+                        await ws.send(json.dumps({
+                            "type": "file_download_error",
+                            "transfer_id": transfer_id,
+                            "message": "Tệp không tồn tại"
+                        }))
+                    continue
+
                 # Clipboard Sync from Client
                 elif ev_type == "clipboard_sync":
                     new_text = event.get("text", "")
@@ -154,14 +276,13 @@ class HostService:
                         self.clipboard.set_clipboard_text(new_text)
                     continue
 
-                # File Transfer Events
+                # File Upload Events
                 elif ev_type == "file_upload_start":
                     transfer_id = event.get("transfer_id", "default")
                     filename = event.get("filename", "unknown.bin")
                     filesize = int(event.get("filesize", 0))
                     checksum = event.get("checksum", "")
                     dest_path = self.file_manager.start_upload(transfer_id, filename, filesize, checksum)
-                    logger.info(f"Receiving file: {filename} ({filesize} bytes) -> {dest_path}")
                     await ws.send(json.dumps({
                         "type": "file_upload_ack",
                         "transfer_id": transfer_id,
@@ -184,19 +305,10 @@ class HostService:
                 elif ev_type == "file_upload_finish":
                     transfer_id = event.get("transfer_id")
                     res = self.file_manager.finish_upload(transfer_id)
-                    logger.info(f"File upload complete: {res.get('filename')} | Valid: {res.get('valid')}")
                     await ws.send(json.dumps({
                         "type": "file_upload_result",
                         "transfer_id": transfer_id,
                         "result": res
-                    }))
-                    continue
-
-                elif ev_type == "file_list_request":
-                    files = self.file_manager.list_files()
-                    await ws.send(json.dumps({
-                        "type": "file_list_response",
-                        "files": files
                     }))
                     continue
 
@@ -233,7 +345,6 @@ class HostService:
                     max_size=20 * 1024 * 1024
                 ) as ws:
                     self.ws = ws
-                    logger.info("Connected to Relay! Sending host authentication...")
                     init_pkt = json.dumps({
                         "type": "init_host",
                         "room_id": self.room_id,
@@ -274,10 +385,10 @@ class HostService:
 
 def main():
     parser = argparse.ArgumentParser(description="Titan Remote Desktop - Host Agent")
-    parser.add_argument("--relay", default="ws://127.0.0.1:8080", help="Relay Server URL (ws:// or wss://)")
+    parser.add_argument("--relay", default="ws://127.0.0.1:8080", help="Relay Server URL")
     parser.add_argument("--room", default="RD-8888", help="Room ID / Session Code")
     parser.add_argument("--pin", default="123456", help="Security PIN")
-    parser.add_argument("--name", default="Workstation-PC", help="Device Display Name")
+    parser.add_argument("--name", default="Workstation-PC", help="Device Name")
     parser.add_argument("--fps", type=int, default=25, help="Target capture FPS")
     parser.add_argument("--quality", type=int, default=65, help="JPEG quality 1-100")
 

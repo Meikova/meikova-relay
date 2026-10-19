@@ -1,14 +1,13 @@
 import os
 import hashlib
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 class FileManager:
-    """Handles receiving and sending files between Host and Client."""
+    """Handles receiving, browsing, and downloading files between Host and Client."""
 
     def __init__(self, download_dir: Optional[str] = None):
         if not download_dir:
-            # Default to user's Downloads/TitanRemote
             user_downloads = Path.home() / "Downloads" / "TitanRemote"
             user_downloads.mkdir(parents=True, exist_ok=True)
             self.download_dir = str(user_downloads)
@@ -21,7 +20,6 @@ class FileManager:
         safe_name = os.path.basename(filename)
         dest_path = os.path.join(self.download_dir, safe_name)
 
-        # Open file in write-binary mode
         file_handle = open(dest_path, "wb")
         self.active_transfers[transfer_id] = {
             "path": dest_path,
@@ -70,17 +68,47 @@ class FileManager:
             "valid": is_valid
         }
 
-    def list_files(self) -> list:
-        results = []
+    def browse_path(self, req_path: str = "") -> Dict[str, Any]:
+        """Lists folders and files in a specific directory or available drives if empty."""
+        if not req_path:
+            # List available drives
+            drives = []
+            for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+                drive = f"{letter}:\\"
+                if os.path.exists(drive):
+                    drives.append({"name": drive, "is_dir": True, "size": 0})
+            return {"current_path": "", "items": drives}
+
+        target = os.path.abspath(req_path)
+        if not os.path.exists(target) or not os.path.isdir(target):
+            return {"current_path": req_path, "items": [], "error": "Folder not found"}
+
+        items = []
         try:
-            for entry in os.scandir(self.download_dir):
-                if entry.is_file():
+            for entry in os.scandir(target):
+                try:
+                    is_dir = entry.is_dir()
                     stat = entry.stat()
-                    results.append({
+                    items.append({
                         "name": entry.name,
-                        "size": stat.st_size,
+                        "path": entry.path,
+                        "is_dir": is_dir,
+                        "size": 0 if is_dir else stat.st_size,
                         "modified": int(stat.st_mtime * 1000)
                     })
+                except Exception:
+                    pass
+        except Exception as e:
+            return {"current_path": target, "items": [], "error": str(e)}
+
+        items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+        return {"current_path": target, "items": items[:150]}
+
+    def delete_item(self, filepath: str) -> bool:
+        try:
+            if os.path.isfile(filepath):
+                os.remove(filepath)
+                return True
         except Exception:
             pass
-        return sorted(results, key=lambda x: x["modified"], reverse=True)
+        return False

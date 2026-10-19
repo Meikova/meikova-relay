@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Titan Remote — Ambient Instrument</title>
+  <title>Titan Remote — Enterprise Ambient Platform</title>
   
-  <!-- Typography Hierarchy: Unbounded (Display), Be Vietnam Pro (UI), JetBrains Mono (Telemetry) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Unbounded:wght@500;600&display=swap" rel="stylesheet">
@@ -26,8 +25,10 @@
     <!-- Mode Switcher -->
     <nav class="segmented-nav" id="mainNav">
       <button class="seg-btn active" data-view="dashboard">Máy trạm</button>
-      <button class="seg-btn" data-view="remote" id="navRemoteBtn">Màn hình từ xa</button>
-      <button class="seg-btn" data-view="shelf" id="navShelfBtn">Tệp & Bộ nhớ</button>
+      <button class="seg-btn" data-view="remote" id="navRemoteBtn">Màn hình</button>
+      <button class="seg-btn" data-view="terminal" id="navTerminalBtn">Terminal</button>
+      <button class="seg-btn" data-view="tasks" id="navTasksBtn">Tiến trình</button>
+      <button class="seg-btn" data-view="shelf" id="navShelfBtn">Tệp & Clip</button>
     </nav>
 
     <div class="topbar-right">
@@ -55,8 +56,8 @@
       <div class="instrument-card">
         <div class="card-hero">
           <div class="brand-font" style="font-size: 1.4rem; color: var(--accent); margin-bottom: 6px;">∞</div>
-          <h1 class="card-title brand-font">Đăng Nhập Máy Trạm</h1>
-          <p class="card-subtitle">Hệ thống điều khiển máy tính chuẩn doanh nghiệp qua Outbound Relay</p>
+          <h1 class="card-title brand-font">Đăng Nhập Quản Trị</h1>
+          <p class="card-subtitle">Nền tảng điều khiển máy trạm toàn diện qua Outbound Relay</p>
         </div>
 
         <div class="segmented-nav auth-tabs" id="authTabs">
@@ -90,27 +91,35 @@
         <button id="btnOpenLinkModal" class="btn-pill">+ Thêm Máy Trạm Mới</button>
       </div>
 
-      <div class="device-grid" id="deviceGrid">
-        <!-- Rendered dynamically -->
-      </div>
+      <div class="device-grid" id="deviceGrid"></div>
     </section>
 
     <!-- VIEW 3: ACTIVE REMOTE DESKTOP STAGE -->
     <section id="remoteSection" class="remote-stage hidden">
       <canvas id="remoteCanvas" tabindex="0"></canvas>
+      <canvas id="laserCanvas" style="position: absolute; inset: 0; pointer-events: none; z-index: 10;"></canvas>
 
       <!-- The Floating Pill Deck (Bottom Controller) -->
       <footer class="floating-deck" id="floatingDeck">
-        <!-- Monitor Switcher -->
         <select id="monitorSelector" class="deck-btn" title="Chọn màn hình truyền phát">
           <option value="1">Màn hình 1</option>
+        </select>
+
+        <select id="qualitySelector" class="deck-btn" title="Cấu hình chất lượng & băng thông">
+          <option value="balanced" selected>30 FPS (Cân bằng)</option>
+          <option value="speed_60">60 FPS (Siêu mượt)</option>
+          <option value="crisp_hd">HD (Văn bản nét)</option>
+          <option value="grayscale">Tiết kiệm mạng</option>
         </select>
 
         <button id="btnScaleToggle" class="deck-btn" title="Co giãn theo cửa sổ / 100% tỷ lệ gốc">
           <span id="scaleLabel">Fit</span>
         </button>
 
-        <button id="btnFullscreen" class="deck-btn" title="Toàn màn hình">Toàn màn hình</button>
+        <button id="btnFullscreen" class="deck-btn" title="Toàn màn hình">Fullscreen</button>
+        <button id="btnToggleLaser" class="deck-btn" title="Bật/Tắt Laser Pointer">Laser</button>
+        <button id="btnRecord" class="deck-btn" title="Ghi hình phiên làm việc">Record</button>
+        <button id="btnScreenshot" class="deck-btn" title="Chụp ảnh màn hình máy trạm">Capture</button>
         <button id="btnToggleOSK" class="deck-btn" title="Mở bàn phím ảo">Phím ảo</button>
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
@@ -122,9 +131,17 @@
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
 
+        <!-- Power Menu Toggle -->
+        <button id="btnPowerMenu" class="deck-btn" title="Tác vụ nguồn (Khóa máy, Khởi động lại)">Nguồn ▾</button>
         <button id="btnOpenShelf" class="deck-btn" title="Truyền tệp & Clipboard">Tệp & Clip</button>
         <button id="btnDisconnect" class="deck-btn danger" title="Ngắt kết nối">Thoát</button>
       </footer>
+
+      <!-- Power Actions Floating Menu -->
+      <div id="powerMenuDropdown" class="power-menu hidden">
+        <button class="power-menu-item" data-power="lock">🔒 Khóa màn hình (Lock)</button>
+        <button class="power-menu-item danger" data-power="restart">⟳ Khởi động lại máy (Restart)</button>
+      </div>
 
       <!-- Virtual On-Screen Keyboard (OSK) Overlay -->
       <div id="oskOverlay" class="osk-overlay hidden">
@@ -178,6 +195,75 @@
       </div>
     </section>
 
+    <!-- VIEW 4: REMOTE WEB TERMINAL (POWERSHELL) -->
+    <section id="terminalSection" class="terminal-container hidden">
+      <div class="terminal-toolbar">
+        <span class="mono-font" style="color: var(--accent); font-size: 0.85rem;">PS REMOTE // HOST SHELL</span>
+        <button id="btnClearTerminal" class="btn-pill">Xóa màn hình (Clear)</button>
+      </div>
+      <div id="terminalOutput" class="terminal-screen mono-font"></div>
+      <form id="terminalInputForm" class="terminal-input-row">
+        <span class="prompt-symbol mono-font">PS &gt;</span>
+        <input type="text" id="terminalCmdInput" class="terminal-input-field mono-font" placeholder="Nhập lệnh PowerShell (vd: dir, ipconfig, systeminfo)..." autocomplete="off">
+        <button type="submit" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">Gửi</button>
+      </form>
+    </section>
+
+    <!-- VIEW 5: TASK MANAGER & HARDWARE DIAGNOSTICS -->
+    <section id="tasksSection" class="tasks-container hidden">
+      <div class="tasks-header">
+        <div>
+          <h2 class="section-title">Giám sát & Quản lý tiến trình</h2>
+          <p class="card-subtitle">Thông số phần cứng và danh sách ứng dụng đang chạy trên máy trạm</p>
+        </div>
+        <button id="btnRefreshTasks" class="btn-pill">⟳ Làm Mới</button>
+      </div>
+
+      <!-- Telemetry Gauges -->
+      <div class="telemetry-grid">
+        <div class="telemetry-card">
+          <div class="telemetry-card-title">Bộ nhớ RAM</div>
+          <div class="telemetry-value brand-font" id="ramValue">-- GB</div>
+          <div class="gauge-bar"><div class="gauge-fill" id="ramGaugeBar" style="width: 0%;"></div></div>
+          <div class="telemetry-sub mono-font" id="ramSub">Đang đo...</div>
+        </div>
+        <div class="telemetry-card">
+          <div class="telemetry-card-title">Ổ đĩa C:</div>
+          <div class="telemetry-value brand-font" id="diskCValue">-- GB</div>
+          <div class="gauge-bar"><div class="gauge-fill" id="diskCGaugeBar" style="width: 0%;"></div></div>
+          <div class="telemetry-sub mono-font" id="diskCSub">Đang đo...</div>
+        </div>
+        <div class="telemetry-card">
+          <div class="telemetry-card-title">Hệ điều hành</div>
+          <div class="telemetry-value brand-font" style="font-size: 1.1rem; padding-top: 6px;">Windows 11</div>
+          <div class="telemetry-sub mono-font" style="margin-top: 18px;">64-bit Workstation</div>
+        </div>
+      </div>
+
+      <!-- Process Table -->
+      <div class="process-table-card">
+        <div class="process-table-header">
+          <h3 style="font-size: 0.95rem;">Danh sách tiến trình (Sắp xếp theo RAM)</h3>
+          <input type="text" id="processSearchInput" class="instrument-input mono-font" placeholder="Lọc tiến trình..." style="width: 200px; padding: 6px 10px; font-size: 0.8rem;">
+        </div>
+        <div class="table-scroll-area">
+          <table class="process-table mono-font">
+            <thead>
+              <tr>
+                <th>PID</th>
+                <th>Tên tiến trình</th>
+                <th>RAM (MB)</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="processTableBody">
+              <tr><td colspan="4" style="text-align: center; color: #64748B;">Chưa kết nối máy trạm</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- SLIDE-OVER SHELF (SIDE DRAWER 380px) -->
     <aside id="shelfDrawer" class="shelf-drawer">
       <div class="shelf-header">
@@ -186,7 +272,7 @@
       </div>
 
       <div class="segmented-nav shelf-tabs">
-        <button class="seg-btn active" data-shelf-tab="files">Truyền Tệp</button>
+        <button class="seg-btn active" data-shelf-tab="files">Duyệt & Tải Tệp</button>
         <button class="seg-btn" data-shelf-tab="clipboard">Clipboard</button>
       </div>
 
@@ -199,8 +285,8 @@
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <p><strong>Kéo thả tệp tin vào đây</strong></p>
-            <p style="font-size: 0.75rem; margin-top: 4px;">hoặc bấm để duyệt tệp gửi sang máy trạm</p>
+            <p><strong>Kéo thả tệp tin để gửi</strong></p>
+            <p style="font-size: 0.75rem; margin-top: 4px;">hoặc bấm để chọn tệp</p>
             <input type="file" id="fileInput" class="hidden">
           </div>
 
@@ -214,10 +300,15 @@
             </div>
           </div>
 
+          <!-- Remote Folder Browser -->
           <div style="margin-top: 20px;">
-            <p style="font-size: 0.8rem; font-weight: 600; color: #94A3B8; margin-bottom: 10px;">Thư mục nhận trên máy trạm:</p>
-            <div class="mono-font" style="font-size: 0.75rem; color: var(--accent); background: var(--ink-0); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);">
-              Downloads\TitanRemote\
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <p style="font-size: 0.8rem; font-weight: 600; color: #94A3B8;">Duyệt thư mục máy trạm:</p>
+              <button id="btnBrowseUp" class="btn-pill" style="padding: 2px 8px; font-size: 0.7rem;">Thư mục cha ⇡</button>
+            </div>
+            <div id="currentFolderPath" class="mono-font" style="font-size: 0.7rem; color: var(--accent); margin-bottom: 6px; word-break: break-all;">Ổ đĩa</div>
+            <div id="remoteFolderList" class="folder-browser-list mono-font">
+              <div style="color: #64748B; font-size: 0.75rem;">Kết nối máy trạm để duyệt tệp</div>
             </div>
           </div>
         </div>
@@ -233,7 +324,7 @@
 
   </main>
 
-  <!-- Quick Connect / Link Device Modal -->
+  <!-- Quick Connect Modal -->
   <div id="quickConnectModal" class="auth-container modal-overlay hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 200;">
     <div class="instrument-card">
       <div class="card-hero">
