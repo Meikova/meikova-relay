@@ -21,6 +21,7 @@ from host_agent.file_manager import FileManager
 from host_agent.terminal_manager import TerminalManager
 from host_agent.system_manager import SystemManager
 from host_agent.power_manager import PowerManager
+from host_agent.audio_capture import AudioCapture
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +49,11 @@ class HostService:
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 
+        # Audio Capture & Stream
+        self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk)
+        self.audio_enabled = False
+        self.audio_queue: Optional[asyncio.Queue] = None
+
         # Clipboard Sync
         self.clipboard = ClipboardManager(on_clipboard_change=self._on_local_clipboard_change)
         self.clipboard.start_listener()
@@ -55,6 +61,33 @@ class HostService:
         # Terminal Session
         self.terminal = TerminalManager(on_output=self._on_terminal_output)
         self.terminal.start()
+
+    def _on_audio_chunk(self, chunk: bytes, rate: int, channels: int):
+        if not self.audio_enabled or not self.has_active_client or not self.audio_queue or not self.loop or not self.loop.is_running():
+            return
+        try:
+            b64 = base64.b64encode(chunk).decode("ascii")
+            msg = json.dumps({
+                "type": "audio_chunk",
+                "data": b64,
+                "rate": rate,
+                "channels": channels
+            })
+            self.loop.call_soon_threadsafe(self._enqueue_audio, msg)
+        except Exception:
+            pass
+
+    def _enqueue_audio(self, msg: str):
+        if self.audio_queue:
+            try:
+                if self.audio_queue.full():
+                    try:
+                        self.audio_queue.get_nowait()
+                    except Exception:
+                        pass
+                self.audio_queue.put_nowait(msg)
+            except Exception:
+                pass
 
     def _on_local_clipboard_change(self, text: str):
         if self.ws and self.has_active_client and self.loop and self.loop.is_running():
@@ -101,6 +134,22 @@ class HostService:
             sleep_time = max(0.005, self.frame_interval - elapsed)
             await asyncio.sleep(sleep_time)
 
+    async def _send_audio_loop(self, ws: websockets.WebSocketClientProtocol):
+        logger.info("Audio streamer started")
+        while self.running:
+            try:
+                if self.audio_queue:
+                    msg = await self.audio_queue.get()
+                    if self.has_active_client and self.audio_enabled:
+                        await ws.send(msg)
+                else:
+                    await asyncio.sleep(0.05)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.warning(f"Audio stream error: {e}")
+                break
+
     async def _receive_events_loop(self, ws: websockets.WebSocketClientProtocol):
         logger.info("Event listener started")
         async for raw_msg in ws:
@@ -124,6 +173,12 @@ class HostService:
                         "monitors": self.capture.monitors,
                         "active_id": self.capture.active_monitor_id
                     }))
+                    await ws.send(json.dumps({
+                        "type": "audio_capabilities",
+                        "available": self.audio_capture.is_wasapi_available,
+                        "sample_rate": self.audio_capture.sample_rate,
+                        "channels": self.audio_capture.channels
+                    }))
                     clip_text = self.clipboard.get_clipboard_text()
                     if clip_text:
                         await ws.send(json.dumps({
@@ -135,6 +190,23 @@ class HostService:
                 elif ev_type == "client_disconnected":
                     logger.info("[-] Client disconnected.")
                     self.has_active_client = False
+                    self.audio_enabled = False
+                    self.audio_capture.stop()
+                    continue
+
+                # Audio Stream Control
+                elif ev_type == "audio_stream_toggle":
+                    self.audio_enabled = bool(event.get("enabled", False))
+                    if self.audio_enabled:
+                        self.audio_capture.start()
+                    else:
+                        self.audio_capture.stop()
+                    await ws.send(json.dumps({
+                        "type": "audio_stream_status",
+                        "enabled": self.audio_enabled,
+                        "sample_rate": self.audio_capture.sample_rate,
+                        "channels": self.audio_capture.channels
+                    }))
                     continue
 
                 # Multi-Monitor Switch
@@ -402,15 +474,18 @@ class HostService:
 
                     logger.info(f"Host Registered Successfully! Room: {self.room_id}")
 
+                    self.audio_queue = asyncio.Queue(maxsize=50)
                     send_task = asyncio.create_task(self._send_frames_loop(ws))
+                    audio_task = asyncio.create_task(self._send_audio_loop(ws))
                     recv_task = asyncio.create_task(self._receive_events_loop(ws))
 
                     done, pending = await asyncio.wait(
-                        [send_task, recv_task],
+                        [send_task, audio_task, recv_task],
                         return_when=asyncio.FIRST_COMPLETED
                     )
                     for t in pending:
                         t.cancel()
+                    self.audio_capture.stop()
 
             except (websockets.ConnectionClosed, ConnectionRefusedError, OSError) as e:
                 logger.warning(f"Connection lost ({e}). Reconnecting in 3s...")

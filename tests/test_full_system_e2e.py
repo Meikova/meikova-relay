@@ -166,6 +166,22 @@ class TestFullSystemE2E(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(browse_res["type"], "file_browse_response")
         self.assertEqual(len(browse_res["data"]["items"]), 1)
 
+        # Test D: Audio Stream Toggle & Audio Chunk
+        await client_ws.send(json.dumps({"type": "audio_stream_toggle", "enabled": True}))
+        audio_req = json.loads(await host_ws.recv())
+        self.assertEqual(audio_req.get("type"), "audio_stream_toggle")
+        self.assertTrue(audio_req.get("enabled"))
+
+        await host_ws.send(json.dumps({"type": "audio_stream_status", "enabled": True, "sample_rate": 48000, "channels": 2}))
+        audio_status = json.loads(await client_ws.recv())
+        self.assertEqual(audio_status["type"], "audio_stream_status")
+        self.assertTrue(audio_status["enabled"])
+
+        await host_ws.send(json.dumps({"type": "audio_chunk", "data": "AAAA//8=", "rate": 48000, "channels": 2}))
+        audio_chunk = json.loads(await client_ws.recv())
+        self.assertEqual(audio_chunk["type"], "audio_chunk")
+        self.assertEqual(audio_chunk["data"], "AAAA//8=")
+
         await client_ws.close()
         await host_ws.close()
 

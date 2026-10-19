@@ -144,6 +144,9 @@
   const btnToggleLaser = document.getElementById('btnToggleLaser');
   const btnRecord = document.getElementById('btnRecord');
   const btnScreenshot = document.getElementById('btnScreenshot');
+  const btnToggleAudio = document.getElementById('btnToggleAudio');
+  const audioSvgMuted = document.getElementById('audioSvgMuted');
+  const audioSvgPlaying = document.getElementById('audioSvgPlaying');
   const btnToggleOSK = document.getElementById('btnToggleOSK');
   const oskOverlay = document.getElementById('oskOverlay');
   const btnPowerMenu = document.getElementById('btnPowerMenu');
@@ -736,6 +739,16 @@
             shelfClipboardTab.classList.add('hidden');
             shelfChatTab.classList.remove('hidden');
           }
+        } else if (msg.type === 'audio_chunk') {
+          if (isAudioStreaming && msg.data) {
+            const raw = base64ToArrayBuffer(msg.data);
+            playPcmAudioChunk(raw, msg.rate || 48000, msg.channels || 2);
+          }
+        } else if (msg.type === 'audio_stream_status') {
+          updateAudioStreamUi(msg.enabled);
+          showToast(msg.enabled ? 'Đã bật truyền âm thanh từ máy trạm' : 'Đã tắt truyền âm thanh', msg.enabled ? 'success' : 'info');
+        } else if (msg.type === 'audio_capabilities') {
+          console.log('[Titan] Host audio capabilities:', msg);
         } else if (msg.type === 'block_input_response') {
           isInputBlocked = msg.blocked;
           btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
@@ -759,6 +772,10 @@
 
   function disconnect() {
     isConnected = false;
+    updateAudioStreamUi(false);
+    if (audioContext && audioContext.state !== 'closed') {
+      try { audioContext.suspend(); } catch {}
+    }
     if (pingIntervalId) clearInterval(pingIntervalId);
     if (ws) {
       ws.close();
@@ -1076,6 +1093,84 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  // --- LIVE AUDIO STREAMING ENGINE (WASAPI LOOPBACK -> WEB AUDIO) ---
+  let isAudioStreaming = false;
+  let audioContext = null;
+  let nextAudioScheduledTime = 0;
+
+  function initAudioContext() {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+    }
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+    return audioContext;
+  }
+
+  function playPcmAudioChunk(pcm16Bytes, sampleRate = 48000, channels = 2) {
+    const ctx = initAudioContext();
+    if (!ctx || ctx.state !== 'running') return;
+
+    const int16Array = new Int16Array(pcm16Bytes);
+    const numFrames = Math.floor(int16Array.length / channels);
+    if (numFrames <= 0) return;
+
+    const audioBuf = ctx.createBuffer(channels, numFrames, sampleRate);
+
+    for (let ch = 0; ch < channels; ch++) {
+      const channelData = audioBuf.getChannelData(ch);
+      for (let i = 0; i < numFrames; i++) {
+        channelData[i] = int16Array[i * channels + ch] / 32768.0;
+      }
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuf;
+    source.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    if (nextAudioScheduledTime < now) {
+      nextAudioScheduledTime = now + 0.025; // 25ms jitter buffer
+    } else if (nextAudioScheduledTime > now + 0.25) {
+      nextAudioScheduledTime = now + 0.05;
+    }
+
+    source.start(nextAudioScheduledTime);
+    nextAudioScheduledTime += audioBuf.duration;
+  }
+
+  function toggleAudioStream(enable) {
+    if (!isConnected || !ws) {
+      showToast('Vui lòng kết nối vào máy trạm trước khi bật âm thanh', 'info');
+      return;
+    }
+    const targetState = (enable !== undefined) ? enable : !isAudioStreaming;
+    if (targetState) {
+      initAudioContext();
+    }
+    ws.send(JSON.stringify({
+      type: 'audio_stream_toggle',
+      enabled: targetState
+    }));
+  }
+
+  function updateAudioStreamUi(enabled) {
+    isAudioStreaming = enabled;
+    if (btnToggleAudio) {
+      btnToggleAudio.classList.toggle('btn-active', isAudioStreaming);
+      audioSvgMuted?.classList.toggle('hidden', isAudioStreaming);
+      audioSvgPlaying?.classList.toggle('hidden', !isAudioStreaming);
+      btnToggleAudio.title = isAudioStreaming ? 'Tắt âm thanh máy trạm' : 'Bật âm thanh máy trạm (Live Audio)';
+    }
+  }
+
+  if (btnToggleAudio) {
+    btnToggleAudio.addEventListener('click', () => {
+      toggleAudioStream();
+    });
   }
 
   // --- KEYBOARD CAPTURE (PREVENT LEAKS INTO TEXT INPUTS) ---

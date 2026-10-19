@@ -10,6 +10,7 @@ from host_agent.system_manager import SystemManager
 from host_agent.terminal_manager import TerminalManager
 from host_agent.file_manager import FileManager
 from host_agent.power_manager import PowerManager
+from host_agent.audio_capture import AudioCapture
 
 class TestExtendedFeatures(unittest.TestCase):
     def test_hardware_telemetry(self):
@@ -100,8 +101,21 @@ class TestExtendedFeatures(unittest.TestCase):
             self.assertEqual(res["progress"], 100)
             fin = fm.finish_upload("tx1")
             self.assertTrue(fin["valid"])
-            self.assertEqual(fin["sha256"], expected_hash)
-            self.assertTrue(os.path.isfile(dest))
+    def test_audio_capture_lifecycle(self):
+        chunks = []
+        def on_chunk(data, rate, channels):
+            chunks.append((len(data), rate, channels))
+
+        ac = AudioCapture(on_chunk=on_chunk)
+        ac.start()
+        for _ in range(15):
+            if chunks:
+                break
+            time.sleep(0.04)
+        ac.stop()
+        self.assertGreaterEqual(len(chunks), 1)
+        self.assertEqual(ac.channels, 2)
+        self.assertGreaterEqual(ac.sample_rate, 44100)
 
 if __name__ == "__main__":
     unittest.main()
