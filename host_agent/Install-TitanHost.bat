@@ -1,4 +1,7 @@
 @echo off
+chcp 65001 >nul
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 setlocal EnableDelayedExpansion
 title Titan Remote Host - Cài đặt máy trạm (Installer)
 echo ==============================================================

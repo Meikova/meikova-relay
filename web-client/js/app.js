@@ -187,6 +187,7 @@
   const remoteFolderList = document.getElementById('remoteFolderList');
   const clipboardViewer = document.getElementById('clipboardViewer');
   const btnPushClipboard = document.getElementById('btnPushClipboard');
+  const btnTypeDirect = document.getElementById('btnTypeDirect');
   const btnToggleBlockInput = document.getElementById('btnToggleBlockInput');
   const shelfChatTab = document.getElementById('shelfChatTab');
   const chatHistory = document.getElementById('chatHistory');
@@ -1474,6 +1475,26 @@
     showToast('Đã đồng bộ sang bộ nhớ tạm của máy trạm!', 'success');
   });
 
+  // Direct Unicode Typing (PowerPoint, Word, Terminal, etc.)
+  if (btnTypeDirect) {
+    btnTypeDirect.addEventListener('click', () => {
+      if (!isConnected) {
+        showToast('Chưa kết nối máy trạm', 'info');
+        return;
+      }
+      const text = clipboardViewer.value;
+      if (!text) {
+        showToast('Vui lòng nhập nội dung cần gõ', 'info');
+        return;
+      }
+      ws.send(JSON.stringify({
+        type: 'text_input',
+        text: text
+      }));
+      showToast('Đang gõ văn bản Unicode vào ứng dụng máy trạm...', 'success');
+    });
+  }
+
   // File Upload via Drag-and-Drop & File Picker
   fileDropzone.addEventListener('click', () => fileInput.click());
   fileDropzone.addEventListener('dragover', (e) => {
@@ -1594,6 +1615,9 @@
     }
     if (['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.json', '.c', '.cpp', '.cs', '.java', '.go', '.rs', '.bat', '.ps1', '.sh', '.sql', '.yaml', '.yml'].includes(ext)) {
       return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #34D399; vertical-align: middle; margin-right: 8px;"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`;
+    }
+    if (['.ppt', '.pptx', '.pps', '.ppsx', '.odp', '.key'].includes(ext)) {
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #F97316; vertical-align: middle; margin-right: 8px;"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M7 8h4a2 2 0 0 1 0 4H7z"/></svg>`;
     }
     if (['.txt', '.md', '.doc', '.docx', '.pdf', '.rtf', '.odt', '.csv', '.xlsx', '.xls'].includes(ext)) {
       return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #818CF8; vertical-align: middle; margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`;
@@ -1763,13 +1787,28 @@
     });
   }
 
+  function removeVietnameseDiacritics(str) {
+    if (!str) return '';
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D');
+  }
+
   function filterAndRenderItems() {
     if (!explorerTableBody) return;
 
-    const searchTerm = (explorerSearchInput?.value || '').trim().toLowerCase();
+    const termRaw = (explorerSearchInput?.value || '').trim();
+    const termLower = termRaw.toLowerCase().normalize('NFC');
+    const termNoAccent = removeVietnameseDiacritics(termLower);
+
     const filtered = currentExplorerItems.filter(item => {
-      if (!searchTerm) return true;
-      return item.name.toLowerCase().includes(searchTerm);
+      if (!termRaw) return true;
+      const name = (item.name || '').normalize('NFC');
+      const nameLower = name.toLowerCase();
+      if (nameLower.includes(termLower)) return true;
+      const nameNoAccent = removeVietnameseDiacritics(nameLower);
+      return nameNoAccent.includes(termNoAccent);
     });
 
     let totalDirs = 0;

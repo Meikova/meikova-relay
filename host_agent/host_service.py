@@ -6,6 +6,7 @@ import base64
 import asyncio
 import logging
 import argparse
+import unicodedata
 from pathlib import Path
 from typing import Optional
 import websockets
@@ -300,7 +301,7 @@ class HostService:
 
                 # File Delete Request
                 elif ev_type == "file_delete_request":
-                    filepath = event.get("filepath", "")
+                    filepath = unicodedata.normalize('NFC', event.get("filepath", ""))
                     ok = self.file_manager.delete_item(filepath)
                     await ws.send(json.dumps({
                         "type": "file_delete_response",
@@ -322,7 +323,7 @@ class HostService:
 
                 # File Download Request
                 elif ev_type == "file_download_request":
-                    filepath = event.get("filepath", "")
+                    filepath = unicodedata.normalize('NFC', event.get("filepath", ""))
                     transfer_id = event.get("transfer_id", f"dl_{int(time.time()*1000)}")
                     if os.path.isfile(filepath):
                         fname = os.path.basename(filepath)

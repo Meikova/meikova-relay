@@ -18,8 +18,13 @@ class TerminalManager:
             return
 
         self._running = True
-        # Use powershell on Windows, fallback to cmd
-        shell_cmd = ["powershell.exe", "-NoLogo", "-NoExit", "-Command", "-"]
+        # Use powershell on Windows with UTF-8 configuration for Vietnamese diacritics
+        init_cmd = (
+            "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); "
+            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+            "$OutputEncoding = [System.Text.UTF8Encoding]::new($false)"
+        )
+        shell_cmd = ["powershell.exe", "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", init_cmd]
         try:
             self.process = subprocess.Popen(
                 shell_cmd,
@@ -34,7 +39,7 @@ class TerminalManager:
             )
             self._reader_thread = threading.Thread(target=self._read_output_loop, daemon=True)
             self._reader_thread.start()
-            self.on_output("=== TITAN REMOTE POWERSHELL READY ===\n")
+            self.on_output("=== TITAN REMOTE POWERSHELL (UTF-8) READY ===\n")
         except Exception as e:
             self.on_output(f"Failed to start PowerShell: {e}\n")
 

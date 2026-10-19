@@ -117,5 +117,54 @@ class TestExtendedFeatures(unittest.TestCase):
         self.assertEqual(ac.channels, 2)
         self.assertGreaterEqual(ac.sample_rate, 44100)
 
+    def test_vietnamese_unicode_file_and_folder_operations(self):
+        import tempfile
+        import unicodedata
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fm = FileManager(download_dir=tmpdir)
+            vn_folder_name = "Tài liệu thuyết trình Q4"
+            res = fm.create_folder(tmpdir, vn_folder_name)
+            self.assertTrue(res["success"])
+            folder_path = res["path"]
+            self.assertTrue(os.path.isdir(folder_path))
+
+            # Upload PowerPoint file with Vietnamese diacritics
+            vn_filename = "Báo cáo doanh thu & kế hoạch.pptx"
+            content = b"PowerPoint Presentation Data Content"
+            dest = fm.start_upload("tx_vn", vn_filename, len(content), target_dir=folder_path)
+            self.assertTrue(os.path.basename(dest).endswith(".pptx"))
+            fm.write_chunk("tx_vn", content)
+            fin = fm.finish_upload("tx_vn")
+            self.assertTrue(fin["valid"])
+
+            # Browse folder and verify items
+            browse_res = fm.browse_path(folder_path)
+            items = browse_res["items"]
+            self.assertEqual(len(items), 1)
+            self.assertEqual(unicodedata.normalize('NFC', items[0]["name"]), unicodedata.normalize('NFC', vn_filename))
+            self.assertEqual(items[0]["ext"], ".pptx")
+
+            # Clean up
+            ok = fm.delete_item(folder_path)
+            self.assertTrue(ok)
+            self.assertFalse(os.path.exists(folder_path))
+
+    def test_vietnamese_terminal_utf8(self):
+        output_received = []
+        def on_out(data):
+            output_received.append(data)
+
+        term = TerminalManager(on_output=on_out)
+        term.start()
+        time.sleep(1.0)
+        term.send_input("Write-Output 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'")
+        time.sleep(1.5)
+        term.stop()
+
+        full_output = "".join(output_received)
+        self.assertIn("Hà Nội", full_output)
+        self.assertIn("Đà Nẵng", full_output)
+        self.assertIn("Sài Gòn", full_output)
+
 if __name__ == "__main__":
     unittest.main()

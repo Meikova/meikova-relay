@@ -1,5 +1,6 @@
 import os
 import hashlib
+import unicodedata
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
@@ -17,8 +18,11 @@ class FileManager:
         self.active_transfers: Dict[str, Dict[str, Any]] = {}
 
     def start_upload(self, transfer_id: str, filename: str, filesize: int, expected_sha256: str = "", target_dir: Optional[str] = None) -> str:
+        filename = unicodedata.normalize('NFC', filename)
+        if target_dir:
+            target_dir = unicodedata.normalize('NFC', target_dir)
         upload_folder = target_dir if (target_dir and os.path.isdir(target_dir)) else self.download_dir
-        safe_name = os.path.basename(filename)
+        safe_name = os.path.basename(filename.replace('\\', '/'))
         dest_path = os.path.join(upload_folder, safe_name)
 
         file_handle = open(dest_path, "wb")
@@ -97,6 +101,7 @@ class FileManager:
         if not req_path:
             return {"current_path": "", "parent_path": "", "items": drives, "drives": drives}
 
+        req_path = unicodedata.normalize('NFC', req_path)
         target = os.path.abspath(req_path)
         if not os.path.exists(target) or not os.path.isdir(target):
             return {"current_path": req_path, "parent_path": "", "items": [], "drives": drives, "error": "Folder not found"}
@@ -134,7 +139,12 @@ class FileManager:
 
     def create_folder(self, parent_dir: str, folder_name: str) -> Dict[str, Any]:
         try:
-            safe_name = os.path.basename(folder_name.strip())
+            parent_dir = unicodedata.normalize('NFC', parent_dir)
+            folder_name = unicodedata.normalize('NFC', folder_name)
+            safe_name = os.path.basename(folder_name.strip().replace('\\', '/'))
+            # Filter Windows forbidden characters
+            for invalid_char in '<>:"/\\|?*':
+                safe_name = safe_name.replace(invalid_char, '')
             if not safe_name:
                 return {"success": False, "error": "Tên thư mục không hợp lệ"}
             new_path = os.path.join(parent_dir, safe_name)

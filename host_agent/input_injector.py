@@ -181,8 +181,21 @@ class InputInjector:
 
     @staticmethod
     def type_unicode(text: str) -> None:
-        """Types unicode characters (supports Vietnamese diacritics)."""
-        for char in text:
+        """Types unicode characters (supports Vietnamese diacritics, PowerPoint/Word multiline safe)."""
+        import unicodedata
+        normalized = unicodedata.normalize('NFC', text)
+        for char in normalized:
+            if char == '\r':
+                continue
+            if char == '\n':
+                InputInjector.key_down(0x0D)
+                InputInjector.key_up(0x0D)
+                continue
+            if char == '\t':
+                InputInjector.key_down(0x09)
+                InputInjector.key_up(0x09)
+                continue
+
             # Key down
             inp_down = INPUT()
             inp_down.type = INPUT_KEYBOARD
