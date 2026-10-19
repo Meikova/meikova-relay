@@ -785,6 +785,9 @@
           populateMonitors(msg.monitors, msg.active_id);
         } else if (msg.type === 'clipboard_sync') {
           clipboardViewer.value = msg.text || '';
+          if (navigator.clipboard && navigator.clipboard.writeText && msg.text) {
+            navigator.clipboard.writeText(msg.text).catch(() => {});
+          }
         } else if (msg.type === 'terminal_output') {
           handleTerminalOutput(msg.data || '');
         } else if (msg.type === 'telemetry_response') {
@@ -1008,11 +1011,28 @@
     applyCanvasTransform();
   });
 
-  btnFullscreen.addEventListener('click', () => {
+  btnFullscreen.addEventListener('click', async () => {
     if (!document.fullscreenElement) {
-      remoteSection.requestFullscreen().catch(() => {});
+      try {
+        await remoteSection.requestFullscreen();
+        if (navigator.keyboard && navigator.keyboard.lock) {
+          await navigator.keyboard.lock(['AltLeft', 'AltRight', 'Tab', 'Escape', 'MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight']);
+        }
+        showToast('Toàn màn hình: Đã khóa phím hệ thống (Alt+Tab, Win hoạt động trên máy trạm)', 'info');
+      } catch (err) {
+        remoteSection.requestFullscreen().catch(() => {});
+      }
     } else {
+      if (navigator.keyboard && navigator.keyboard.unlock) {
+        navigator.keyboard.unlock();
+      }
       document.exitFullscreen().catch(() => {});
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && navigator.keyboard && navigator.keyboard.unlock) {
+      navigator.keyboard.unlock();
     }
   });
 
@@ -1439,6 +1459,45 @@
     btnToggleMic.addEventListener('click', toggleMicStream);
   }
 
+  // --- SEAMLESS 2-WAY BACKGROUND CLIPBOARD SYNC ---
+  let lastSyncedClientClipboard = '';
+
+  window.addEventListener('paste', (e) => {
+    if (!isConnected || currentView !== 'remote') return;
+    const activeEl = document.activeElement;
+    const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || (activeEl && activeEl.isContentEditable)) return;
+
+    const pastedText = e.clipboardData?.getData('text');
+    if (pastedText && ws && ws.readyState === WebSocket.OPEN) {
+      lastSyncedClientClipboard = pastedText;
+      ws.send(JSON.stringify({
+        type: 'clipboard_sync',
+        text: pastedText
+      }));
+      // Trigger Ctrl+V on the remote workstation
+      setTimeout(() => {
+        sendHotKeyCombo([0x11, 0x56]); // Ctrl+V
+      }, 50);
+    }
+  });
+
+  window.addEventListener('focus', async () => {
+    if (!isConnected || currentView !== 'remote') return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text !== lastSyncedClientClipboard && ws && ws.readyState === WebSocket.OPEN) {
+          lastSyncedClientClipboard = text;
+          ws.send(JSON.stringify({
+            type: 'clipboard_sync',
+            text: text
+          }));
+        }
+      }
+    } catch {}
+  });
+
   // --- KEYBOARD CAPTURE (PREVENT LEAKS INTO TEXT INPUTS) ---
   window.addEventListener('keydown', (e) => {
     if (!isConnected || currentView !== 'remote') return;
@@ -1838,6 +1897,54 @@
       transfer_id: transferId
     }));
   }
+
+  // --- DIRECT DRAG & DROP ONTO REMOTE DESKTOP SCREEN ---
+  const screenDropOverlay = document.createElement('div');
+  screenDropOverlay.className = 'screen-drop-overlay hidden';
+  screenDropOverlay.innerHTML = `
+    <div class="screen-drop-modal">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent); margin-bottom: 12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div style="font-size: 1.1rem; font-weight: 600; color: #fff;">Thả tệp để truyền sang máy trạm</div>
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Tệp sẽ được lưu trực tiếp vào thư mục tải về của máy trạm</div>
+    </div>
+  `;
+  remoteSection.appendChild(screenDropOverlay);
+
+  let screenDragCounter = 0;
+  remoteSection.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    if (!isConnected || currentView !== 'remote') return;
+    screenDragCounter++;
+    screenDropOverlay.classList.remove('hidden');
+  });
+
+  remoteSection.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    screenDragCounter--;
+    if (screenDragCounter <= 0) {
+      screenDragCounter = 0;
+      screenDropOverlay.classList.add('hidden');
+    }
+  });
+
+  remoteSection.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  remoteSection.addEventListener('drop', (e) => {
+    e.preventDefault();
+    screenDragCounter = 0;
+    screenDropOverlay.classList.add('hidden');
+    if (!isConnected || currentView !== 'remote') return;
+
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        uploadFileToHost(e.dataTransfer.files[i]);
+      }
+      showToast(`Đang truyền ${e.dataTransfer.files.length} tệp trực tiếp sang máy trạm...`, 'info');
+    }
+  });
 
   // --- Remote File Explorer Engine ---
   function requestBrowsePath(p) {
