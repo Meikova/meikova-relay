@@ -10,6 +10,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Unbounded:wght@500;600&display=swap" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#22C55E">
+  
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -198,11 +202,11 @@
       <div id="powerMenuDropdown" class="power-menu hidden">
         <button class="power-menu-item" data-power="lock">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Khóa màn hình
+          <span>Khóa màn hình</span>
         </button>
         <button class="power-menu-item danger" data-power="restart">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Khởi động lại
+          <span>Khởi động lại</span>
         </button>
       </div>
 
@@ -441,6 +445,9 @@
       </form>
     </div>
   </div>
+
+  <!-- Ambient Toast Notification Chamber -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
   <script src="js/app.js"></script>
 </body>

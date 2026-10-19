@@ -46,6 +46,31 @@
   const sparklineCanvas = document.getElementById('sparklineCanvas');
   const sparkCtx = sparklineCanvas ? sparklineCanvas.getContext('2d') : null;
   const pingSamples = [];
+  const toastContainer = document.getElementById('toastContainer');
+
+  function showToast(message, type = 'info', duration = 3500) {
+    if (!toastContainer) return;
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    
+    let iconSvg = '';
+    if (type === 'success') {
+      iconSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+    } else if (type === 'error') {
+      iconSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    } else {
+      iconSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    }
+
+    toast.innerHTML = `${iconSvg}<span>${escapeHtml(message)}</span>`;
+    toastContainer.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(12px) scale(0.96)';
+      setTimeout(() => toast.remove(), 250);
+    }, duration);
+  }
 
   function recordPingSample(rtt) {
     pingSamples.push(rtt);
@@ -425,13 +450,33 @@
     }
   }
 
+  function getOsSvg(osInfo) {
+    const os = (osInfo || '').toLowerCase();
+    if (os.includes('win')) {
+      return '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg>';
+    }
+    if (os.includes('linux') || os.includes('ubuntu') || os.includes('debian')) {
+      return '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8m-4-4h8"/></svg>';
+    }
+    if (os.includes('mac') || os.includes('darwin') || os.includes('apple')) {
+      return '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.84c.66-.8 1.11-1.92.99-3.04-.96.04-2.12.64-2.8 1.44-.61.71-1.15 1.85-1 2.95 1.07.08 2.16-.55 2.81-1.35z"/></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+  }
+
+  const resSvg = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+  const roomSvg = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
   function renderDeviceGrid(devices) {
     if (!devices || devices.length === 0) {
       deviceGrid.innerHTML = `
         <div class="empty-fleet" style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--ink-1); border: 1px dashed var(--line); border-radius: var(--radius);">
           <p class="brand-font" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">Chưa có máy trạm nào được liên kết</p>
           <p style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">Khởi chạy Host Agent trên máy tính để liên kết tự động</p>
-          <button id="btnEmptyAdd" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">+ Kết nối nhanh bằng Room ID</button>
+          <button id="btnEmptyAdd" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            <span>Kết nối nhanh bằng Room ID</span>
+          </button>
         </div>
       `;
       document.getElementById('btnEmptyAdd')?.addEventListener('click', () => quickConnectModal.classList.remove('hidden'));
@@ -445,16 +490,17 @@
           <div class="device-card-header">
             <span class="device-name brand-font">${escapeHtml(d.device_name)}</span>
             <span class="status-badge ${isOnline ? 'online' : 'offline'}">
-              <span class="status-dot"></span> ${isOnline ? 'ONLINE' : 'OFFLINE'}
+              <span class="status-dot"></span> <span>${isOnline ? 'ONLINE' : 'OFFLINE'}</span>
             </span>
           </div>
           <div class="device-specs">
-            <span>OS: ${escapeHtml(d.os_info || 'Windows')}</span>
-            <span>RES: ${escapeHtml(d.resolution || '1920x1080')}</span>
-            <span>ROOM: ${escapeHtml(d.room_id)}</span>
+            <span class="spec-chip">${getOsSvg(d.os_info)} <span>${escapeHtml(d.os_info || 'Windows')}</span></span>
+            <span class="spec-chip">${resSvg} <span>${escapeHtml(d.resolution || '1920x1080')}</span></span>
+            <span class="spec-chip">${roomSvg} <span>${escapeHtml(d.room_id)}</span></span>
           </div>
           <button class="btn-connect-device" data-room="${d.room_id}" data-pin="${d.pin}">
-            <span>${isOnline ? 'Kết nối máy này' : 'Thử kết nối'}</span> →
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            <span>${isOnline ? 'Kết nối máy này' : 'Thử kết nối'}</span>
           </button>
         </div>
       `;
@@ -504,7 +550,7 @@
       ws = new WebSocket(relayUrl);
       ws.binaryType = 'blob';
     } catch (err) {
-      alert(`Không thể kết nối WebSocket: ${err.message}`);
+      showToast(`Không thể kết nối WebSocket: ${err.message}`, 'error');
       return;
     }
 
@@ -537,7 +583,7 @@
           }
           startPingLoop();
         } else if (msg.status === 'error') {
-          alert(`Lỗi: ${msg.message}`);
+          showToast(`Lỗi: ${msg.message}`, 'error');
           disconnect();
         } else if (msg.type === 'host_ready') {
           updateHostResolution(msg.width, msg.height);
@@ -553,7 +599,7 @@
         } else if (msg.type === 'process_list_response') {
           handleProcessList(msg.processes || []);
         } else if (msg.type === 'process_kill_response') {
-          alert(msg.success ? `Đã dừng tiến trình PID ${msg.pid}` : `Không thể dừng tiến trình PID ${msg.pid}`);
+          showToast(msg.success ? `Đã dừng tiến trình PID ${msg.pid}` : `Không thể dừng tiến trình PID ${msg.pid}`, msg.success ? 'success' : 'error');
           if (currentView === 'tasks') requestTelemetryAndTasks();
         } else if (msg.type === 'file_browse_response') {
           renderFolderBrowser(msg.data);
@@ -562,7 +608,7 @@
           uploadProgressBar.style.width = `${msg.progress}%`;
         } else if (msg.type === 'file_upload_result') {
           uploadProgressContainer.classList.add('hidden');
-          alert(`Đã truyền tệp thành công: ${msg.result.filename}`);
+          showToast(`Đã truyền tệp thành công: ${msg.result.filename}`, 'success');
           requestBrowsePath(remoteCurrentPath);
         } else if (msg.type === 'file_download_start') {
           activeDownloads[msg.transfer_id] = {
@@ -583,7 +629,7 @@
             delete activeDownloads[msg.transfer_id];
           }
         } else if (msg.type === 'file_download_error') {
-          alert(`Lỗi tải tệp: ${msg.message}`);
+          showToast(`Lỗi tải tệp: ${msg.message}`, 'error');
           delete activeDownloads[msg.transfer_id];
         } else if (msg.type === 'pong') {
           const rtt = Math.round(performance.now() - lastPingSend);
@@ -609,7 +655,7 @@
             btnToggleBlockInput.title = isInputBlocked ? 'Đang khóa chuột & phím máy đích' : 'Khóa chuột & phím máy đích';
           }
         } else if (msg.type === 'host_disconnected') {
-          alert('Máy trạm đã ngắt kết nối!');
+          showToast('Máy trạm đã ngắt kết nối!', 'error');
           disconnect();
         }
       } catch (err) {
@@ -618,7 +664,7 @@
     };
 
     ws.onclose = () => {
-      if (isConnected) alert('Mất kết nối với máy trạm');
+      if (isConnected) showToast('Mất kết nối với máy trạm', 'error');
       disconnect();
     };
   }
@@ -876,7 +922,7 @@
   // --- SESSION RECORDING (WEBM) ---
   btnRecord.addEventListener('click', () => {
     if (!isConnected) {
-      alert('Vui lòng kết nối vào máy trạm trước khi ghi hình!');
+      showToast('Vui lòng kết nối vào máy trạm trước khi ghi hình!', 'info');
       return;
     }
     if (isRecording) {
@@ -898,13 +944,15 @@
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
         downloadBlob(blob, `titan-session-${Date.now()}.webm`);
         recordedChunks = [];
+        showToast('Đã lưu tệp ghi hình webm', 'success');
       };
       mediaRecorder.start();
       isRecording = true;
       btnRecord.classList.add('btn-active');
       btnRecord.title = 'Đang ghi hình...';
+      showToast('Bắt đầu ghi hình phiên làm việc', 'info');
     } catch (err) {
-      alert(`Không thể bắt đầu ghi hình: ${err.message}`);
+      showToast(`Không thể bắt đầu ghi hình: ${err.message}`, 'error');
     }
   }
 
@@ -920,12 +968,13 @@
   // --- CANVAS SCREENSHOT (PNG) ---
   btnScreenshot.addEventListener('click', () => {
     if (!isConnected) {
-      alert('Chưa kết nối máy trạm');
+      showToast('Chưa kết nối máy trạm', 'info');
       return;
     }
     remoteCanvas.toBlob((blob) => {
       if (blob) {
         downloadBlob(blob, `titan-screen-${Date.now()}.png`);
+        showToast('Đã chụp và lưu ảnh màn hình png', 'success');
       }
     }, 'image/png');
   });
@@ -1035,7 +1084,7 @@
       const act = btn.dataset.power;
       powerMenuDropdown.classList.add('hidden');
       if (!isConnected) {
-        alert('Chưa kết nối máy trạm');
+        showToast('Chưa kết nối máy trạm', 'info');
         return;
       }
       if (act === 'lock') {
@@ -1070,7 +1119,7 @@
   terminalInputForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!isConnected) {
-      alert('Vui lòng kết nối vào máy trạm để sử dụng Terminal');
+      showToast('Vui lòng kết nối vào máy trạm để sử dụng Terminal', 'info');
       return;
     }
     const cmd = terminalCmdInput.value;
@@ -1097,7 +1146,7 @@
   // --- VIEW 5: TASK MANAGER & DIAGNOSTICS ---
   btnRefreshTasks.addEventListener('click', () => {
     if (!isConnected) {
-      alert('Chưa kết nối máy trạm');
+      showToast('Chưa kết nối máy trạm', 'info');
       return;
     }
     requestTelemetryAndTasks();
@@ -1194,7 +1243,7 @@
   chatInputForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!isConnected) {
-      alert('Chưa kết nối máy trạm');
+      showToast('Chưa kết nối máy trạm', 'info');
       return;
     }
     const msg = chatMessageInput.value.trim();
@@ -1221,7 +1270,7 @@
   // --- BLOCK HOST INPUT TOGGLE ---
   btnToggleBlockInput?.addEventListener('click', () => {
     if (!isConnected) {
-      alert('Chưa kết nối máy trạm');
+      showToast('Chưa kết nối máy trạm', 'info');
       return;
     }
     const nextState = !isInputBlocked;
@@ -1239,7 +1288,7 @@
       type: 'clipboard_sync',
       text: text
     }));
-    alert('Đã đồng bộ sang bộ nhớ tạm của máy trạm!');
+    showToast('Đã đồng bộ sang bộ nhớ tạm của máy trạm!', 'success');
   });
 
   // File Upload via Drag-and-Drop & File Picker
@@ -1265,7 +1314,7 @@
 
   async function uploadFileToHost(file) {
     if (!isConnected) {
-      alert('Vui lòng kết nối vào máy trạm trước khi gửi tệp tin!');
+      showToast('Vui lòng kết nối vào máy trạm trước khi gửi tệp tin!', 'info');
       return;
     }
 

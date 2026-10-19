@@ -1,0 +1,17 @@
+{
+  "name": "Titan Remote Enterprise",
+  "short_name": "Titan Remote",
+  "description": "High-performance ambient instrument remote desktop platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090D16",
+  "theme_color": "#22C55E",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
