@@ -11,6 +11,7 @@ from host_agent.terminal_manager import TerminalManager
 from host_agent.file_manager import FileManager
 from host_agent.power_manager import PowerManager
 from host_agent.audio_capture import AudioCapture
+from host_agent.audio_playback import AudioPlayback
 
 class TestExtendedFeatures(unittest.TestCase):
     def test_hardware_telemetry(self):
@@ -165,6 +166,16 @@ class TestExtendedFeatures(unittest.TestCase):
         self.assertIn("Hà Nội", full_output)
         self.assertIn("Đà Nẵng", full_output)
         self.assertIn("Sài Gòn", full_output)
+
+    def test_audio_playback_lifecycle(self):
+        ap = AudioPlayback(sample_rate=16000, channels=1)
+        ap.start()
+        self.assertTrue(ap.running)
+        dummy = b"\x00\x00" * int(16000 * 0.05)
+        ap.play_chunk(dummy)
+        time.sleep(0.1)
+        ap.stop()
+        self.assertFalse(ap.running)
 
 if __name__ == "__main__":
     unittest.main()

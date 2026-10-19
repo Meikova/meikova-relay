@@ -147,6 +147,9 @@
   const btnToggleAudio = document.getElementById('btnToggleAudio');
   const audioSvgMuted = document.getElementById('audioSvgMuted');
   const audioSvgPlaying = document.getElementById('audioSvgPlaying');
+  const btnToggleMic = document.getElementById('btnToggleMic');
+  const micSvgMuted = document.getElementById('micSvgMuted');
+  const micSvgActive = document.getElementById('micSvgActive');
   const btnToggleOSK = document.getElementById('btnToggleOSK');
   const oskOverlay = document.getElementById('oskOverlay');
   const btnPowerMenu = document.getElementById('btnPowerMenu');
@@ -879,6 +882,8 @@
         } else if (msg.type === 'audio_stream_status') {
           updateAudioStreamUi(msg.enabled);
           showToast(msg.enabled ? 'Đã bật truyền âm thanh từ máy trạm' : 'Đã tắt truyền âm thanh', msg.enabled ? 'success' : 'info');
+        } else if (msg.type === 'client_mic_status') {
+          updateMicUi(msg.enabled);
         } else if (msg.type === 'audio_capabilities') {
           console.log('[Titan] Host audio capabilities:', msg);
         } else if (msg.type === 'block_input_response') {
@@ -907,6 +912,7 @@
     currentRoom = null;
     currentPin = '';
     updateAudioStreamUi(false);
+    stopMicStream();
     if (audioContext && audioContext.state !== 'closed') {
       try { audioContext.suspend(); } catch {}
     }
@@ -1305,6 +1311,132 @@
     btnToggleAudio.addEventListener('click', () => {
       toggleAudioStream();
     });
+  }
+
+  // --- VOICE INTERCOM ENGINE (CLIENT MIC -> HOST SPEAKERS) ---
+  let isMicStreaming = false;
+  let micMediaStream = null;
+  let micAudioContext = null;
+  let micScriptProcessor = null;
+
+  async function startMicStream() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast('Trình duyệt không hỗ trợ thu âm Microphone', 'error');
+      return;
+    }
+    try {
+      micMediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        }
+      });
+
+      // Sample rate: 16000Hz (crystal clear for voice, ~32KB/s)
+      micAudioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      const micSource = micAudioContext.createMediaStreamSource(micMediaStream);
+
+      // ScriptProcessor: 2048 buffer size (~128ms per chunk)
+      micScriptProcessor = micAudioContext.createScriptProcessor(2048, 1, 1);
+      micScriptProcessor.onaudioprocess = (e) => {
+        if (!isMicStreaming || !ws || ws.readyState !== WebSocket.OPEN) return;
+        const inputData = e.inputBuffer.getChannelData(0);
+        const pcm16 = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          const s = Math.max(-1, Math.min(1, inputData[i]));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+
+        // Convert pcm16 to base64
+        let binary = '';
+        const bytes = new Uint8Array(pcm16.buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = btoa(binary);
+
+        ws.send(JSON.stringify({
+          type: 'client_mic_chunk',
+          data: b64,
+          rate: micAudioContext.sampleRate,
+          channels: 1
+        }));
+      };
+
+      micSource.connect(micScriptProcessor);
+      micScriptProcessor.connect(micAudioContext.destination);
+
+      isMicStreaming = true;
+      updateMicUi(true);
+
+      ws.send(JSON.stringify({
+        type: 'client_mic_toggle',
+        enabled: true,
+        sample_rate: micAudioContext.sampleRate,
+        channels: 1
+      }));
+      showToast('Đang truyền giọng nói tới loa máy trạm...', 'success');
+    } catch (err) {
+      showToast(`Không thể truy cập Microphone: ${err.message}`, 'error');
+      stopMicStream();
+    }
+  }
+
+  function stopMicStream() {
+    isMicStreaming = false;
+    updateMicUi(false);
+
+    if (micScriptProcessor) {
+      try { micScriptProcessor.disconnect(); } catch {}
+      micScriptProcessor = null;
+    }
+    if (micMediaStream) {
+      try {
+        micMediaStream.getTracks().forEach(track => track.stop());
+      } catch {}
+      micMediaStream = null;
+    }
+    if (micAudioContext && micAudioContext.state !== 'closed') {
+      try { micAudioContext.close(); } catch {}
+      micAudioContext = null;
+    }
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'client_mic_toggle',
+        enabled: false
+      }));
+    }
+  }
+
+  function toggleMicStream() {
+    if (!isConnected || !ws) {
+      showToast('Vui lòng kết nối vào máy trạm trước khi bật micro', 'info');
+      return;
+    }
+    if (isMicStreaming) {
+      stopMicStream();
+      showToast('Đã dừng micro nói sang máy trạm', 'info');
+    } else {
+      startMicStream();
+    }
+  }
+
+  function updateMicUi(enabled) {
+    isMicStreaming = enabled;
+    if (btnToggleMic) {
+      btnToggleMic.classList.toggle('btn-active', isMicStreaming);
+      micSvgMuted?.classList.toggle('hidden', isMicStreaming);
+      micSvgActive?.classList.toggle('hidden', !isMicStreaming);
+      btnToggleMic.title = isMicStreaming ? 'Tắt micro nói sang máy trạm' : 'Bật micro nói sang máy trạm (Live Voice)';
+    }
+  }
+
+  if (btnToggleMic) {
+    btnToggleMic.addEventListener('click', toggleMicStream);
   }
 
   // --- KEYBOARD CAPTURE (PREVENT LEAKS INTO TEXT INPUTS) ---

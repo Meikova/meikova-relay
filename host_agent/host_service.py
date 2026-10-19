@@ -23,6 +23,7 @@ from host_agent.terminal_manager import TerminalManager
 from host_agent.system_manager import SystemManager
 from host_agent.power_manager import PowerManager
 from host_agent.audio_capture import AudioCapture
+from host_agent.audio_playback import AudioPlayback
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +55,9 @@ class HostService:
         self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk)
         self.audio_enabled = False
         self.audio_queue: Optional[asyncio.Queue] = None
+
+        # Audio Playback (Client Mic -> Host Speakers)
+        self.audio_playback = AudioPlayback()
 
         # Clipboard Sync
         self.clipboard = ClipboardManager(on_clipboard_change=self._on_local_clipboard_change)
@@ -193,9 +197,10 @@ class HostService:
                     self.has_active_client = False
                     self.audio_enabled = False
                     self.audio_capture.stop()
+                    self.audio_playback.stop()
                     continue
 
-                # Audio Stream Control
+                # Audio Stream Control (Host Speakers -> Client Browser)
                 elif ev_type == "audio_stream_toggle":
                     self.audio_enabled = bool(event.get("enabled", False))
                     if self.audio_enabled:
@@ -208,6 +213,35 @@ class HostService:
                         "sample_rate": self.audio_capture.sample_rate,
                         "channels": self.audio_capture.channels
                     }))
+                    continue
+
+                # Voice Intercom Control (Client Browser Mic -> Host Speakers)
+                elif ev_type == "client_mic_toggle":
+                    enabled = bool(event.get("enabled", False))
+                    rate = int(event.get("sample_rate", 16000))
+                    channels = int(event.get("channels", 1))
+                    if enabled:
+                        self.audio_playback.start(sample_rate=rate, channels=channels)
+                    else:
+                        self.audio_playback.stop()
+                    await ws.send(json.dumps({
+                        "type": "client_mic_status",
+                        "enabled": enabled
+                    }))
+                    continue
+
+                elif ev_type == "client_mic_chunk":
+                    chunk_b64 = event.get("data", "")
+                    if chunk_b64:
+                        try:
+                            pcm_data = base64.b64decode(chunk_b64)
+                            if not self.audio_playback.running:
+                                rate = int(event.get("rate", 16000))
+                                channels = int(event.get("channels", 1))
+                                self.audio_playback.start(sample_rate=rate, channels=channels)
+                            self.audio_playback.play_chunk(pcm_data)
+                        except Exception as e:
+                            logger.debug(f"Audio playback chunk error: {e}")
                     continue
 
                 # Multi-Monitor Switch
@@ -487,6 +521,7 @@ class HostService:
                     for t in pending:
                         t.cancel()
                     self.audio_capture.stop()
+                    self.audio_playback.stop()
 
             except (websockets.ConnectionClosed, ConnectionRefusedError, OSError) as e:
                 logger.warning(f"Connection lost ({e}). Reconnecting in 3s...")
