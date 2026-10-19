@@ -204,6 +204,12 @@ class HostService:
                             "type": "clipboard_sync",
                             "text": clip_text
                         }))
+                    # Send initial terminal prompt & working directory
+                    cwd = os.getcwd()
+                    await ws.send(json.dumps({
+                        "type": "terminal_output",
+                        "data": f"=== TITAN REMOTE POWERSHELL (UTF-8) SẴN SÀNG ===\r\nThiết bị: {self.device_name} | Thư mục: {cwd}\r\nPS {cwd}> "
+                    }))
                     continue
 
                 elif ev_type == "client_disconnected":

@@ -164,9 +164,11 @@
   const btnDisconnect = document.getElementById('btnDisconnect');
 
   // --- Terminal View DOM ---
+  const terminalScreen = document.getElementById('terminalScreen');
   const terminalOutput = document.getElementById('terminalOutput');
-  const terminalInputForm = document.getElementById('terminalInputForm');
   const terminalCmdInput = document.getElementById('terminalCmdInput');
+  const terminalInputEcho = document.getElementById('terminalInputEcho');
+  const terminalStatusBadge = document.getElementById('terminalStatusBadge');
   const btnClearTerminal = document.getElementById('btnClearTerminal');
 
   // --- Task Manager DOM ---
@@ -564,7 +566,8 @@
     } else if (view === 'terminal') {
       terminalSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TERMINAL` : 'CHƯA KẾT NỐI';
-      terminalCmdInput.focus();
+      updateTerminalStatusBadge();
+      setTimeout(() => terminalCmdInput?.focus(), 50);
     } else if (view === 'tasks') {
       tasksSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TIẾN TRÌNH` : 'CHƯA KẾT NỐI';
@@ -816,6 +819,7 @@
             showToast('Máy trạm đã khởi động lại và kết nối thành công!', 'success');
           }
           roStatus.textContent = `${roomId} // TRỰC TUYẾN`;
+          updateTerminalStatusBadge();
           if (msg.hostMeta) {
             updateHostResolution(msg.hostMeta.width, msg.hostMeta.height);
             if (msg.hostMeta.monitors) populateMonitors(msg.hostMeta.monitors);
@@ -1006,6 +1010,7 @@
   function disconnect() {
     stopRestartReconnectPolling();
     isConnected = false;
+    updateTerminalStatusBadge();
     currentRoom = null;
     currentPin = '';
     updateAudioStreamUi(false);
@@ -1865,32 +1870,108 @@
     }
   });
 
-  // --- VIEW 4: REMOTE TERMINAL (POWERSHELL) ---
-  terminalInputForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (!isConnected) {
-      showToast('Vui lòng kết nối vào máy trạm để sử dụng Terminal', 'info');
-      return;
-    }
-    const cmd = terminalCmdInput.value;
-    if (!cmd.trim()) return;
+  // --- VIEW 4: REMOTE REAL-TIME TERMINAL (POWERSHELL) ---
+  let terminalHistory = [];
+  let terminalHistoryIndex = -1;
 
-    // Immediate local echo with prompt
-    handleTerminalOutput(`PS > ${cmd}\n`);
-    ws.send(JSON.stringify({
-      type: 'terminal_input',
-      command: cmd.trim() + '\n'
-    }));
-    terminalCmdInput.value = '';
+  function updateTerminalStatusBadge() {
+    if (!terminalStatusBadge) return;
+    if (isConnected) {
+      terminalStatusBadge.textContent = 'ĐÃ KẾT NỐI (POWERSHELL UTF-8)';
+      terminalStatusBadge.className = 'terminal-badge terminal-badge--online mono-font';
+    } else {
+      terminalStatusBadge.textContent = 'CHƯA KẾT NỐI';
+      terminalStatusBadge.className = 'terminal-badge mono-font';
+    }
+  }
+
+  // Click anywhere on terminal screen to focus input
+  terminalScreen.addEventListener('click', () => {
+    terminalCmdInput?.focus();
+  });
+
+  // Mirror typing in realtime to visual prompt row
+  terminalCmdInput.addEventListener('input', () => {
+    terminalInputEcho.textContent = terminalCmdInput.value;
+    terminalScreen.scrollTop = terminalScreen.scrollHeight;
+  });
+
+  // Handle Enter, History navigation, Ctrl+L, Tab
+  terminalCmdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const rawCmd = terminalCmdInput.value;
+      const cmd = rawCmd.trim();
+
+      // Echo command to log
+      handleTerminalOutput(`PS > ${rawCmd}\n`);
+      terminalCmdInput.value = '';
+      terminalInputEcho.textContent = '';
+
+      if (!cmd) {
+        if (isConnected && ws) {
+          ws.send(JSON.stringify({ type: 'terminal_input', command: '\n' }));
+        }
+        return;
+      }
+
+      // Add to command history
+      terminalHistory.push(cmd);
+      terminalHistoryIndex = terminalHistory.length;
+
+      // Handle client-side clear
+      if (cmd.toLowerCase() === 'cls' || cmd.toLowerCase() === 'clear') {
+        terminalOutput.textContent = '';
+      }
+
+      if (!isConnected) {
+        handleTerminalOutput('[Titan] Chưa kết nối máy trạm. Vui lòng kết nối thiết bị từ bảng điều khiển trước.\n\n');
+        showToast('Vui lòng kết nối vào máy trạm để sử dụng Terminal', 'info');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'terminal_input',
+        command: cmd + '\n'
+      }));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (terminalHistory.length > 0) {
+        if (terminalHistoryIndex > 0) {
+          terminalHistoryIndex--;
+        } else {
+          terminalHistoryIndex = 0;
+        }
+        terminalCmdInput.value = terminalHistory[terminalHistoryIndex] || '';
+        terminalInputEcho.textContent = terminalCmdInput.value;
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (terminalHistoryIndex < terminalHistory.length - 1) {
+        terminalHistoryIndex++;
+        terminalCmdInput.value = terminalHistory[terminalHistoryIndex] || '';
+        terminalInputEcho.textContent = terminalCmdInput.value;
+      } else {
+        terminalHistoryIndex = terminalHistory.length;
+        terminalCmdInput.value = '';
+        terminalInputEcho.textContent = '';
+      }
+    } else if (e.ctrlKey && e.key.toLowerCase() === 'l') {
+      e.preventDefault();
+      terminalOutput.textContent = '';
+    }
   });
 
   btnClearTerminal.addEventListener('click', () => {
     terminalOutput.textContent = '';
+    terminalCmdInput.value = '';
+    terminalInputEcho.textContent = '';
+    terminalCmdInput.focus();
   });
 
   function handleTerminalOutput(text) {
     terminalOutput.textContent += text;
-    terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    terminalScreen.scrollTop = terminalScreen.scrollHeight;
   }
 
   // --- VIEW 5: TASK MANAGER & DIAGNOSTICS ---

@@ -20,11 +20,17 @@
 4. **Remote Restart Auto-Reconnect:**
    - In `web-client/js/app.js`: Arming auto-reconnect on remote restart power action.
    - Non-blocking polling every 5s after host disconnects to seamlessly re-establish session once workstation finishes rebooting.
-5. **Deep Audit Logging System (`audit_logs` table in `relay-server/db.js`):**
+5. **Real-Time Interactive Terminal (Native Shell Experience):**
+   - Removed clunky bottom input form & "Gửi" button.
+   - User types directly on the terminal screen with inline prompt `PS > `, real-time character mirroring, and blinking cursor (`▋`).
+   - Integrated command history with `↑`/`↓` arrow keys, and screen clearing via `Ctrl+L` or `cls`/`clear`.
+   - Enhanced `terminal_manager.py` with immediate pipeline flush `[Console]::Out.Flush()` to stream command output in real time.
+   - Added connection status badge and initial greeting with host location upon connecting.
+6. **Deep Audit Logging System (`audit_logs` table in `relay-server/db.js`):**
    - Tracks source client IP, client device OS/browser.
    - Tracks target workstation Room ID, device name, host OS.
    - Comprehensive action logging and REST/Export API.
-6. **Web Client Audit View & Face Cam PiP:**
+7. **Web Client Audit View & Face Cam PiP:**
    - Dedicated "Nhật ký (Audit)" tab and optional Face Cam overlay for session recording.
 
 ## Verification

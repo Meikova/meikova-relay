@@ -298,15 +298,24 @@
     <!-- VIEW 4: REMOTE WEB TERMINAL (POWERSHELL) -->
     <section id="terminalSection" class="terminal-container hidden">
       <div class="terminal-toolbar">
-        <span class="mono-font" style="color: var(--accent); font-size: 0.85rem;">PS REMOTE // HOST SHELL</span>
-        <button id="btnClearTerminal" class="btn-pill">Xóa màn hình</button>
+        <div class="terminal-toolbar-left">
+          <span class="mono-font terminal-title">PS REMOTE // HOST SHELL</span>
+          <span id="terminalStatusBadge" class="terminal-badge mono-font">CHƯA KẾT NỐI</span>
+        </div>
+        <div class="terminal-toolbar-right">
+          <span class="terminal-hint mono-font">Enter: Thực thi | ↑/↓: Lịch sử | Ctrl+L: Xóa</span>
+          <button id="btnClearTerminal" class="btn-pill">Xóa màn hình</button>
+        </div>
       </div>
-      <div id="terminalOutput" class="terminal-screen mono-font"></div>
-      <form id="terminalInputForm" class="terminal-input-row">
-        <span class="prompt-symbol mono-font">PS &gt;</span>
-        <input type="text" id="terminalCmdInput" class="terminal-input-field mono-font" placeholder="Nhập lệnh PowerShell (vd: dir, ipconfig, systeminfo)..." autocomplete="off">
-        <button type="submit" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">Gửi</button>
-      </form>
+      <div id="terminalScreen" class="terminal-screen mono-font" tabindex="0" title="Nhấn vào màn hình để gõ lệnh trực tiếp">
+        <div id="terminalOutput"></div>
+        <div class="terminal-prompt-row">
+          <span class="terminal-prompt-prefix">PS &gt;&nbsp;</span>
+          <span id="terminalInputEcho" class="terminal-input-echo"></span>
+          <span class="terminal-cursor">▋</span>
+          <input type="text" id="terminalCmdInput" class="terminal-realtime-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input">
+        </div>
+      </div>
     </section>
 
     <!-- VIEW 5: TASK MANAGER & HARDWARE DIAGNOSTICS -->

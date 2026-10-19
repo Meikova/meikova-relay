@@ -18,7 +18,6 @@ class TerminalManager:
             return
 
         self._running = True
-        # Use powershell on Windows with UTF-8 configuration for Vietnamese diacritics
         init_cmd = (
             "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); "
             "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
@@ -39,7 +38,7 @@ class TerminalManager:
             )
             self._reader_thread = threading.Thread(target=self._read_output_loop, daemon=True)
             self._reader_thread.start()
-            self.on_output("=== TITAN REMOTE POWERSHELL (UTF-8) READY ===\n")
+            self.on_output("=== TITAN REMOTE POWERSHELL (UTF-8) SẴN SÀNG ===\n")
         except Exception as e:
             self.on_output(f"Failed to start PowerShell: {e}\n")
 
@@ -56,7 +55,12 @@ class TerminalManager:
     def send_input(self, text: str):
         if self.process and self.process.stdin:
             try:
-                self.process.stdin.write(text + "\n")
+                cmd = text.strip()
+                if cmd:
+                    # Append Out.Flush() to ensure immediate pipe transmission to web client
+                    self.process.stdin.write(f"{cmd}; [Console]::Out.Flush()\n")
+                else:
+                    self.process.stdin.write("[Console]::Out.Flush()\n")
                 self.process.stdin.flush()
             except Exception as e:
                 self.on_output(f"\n[Stdin Error]: {e}\n")

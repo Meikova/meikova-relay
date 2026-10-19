@@ -755,6 +755,43 @@ button:active {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-3);
+  gap: var(--space-3);
+}
+
+.terminal-toolbar-left,
+.terminal-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.terminal-title {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.terminal-badge {
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: var(--round);
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.terminal-badge--online {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22C55E;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.terminal-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .terminal-screen {
@@ -770,31 +807,70 @@ button:active {
   white-space: pre-wrap;
   word-break: break-all;
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.9);
+  cursor: text;
+  position: relative;
+  outline: none;
 }
 
-.terminal-input-row {
-  margin-top: var(--space-3);
+.terminal-screen:focus-within {
+  border-color: rgba(34, 197, 94, 0.45);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(34, 197, 94, 0.2);
+}
+
+#terminalOutput {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-prompt-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  background: var(--ink-1);
-  border: 1px solid var(--line);
-  border-radius: var(--round);
-  padding: 6px 16px;
+  position: relative;
+  min-height: 24px;
+  margin-top: 4px;
 }
 
-.prompt-symbol {
+.terminal-prompt-prefix {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
+  white-space: pre;
+  user-select: none;
 }
 
-.terminal-input-field {
-  flex: 1;
+.terminal-input-echo {
+  color: #FFFFFF;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-cursor {
+  color: var(--accent);
+  margin-left: 2px;
+  animation: termBlink 1s step-start infinite;
+  user-select: none;
+}
+
+@keyframes termBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.terminal-realtime-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: text;
   background: transparent;
   border: none;
   outline: none;
-  color: var(--text);
-  font-size: var(--step--1);
+  font-size: inherit;
+  font-family: inherit;
+  color: transparent;
+  caret-color: transparent;
+  z-index: 2;
 }
 
 /* ------------------------------------------------------------------ VIEW 5: TASK MANAGER */
