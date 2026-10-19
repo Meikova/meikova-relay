@@ -143,6 +143,11 @@
   const btnFullscreen = document.getElementById('btnFullscreen');
   const btnToggleLaser = document.getElementById('btnToggleLaser');
   const btnRecord = document.getElementById('btnRecord');
+  const btnToggleCam = document.getElementById('btnToggleCam');
+  const camSvgOff = document.getElementById('camSvgOff');
+  const camSvgOn = document.getElementById('camSvgOn');
+  const webcamContainer = document.getElementById('webcamContainer');
+  const webcamVideo = document.getElementById('webcamVideo');
   const btnScreenshot = document.getElementById('btnScreenshot');
   const btnToggleAudio = document.getElementById('btnToggleAudio');
   const audioSvgMuted = document.getElementById('audioSvgMuted');
@@ -232,10 +237,13 @@
   let laserPos = { x: -100, y: -100 };
   let laserAnimId = null;
 
-  // Recording State
+  // Recording & Face Cam State
   let mediaRecorder = null;
   let recordedChunks = [];
   let isRecording = false;
+  let isWebcamActive = false;
+  let webcamStream = null;
+  let recAnimId = null;
 
   // Process Manager State
   let currentProcessList = [];
@@ -925,6 +933,7 @@
       ws = null;
     }
     stopRecording();
+    stopWebcam();
     switchView('dashboard', true);
   }
 
@@ -1184,6 +1193,65 @@
     laserAnimId = requestAnimationFrame(drawLaser);
   }
 
+  // --- WEBCAM (FACE CAM PIP) ---
+  btnToggleCam.addEventListener('click', () => toggleWebcam());
+
+  async function toggleWebcam() {
+    if (isWebcamActive) {
+      stopWebcam();
+      showToast('Đã tắt Face Cam', 'info');
+    } else {
+      await startWebcam();
+    }
+  }
+
+  async function startWebcam() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast('Trình duyệt không hỗ trợ webcam', 'error');
+      return;
+    }
+    try {
+      webcamStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: false
+      });
+      webcamVideo.srcObject = webcamStream;
+      await webcamVideo.play();
+      isWebcamActive = true;
+      webcamContainer.classList.remove('hidden');
+      camSvgOff.classList.add('hidden');
+      camSvgOn.classList.remove('hidden');
+      btnToggleCam.classList.add('btn-active');
+      showToast('Đã bật Face Cam (PiP)', 'success');
+    } catch (err) {
+      showToast(`Không thể mở webcam: ${err.message}`, 'error');
+      stopWebcam();
+    }
+  }
+
+  function stopWebcam() {
+    isWebcamActive = false;
+    if (webcamStream) {
+      try {
+        webcamStream.getTracks().forEach(t => t.stop());
+      } catch {}
+      webcamStream = null;
+    }
+    if (webcamVideo) {
+      webcamVideo.srcObject = null;
+    }
+    if (webcamContainer) {
+      webcamContainer.classList.add('hidden');
+    }
+    if (camSvgOff && camSvgOn) {
+      camSvgOff.classList.remove('hidden');
+      camSvgOn.classList.add('hidden');
+    }
+    if (btnToggleCam) {
+      btnToggleCam.classList.remove('btn-active');
+    }
+  }
+
   // --- SESSION RECORDING (WEBM) ---
   btnRecord.addEventListener('click', () => {
     if (!isConnected) {
@@ -1199,13 +1267,88 @@
 
   function startRecording() {
     try {
-      const stream = remoteCanvas.captureStream(30);
+      let stream;
+      if (isWebcamActive && webcamVideo && webcamVideo.readyState >= 2) {
+        const recCanvas = document.createElement('canvas');
+        recCanvas.width = remoteCanvas.width || 1920;
+        recCanvas.height = remoteCanvas.height || 1080;
+        const recCtx = recCanvas.getContext('2d');
+
+        function renderComposite() {
+          if (!isRecording) return;
+          if (recCanvas.width !== (remoteCanvas.width || 1920) || recCanvas.height !== (remoteCanvas.height || 1080)) {
+            recCanvas.width = remoteCanvas.width || 1920;
+            recCanvas.height = remoteCanvas.height || 1080;
+          }
+
+          // 1. Remote screen canvas
+          recCtx.drawImage(remoteCanvas, 0, 0, recCanvas.width, recCanvas.height);
+
+          // 2. Face Cam PiP (bottom right corner)
+          if (isWebcamActive && webcamVideo.readyState >= 2) {
+            const pipW = Math.max(240, Math.round(recCanvas.width * 0.22));
+            const aspect = (webcamVideo.videoWidth && webcamVideo.videoHeight)
+              ? (webcamVideo.videoWidth / webcamVideo.videoHeight)
+              : (16 / 9);
+            const pipH = Math.round(pipW / aspect);
+            const margin = Math.round(recCanvas.width * 0.02);
+            const pipX = recCanvas.width - pipW - margin;
+            const pipY = recCanvas.height - pipH - margin;
+            const radius = 12;
+
+            recCtx.save();
+            recCtx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+            recCtx.shadowBlur = 16;
+            recCtx.shadowOffsetX = 0;
+            recCtx.shadowOffsetY = 6;
+
+            recCtx.beginPath();
+            if (recCtx.roundRect) {
+              recCtx.roundRect(pipX, pipY, pipW, pipH, radius);
+            } else {
+              recCtx.rect(pipX, pipY, pipW, pipH);
+            }
+            recCtx.clip();
+
+            // Mirror camera inside PiP
+            recCtx.translate(pipX + pipW, pipY);
+            recCtx.scale(-1, 1);
+            recCtx.drawImage(webcamVideo, 0, 0, pipW, pipH);
+            recCtx.restore();
+
+            // PiP Border
+            recCtx.save();
+            recCtx.strokeStyle = '#38BDF8';
+            recCtx.lineWidth = 3;
+            recCtx.beginPath();
+            if (recCtx.roundRect) {
+              recCtx.roundRect(pipX, pipY, pipW, pipH, radius);
+            } else {
+              recCtx.rect(pipX, pipY, pipW, pipH);
+            }
+            recCtx.stroke();
+            recCtx.restore();
+          }
+
+          recAnimId = requestAnimationFrame(renderComposite);
+        }
+
+        renderComposite();
+        stream = recCanvas.captureStream(30);
+      } else {
+        stream = remoteCanvas.captureStream(30);
+      }
+
       recordedChunks = [];
       mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
       mediaRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) recordedChunks.push(e.data);
       };
       mediaRecorder.onstop = () => {
+        if (recAnimId) {
+          cancelAnimationFrame(recAnimId);
+          recAnimId = null;
+        }
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
         downloadBlob(blob, `titan-session-${Date.now()}.webm`);
         recordedChunks = [];
@@ -1215,13 +1358,21 @@
       isRecording = true;
       btnRecord.classList.add('btn-active');
       btnRecord.title = 'Đang ghi hình...';
-      showToast('Bắt đầu ghi hình phiên làm việc', 'info');
+      showToast(isWebcamActive ? 'Bắt đầu ghi hình (màn hình + Face Cam)' : 'Bắt đầu ghi hình màn hình', 'info');
     } catch (err) {
+      if (recAnimId) {
+        cancelAnimationFrame(recAnimId);
+        recAnimId = null;
+      }
       showToast(`Không thể bắt đầu ghi hình: ${err.message}`, 'error');
     }
   }
 
   function stopRecording() {
+    if (recAnimId) {
+      cancelAnimationFrame(recAnimId);
+      recAnimId = null;
+    }
     if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
       isRecording = false;
