@@ -1,4 +1,4 @@
-// Titan Remote Enterprise - Ambient Instrument Web Application
+// Titan Remote Enterprise — Ambient Instrument Web Application
 (function () {
   'use strict';
 
@@ -33,7 +33,8 @@
   const qcRoomId = document.getElementById('qcRoomId');
   const qcPin = document.getElementById('qcPin');
 
-  // --- Remote Canvas & HUD DOM ---
+  // --- Remote Canvas & Viewport DOM ---
+  const viewportBox = document.getElementById('viewportBox');
   const remoteCanvas = document.getElementById('remoteCanvas');
   const ctx = remoteCanvas.getContext('2d');
   const laserCanvas = document.getElementById('laserCanvas');
@@ -43,7 +44,8 @@
   const metricFps = document.getElementById('metricFps');
   const metricRes = document.getElementById('metricRes');
 
-  // --- Bottom Deck Controls DOM ---
+  // --- Floating Deck Controls DOM ---
+  const floatingDeck = document.getElementById('floatingDeck');
   const monitorSelector = document.getElementById('monitorSelector');
   const qualitySelector = document.getElementById('qualitySelector');
   const btnScaleToggle = document.getElementById('btnScaleToggle');
@@ -51,6 +53,7 @@
   const btnFullscreen = document.getElementById('btnFullscreen');
   const btnToggleLaser = document.getElementById('btnToggleLaser');
   const btnRecord = document.getElementById('btnRecord');
+  const recordLabel = document.getElementById('recordLabel');
   const btnScreenshot = document.getElementById('btnScreenshot');
   const btnToggleOSK = document.getElementById('btnToggleOSK');
   const oskOverlay = document.getElementById('oskOverlay');
@@ -78,7 +81,7 @@
   const processTableBody = document.getElementById('processTableBody');
 
   // --- Shelf Drawer DOM ---
-  const shelfTabs = document.querySelectorAll('.shelf-tabs button');
+  const shelfTabs = document.getElementById('shelfTabs');
   const shelfFilesTab = document.getElementById('shelfFilesTab');
   const shelfClipboardTab = document.getElementById('shelfClipboardTab');
   const fileDropzone = document.getElementById('fileDropzone');
@@ -112,11 +115,14 @@
   let touchStartDist = 0;
   let touchStartScale = 1.0;
 
-  // Telemetry
+  // Telemetry Metrics
   let frameCount = 0;
   let lastFpsUpdate = performance.now();
   let lastPingSend = 0;
   let pingIntervalId = null;
+
+  // Inactivity Dimming
+  let idleTimer = null;
 
   // Laser Pointer State
   let isLaserActive = false;
@@ -133,7 +139,7 @@
 
   // File Manager State
   let remoteCurrentPath = '';
-  let activeDownloads = {}; // transfer_id -> { filename, chunks: [], totalBytes, receivedBytes }
+  let activeDownloads = {};
 
   // Key code mapping
   const JS_TO_VK = {
@@ -159,6 +165,24 @@
   const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const defaultWsUrl = `${wsProto}//${window.location.host}`;
   qcRelayUrl.value = defaultWsUrl;
+
+  // --- SLIDING SEGMENTED INDICATOR ENGINE (MASHLOOP PATTERN) ---
+  function placeIndicator(seg) {
+    if (!seg) return;
+    const onBtn = seg.querySelector('button.on');
+    const ind = seg.querySelector('.seg__ind');
+    if (!onBtn || !ind) return;
+    ind.style.setProperty('--ind-x', `${onBtn.offsetLeft}px`);
+    ind.style.setProperty('--ind-w', `${onBtn.offsetWidth}px`);
+  }
+
+  function placeAllIndicators() {
+    document.querySelectorAll('.seg').forEach(placeIndicator);
+  }
+
+  window.addEventListener('resize', placeAllIndicators);
+  if (document.fonts) document.fonts.ready.then(placeAllIndicators);
+  setTimeout(placeAllIndicators, 60);
 
   // --- REST API CALLS ---
   async function apiFetch(endpoint, method = 'GET', body = null) {
@@ -204,9 +228,12 @@
     terminalSection.classList.add('hidden');
     tasksSection.classList.add('hidden');
 
-    document.querySelectorAll('.segmented-nav .seg-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.view === view);
+    mainNav.querySelectorAll('button').forEach(btn => {
+      const isTarget = btn.dataset.view === view;
+      btn.classList.toggle('on', isTarget);
+      btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
     });
+    placeIndicator(mainNav);
 
     if (view === 'auth') {
       authSection.classList.remove('hidden');
@@ -218,7 +245,7 @@
     } else if (view === 'remote') {
       remoteSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TRỰC TUYẾN` : 'CHƯA KẾT NỐI';
-      syncLaserCanvasSize();
+      resetDeckIdle();
     } else if (view === 'terminal') {
       terminalSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TERMINAL` : 'CHƯA KẾT NỐI';
@@ -226,15 +253,13 @@
     } else if (view === 'tasks') {
       tasksSection.classList.remove('hidden');
       roStatus.textContent = isConnected ? `${currentRoom} // TIẾN TRÌNH` : 'CHƯA KẾT NỐI';
-      if (isConnected) {
-        requestTelemetryAndTasks();
-      }
+      if (isConnected) requestTelemetryAndTasks();
     }
   }
 
-  // Navigation handlers
+  // Navigation Click Handler
   mainNav.addEventListener('click', (e) => {
-    const btn = e.target.closest('.seg-btn');
+    const btn = e.target.closest('button');
     if (!btn) return;
     const view = btn.dataset.view;
     if (view === 'shelf') {
@@ -249,12 +274,14 @@
 
   // --- AUTHENTICATION ---
   authTabs.addEventListener('click', (e) => {
-    const btn = e.target.closest('.seg-btn');
+    const btn = e.target.closest('button');
     if (!btn) return;
-    authTabs.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    authTabs.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    placeIndicator(authTabs);
+
     authMode = btn.dataset.authMode;
-    btnSubmitAuth.textContent = authMode === 'login' ? 'Vào Bảng Điều Khiển' : 'Đăng Ký Tài Khoản';
+    btnSubmitAuth.textContent = authMode === 'login' ? 'Vào bảng điều khiển' : 'Đăng ký tài khoản';
     authError.classList.add('hidden');
   });
 
@@ -279,7 +306,7 @@
         authError.classList.remove('hidden');
       }
     } catch (err) {
-      authError.textContent = `Lỗi mạng: ${err.message}`;
+      authError.textContent = `Lỗi kết nối: ${err.message}`;
       authError.classList.remove('hidden');
     }
   });
@@ -294,24 +321,24 @@
 
   // --- DASHBOARD FLEET ---
   async function loadDeviceFleet() {
-    deviceGrid.innerHTML = '<p class="mono-font" style="color: #64748B;">Đang tải danh sách máy trạm...</p>';
+    deviceGrid.innerHTML = '<p class="mono-font" style="color: var(--text-faint); padding: 20px;">Đang tải danh sách máy trạm...</p>';
     try {
       const data = await apiFetch('/api/devices');
       if (data.success && data.devices) {
         renderDeviceGrid(data.devices);
       }
     } catch {
-      deviceGrid.innerHTML = '<p class="mono-font" style="color: #EF4444;">Không thể tải danh sách thiết bị.</p>';
+      deviceGrid.innerHTML = '<p class="mono-font" style="color: #EF4444; padding: 20px;">Không thể tải danh sách thiết bị.</p>';
     }
   }
 
   function renderDeviceGrid(devices) {
     if (!devices || devices.length === 0) {
       deviceGrid.innerHTML = `
-        <div class="empty-fleet" style="grid-column: 1 / -1; text-align: center; padding: 40px; background: var(--ink-1); border: 1px dashed var(--line); border-radius: 16px;">
-          <p class="brand-font" style="font-size: 1.1rem; color: #F8FAFC; margin-bottom: 8px;">Chưa có máy trạm nào được liên kết</p>
-          <p style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 16px;">Khởi chạy Host Agent trên máy tính để kết nối vào hệ thống</p>
-          <button id="btnEmptyAdd" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">+ Kết Nối Bằng Room ID</button>
+        <div class="empty-fleet" style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--ink-1); border: 1px dashed var(--line); border-radius: var(--radius);">
+          <p class="brand-font" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">Chưa có máy trạm nào được liên kết</p>
+          <p style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">Khởi chạy Host Agent trên máy tính để liên kết tự động</p>
+          <button id="btnEmptyAdd" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">+ Kết nối nhanh bằng Room ID</button>
         </div>
       `;
       document.getElementById('btnEmptyAdd')?.addEventListener('click', () => quickConnectModal.classList.remove('hidden'));
@@ -334,7 +361,7 @@
             <span>ROOM: ${escapeHtml(d.room_id)}</span>
           </div>
           <button class="btn-connect-device" data-room="${d.room_id}" data-pin="${d.pin}">
-            <span>${isOnline ? 'Kết Nối Máy Này' : 'Thử Kết Nối'}</span> →
+            <span>${isOnline ? 'Kết nối máy này' : 'Thử kết nối'}</span> →
           </button>
         </div>
       `;
@@ -416,8 +443,6 @@
             if (msg.hostMeta.monitors) populateMonitors(msg.hostMeta.monitors);
           }
           startPingLoop();
-          // Initial terminal sync
-          ws.send(JSON.stringify({ type: 'terminal_input', command: '\r\n' }));
         } else if (msg.status === 'error') {
           alert(`Lỗi: ${msg.message}`);
           disconnect();
@@ -513,13 +538,9 @@
     hostResolution.height = h;
     remoteCanvas.width = w;
     remoteCanvas.height = h;
+    laserCanvas.width = w;
+    laserCanvas.height = h;
     metricRes.textContent = `${w}x${h}`;
-    syncLaserCanvasSize();
-  }
-
-  function syncLaserCanvasSize() {
-    laserCanvas.width = remoteCanvas.clientWidth || remoteCanvas.width;
-    laserCanvas.height = remoteCanvas.clientHeight || remoteCanvas.height;
   }
 
   async function handleIncomingFrame(blob) {
@@ -562,7 +583,7 @@
     }));
   });
 
-  // --- QUALITY & BANDWIDTH SELECTOR ---
+  // --- QUALITY PRESET ---
   qualitySelector.addEventListener('change', () => {
     if (!isConnected) return;
     ws.send(JSON.stringify({
@@ -580,25 +601,35 @@
     panX = 0;
     panY = 0;
     applyCanvasTransform();
-    syncLaserCanvasSize();
   });
 
   btnFullscreen.addEventListener('click', () => {
     if (!document.fullscreenElement) {
-      remoteSection.requestFullscreen().then(() => {
-        if (remoteCanvas.requestPointerLock) {
-          remoteCanvas.requestPointerLock().catch(() => {});
-        }
-      }).catch(() => {});
+      remoteSection.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
   });
 
   function applyCanvasTransform() {
-    remoteCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-    laserCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    viewportBox.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
   }
+
+  // --- INACTIVITY DIMMING FOR THE FLOATING DECK ---
+  function resetDeckIdle() {
+    floatingDeck.classList.remove('dimmed');
+    clearTimeout(idleTimer);
+    if (currentView === 'remote' && isConnected) {
+      idleTimer = setTimeout(() => {
+        if (!floatingDeck.matches(':hover') && !powerMenuDropdown.matches(':hover')) {
+          floatingDeck.classList.add('dimmed');
+        }
+      }, 3500);
+    }
+  }
+
+  remoteSection.addEventListener('mousemove', resetDeckIdle);
+  remoteSection.addEventListener('mousedown', resetDeckIdle);
 
   // --- TOUCH PINCH-TO-ZOOM & PAN ---
   remoteCanvas.addEventListener('touchstart', (e) => {
@@ -624,16 +655,16 @@
     }
   }, { passive: false });
 
-  // --- MOUSE TRACKING & LASER POINTER ---
+  // --- MOUSE TRACKING & COORDINATE CONVERSION ---
   function getNormalizedCoords(e) {
     const rect = remoteCanvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
+    const normX = Math.max(0.0, Math.min(1.0, (e.clientX - rect.left) / rect.width));
+    const normY = Math.max(0.0, Math.min(1.0, (e.clientY - rect.top) / rect.height));
     return {
-      x: Math.max(0.0, Math.min(1.0, x)),
-      y: Math.max(0.0, Math.min(1.0, y)),
-      clientX: e.clientX - rect.left,
-      clientY: e.clientY - rect.top
+      x: normX,
+      y: normY,
+      pixelX: normX * remoteCanvas.width,
+      pixelY: normY * remoteCanvas.height
     };
   }
 
@@ -643,8 +674,8 @@
     const coords = getNormalizedCoords(e);
 
     if (isLaserActive) {
-      laserPos.x = coords.clientX;
-      laserPos.y = coords.clientY;
+      laserPos.x = coords.pixelX;
+      laserPos.y = coords.pixelY;
     }
 
     const now = performance.now();
@@ -692,7 +723,6 @@
   btnToggleLaser.addEventListener('click', () => {
     isLaserActive = !isLaserActive;
     btnToggleLaser.classList.toggle('btn-active', isLaserActive);
-    syncLaserCanvasSize();
     if (isLaserActive) {
       startLaserLoop();
     } else {
@@ -707,9 +737,8 @@
       laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
 
       if (laserPos.x >= 0 && laserPos.y >= 0) {
-        // Red phosphor halo
         laserCtx.save();
-        const rad = 14;
+        const rad = 20;
         const grad = laserCtx.createRadialGradient(laserPos.x, laserPos.y, 2, laserPos.x, laserPos.y, rad);
         grad.addColorStop(0, 'rgba(239, 68, 68, 1)');
         grad.addColorStop(0.4, 'rgba(239, 68, 68, 0.7)');
@@ -719,7 +748,6 @@
         laserCtx.arc(laserPos.x, laserPos.y, rad, 0, Math.PI * 2);
         laserCtx.fill();
 
-        // White hot center
         laserCtx.fillStyle = '#FFFFFF';
         laserCtx.beginPath();
         laserCtx.arc(laserPos.x, laserPos.y, 3, 0, Math.PI * 2);
@@ -760,7 +788,7 @@
       mediaRecorder.start();
       isRecording = true;
       btnRecord.classList.add('btn-active');
-      btnRecord.textContent = 'Ghi ●';
+      recordLabel.textContent = 'Đang ghi...';
     } catch (err) {
       alert(`Không thể bắt đầu ghi hình: ${err.message}`);
     }
@@ -771,7 +799,7 @@
       mediaRecorder.stop();
       isRecording = false;
       btnRecord.classList.remove('btn-active');
-      btnRecord.textContent = 'Record';
+      recordLabel.textContent = 'Ghi';
     }
   }
 
@@ -783,7 +811,7 @@
     }
     remoteCanvas.toBlob((blob) => {
       if (blob) {
-        downloadBlob(blob, `titan-screenshot-${Date.now()}.png`);
+        downloadBlob(blob, `titan-screen-${Date.now()}.png`);
       }
     }, 'image/png');
   });
@@ -799,9 +827,17 @@
     URL.revokeObjectURL(url);
   }
 
-  // --- KEYBOARD CAPTURE ---
+  // --- KEYBOARD CAPTURE (PREVENT LEAKS INTO TEXT INPUTS) ---
   window.addEventListener('keydown', (e) => {
     if (!isConnected || currentView !== 'remote') return;
+
+    // Do NOT capture keys when user is typing into an input field or textarea
+    const activeEl = document.activeElement;
+    const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (activeEl && activeEl.isContentEditable)) {
+      return;
+    }
+
     const vk = JS_TO_VK[e.code] || 0;
     if (vk > 0) {
       if (['Tab', 'AltLeft', 'AltRight', 'Backspace', 'F5', 'F11'].includes(e.code)) {
@@ -817,6 +853,13 @@
 
   window.addEventListener('keyup', (e) => {
     if (!isConnected || currentView !== 'remote') return;
+
+    const activeEl = document.activeElement;
+    const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (activeEl && activeEl.isContentEditable)) {
+      return;
+    }
+
     const vk = JS_TO_VK[e.code] || 0;
     if (vk > 0) {
       if (['Tab', 'AltLeft', 'AltRight', 'Backspace'].includes(e.code)) {
@@ -917,9 +960,13 @@
       return;
     }
     const cmd = terminalCmdInput.value;
+    if (!cmd.trim()) return;
+
+    // Immediate local echo with prompt
+    handleTerminalOutput(`PS > ${cmd}\n`);
     ws.send(JSON.stringify({
       type: 'terminal_input',
-      command: cmd + '\r\n'
+      command: cmd.trim() + '\n'
     }));
     terminalCmdInput.value = '';
   });
@@ -981,7 +1028,7 @@
     });
 
     if (filtered.length === 0) {
-      processTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748B;">Không tìm thấy tiến trình phù hợp</td></tr>`;
+      processTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-faint); padding: 20px;">Không tìm thấy tiến trình phù hợp</td></tr>`;
       return;
     }
 
@@ -1016,14 +1063,16 @@
   });
   btnCloseShelf.addEventListener('click', () => shelfDrawer.classList.remove('open'));
 
-  shelfTabs.forEach(btn => {
-    btn.addEventListener('click', () => {
-      shelfTabs.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const tab = btn.dataset.shelfTab;
-      shelfFilesTab.classList.toggle('hidden', tab !== 'files');
-      shelfClipboardTab.classList.toggle('hidden', tab !== 'clipboard');
-    });
+  shelfTabs.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    shelfTabs.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    placeIndicator(shelfTabs);
+
+    const tab = btn.dataset.shelfTab;
+    shelfFilesTab.classList.toggle('hidden', tab !== 'files');
+    shelfClipboardTab.classList.toggle('hidden', tab !== 'clipboard');
   });
 
   // Clipboard Push
@@ -1131,12 +1180,12 @@
     currentFolderPath.textContent = remoteCurrentPath || 'Danh sách ổ đĩa';
 
     if (data.error) {
-      remoteFolderList.innerHTML = `<div style="color: #EF4444; font-size: 0.75rem;">${escapeHtml(data.error)}</div>`;
+      remoteFolderList.innerHTML = `<div style="color: #EF4444; font-size: 0.75rem; padding: 10px;">${escapeHtml(data.error)}</div>`;
       return;
     }
 
     if (!data.items || data.items.length === 0) {
-      remoteFolderList.innerHTML = `<div style="color: #64748B; font-size: 0.75rem;">Thư mục trống</div>`;
+      remoteFolderList.innerHTML = `<div style="color: var(--text-faint); font-size: 0.75rem; padding: 10px;">Thư mục trống</div>`;
       return;
     }
 
@@ -1159,7 +1208,6 @@
         if (isDir) {
           requestBrowsePath(itemPath);
         } else {
-          // Download file from host
           ws.send(JSON.stringify({
             type: 'file_download_request',
             filepath: itemPath

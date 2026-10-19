@@ -2,8 +2,8 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Titan Remote — Enterprise Ambient Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Titan Remote — Ambient Instrument Platform</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,18 +17,38 @@
   <!-- Top Bar (64px Avionics Console) -->
   <header class="topbar">
     <div class="brand-container">
-      <div class="brand-logo brand-font">
-        <span class="brand-loop">∞</span> TITAN REMOTE
-      </div>
+      <a class="brand-logo brand-font" href="/" aria-label="Titan Remote">
+        <svg class="brand-inf-svg" viewBox="0 0 48 24" aria-hidden="true">
+          <path class="brand-inf-path" d="M24 12 C 30 4, 42 4, 42 12 C 42 20, 30 20, 24 12 C 18 4, 6 4, 6 12 C 6 20, 18 20, 24 12 Z"/>
+          <circle class="brand-inf-dot" r="2.2" cx="24" cy="12"/>
+        </svg>
+        <span>TITAN REMOTE</span>
+      </a>
     </div>
 
-    <!-- Mode Switcher -->
-    <nav class="segmented-nav" id="mainNav">
-      <button class="seg-btn active" data-view="dashboard">Máy trạm</button>
-      <button class="seg-btn" data-view="remote" id="navRemoteBtn">Màn hình</button>
-      <button class="seg-btn" data-view="terminal" id="navTerminalBtn">Terminal</button>
-      <button class="seg-btn" data-view="tasks" id="navTasksBtn">Tiến trình</button>
-      <button class="seg-btn" data-view="shelf" id="navShelfBtn">Tệp & Clip</button>
+    <!-- Sliding Segmented Mode Navigation -->
+    <nav class="seg" id="mainNav" role="tablist" aria-label="Phân hệ điều khiển">
+      <span class="seg__ind" aria-hidden="true"></span>
+      <button type="button" class="on" data-view="dashboard" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Máy trạm</span>
+      </button>
+      <button type="button" data-view="remote" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+        <span>Màn hình</span>
+      </button>
+      <button type="button" data-view="terminal" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+        <span>Terminal</span>
+      </button>
+      <button type="button" data-view="tasks" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        <span>Tiến trình</span>
+      </button>
+      <button type="button" data-view="shelf" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span>Tệp &amp; Clip</span>
+      </button>
     </nav>
 
     <div class="topbar-right">
@@ -36,33 +56,37 @@
         <span id="userNameDisplay">--</span>
         <button id="btnLogout" class="btn-pill" title="Đăng xuất">Thoát</button>
       </div>
-      <button id="btnQuickConnect" class="btn-pill" title="Kết nối trực tiếp bằng Room ID">Kết nối nhanh</button>
+      <button id="btnQuickConnect" class="btn-pill" title="Kết nối trực tiếp bằng Room ID">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        <span>Kết nối nhanh</span>
+      </button>
     </div>
   </header>
 
   <!-- Corner Telemetry Readouts -->
-  <div class="ro-tl">
+  <p class="readout readout--tl" id="ro-tl">
     TITAN ∞ REMOTE // <strong id="roStatus">CHƯA KẾT NỐI</strong>
-  </div>
-  <div class="ro-tr" id="roMetrics">
+  </p>
+  <p class="readout readout--tr" id="ro-tr">
     RTT: <strong id="metricPing">--</strong>ms // <strong id="metricFps">--</strong> FPS // RES: <strong id="metricRes">--</strong>
-  </div>
+  </p>
 
-  <!-- Stage Viewport -->
-  <main class="stage">
+  <!-- Main Stage Viewport -->
+  <main class="stage" id="stageContainer">
 
     <!-- VIEW 1: AUTHENTICATION MODAL -->
     <section id="authSection" class="auth-container">
       <div class="instrument-card">
         <div class="card-hero">
-          <div class="brand-font" style="font-size: 1.4rem; color: var(--accent); margin-bottom: 6px;">∞</div>
-          <h1 class="card-title brand-font">Đăng Nhập Quản Trị</h1>
+          <div class="brand-font" style="font-size: 1.5rem; color: var(--accent); margin-bottom: 6px;">∞</div>
+          <h1 class="card-title brand-font">Đăng nhập quản trị</h1>
           <p class="card-subtitle">Nền tảng điều khiển máy trạm toàn diện qua Outbound Relay</p>
         </div>
 
-        <div class="segmented-nav auth-tabs" id="authTabs">
-          <button class="seg-btn active" data-auth-mode="login">Đăng nhập</button>
-          <button class="seg-btn" data-auth-mode="register">Đăng ký</button>
+        <div class="seg auth-tabs" id="authTabs" role="tablist">
+          <span class="seg__ind" aria-hidden="true"></span>
+          <button type="button" class="on" data-auth-mode="login" role="tab">Đăng nhập</button>
+          <button type="button" data-auth-mode="register" role="tab">Đăng ký</button>
         </div>
 
         <div id="authError" class="auth-error hidden"></div>
@@ -76,7 +100,7 @@
             <label for="authPassword">Mật khẩu</label>
             <input type="password" id="authPassword" class="instrument-input mono-font" placeholder="••••••••" required autocomplete="current-password">
           </div>
-          <button type="submit" id="btnSubmitAuth" class="btn-cta">Vào Bảng Điều Khiển</button>
+          <button type="submit" id="btnSubmitAuth" class="btn-cta">Vào bảng điều khiển</button>
         </form>
       </div>
     </section>
@@ -88,53 +112,70 @@
           <h2 class="section-title">Danh sách máy trạm</h2>
           <p class="card-subtitle">Các thiết bị đã liên kết với tài khoản của bạn</p>
         </div>
-        <button id="btnOpenLinkModal" class="btn-pill">+ Thêm Máy Trạm Mới</button>
+        <button id="btnOpenLinkModal" class="btn-pill">+ Thêm máy trạm mới</button>
       </div>
 
       <div class="device-grid" id="deviceGrid"></div>
     </section>
 
     <!-- VIEW 3: ACTIVE REMOTE DESKTOP STAGE -->
-    <section id="remoteSection" class="remote-stage hidden">
-      <canvas id="remoteCanvas" tabindex="0"></canvas>
-      <canvas id="laserCanvas" style="position: absolute; inset: 0; pointer-events: none; z-index: 10;"></canvas>
+    <section id="remoteSection" class="remote-stage fit-mode hidden">
+      <!-- Symmetrical Canvas Viewport Box -->
+      <div class="viewport-box" id="viewportBox">
+        <canvas id="remoteCanvas" tabindex="0"></canvas>
+        <canvas id="laserCanvas"></canvas>
+      </div>
 
-      <!-- The Floating Pill Deck (Bottom Controller) -->
-      <footer class="floating-deck" id="floatingDeck">
-        <select id="monitorSelector" class="deck-btn" title="Chọn màn hình truyền phát">
-          <option value="1">Màn hình 1</option>
+      <!-- Floating Pill Deck Controller -->
+      <footer class="deck" id="floatingDeck">
+        <select id="monitorSelector" class="deck__btn" title="Chọn màn hình truyền phát">
+          <option value="1">Màn 1</option>
         </select>
 
-        <select id="qualitySelector" class="deck-btn" title="Cấu hình chất lượng & băng thông">
-          <option value="balanced" selected>30 FPS (Cân bằng)</option>
-          <option value="speed_60">60 FPS (Siêu mượt)</option>
-          <option value="crisp_hd">HD (Văn bản nét)</option>
-          <option value="grayscale">Tiết kiệm mạng</option>
+        <select id="qualitySelector" class="deck__btn" title="Cấu hình chất lượng &amp; băng thông">
+          <option value="balanced" selected>30 FPS</option>
+          <option value="speed_60">60 FPS</option>
+          <option value="crisp_hd">HD Nét</option>
+          <option value="grayscale">Tiết kiệm</option>
         </select>
 
-        <button id="btnScaleToggle" class="deck-btn" title="Co giãn theo cửa sổ / 100% tỷ lệ gốc">
+        <button id="btnScaleToggle" class="deck__btn" title="Co giãn theo cửa sổ / 100% tỷ lệ gốc">
           <span id="scaleLabel">Fit</span>
         </button>
 
-        <button id="btnFullscreen" class="deck-btn" title="Toàn màn hình">Fullscreen</button>
-        <button id="btnToggleLaser" class="deck-btn" title="Bật/Tắt Laser Pointer">Laser</button>
-        <button id="btnRecord" class="deck-btn" title="Ghi hình phiên làm việc">Record</button>
-        <button id="btnScreenshot" class="deck-btn" title="Chụp ảnh màn hình máy trạm">Capture</button>
-        <button id="btnToggleOSK" class="deck-btn" title="Mở bàn phím ảo">Phím ảo</button>
+        <button id="btnFullscreen" class="deck__btn" title="Toàn màn hình">
+          <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <span>Toàn màn</span>
+        </button>
+        <button id="btnToggleLaser" class="deck__btn" title="Bật/Tắt Laser Pointer">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+          <span>Laser</span>
+        </button>
+        <button id="btnRecord" class="deck__btn" title="Ghi hình phiên làm việc">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"></circle></svg>
+          <span id="recordLabel">Ghi</span>
+        </button>
+        <button id="btnScreenshot" class="deck__btn" title="Chụp ảnh màn hình máy trạm">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          <span>Chụp</span>
+        </button>
+        <button id="btnToggleOSK" class="deck__btn" title="Mở bàn phím ảo">
+          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="6" y1="12" x2="6.01" y2="12"></line><line x1="18" y1="12" x2="18.01" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
+          <span>Phím ảo</span>
+        </button>
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
 
-        <button class="deck-btn" data-hotkey="win">Win</button>
-        <button class="deck-btn" data-hotkey="taskmgr">TaskMgr</button>
-        <button class="deck-btn" data-hotkey="alttab">Alt+Tab</button>
-        <button class="deck-btn" data-hotkey="esc">Esc</button>
+        <button class="deck__btn" data-hotkey="win">Win</button>
+        <button class="deck__btn" data-hotkey="taskmgr">TaskMgr</button>
+        <button class="deck__btn" data-hotkey="alttab">Alt+Tab</button>
+        <button class="deck__btn" data-hotkey="esc">Esc</button>
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
 
-        <!-- Power Menu Toggle -->
-        <button id="btnPowerMenu" class="deck-btn" title="Tác vụ nguồn (Khóa máy, Khởi động lại)">Nguồn ▾</button>
-        <button id="btnOpenShelf" class="deck-btn" title="Truyền tệp & Clipboard">Tệp & Clip</button>
-        <button id="btnDisconnect" class="deck-btn danger" title="Ngắt kết nối">Thoát</button>
+        <button id="btnPowerMenu" class="deck__btn" title="Tác vụ nguồn">Nguồn ▾</button>
+        <button id="btnOpenShelf" class="deck__btn" title="Truyền tệp &amp; Clipboard">Tệp &amp; Clip</button>
+        <button id="btnDisconnect" class="deck__btn danger" title="Ngắt kết nối">Thoát</button>
       </footer>
 
       <!-- Power Actions Floating Menu -->
@@ -143,7 +184,7 @@
         <button class="power-menu-item danger" data-power="restart">⟳ Khởi động lại máy (Restart)</button>
       </div>
 
-      <!-- Virtual On-Screen Keyboard (OSK) Overlay -->
+      <!-- Virtual On-Screen Keyboard (OSK) -->
       <div id="oskOverlay" class="osk-overlay hidden">
         <div class="osk-row">
           <button class="osk-key" data-key="Escape">Esc</button>
@@ -199,7 +240,7 @@
     <section id="terminalSection" class="terminal-container hidden">
       <div class="terminal-toolbar">
         <span class="mono-font" style="color: var(--accent); font-size: 0.85rem;">PS REMOTE // HOST SHELL</span>
-        <button id="btnClearTerminal" class="btn-pill">Xóa màn hình (Clear)</button>
+        <button id="btnClearTerminal" class="btn-pill">Xóa màn hình</button>
       </div>
       <div id="terminalOutput" class="terminal-screen mono-font"></div>
       <form id="terminalInputForm" class="terminal-input-row">
@@ -213,10 +254,10 @@
     <section id="tasksSection" class="tasks-container hidden">
       <div class="tasks-header">
         <div>
-          <h2 class="section-title">Giám sát & Quản lý tiến trình</h2>
-          <p class="card-subtitle">Thông số phần cứng và danh sách ứng dụng đang chạy trên máy trạm</p>
+          <h2 class="section-title">Giám sát &amp; Quản lý tiến trình</h2>
+          <p class="card-subtitle">Thông số phần cứng và ứng dụng đang chạy trên máy trạm</p>
         </div>
-        <button id="btnRefreshTasks" class="btn-pill">⟳ Làm Mới</button>
+        <button id="btnRefreshTasks" class="btn-pill">⟳ Làm mới</button>
       </div>
 
       <!-- Telemetry Gauges -->
@@ -235,16 +276,16 @@
         </div>
         <div class="telemetry-card">
           <div class="telemetry-card-title">Hệ điều hành</div>
-          <div class="telemetry-value brand-font" style="font-size: 1.1rem; padding-top: 6px;">Windows 11</div>
-          <div class="telemetry-sub mono-font" style="margin-top: 18px;">64-bit Workstation</div>
+          <div class="telemetry-value brand-font" style="font-size: 1.15rem; padding-top: 4px;">Windows 11</div>
+          <div class="telemetry-sub mono-font" style="margin-top: 14px;">64-bit Workstation</div>
         </div>
       </div>
 
       <!-- Process Table -->
       <div class="process-table-card">
         <div class="process-table-header">
-          <h3 style="font-size: 0.95rem;">Danh sách tiến trình (Sắp xếp theo RAM)</h3>
-          <input type="text" id="processSearchInput" class="instrument-input mono-font" placeholder="Lọc tiến trình..." style="width: 200px; padding: 6px 10px; font-size: 0.8rem;">
+          <h3 style="font-size: 0.95rem; font-weight: 600;">Danh sách tiến trình (Sắp xếp theo RAM)</h3>
+          <input type="text" id="processSearchInput" class="instrument-input mono-font" placeholder="Lọc tiến trình..." style="width: 220px; padding: 6px 12px; font-size: 0.8rem;">
         </div>
         <div class="table-scroll-area">
           <table class="process-table mono-font">
@@ -257,23 +298,24 @@
               </tr>
             </thead>
             <tbody id="processTableBody">
-              <tr><td colspan="4" style="text-align: center; color: #64748B;">Chưa kết nối máy trạm</td></tr>
+              <tr><td colspan="4" style="text-align: center; color: var(--text-faint);">Chưa kết nối máy trạm</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </section>
 
-    <!-- SLIDE-OVER SHELF (SIDE DRAWER 380px) -->
+    <!-- SLIDE-OVER SHELF (SIDE DRAWER 390px) -->
     <aside id="shelfDrawer" class="shelf-drawer">
       <div class="shelf-header">
-        <h3 class="shelf-title">Tệp Tin & Bộ Nhớ Tạm</h3>
+        <h3 class="shelf-title">Tệp tin &amp; Bộ nhớ tạm</h3>
         <button id="btnCloseShelf" class="btn-pill">Đóng ✕</button>
       </div>
 
-      <div class="segmented-nav shelf-tabs">
-        <button class="seg-btn active" data-shelf-tab="files">Duyệt & Tải Tệp</button>
-        <button class="seg-btn" data-shelf-tab="clipboard">Clipboard</button>
+      <div class="seg shelf-tabs" id="shelfTabs" role="tablist">
+        <span class="seg__ind" aria-hidden="true"></span>
+        <button type="button" class="on" data-shelf-tab="files" role="tab">Duyệt &amp; Tải tệp</button>
+        <button type="button" data-shelf-tab="clipboard" role="tab">Clipboard</button>
       </div>
 
       <div class="shelf-body">
@@ -286,7 +328,7 @@
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             <p><strong>Kéo thả tệp tin để gửi</strong></p>
-            <p style="font-size: 0.75rem; margin-top: 4px;">hoặc bấm để chọn tệp</p>
+            <p style="font-size: 0.75rem; margin-top: 4px; color: var(--text-faint);">hoặc bấm để chọn tệp</p>
             <input type="file" id="fileInput" class="hidden">
           </div>
 
@@ -303,21 +345,21 @@
           <!-- Remote Folder Browser -->
           <div style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <p style="font-size: 0.8rem; font-weight: 600; color: #94A3B8;">Duyệt thư mục máy trạm:</p>
+              <p style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Duyệt thư mục máy trạm:</p>
               <button id="btnBrowseUp" class="btn-pill" style="padding: 2px 8px; font-size: 0.7rem;">Thư mục cha ⇡</button>
             </div>
-            <div id="currentFolderPath" class="mono-font" style="font-size: 0.7rem; color: var(--accent); margin-bottom: 6px; word-break: break-all;">Ổ đĩa</div>
+            <div id="currentFolderPath" class="mono-font" style="font-size: 0.75rem; color: var(--accent); margin-bottom: 8px; word-break: break-all;">Ổ đĩa</div>
             <div id="remoteFolderList" class="folder-browser-list mono-font">
-              <div style="color: #64748B; font-size: 0.75rem;">Kết nối máy trạm để duyệt tệp</div>
+              <div style="color: var(--text-faint); font-size: 0.75rem; padding: 10px;">Kết nối máy trạm để duyệt tệp</div>
             </div>
           </div>
         </div>
 
         <!-- Tab 2: Clipboard -->
         <div id="shelfClipboardTab" class="hidden">
-          <p style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 8px;">Nội dung bộ nhớ tạm (Tự động đồng bộ 2 chiều):</p>
-          <textarea id="clipboardViewer" class="instrument-input mono-font" rows="8" placeholder="Chưa có dữ liệu clipboard..." style="width: 100%;"></textarea>
-          <button id="btnPushClipboard" class="btn-cta" style="margin-top: 12px;">Đẩy Sang Máy Trạm</button>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Nội dung bộ nhớ tạm (Tự động đồng bộ 2 chiều):</p>
+          <textarea id="clipboardViewer" class="instrument-input mono-font" rows="8" placeholder="Chưa có dữ liệu clipboard..." style="width: 100%; resize: vertical;"></textarea>
+          <button id="btnPushClipboard" class="btn-cta" style="margin-top: 14px;">Đẩy sang máy trạm</button>
         </div>
       </div>
     </aside>
@@ -325,28 +367,28 @@
   </main>
 
   <!-- Quick Connect Modal -->
-  <div id="quickConnectModal" class="auth-container modal-overlay hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 200;">
+  <div id="quickConnectModal" class="auth-container modal-overlay hidden">
     <div class="instrument-card">
       <div class="card-hero">
-        <h2 class="card-title brand-font">Kết Nối Bằng Room ID</h2>
+        <h2 class="card-title brand-font">Kết nối bằng Room ID</h2>
         <p class="card-subtitle">Nhập mã phòng và PIN để kết nối trực tiếp</p>
       </div>
       <form id="quickConnectForm">
         <div class="form-group">
-          <label>Relay Server URL</label>
+          <label for="qcRelayUrl">Relay Server URL</label>
           <input type="text" id="qcRelayUrl" class="instrument-input mono-font" required>
         </div>
         <div class="form-group">
-          <label>Room ID / Mã phiên</label>
+          <label for="qcRoomId">Room ID / Mã phiên</label>
           <input type="text" id="qcRoomId" class="instrument-input mono-font" value="RD-8888" required>
         </div>
         <div class="form-group">
-          <label>Mã PIN bảo mật</label>
+          <label for="qcPin">Mã PIN bảo mật</label>
           <input type="password" id="qcPin" class="instrument-input mono-font" value="123456" required>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 16px;">
-          <button type="button" id="btnCancelQC" class="btn-pill" style="flex: 1; padding: 10px;">Hủy</button>
-          <button type="submit" class="btn-cta" style="flex: 2; margin-top: 0;">Kết Nối Ngay</button>
+          <button type="button" id="btnCancelQC" class="btn-pill" style="flex: 1; padding: 10px; justify-content: center;">Hủy</button>
+          <button type="submit" class="btn-cta" style="flex: 2; margin-top: 0;">Kết nối ngay</button>
         </div>
       </form>
     </div>
