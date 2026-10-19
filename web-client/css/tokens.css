@@ -1,0 +1,47 @@
+/* Ambient Instrument UI - Tokens (OKLCH Dynamic Lighting) */
+@property --acc-l { syntax: "<number>"; inherits: true; initial-value: 0.78; }
+@property --acc-c { syntax: "<number>"; inherits: true; initial-value: 0.16; }
+@property --acc-h { syntax: "<number>"; inherits: true; initial-value: 145; } /* Emerald / Phosphor green */
+@property --gh { syntax: "<number>"; inherits: true; initial-value: 240; }    /* Midnight base hue */
+@property --gc { syntax: "<number>"; inherits: true; initial-value: 0.015; }
+
+:root {
+  color-scheme: dark;
+
+  /* Ambient Chamber Inks */
+  --ink-0: oklch(0.14 var(--gc) var(--gh));
+  --ink-1: oklch(0.18 calc(var(--gc) * 1.1) var(--gh));
+  --ink-2: oklch(0.22 calc(var(--gc) * 1.2) var(--gh));
+  --ink-3: oklch(0.28 calc(var(--gc) * 1.3) var(--gh));
+  --line: oklch(0.38 calc(var(--gc) * 1.4) var(--gh) / 0.65);
+  --line-subtle: oklch(0.28 calc(var(--gc) * 1.2) var(--gh) / 0.5);
+
+  /* Dynamic Emissive Phosphor */
+  --accent: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+  --on-accent: oklch(0.16 calc(var(--acc-c) * 0.2) var(--acc-h));
+  --accent-muted: oklch(calc(var(--acc-l) * 0.7) calc(var(--acc-c) * 0.5) var(--acc-h));
+  --accent-tint: oklch(var(--acc-l) var(--acc-c) var(--acc-h) / 0.12);
+
+  --glow: 0 0 0 1px oklch(var(--acc-l) var(--acc-c) var(--acc-h) / 0.5),
+          0 0 24px -4px oklch(var(--acc-l) var(--acc-c) var(--acc-h) / 0.65);
+
+  /* Status Colors */
+  --status-online: oklch(0.78 0.18 145);
+  --status-offline: oklch(0.65 0.2 25);
+  --status-idle: oklch(0.75 0.15 75);
+
+  /* Typography */
+  --font-display: 'Unbounded', sans-serif;
+  --font-ui: 'Be Vietnam Pro', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Easing */
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  transition: --acc-l 1.2s var(--ease-smooth),
+              --acc-c 1.2s var(--ease-smooth),
+              --acc-h 1.2s var(--ease-smooth),
+              --gh 1.8s var(--ease-smooth);
+}

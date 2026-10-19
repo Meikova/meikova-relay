@@ -2,136 +2,262 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Titan Remote Desktop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Titan Remote — Ambient Instrument</title>
+  
+  <!-- Typography Hierarchy: Unbounded (Display), Be Vietnam Pro (UI), JetBrains Mono (Telemetry) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Unbounded:wght@500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="dark-theme">
+<body>
 
-  <!-- Connect Modal Dialog -->
-  <div id="connectModal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="brand-badge">
-          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-          <span class="brand-title">TITAN REMOTE DESKTOP</span>
-        </div>
-        <p class="brand-subtitle">Điều khiển máy tính từ xa qua Outbound WebSocket Relay</p>
-      </div>
-
-      <form id="connectForm" class="connect-form">
-        <div class="form-group">
-          <label for="relayUrl">Relay Server URL</label>
-          <input type="text" id="relayUrl" class="input-field mono-font" placeholder="ws://localhost:8080" required>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="roomId">Room ID / Mã phiên</label>
-            <input type="text" id="roomId" class="input-field mono-font" value="RD-8888" placeholder="VD: RD-8888" required>
-          </div>
-          <div class="form-group">
-            <label for="roomPin">Security PIN</label>
-            <input type="password" id="roomPin" class="input-field mono-font" value="123456" placeholder="Mã bảo mật" required>
-          </div>
-        </div>
-
-        <div id="statusMessage" class="status-box hidden"></div>
-
-        <button type="submit" id="btnConnect" class="btn btn-primary">
-          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          <span>Kết Nối Ngay</span>
-        </button>
-      </form>
-      
-      <div class="modal-footer">
-        <span class="security-tag">
-          <svg class="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-          </svg>
-          Outbound WSS | Không cần mở cổng | Vượt Firewall
-        </span>
+  <!-- Top Bar (64px Avionics Console) -->
+  <header class="topbar">
+    <div class="brand-container">
+      <div class="brand-logo brand-font">
+        <span class="brand-loop">∞</span> TITAN REMOTE
       </div>
     </div>
+
+    <!-- Mode Switcher -->
+    <nav class="segmented-nav" id="mainNav">
+      <button class="seg-btn active" data-view="dashboard">Máy trạm</button>
+      <button class="seg-btn" data-view="remote" id="navRemoteBtn">Màn hình từ xa</button>
+      <button class="seg-btn" data-view="shelf" id="navShelfBtn">Tệp & Bộ nhớ</button>
+    </nav>
+
+    <div class="topbar-right">
+      <div id="userBadge" class="user-badge mono-font hidden">
+        <span id="userNameDisplay">--</span>
+        <button id="btnLogout" class="btn-pill" title="Đăng xuất">Thoát</button>
+      </div>
+      <button id="btnQuickConnect" class="btn-pill" title="Kết nối trực tiếp bằng Room ID">Kết nối nhanh</button>
+    </div>
+  </header>
+
+  <!-- Corner Telemetry Readouts -->
+  <div class="ro-tl">
+    TITAN ∞ REMOTE // <strong id="roStatus">CHƯA KẾT NỐI</strong>
+  </div>
+  <div class="ro-tr" id="roMetrics">
+    RTT: <strong id="metricPing">--</strong>ms // <strong id="metricFps">--</strong> FPS // RES: <strong id="metricRes">--</strong>
   </div>
 
-  <!-- Main Remote Viewport -->
-  <div id="remoteViewport" class="remote-viewport hidden">
-    <!-- Top Floating Toolbar -->
-    <header class="floating-header">
-      <div class="header-left">
-        <div class="status-indicator">
-          <span class="pulse-dot"></span>
-          <span id="remoteDeviceName" class="device-label">Connecting...</span>
+  <!-- Stage Viewport -->
+  <main class="stage">
+
+    <!-- VIEW 1: AUTHENTICATION MODAL -->
+    <section id="authSection" class="auth-container">
+      <div class="instrument-card">
+        <div class="card-hero">
+          <div class="brand-font" style="font-size: 1.4rem; color: var(--accent); margin-bottom: 6px;">∞</div>
+          <h1 class="card-title brand-font">Đăng Nhập Máy Trạm</h1>
+          <p class="card-subtitle">Hệ thống điều khiển máy tính chuẩn doanh nghiệp qua Outbound Relay</p>
         </div>
-        <div class="hud-metrics mono-font">
-          <span class="hud-item">PING: <strong id="metricPing">--</strong>ms</span>
-          <span class="hud-item">FPS: <strong id="metricFps">--</strong></span>
-          <span class="hud-item">RES: <strong id="metricRes">--</strong></span>
+
+        <div class="segmented-nav auth-tabs" id="authTabs">
+          <button class="seg-btn active" data-auth-mode="login">Đăng nhập</button>
+          <button class="seg-btn" data-auth-mode="register">Đăng ký</button>
         </div>
+
+        <div id="authError" class="auth-error hidden"></div>
+
+        <form id="authForm">
+          <div class="form-group">
+            <label for="authUsername">Tên tài khoản</label>
+            <input type="text" id="authUsername" class="instrument-input mono-font" placeholder="Nhập username" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="authPassword">Mật khẩu</label>
+            <input type="password" id="authPassword" class="instrument-input mono-font" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <button type="submit" id="btnSubmitAuth" class="btn-cta">Vào Bảng Điều Khiển</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- VIEW 2: DEVICE FLEET DASHBOARD -->
+    <section id="dashboardSection" class="dashboard-container hidden">
+      <div class="dashboard-header">
+        <div>
+          <h2 class="section-title">Danh sách máy trạm</h2>
+          <p class="card-subtitle">Các thiết bị đã liên kết với tài khoản của bạn</p>
+        </div>
+        <button id="btnOpenLinkModal" class="btn-pill">+ Thêm Máy Trạm Mới</button>
       </div>
 
-      <div class="header-actions">
-        <button id="btnScaleToggle" class="btn-action" title="Chuyển chế độ co giãn màn hình">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <polyline points="9 21 3 21 3 15"></polyline>
-            <line x1="21" y1="3" x2="14" y2="10"></line>
-            <line x1="3" y1="21" x2="10" y2="14"></line>
-          </svg>
-          <span id="scaleLabel">Fit Screen</span>
-        </button>
-
-        <button id="btnFullscreen" class="btn-action" title="Toàn màn hình">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-          </svg>
-        </button>
-
-        <button id="btnDisconnect" class="btn-action btn-danger" title="Ngắt kết nối">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-            <line x1="12" y1="2" x2="12" y2="12"></line>
-          </svg>
-          <span>Thoát</span>
-        </button>
+      <div class="device-grid" id="deviceGrid">
+        <!-- Rendered dynamically -->
       </div>
-    </header>
+    </section>
 
-    <!-- Canvas Workspace -->
-    <main id="canvasContainer" class="canvas-container">
+    <!-- VIEW 3: ACTIVE REMOTE DESKTOP STAGE -->
+    <section id="remoteSection" class="remote-stage hidden">
       <canvas id="remoteCanvas" tabindex="0"></canvas>
-    </main>
 
-    <!-- Bottom Virtual Keys & Shortcut Pill Deck -->
-    <footer class="floating-pill-deck">
-      <span class="deck-title">PHÍM TẮT HỆ THỐNG:</span>
-      <button class="pill-btn" data-key-action="win">Win Key</button>
-      <button class="pill-btn" data-key-action="taskmgr">Task Manager</button>
-      <button class="pill-btn" data-key-action="alttab">Alt + Tab</button>
-      <button class="pill-btn" data-key-action="esc">Esc</button>
-      <button class="pill-btn" data-key-action="paste">Dán Văn Bản Từ Xa</button>
-    </footer>
-  </div>
+      <!-- The Floating Pill Deck (Bottom Controller) -->
+      <footer class="floating-deck" id="floatingDeck">
+        <!-- Monitor Switcher -->
+        <select id="monitorSelector" class="deck-btn" title="Chọn màn hình truyền phát">
+          <option value="1">Màn hình 1</option>
+        </select>
 
-  <!-- Clipboard Paste Modal -->
-  <div id="pasteModal" class="modal-overlay hidden">
-    <div class="modal-card modal-sm">
-      <h3>Dán văn bản gửi sang máy Host</h3>
-      <textarea id="pasteTextInput" class="input-field" rows="4" placeholder="Nhập hoặc dán chữ vào đây..."></textarea>
-      <div class="modal-btn-row">
-        <button id="btnCancelPaste" class="btn btn-secondary">Hủy</button>
-        <button id="btnConfirmPaste" class="btn btn-primary">Gửi sang Host</button>
+        <button id="btnScaleToggle" class="deck-btn" title="Co giãn theo cửa sổ / 100% tỷ lệ gốc">
+          <span id="scaleLabel">Fit</span>
+        </button>
+
+        <button id="btnFullscreen" class="deck-btn" title="Toàn màn hình">Toàn màn hình</button>
+        <button id="btnToggleOSK" class="deck-btn" title="Mở bàn phím ảo">Phím ảo</button>
+
+        <div style="width: 1px; height: 16px; background: var(--line);"></div>
+
+        <button class="deck-btn" data-hotkey="win">Win</button>
+        <button class="deck-btn" data-hotkey="taskmgr">TaskMgr</button>
+        <button class="deck-btn" data-hotkey="alttab">Alt+Tab</button>
+        <button class="deck-btn" data-hotkey="esc">Esc</button>
+
+        <div style="width: 1px; height: 16px; background: var(--line);"></div>
+
+        <button id="btnOpenShelf" class="deck-btn" title="Truyền tệp & Clipboard">Tệp & Clip</button>
+        <button id="btnDisconnect" class="deck-btn danger" title="Ngắt kết nối">Thoát</button>
+      </footer>
+
+      <!-- Virtual On-Screen Keyboard (OSK) Overlay -->
+      <div id="oskOverlay" class="osk-overlay hidden">
+        <div class="osk-row">
+          <button class="osk-key" data-key="Escape">Esc</button>
+          <button class="osk-key" data-key="F1">F1</button>
+          <button class="osk-key" data-key="F2">F2</button>
+          <button class="osk-key" data-key="F5">F5</button>
+          <button class="osk-key" data-key="F11">F11</button>
+          <button class="osk-key" data-key="F12">F12</button>
+          <button class="osk-key" data-key="Delete">Del</button>
+        </div>
+        <div class="osk-row">
+          <button class="osk-key" data-key="Backquote">`</button>
+          <button class="osk-key" data-key="Digit1">1</button>
+          <button class="osk-key" data-key="Digit2">2</button>
+          <button class="osk-key" data-key="Digit3">3</button>
+          <button class="osk-key" data-key="Digit4">4</button>
+          <button class="osk-key" data-key="Digit5">5</button>
+          <button class="osk-key" data-key="Digit6">6</button>
+          <button class="osk-key" data-key="Digit7">7</button>
+          <button class="osk-key" data-key="Digit8">8</button>
+          <button class="osk-key" data-key="Digit9">9</button>
+          <button class="osk-key" data-key="Digit0">0</button>
+          <button class="osk-key wide" data-key="Backspace">Back</button>
+        </div>
+        <div class="osk-row">
+          <button class="osk-key wide" data-key="Tab">Tab</button>
+          <button class="osk-key" data-key="KeyQ">Q</button>
+          <button class="osk-key" data-key="KeyW">W</button>
+          <button class="osk-key" data-key="KeyE">E</button>
+          <button class="osk-key" data-key="KeyR">R</button>
+          <button class="osk-key" data-key="KeyT">T</button>
+          <button class="osk-key" data-key="KeyY">Y</button>
+          <button class="osk-key" data-key="KeyU">U</button>
+          <button class="osk-key" data-key="KeyI">I</button>
+          <button class="osk-key" data-key="KeyO">O</button>
+          <button class="osk-key" data-key="KeyP">P</button>
+          <button class="osk-key wide" data-key="Enter">Enter</button>
+        </div>
+        <div class="osk-row">
+          <button class="osk-key wide" data-key="ControlLeft">Ctrl</button>
+          <button class="osk-key" data-key="MetaLeft">Win</button>
+          <button class="osk-key" data-key="AltLeft">Alt</button>
+          <button class="osk-key space" data-key="Space">Space</button>
+          <button class="osk-key" data-key="ArrowLeft">←</button>
+          <button class="osk-key" data-key="ArrowUp">↑</button>
+          <button class="osk-key" data-key="ArrowDown">↓</button>
+          <button class="osk-key" data-key="ArrowRight">→</button>
+        </div>
       </div>
+    </section>
+
+    <!-- SLIDE-OVER SHELF (SIDE DRAWER 380px) -->
+    <aside id="shelfDrawer" class="shelf-drawer">
+      <div class="shelf-header">
+        <h3 class="shelf-title">Tệp Tin & Bộ Nhớ Tạm</h3>
+        <button id="btnCloseShelf" class="btn-pill">Đóng ✕</button>
+      </div>
+
+      <div class="segmented-nav shelf-tabs">
+        <button class="seg-btn active" data-shelf-tab="files">Truyền Tệp</button>
+        <button class="seg-btn" data-shelf-tab="clipboard">Clipboard</button>
+      </div>
+
+      <div class="shelf-body">
+        <!-- Tab 1: Files -->
+        <div id="shelfFilesTab">
+          <div id="fileDropzone" class="file-dropzone">
+            <svg style="width: 32px; height: 32px; margin-bottom: 8px; color: var(--accent);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p><strong>Kéo thả tệp tin vào đây</strong></p>
+            <p style="font-size: 0.75rem; margin-top: 4px;">hoặc bấm để duyệt tệp gửi sang máy trạm</p>
+            <input type="file" id="fileInput" class="hidden">
+          </div>
+
+          <div id="uploadProgressContainer" class="hidden" style="margin-top: 14px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-family: var(--font-mono);">
+              <span id="uploadFileName">--</span>
+              <span id="uploadPercent">0%</span>
+            </div>
+            <div class="file-progress-bar">
+              <div id="uploadProgressBar" class="file-progress-fill"></div>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <p style="font-size: 0.8rem; font-weight: 600; color: #94A3B8; margin-bottom: 10px;">Thư mục nhận trên máy trạm:</p>
+            <div class="mono-font" style="font-size: 0.75rem; color: var(--accent); background: var(--ink-0); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);">
+              Downloads\TitanRemote\
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Clipboard -->
+        <div id="shelfClipboardTab" class="hidden">
+          <p style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 8px;">Nội dung bộ nhớ tạm (Tự động đồng bộ 2 chiều):</p>
+          <textarea id="clipboardViewer" class="instrument-input mono-font" rows="8" placeholder="Chưa có dữ liệu clipboard..." style="width: 100%;"></textarea>
+          <button id="btnPushClipboard" class="btn-cta" style="margin-top: 12px;">Đẩy Sang Máy Trạm</button>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Quick Connect / Link Device Modal -->
+  <div id="quickConnectModal" class="auth-container modal-overlay hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 200;">
+    <div class="instrument-card">
+      <div class="card-hero">
+        <h2 class="card-title brand-font">Kết Nối Bằng Room ID</h2>
+        <p class="card-subtitle">Nhập mã phòng và PIN để kết nối trực tiếp</p>
+      </div>
+      <form id="quickConnectForm">
+        <div class="form-group">
+          <label>Relay Server URL</label>
+          <input type="text" id="qcRelayUrl" class="instrument-input mono-font" required>
+        </div>
+        <div class="form-group">
+          <label>Room ID / Mã phiên</label>
+          <input type="text" id="qcRoomId" class="instrument-input mono-font" value="RD-8888" required>
+        </div>
+        <div class="form-group">
+          <label>Mã PIN bảo mật</label>
+          <input type="password" id="qcPin" class="instrument-input mono-font" value="123456" required>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 16px;">
+          <button type="button" id="btnCancelQC" class="btn-pill" style="flex: 1; padding: 10px;">Hủy</button>
+          <button type="submit" class="btn-cta" style="flex: 2; margin-top: 0;">Kết Nối Ngay</button>
+        </div>
+      </form>
     </div>
   </div>
 

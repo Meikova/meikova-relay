@@ -1,17 +1,20 @@
 import io
 import time
 import ctypes
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List, Dict, Any
 from PIL import Image, ImageGrab
+import win32api
+import win32con
 
 class ScreenCapture:
-    """Captures and compresses Windows desktop frames with window station awareness."""
+    """Captures and compresses Windows desktop frames with multi-monitor & window station awareness."""
 
     def __init__(self, quality: int = 65, max_width: Optional[int] = None):
         self.quality = quality
         self.max_width = max_width
         self._attach_window_station()
-        self._screen_width, self._screen_height = self._get_native_resolution()
+        self.active_monitor_id = 0 # 0 = All monitors, 1..N = specific monitor
+        self.monitors = self.detect_monitors()
         self._last_frame_hash: Optional[int] = None
 
     def _attach_window_station(self) -> bool:
@@ -28,27 +31,79 @@ class ScreenCapture:
         except Exception:
             return False
 
-    def _get_native_resolution(self) -> Tuple[int, int]:
-        user32 = ctypes.windll.user32
-        w = user32.GetSystemMetrics(0) # SM_CXSCREEN
-        h = user32.GetSystemMetrics(1) # SM_CYSCREEN
-        if w <= 0 or h <= 0:
-            w, h = 1920, 1080
-        return w, h
+    def detect_monitors(self) -> List[Dict[str, Any]]:
+        """Enumerates physical and virtual displays."""
+        results = []
+        try:
+            enum_monitors = win32api.EnumDisplayMonitors()
+            for i, m in enumerate(enum_monitors):
+                _, _, rect = m
+                left, top, right, bottom = rect
+                w = right - left
+                h = bottom - top
+                results.append({
+                    "id": i + 1,
+                    "name": f"Màn hình {i + 1}",
+                    "rect": (left, top, right, bottom),
+                    "width": w,
+                    "height": h
+                })
+        except Exception:
+            pass
+
+        if not results:
+            w = win32api.GetSystemMetrics(win32con.SM_CXSCREEN)
+            h = win32api.GetSystemMetrics(win32con.SM_CYSCREEN)
+            results.append({
+                "id": 1,
+                "name": "Màn hình chính",
+                "rect": (0, 0, w or 1920, h or 1080),
+                "width": w or 1920,
+                "height": h or 1080
+            })
+        return results
+
+    def set_active_monitor(self, monitor_id: int):
+        """Sets active monitor to capture (0 for entire virtual desktop, 1..N for specific monitor)."""
+        self.active_monitor_id = monitor_id
+        self._last_frame_hash = None
 
     @property
     def resolution(self) -> Tuple[int, int]:
-        return self._screen_width, self._screen_height
+        if self.active_monitor_id == 0 and len(self.monitors) > 1:
+            # Virtual desktop (all monitors)
+            w = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
+            h = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
+            return (w or 1920, h or 1080)
+
+        for m in self.monitors:
+            if m["id"] == self.active_monitor_id:
+                return (m["width"], m["height"])
+
+        # Default to monitor 1
+        return (self.monitors[0]["width"], self.monitors[0]["height"])
 
     def capture_frame(self, force: bool = False) -> Optional[bytes]:
         """
-        Captures the current desktop, encodes to JPEG, and returns raw bytes.
+        Captures the specified monitor desktop, encodes to JPEG, and returns raw bytes.
         Returns None if frame is identical to previous frame (skip static frames).
         """
         try:
-            # Re-ensure window station on each capture to prevent detachment
             self._attach_window_station()
-            img = ImageGrab.grab(all_screens=False)
+
+            bbox = None
+            all_screens = False
+            if self.active_monitor_id == 0 and len(self.monitors) > 1:
+                all_screens = True
+            else:
+                for m in self.monitors:
+                    if m["id"] == self.active_monitor_id:
+                        bbox = m["rect"]
+                        break
+                if not bbox:
+                    bbox = self.monitors[0]["rect"]
+
+            img = ImageGrab.grab(bbox=bbox, all_screens=all_screens)
             if img is None:
                 return None
 
@@ -68,13 +123,11 @@ class ScreenCapture:
                 self._last_frame_hash = curr_hash
 
             buffer = io.BytesIO()
-            # Convert RGBA to RGB for JPEG encoding
             if img.mode != 'RGB':
                 img = img.convert('RGB')
             img.save(buffer, format='JPEG', quality=self.quality, optimize=False)
             return buffer.getvalue()
 
-        except Exception as e:
-            # Fallback attempt window station re-attach
+        except Exception:
             self._attach_window_station()
             return None

@@ -7,6 +7,11 @@ node_modules/
 __pycache__/
 *.pyc
 
+# Database & Storage
+*.db
+*.sqlite
+*.sqlite3
+
 # OS & Environment
 .env
 .DS_Store
