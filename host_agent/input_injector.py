@@ -1,0 +1,181 @@
+import ctypes
+from ctypes import wintypes
+from typing import Optional
+from .input_mapper import InputMapper
+
+# Win32 Constants
+INPUT_MOUSE = 0
+INPUT_KEYBOARD = 1
+
+MOUSEEVENTF_MOVE = 0x0001
+MOUSEEVENTF_LEFTDOWN = 0x0002
+MOUSEEVENTF_LEFTUP = 0x0004
+MOUSEEVENTF_RIGHTDOWN = 0x0008
+MOUSEEVENTF_RIGHTUP = 0x0010
+MOUSEEVENTF_MIDDLEDOWN = 0x0020
+MOUSEEVENTF_MIDDLEUP = 0x0040
+MOUSEEVENTF_WHEEL = 0x0800
+MOUSEEVENTF_ABSOLUTE = 0x8000
+
+KEYEVENTF_EXTENDEDKEY = 0x0001
+KEYEVENTF_KEYUP = 0x0002
+KEYEVENTF_UNICODE = 0x0004
+KEYEVENTF_SCANCODE = 0x0008
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ('dx', wintypes.LONG),
+        ('dy', wintypes.LONG),
+        ('mouseData', wintypes.DWORD),
+        ('dwFlags', wintypes.DWORD),
+        ('time', wintypes.DWORD),
+        ('dwExtraInfo', ctypes.c_size_t),
+    ]
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ('wVk', wintypes.WORD),
+        ('wScan', wintypes.WORD),
+        ('dwFlags', wintypes.DWORD),
+        ('time', wintypes.DWORD),
+        ('dwExtraInfo', ctypes.c_size_t),
+    ]
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [
+        ('uMsg', wintypes.DWORD),
+        ('wParamL', wintypes.WORD),
+        ('wParamH', wintypes.WORD),
+    ]
+
+class _INPUT_UNION(ctypes.Union):
+    _fields_ = [
+        ('mi', MOUSEINPUT),
+        ('ki', KEYBDINPUT),
+        ('hi', HARDWAREINPUT),
+    ]
+
+class INPUT(ctypes.Structure):
+    _fields_ = [
+        ('type', wintypes.DWORD),
+        ('_pad', wintypes.DWORD), # 64-bit alignment padding
+        ('u', _INPUT_UNION),
+    ]
+
+user32 = ctypes.windll.user32
+SendInput = user32.SendInput
+SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
+SendInput.restype = wintypes.UINT
+
+class InputInjector:
+    """Injects mouse and keyboard events into Windows via native SendInput."""
+
+    @staticmethod
+    def mouse_move(norm_x: float, norm_y: float) -> bool:
+        dx, dy = InputMapper.to_windows_coords(norm_x, norm_y)
+        inp = INPUT()
+        inp.type = INPUT_MOUSE
+        inp.u.mi.dx = dx
+        inp.u.mi.dy = dy
+        inp.u.mi.mouseData = 0
+        inp.u.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
+        inp.u.mi.time = 0
+        inp.u.mi.dwExtraInfo = 0
+        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        return res == 1
+
+    @staticmethod
+    def mouse_down(button: int) -> bool:
+        flag = MOUSEEVENTF_LEFTDOWN
+        if button == 1:
+            flag = MOUSEEVENTF_MIDDLEDOWN
+        elif button == 2:
+            flag = MOUSEEVENTF_RIGHTDOWN
+
+        inp = INPUT()
+        inp.type = INPUT_MOUSE
+        inp.u.mi.dwFlags = flag
+        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        return res == 1
+
+    @staticmethod
+    def mouse_up(button: int) -> bool:
+        flag = MOUSEEVENTF_LEFTUP
+        if button == 1:
+            flag = MOUSEEVENTF_MIDDLEUP
+        elif button == 2:
+            flag = MOUSEEVENTF_RIGHTUP
+
+        inp = INPUT()
+        inp.type = INPUT_MOUSE
+        inp.u.mi.dwFlags = flag
+        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        return res == 1
+
+    @staticmethod
+    def mouse_wheel(delta_y: int) -> bool:
+        inp = INPUT()
+        inp.type = INPUT_MOUSE
+        inp.u.mi.dwFlags = MOUSEEVENTF_WHEEL
+        # Delta typically -120 or 120 in Windows
+        # Standard browser wheelDelta is roughly 100 per notch
+        w_delta = int(delta_y * 1.2)
+        inp.u.mi.mouseData = w_delta
+        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        return res == 1
+
+    @staticmethod
+    def key_down(vk_code: int, is_extended: bool = False) -> bool:
+        if not vk_code:
+            return False
+        flags = 0
+        if is_extended:
+            flags |= KEYEVENTF_EXTENDEDKEY
+
+        inp = INPUT()
+        inp.type = INPUT_KEYBOARD
+        inp.u.ki.wVk = vk_code
+        inp.u.ki.wScan = 0
+        inp.u.ki.dwFlags = flags
+        inp.u.ki.time = 0
+        inp.u.ki.dwExtraInfo = 0
+        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        return res == 1
+
+    @staticmethod
+    def key_up(vk_code: int, is_extended: bool = False) -> bool:
+        if not vk_code:
+            return False
+        flags = KEYEVENTF_KEYUP
+        if is_extended:
+            flags |= KEYEVENTF_EXTENDEDKEY
+
+        inp = INPUT()
+        inp.type = INPUT_KEYBOARD
+        inp.u.ki.wVk = vk_code
+        inp.u.ki.wScan = 0
+        inp.u.ki.dwFlags = flags
+        inp.u.ki.time = 0
+        inp.u.ki.dwExtraInfo = 0
+        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        return res == 1
+
+    @staticmethod
+    def type_unicode(text: str) -> None:
+        """Types unicode characters (supports Vietnamese diacritics)."""
+        for char in text:
+            # Key down
+            inp_down = INPUT()
+            inp_down.type = INPUT_KEYBOARD
+            inp_down.u.ki.wVk = 0
+            inp_down.u.ki.wScan = ord(char)
+            inp_down.u.ki.dwFlags = KEYEVENTF_UNICODE
+            SendInput(1, ctypes.byref(inp_down), ctypes.sizeof(INPUT))
+
+            # Key up
+            inp_up = INPUT()
+            inp_up.type = INPUT_KEYBOARD
+            inp_up.u.ki.wVk = 0
+            inp_up.u.ki.wScan = ord(char)
+            inp_up.u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
+            SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))

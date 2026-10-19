@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Titan Remote Desktop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dark-theme">
+
+  <!-- Connect Modal Dialog -->
+  <div id="connectModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="brand-badge">
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span class="brand-title">TITAN REMOTE DESKTOP</span>
+        </div>
+        <p class="brand-subtitle">Điều khiển máy tính từ xa qua Outbound WebSocket Relay</p>
+      </div>
+
+      <form id="connectForm" class="connect-form">
+        <div class="form-group">
+          <label for="relayUrl">Relay Server URL</label>
+          <input type="text" id="relayUrl" class="input-field mono-font" placeholder="ws://localhost:8080" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="roomId">Room ID / Mã phiên</label>
+            <input type="text" id="roomId" class="input-field mono-font" value="RD-8888" placeholder="VD: RD-8888" required>
+          </div>
+          <div class="form-group">
+            <label for="roomPin">Security PIN</label>
+            <input type="password" id="roomPin" class="input-field mono-font" value="123456" placeholder="Mã bảo mật" required>
+          </div>
+        </div>
+
+        <div id="statusMessage" class="status-box hidden"></div>
+
+        <button type="submit" id="btnConnect" class="btn btn-primary">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Kết Nối Ngay</span>
+        </button>
+      </form>
+      
+      <div class="modal-footer">
+        <span class="security-tag">
+          <svg class="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          Outbound WSS | Không cần mở cổng | Vượt Firewall
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Remote Viewport -->
+  <div id="remoteViewport" class="remote-viewport hidden">
+    <!-- Top Floating Toolbar -->
+    <header class="floating-header">
+      <div class="header-left">
+        <div class="status-indicator">
+          <span class="pulse-dot"></span>
+          <span id="remoteDeviceName" class="device-label">Connecting...</span>
+        </div>
+        <div class="hud-metrics mono-font">
+          <span class="hud-item">PING: <strong id="metricPing">--</strong>ms</span>
+          <span class="hud-item">FPS: <strong id="metricFps">--</strong></span>
+          <span class="hud-item">RES: <strong id="metricRes">--</strong></span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btnScaleToggle" class="btn-action" title="Chuyển chế độ co giãn màn hình">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+          <span id="scaleLabel">Fit Screen</span>
+        </button>
+
+        <button id="btnFullscreen" class="btn-action" title="Toàn màn hình">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+        </button>
+
+        <button id="btnDisconnect" class="btn-action btn-danger" title="Ngắt kết nối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+          <span>Thoát</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Canvas Workspace -->
+    <main id="canvasContainer" class="canvas-container">
+      <canvas id="remoteCanvas" tabindex="0"></canvas>
+    </main>
+
+    <!-- Bottom Virtual Keys & Shortcut Pill Deck -->
+    <footer class="floating-pill-deck">
+      <span class="deck-title">PHÍM TẮT HỆ THỐNG:</span>
+      <button class="pill-btn" data-key-action="win">Win Key</button>
+      <button class="pill-btn" data-key-action="taskmgr">Task Manager</button>
+      <button class="pill-btn" data-key-action="alttab">Alt + Tab</button>
+      <button class="pill-btn" data-key-action="esc">Esc</button>
+      <button class="pill-btn" data-key-action="paste">Dán Văn Bản Từ Xa</button>
+    </footer>
+  </div>
+
+  <!-- Clipboard Paste Modal -->
+  <div id="pasteModal" class="modal-overlay hidden">
+    <div class="modal-card modal-sm">
+      <h3>Dán văn bản gửi sang máy Host</h3>
+      <textarea id="pasteTextInput" class="input-field" rows="4" placeholder="Nhập hoặc dán chữ vào đây..."></textarea>
+      <div class="modal-btn-row">
+        <button id="btnCancelPaste" class="btn btn-secondary">Hủy</button>
+        <button id="btnConfirmPaste" class="btn btn-primary">Gửi sang Host</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

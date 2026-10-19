@@ -1,0 +1,12 @@
+{
+  "name": "titan-rd-relay",
+  "version": "1.0.0",
+  "description": "High-performance WebSocket Relay Server and Static File Host for Titan Remote Desktop",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

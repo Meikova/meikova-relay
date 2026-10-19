@@ -1,0 +1,14 @@
+# Antigravity temporary artifacts
+scratch/
+.agents/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# OS & Environment
+.env
+.DS_Store
+Thumbs.db
+*.log
