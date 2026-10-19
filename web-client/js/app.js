@@ -722,15 +722,15 @@
   }
 
   // --- MULTI-MONITOR SELECTION ---
-  function populateMonitors(monitors, activeId = 1) {
+  function populateMonitors(monitors, activeId = 0) {
     if (!monitors || monitors.length === 0) return;
-    monitorSelector.innerHTML = monitors.map(m => `
+    const countStr = monitors.length > 1 ? ` (${monitors.length} màn)` : '';
+    let html = `<option value="0" ${activeId === 0 ? 'selected' : ''}>Tất cả màn hình${countStr}</option>`;
+    html += monitors.map(m => `
       <option value="${m.id}" ${m.id == activeId ? 'selected' : ''}>${escapeHtml(m.name)} (${m.width}x${m.height})</option>
     `).join('');
 
-    if (monitors.length > 1) {
-      monitorSelector.innerHTML += `<option value="0" ${activeId === 0 ? 'selected' : ''}>Toàn Bộ Màn Hình</option>`;
-    }
+    monitorSelector.innerHTML = html;
   }
 
   monitorSelector.addEventListener('change', () => {

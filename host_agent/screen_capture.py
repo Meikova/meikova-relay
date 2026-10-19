@@ -1,10 +1,19 @@
 import io
 import time
 import ctypes
+from ctypes import wintypes
 from typing import Tuple, Optional, List, Dict, Any
 from PIL import Image, ImageGrab
-import win32api
-import win32con
+
+user32 = ctypes.windll.user32
+
+# Win32 System Metrics Constants
+SM_CXSCREEN = 0
+SM_CYSCREEN = 1
+SM_XVIRTUALSCREEN = 76
+SM_YVIRTUALSCREEN = 77
+SM_CXVIRTUALSCREEN = 78
+SM_CYVIRTUALSCREEN = 79
 
 class ScreenCapture:
     """Captures and compresses Windows desktop frames with multi-monitor & window station awareness."""
@@ -13,14 +22,13 @@ class ScreenCapture:
         self.quality = quality
         self.max_width = max_width
         self._attach_window_station()
-        self.active_monitor_id = 0 # 0 = All monitors, 1..N = specific monitor
+        self.active_monitor_id = 0 # 0 = All monitors (virtual desktop), 1..N = specific monitor
         self.monitors = self.detect_monitors()
         self._last_frame_hash: Optional[int] = None
 
     def _attach_window_station(self) -> bool:
         """Attaches current thread to winsta0\\default to ensure desktop capture works in all sessions."""
         try:
-            user32 = ctypes.windll.user32
             hwinsta = user32.OpenWindowStationW('winsta0', False, 0x000F037F)
             if hwinsta:
                 user32.SetProcessWindowStation(hwinsta)
@@ -32,18 +40,33 @@ class ScreenCapture:
             return False
 
     def detect_monitors(self) -> List[Dict[str, Any]]:
-        """Enumerates physical and virtual displays."""
+        """Enumerates physical and virtual displays using native Win32 EnumDisplayMonitors."""
         results = []
         try:
-            enum_monitors = win32api.EnumDisplayMonitors()
-            for i, m in enumerate(enum_monitors):
-                _, _, rect = m
+            mon_rects = []
+
+            def _callback(hmonitor, hdc, lprect, lparam):
+                rect = lprect.contents
+                mon_rects.append((rect.left, rect.top, rect.right, rect.bottom))
+                return 1
+
+            MonitorEnumProc = ctypes.WINFUNCTYPE(
+                ctypes.c_int,
+                wintypes.HMONITOR,
+                wintypes.HDC,
+                ctypes.POINTER(wintypes.RECT),
+                wintypes.LPARAM
+            )
+            cb = MonitorEnumProc(_callback)
+            user32.EnumDisplayMonitors(0, 0, cb, 0)
+
+            for i, rect in enumerate(mon_rects):
                 left, top, right, bottom = rect
                 w = right - left
                 h = bottom - top
                 results.append({
                     "id": i + 1,
-                    "name": f"Màn hình {i + 1}",
+                    "name": f"Màn {i + 1}",
                     "rect": (left, top, right, bottom),
                     "width": w,
                     "height": h
@@ -52,11 +75,11 @@ class ScreenCapture:
             pass
 
         if not results:
-            w = win32api.GetSystemMetrics(win32con.SM_CXSCREEN)
-            h = win32api.GetSystemMetrics(win32con.SM_CYSCREEN)
+            w = user32.GetSystemMetrics(SM_CXSCREEN)
+            h = user32.GetSystemMetrics(SM_CYSCREEN)
             results.append({
                 "id": 1,
-                "name": "Màn hình chính",
+                "name": "Màn 1",
                 "rect": (0, 0, w or 1920, h or 1080),
                 "width": w or 1920,
                 "height": h or 1080
@@ -69,12 +92,26 @@ class ScreenCapture:
         self._last_frame_hash = None
 
     @property
+    def active_monitor_rect(self) -> Optional[Tuple[int, int, int, int]]:
+        """Returns (left, top, right, bottom) for active monitor, or None for virtual desktop."""
+        if self.active_monitor_id == 0:
+            return None
+        for m in self.monitors:
+            if m["id"] == self.active_monitor_id:
+                return m["rect"]
+        return None
+
+    @property
     def resolution(self) -> Tuple[int, int]:
-        if self.active_monitor_id == 0 and len(self.monitors) > 1:
-            # Virtual desktop (all monitors)
-            w = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
-            h = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
-            return (w or 1920, h or 1080)
+        if self.active_monitor_id == 0:
+            # Virtual desktop (all monitors combined)
+            w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+            h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+            if w > 0 and h > 0:
+                return (w, h)
+            total_w = sum(m["width"] for m in self.monitors)
+            max_h = max(m["height"] for m in self.monitors) if self.monitors else 1080
+            return (total_w or 1920, max_h or 1080)
 
         for m in self.monitors:
             if m["id"] == self.active_monitor_id:
@@ -93,8 +130,9 @@ class ScreenCapture:
 
             bbox = None
             all_screens = False
-            if self.active_monitor_id == 0 and len(self.monitors) > 1:
+            if self.active_monitor_id == 0:
                 all_screens = True
+                bbox = None
             else:
                 for m in self.monitors:
                     if m["id"] == self.active_monitor_id:

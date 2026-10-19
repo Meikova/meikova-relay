@@ -315,7 +315,7 @@ class HostService:
 
                 # Mouse & Keyboard Input
                 elif ev_type == "mouse_move":
-                    InputInjector.mouse_move(event["x"], event["y"])
+                    InputInjector.mouse_move(event["x"], event["y"], monitor_rect=self.capture.active_monitor_rect)
                 elif ev_type == "mouse_down":
                     InputInjector.mouse_down(event["button"])
                 elif ev_type == "mouse_up":

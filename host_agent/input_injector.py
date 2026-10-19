@@ -1,6 +1,6 @@
 import ctypes
 from ctypes import wintypes
-from typing import Optional
+from typing import Optional, Tuple
 from .input_mapper import InputMapper
 
 # Win32 Constants
@@ -16,6 +16,7 @@ MOUSEEVENTF_MIDDLEDOWN = 0x0020
 MOUSEEVENTF_MIDDLEUP = 0x0040
 MOUSEEVENTF_WHEEL = 0x0800
 MOUSEEVENTF_ABSOLUTE = 0x8000
+MOUSEEVENTF_VIRTUALDESK = 0x4000
 
 KEYEVENTF_EXTENDEDKEY = 0x0001
 KEYEVENTF_KEYUP = 0x0002
@@ -70,15 +71,33 @@ SendInput.restype = wintypes.UINT
 class InputInjector:
     """Injects mouse and keyboard events into Windows via native SendInput."""
 
-    @staticmethod
-    def mouse_move(norm_x: float, norm_y: float) -> bool:
-        dx, dy = InputMapper.to_windows_coords(norm_x, norm_y)
+    @classmethod
+    def mouse_move(cls, norm_x: float, norm_y: float, monitor_rect: Optional[Tuple[int, int, int, int]] = None) -> bool:
+        vx = user32.GetSystemMetrics(76) # SM_XVIRTUALSCREEN
+        vy = user32.GetSystemMetrics(77) # SM_YVIRTUALSCREEN
+        vw = user32.GetSystemMetrics(78) or user32.GetSystemMetrics(0) or 1920 # SM_CXVIRTUALSCREEN
+        vh = user32.GetSystemMetrics(79) or user32.GetSystemMetrics(1) or 1080 # SM_CYVIRTUALSCREEN
+
+        clamped_x = max(0.0, min(1.0, float(norm_x)))
+        clamped_y = max(0.0, min(1.0, float(norm_y)))
+
+        if monitor_rect:
+            m_left, m_top, m_right, m_bottom = monitor_rect
+            px = m_left + clamped_x * (m_right - m_left)
+            py = m_top + clamped_y * (m_bottom - m_top)
+        else:
+            px = vx + clamped_x * vw
+            py = vy + clamped_y * vh
+
+        dx = int((px - vx) * 65535.0 / max(1, vw - 1))
+        dy = int((py - vy) * 65535.0 / max(1, vh - 1))
+
         inp = INPUT()
         inp.type = INPUT_MOUSE
         inp.u.mi.dx = dx
         inp.u.mi.dy = dy
         inp.u.mi.mouseData = 0
-        inp.u.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
+        inp.u.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK
         inp.u.mi.time = 0
         inp.u.mi.dwExtraInfo = 0
         res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
