@@ -43,6 +43,40 @@
   const metricPing = document.getElementById('metricPing');
   const metricFps = document.getElementById('metricFps');
   const metricRes = document.getElementById('metricRes');
+  const sparklineCanvas = document.getElementById('sparklineCanvas');
+  const sparkCtx = sparklineCanvas ? sparklineCanvas.getContext('2d') : null;
+  const pingSamples = [];
+
+  function recordPingSample(rtt) {
+    pingSamples.push(rtt);
+    if (pingSamples.length > 16) pingSamples.shift();
+    drawSparkline();
+  }
+
+  function drawSparkline() {
+    if (!sparkCtx || pingSamples.length < 2) return;
+    const w = sparklineCanvas.width;
+    const h = sparklineCanvas.height;
+    sparkCtx.clearRect(0, 0, w, h);
+
+    const maxVal = Math.max(100, ...pingSamples);
+    const minVal = Math.max(0, Math.min(...pingSamples));
+    const range = Math.max(20, maxVal - minVal);
+
+    sparkCtx.strokeStyle = 'rgba(34, 197, 94, 0.9)';
+    sparkCtx.lineWidth = 1.5;
+    sparkCtx.lineJoin = 'round';
+    sparkCtx.beginPath();
+
+    pingSamples.forEach((val, i) => {
+      const x = (i / (pingSamples.length - 1)) * w;
+      const y = h - ((val - minVal) / range) * (h - 2) - 1;
+      if (i === 0) sparkCtx.moveTo(x, y);
+      else sparkCtx.lineTo(x, y);
+    });
+
+    sparkCtx.stroke();
+  }
 
   // --- Floating Deck Controls DOM ---
   const floatingDeck = document.getElementById('floatingDeck');
@@ -93,8 +127,14 @@
   const remoteFolderList = document.getElementById('remoteFolderList');
   const clipboardViewer = document.getElementById('clipboardViewer');
   const btnPushClipboard = document.getElementById('btnPushClipboard');
+  const btnToggleBlockInput = document.getElementById('btnToggleBlockInput');
+  const shelfChatTab = document.getElementById('shelfChatTab');
+  const chatHistory = document.getElementById('chatHistory');
+  const chatInputForm = document.getElementById('chatInputForm');
+  const chatMessageInput = document.getElementById('chatMessageInput');
 
   // --- Application State ---
+  let isInputBlocked = false;
   let authToken = localStorage.getItem('titan_token') || null;
   let currentUser = null;
   let authMode = 'login';
@@ -548,6 +588,26 @@
         } else if (msg.type === 'pong') {
           const rtt = Math.round(performance.now() - lastPingSend);
           metricPing.textContent = rtt;
+          recordPingSample(rtt);
+        } else if (msg.type === 'chat_message') {
+          appendChatMessage(msg.sender || 'Máy trạm', msg.message);
+          if (!shelfDrawer.classList.contains('open')) {
+            shelfDrawer.classList.add('open');
+            shelfTabs.querySelectorAll('button').forEach(b => {
+              const isChat = b.dataset.shelfTab === 'chat';
+              b.classList.toggle('on', isChat);
+            });
+            placeIndicator(shelfTabs);
+            shelfFilesTab.classList.add('hidden');
+            shelfClipboardTab.classList.add('hidden');
+            shelfChatTab.classList.remove('hidden');
+          }
+        } else if (msg.type === 'block_input_response') {
+          isInputBlocked = msg.blocked;
+          btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
+          if (btnToggleBlockInput) {
+            btnToggleBlockInput.title = isInputBlocked ? 'Đang khóa chuột & phím máy đích' : 'Khóa chuột & phím máy đích';
+          }
         } else if (msg.type === 'host_disconnected') {
           alert('Máy trạm đã ngắt kết nối!');
           disconnect();
@@ -1127,6 +1187,48 @@
     const tab = btn.dataset.shelfTab;
     shelfFilesTab.classList.toggle('hidden', tab !== 'files');
     shelfClipboardTab.classList.toggle('hidden', tab !== 'clipboard');
+    shelfChatTab.classList.toggle('hidden', tab !== 'chat');
+  });
+
+  // --- LIVE CHAT WITH HOST USER ---
+  chatInputForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!isConnected) {
+      alert('Chưa kết nối máy trạm');
+      return;
+    }
+    const msg = chatMessageInput.value.trim();
+    if (!msg) return;
+    appendChatMessage('Bạn (Operator)', msg);
+    ws.send(JSON.stringify({
+      type: 'chat_message',
+      sender: currentUser ? currentUser.username : 'Operator',
+      message: msg
+    }));
+    chatMessageInput.value = '';
+  });
+
+  function appendChatMessage(sender, text) {
+    if (!chatHistory) return;
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+    const row = document.createElement('div');
+    row.style.marginBottom = '6px';
+    row.innerHTML = `<span style="color: var(--accent); font-weight: 600;">[${timeStr}] ${escapeHtml(sender)}:</span> <span style="color: var(--text);">${escapeHtml(text)}</span>`;
+    chatHistory.appendChild(row);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+  }
+
+  // --- BLOCK HOST INPUT TOGGLE ---
+  btnToggleBlockInput?.addEventListener('click', () => {
+    if (!isConnected) {
+      alert('Chưa kết nối máy trạm');
+      return;
+    }
+    const nextState = !isInputBlocked;
+    ws.send(JSON.stringify({
+      type: 'block_input',
+      blocked: nextState
+    }));
   });
 
   // Clipboard Push

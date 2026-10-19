@@ -328,6 +328,17 @@ class HostService:
                     InputInjector.key_up(event["vk"])
                 elif ev_type == "text_input":
                     InputInjector.type_unicode(event["text"])
+                elif ev_type == "block_input":
+                    blocked = bool(event.get("blocked", False))
+                    ok = InputInjector.set_block_input(blocked)
+                    await ws.send(json.dumps({"type": "block_input_response", "blocked": blocked, "success": ok}))
+                elif ev_type == "chat_message":
+                    msg_text = str(event.get("message", "")).strip()
+                    sender = str(event.get("sender", "Kỹ thuật viên"))
+                    logger.info(f"[Chat from {sender}]: {msg_text}")
+                    if hasattr(self, "on_chat_message") and self.on_chat_message:
+                        self.on_chat_message(sender, msg_text)
+                    await ws.send(json.dumps({"type": "chat_ack", "status": "delivered"}))
                 elif ev_type == "ping":
                     await ws.send(json.dumps({"type": "pong", "ts": event.get("ts", 0)}))
 

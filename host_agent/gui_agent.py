@@ -259,6 +259,7 @@ class TitanHostGUI:
             device_name=self.config["device_name"],
             account=self.config["account"]
         )
+        self.host_service.on_chat_message = lambda sender, text: self.root.after(0, lambda: self._log(f"💬 [{sender}]: {text}"))
 
         def runner():
             loop = asyncio.new_event_loop()

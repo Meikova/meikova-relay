@@ -69,7 +69,7 @@
     TITAN ∞ REMOTE // <strong id="roStatus">CHƯA KẾT NỐI</strong>
   </p>
   <p class="readout readout--tr" id="ro-tr">
-    RTT: <strong id="metricPing">--</strong>ms // <strong id="metricFps">--</strong> FPS // RES: <strong id="metricRes">--</strong>
+    RTT: <strong id="metricPing">--</strong>ms <canvas id="sparklineCanvas" width="48" height="12" style="vertical-align:middle;display:inline-block;margin:0 4px;"></canvas> // <strong id="metricFps">--</strong> FPS // RES: <strong id="metricRes">--</strong>
   </p>
 
   <!-- Main Stage Viewport -->
@@ -161,6 +161,9 @@
         </button>
         <button id="btnToggleOSK" class="deck__btn" title="Mở bàn phím ảo">
           <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+        </button>
+        <button id="btnToggleBlockInput" class="deck__btn" title="Khóa chuột &amp; phím máy đích (Block Host Input)">
+          <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5"/></svg>
         </button>
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
@@ -345,6 +348,10 @@
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
           <span>Clip</span>
         </button>
+        <button type="button" data-shelf-tab="chat" role="tab">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Chat</span>
+        </button>
       </div>
 
       <div class="shelf-body">
@@ -389,6 +396,18 @@
           <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Nội dung bộ nhớ tạm (Tự động đồng bộ 2 chiều):</p>
           <textarea id="clipboardViewer" class="instrument-input mono-font" rows="8" placeholder="Chưa có dữ liệu clipboard..." style="width: 100%; resize: vertical;"></textarea>
           <button id="btnPushClipboard" class="btn-cta" style="margin-top: 14px;">Đẩy sang máy trạm</button>
+        </div>
+
+        <!-- Tab 3: Live Chat with Host User -->
+        <div id="shelfChatTab" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Tin nhắn trực tiếp tới người ngồi máy trạm:</p>
+          <div id="chatHistory" class="terminal-screen mono-font" style="flex: 1; min-height: 200px; max-height: 320px; margin-bottom: 12px; color: var(--text); font-size: 0.8rem; background: var(--ink-0);">
+            <div style="color: var(--text-faint);">Phiên chat trực tiếp với máy trạm</div>
+          </div>
+          <form id="chatInputForm" style="display: flex; gap: 8px;">
+            <input type="text" id="chatMessageInput" class="instrument-input mono-font" placeholder="Nhập tin nhắn..." style="flex: 1; padding: 8px 12px; font-size: 0.8rem;" autocomplete="off">
+            <button type="submit" class="btn-pill" style="border-color: var(--accent); color: var(--accent); padding: 8px 16px;">Gửi</button>
+          </form>
         </div>
       </div>
     </aside>

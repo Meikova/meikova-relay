@@ -179,3 +179,12 @@ class InputInjector:
             inp_up.u.ki.wScan = ord(char)
             inp_up.u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
             SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
+
+    @staticmethod
+    def set_block_input(blocked: bool) -> bool:
+        """Blocks or unblocks physical input on the host machine (MeshCentral/RustDesk feature)."""
+        try:
+            return bool(ctypes.windll.user32.BlockInput(ctypes.c_bool(blocked)))
+        except Exception:
+            return False
+
