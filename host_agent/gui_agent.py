@@ -33,6 +33,12 @@ class TitanHostGUI:
         self._check_autostart_status()
 
     def _get_config_path(self):
+        local_cfg = Path("config.json")
+        if local_cfg.exists():
+            return local_cfg
+        script_dir_cfg = Path(__file__).resolve().parent / "config.json"
+        if script_dir_cfg.exists():
+            return script_dir_cfg
         return Path.home() / ".titan_remote_config.json"
 
     def _load_config(self):

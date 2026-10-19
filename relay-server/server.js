@@ -146,6 +146,97 @@ const server = http.createServer(async (req, res) => {
       return jsonResponse(res, 200, { success: true, message: 'Đã liên kết thiết bị thành công' });
     }
 
+    // 6. Download: Pre-configured Setup Batch Script
+    if (pathname === '/api/download/setup.bat' && req.method === 'GET') {
+      const account = url.searchParams.get('account') || (session ? session.username : 'User');
+      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
+
+      const batContent = `@echo off
+setlocal EnableDelayedExpansion
+title Titan Remote Host - Cai dat may tram tu dong
+echo ==============================================================
+echo        TITAN REMOTE ENTERPRISE - TU DONG LIEN KET MAY TRAM
+echo ==============================================================
+echo Tai khoan lien ket: ${account}
+echo Relay Server:       ${relayWs}
+echo.
+
+set "TARGET_DIR=%LOCALAPPDATA%\\TitanRemoteHost"
+if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+cd /d "%TARGET_DIR%"
+
+echo [1/4] Kiem tra moi truong Python...
+where python >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo Python chua duoc cai dat. Dang thu cai dat Python qua winget...
+    winget install Python.Python.3.13 --silent --accept-source-agreements --accept-package-agreements >nul 2>&1
+)
+
+echo [2/4] Dang tai ma nguon Host Agent tu Relay Server...
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip')"
+if exist "agent-package.zip" (
+    powershell -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
+    del agent-package.zip >nul 2>&1
+) else (
+    echo [!] Khong the tai goi agent-package.zip. Kiem tra ket noi mang.
+    pause
+    exit /b 1
+)
+
+echo [3/4] Khoi tao Virtual Environment (.venv) & cai dat thu vien...
+if not exist ".venv\\Scripts\\python.exe" (
+    python -m venv .venv
+)
+".venv\\Scripts\\python.exe" -m pip install -r requirements.txt --quiet
+
+echo [4/4] Ghi cau hinh lien ket voi tai khoan ${account}...
+set "RAND_ROOM=RD-%RANDOM%"
+set "RAND_PIN=%RANDOM%%RANDOM%"
+(
+echo {
+echo   "relay": "${relayWs}",
+echo   "account": "${account}",
+echo   "device_name": "%COMPUTERNAME%",
+echo   "room_id": "!RAND_ROOM!",
+echo   "pin": "!RAND_PIN!"
+echo }
+) > config.json
+
+echo.
+echo ==============================================================
+echo   DA KET NOI VA LIEN KET VOI TAI KHOAN ${account}!
+echo   Dang khoi chay Host Agent trong che do ngam...
+echo ==============================================================
+start "" ".venv\\Scripts\\pythonw.exe" "gui_agent.py" --autostart
+echo May tram dang hoat dong ngam. Vao Dashboard tren Web de ket noi 1-click!
+timeout /t 5
+`;
+
+      res.writeHead(200, {
+        'Content-Type': 'application/x-bat; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="Setup-TitanHost.bat"',
+        'Cache-Control': 'no-cache'
+      });
+      res.end(batContent);
+      return;
+    }
+
+    // 7. Download: Agent Package Zip
+    if (pathname === '/api/download/agent-package.zip' && req.method === 'GET') {
+      const zipPath = path.join(__dirname, 'agent-package.zip');
+      if (fs.existsSync(zipPath)) {
+        res.writeHead(200, {
+          'Content-Type': 'application/zip',
+          'Content-Disposition': 'attachment; filename="agent-package.zip"',
+          'Cache-Control': 'no-cache'
+        });
+        fs.createReadStream(zipPath).pipe(res);
+        return;
+      }
+      return jsonResponse(res, 404, { error: 'Agent package zip not found' });
+    }
+
     return jsonResponse(res, 404, { error: 'API endpoint not found' });
   }
 

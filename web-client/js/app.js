@@ -438,17 +438,36 @@
   });
 
   // --- DASHBOARD FLEET ---
-  async function loadDeviceFleet() {
-    deviceGrid.innerHTML = '<p class="mono-font" style="color: var(--text-faint); padding: 20px;">Đang tải danh sách máy trạm...</p>';
+  const btnDownloadHost = document.getElementById('btnDownloadHost');
+  function downloadHostInstaller() {
+    const accountName = currentUser ? currentUser.username : 'User';
+    const relayWs = defaultWsUrl;
+    window.location.href = `/api/download/setup.bat?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}`;
+  }
+  btnDownloadHost?.addEventListener('click', downloadHostInstaller);
+
+  async function loadDeviceFleet(silent = false) {
+    if (!silent) {
+      deviceGrid.innerHTML = '<p class="mono-font" style="color: var(--text-faint); padding: 20px;">Đang tải danh sách máy trạm...</p>';
+    }
     try {
       const data = await apiFetch('/api/devices');
       if (data.success && data.devices) {
         renderDeviceGrid(data.devices);
       }
     } catch {
-      deviceGrid.innerHTML = '<p class="mono-font" style="color: #EF4444; padding: 20px;">Không thể tải danh sách thiết bị.</p>';
+      if (!silent) {
+        deviceGrid.innerHTML = '<p class="mono-font" style="color: #EF4444; padding: 20px;">Không thể tải danh sách thiết bị.</p>';
+      }
     }
   }
+
+  // Auto-refresh fleet every 4s to detect newly connected hosts instantly
+  setInterval(() => {
+    if (currentView === 'dashboard' && authToken && currentUser) {
+      loadDeviceFleet(true);
+    }
+  }, 4000);
 
   function getOsSvg(osInfo) {
     const os = (osInfo || '').toLowerCase();
@@ -472,13 +491,20 @@
       deviceGrid.innerHTML = `
         <div class="empty-fleet" style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--ink-1); border: 1px dashed var(--line); border-radius: var(--radius);">
           <p class="brand-font" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">Chưa có máy trạm nào được liên kết</p>
-          <p style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">Khởi chạy Host Agent trên máy tính để liên kết tự động</p>
-          <button id="btnEmptyAdd" class="btn-pill" style="border-color: var(--accent); color: var(--accent);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            <span>Kết nối nhanh bằng Room ID</span>
-          </button>
+          <p style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">Tải file cài đặt bên dưới về máy đích và chạy, máy sẽ tự động hiện lên bảng điều khiển</p>
+          <div style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+            <button id="btnEmptyDownload" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Tải bộ cài máy trạm (.bat)</span>
+            </button>
+            <button id="btnEmptyAdd" class="btn-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span>Kết nối bằng Room ID</span>
+            </button>
+          </div>
         </div>
       `;
+      document.getElementById('btnEmptyDownload')?.addEventListener('click', downloadHostInstaller);
       document.getElementById('btnEmptyAdd')?.addEventListener('click', () => quickConnectModal.classList.remove('hidden'));
       return;
     }

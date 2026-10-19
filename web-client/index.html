@@ -119,7 +119,16 @@
           <h2 class="section-title">Danh sách máy trạm</h2>
           <p class="card-subtitle">Các thiết bị đã liên kết với tài khoản của bạn</p>
         </div>
-        <button id="btnOpenLinkModal" class="btn-pill">+ Thêm máy trạm mới</button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button id="btnDownloadHost" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Tải file cài đặt máy trạm tự động">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Tải bộ cài máy trạm (.bat)</span>
+          </button>
+          <button id="btnOpenLinkModal" class="btn-pill">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Kết nối bằng Room ID</span>
+          </button>
+        </div>
       </div>
 
       <div class="device-grid" id="deviceGrid"></div>
