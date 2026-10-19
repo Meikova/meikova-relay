@@ -99,6 +99,9 @@
 
   function showToast(message, type = 'info', duration = 3500) {
     if (!toastContainer) return;
+    const resolvedMsg = (window.TitanI18n && typeof window.TitanI18n.t === 'function')
+      ? window.TitanI18n.t(message)
+      : message;
     const toast = document.createElement('div');
     toast.className = `toast toast--${type}`;
     
@@ -111,7 +114,7 @@
       iconSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
     }
 
-    toast.innerHTML = `${iconSvg}<span>${escapeHtml(message)}</span>`;
+    toast.innerHTML = `${iconSvg}<span>${escapeHtml(resolvedMsg)}</span>`;
     toastContainer.appendChild(toast);
 
     setTimeout(() => {
@@ -363,11 +366,17 @@
     else if (rawPath === 'audit' || rawPath === 'audit-logs') view = 'audit';
     else if (rawPath === 'dashboard' || rawPath === '') view = 'dashboard';
 
+    const langParam = params.get('lang');
+    if (langParam && window.TitanI18n) {
+      window.TitanI18n.setLang(langParam, false);
+    }
+
     return {
       view,
       room: params.get('room') || '',
       pin: params.get('pin') || '',
-      browsePath: params.get('path') || ''
+      browsePath: params.get('path') || '',
+      lang: langParam || ''
     };
   }
 
@@ -387,6 +396,10 @@
       }
     }
 
+    if (window.TitanI18n && window.TitanI18n.getLang() !== window.TitanI18n.DEFAULT_LANG) {
+      params.set('lang', window.TitanI18n.getLang());
+    }
+
     const qs = params.toString() ? '?' + params.toString() : '';
     const targetUrl = path + qs;
     const currentUrl = window.location.pathname + window.location.search;
@@ -399,6 +412,27 @@
       }
     }
   }
+
+  window.addEventListener('titan-lang-changed', () => {
+    syncUrlWithState(true);
+    if (currentView === 'tasks' && currentProcessList && currentProcessList.length > 0) {
+      renderProcessTable();
+    }
+    if (currentView === 'files' && currentExplorerItems) {
+      renderFullFileExplorer({
+        items: currentExplorerItems,
+        drives: currentExplorerDrives,
+        current_path: remoteCurrentPath,
+        parent_path: remoteParentPath
+      });
+    }
+    if (currentView === 'audit' && typeof loadAuditLogs === 'function') {
+      loadAuditLogs();
+    }
+    if (fileEditorModal && !fileEditorModal.classList.contains('hidden')) {
+      updateEditorStats();
+    }
+  });
 
   window.addEventListener('popstate', () => {
     const route = getRouteStateFromUrl();
@@ -708,16 +742,16 @@
     if (!devices || devices.length === 0) {
       deviceGrid.innerHTML = `
         <div class="empty-fleet" style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--ink-1); border: 1px dashed var(--line); border-radius: var(--radius);">
-          <p class="brand-font" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">Chưa có máy trạm nào được liên kết</p>
-          <p style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">Tải file cài đặt bên dưới về máy đích và chạy, máy sẽ tự động hiện lên bảng điều khiển</p>
+          <p class="brand-font" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">${t('dashboard.empty')}</p>
+          <p style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">${t('dashboard.empty_hint')}</p>
           <div style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;">
             <button id="btnEmptyDownload" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Tải bộ cài máy trạm (.bat)</span>
+              <span>${t('dashboard.btn_download_host')}</span>
             </button>
             <button id="btnEmptyAdd" class="btn-pill">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span>Kết nối bằng Room ID</span>
+              <span>${t('dashboard.btn_quick_connect')}</span>
             </button>
           </div>
         </div>
@@ -727,6 +761,10 @@
       return;
     }
 
+    const onlineLabel = t('dashboard.status_online').toUpperCase();
+    const offlineLabel = t('dashboard.status_offline').toUpperCase();
+    const connectLabel = t('dashboard.btn_connect');
+
     deviceGrid.innerHTML = devices.map(d => {
       const isOnline = d.is_online === 1;
       return `
@@ -734,7 +772,7 @@
           <div class="device-card-header">
             <span class="device-name brand-font">${escapeHtml(d.device_name)}</span>
             <span class="status-badge ${isOnline ? 'online' : 'offline'}">
-              <span class="status-dot"></span> <span>${isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+              <span class="status-dot"></span> <span>${isOnline ? onlineLabel : offlineLabel}</span>
             </span>
           </div>
           <div class="device-specs">
@@ -744,7 +782,7 @@
           </div>
           <button class="btn-connect-device" data-room="${d.room_id}" data-pin="${d.pin}">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            <span>${isOnline ? 'Kết nối máy này' : 'Thử kết nối'}</span>
+            <span>${connectLabel}</span>
           </button>
         </div>
       `;
@@ -1898,10 +1936,10 @@
   function updateTerminalStatusBadge() {
     if (!terminalStatusBadge) return;
     if (isConnected) {
-      terminalStatusBadge.textContent = 'ĐÃ KẾT NỐI (POWERSHELL UTF-8)';
+      terminalStatusBadge.textContent = t('terminal.badge_connected');
       terminalStatusBadge.className = 'terminal-badge terminal-badge--online mono-font';
     } else {
-      terminalStatusBadge.textContent = 'CHƯA KẾT NỐI';
+      terminalStatusBadge.textContent = t('terminal.badge_disconnected');
       terminalStatusBadge.className = 'terminal-badge mono-font';
     }
   }
@@ -2043,17 +2081,18 @@
     });
 
     if (filtered.length === 0) {
-      processTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-faint); padding: 20px;">Không tìm thấy tiến trình phù hợp</td></tr>`;
+      processTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-faint); padding: 20px;">${t('tasks.search_no_results')}</td></tr>`;
       return;
     }
 
+    const killLabel = t('tasks.btn_kill');
     processTableBody.innerHTML = filtered.map(p => `
       <tr>
         <td style="color: var(--accent);">${p.pid}</td>
         <td><strong>${escapeHtml(p.name)}</strong></td>
         <td>${p.memory_mb} MB</td>
         <td>
-          <button class="btn-kill-proc" data-pid="${p.pid}">Diệt (Kill)</button>
+          <button class="btn-kill-proc" data-pid="${p.pid}" data-name="${escapeHtml(p.name)}">${killLabel}</button>
         </td>
       </tr>
     `).join('');
@@ -2061,7 +2100,8 @@
     processTableBody.querySelectorAll('.btn-kill-proc').forEach(btn => {
       btn.addEventListener('click', () => {
         const pid = parseInt(btn.dataset.pid, 10);
-        if (confirm(`Bạn có chắc chắn muốn dừng tiến trình PID ${pid}?`)) {
+        const name = btn.dataset.name || 'process';
+        if (confirm(t('tasks.kill_confirm', { name, pid }))) {
           ws.send(JSON.stringify({
             type: 'process_kill_request',
             pid: pid
@@ -2557,12 +2597,13 @@
       }
     });
 
-    if (expStatusCount) expStatusCount.textContent = `${filtered.length} mục (${totalDirs} thư mục, ${totalFiles} tệp)`;
-    if (expStatusSize) expStatusSize.textContent = `Tổng kích thước: ${formatBytes(totalSizeBytes)}`;
+    if (expStatusCount) expStatusCount.textContent = t('files.status_summary', { count: filtered.length, dirs: totalDirs, files: totalFiles });
+    if (expStatusSize) expStatusSize.textContent = t('files.total_size', { size: formatBytes(totalSizeBytes) });
 
+    const emptyText = termRaw ? t('files.not_found') : t('files.empty_folder');
     if (filtered.length === 0) {
-      explorerTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-faint); padding: 30px;">${searchTerm ? 'Không tìm thấy tệp phù hợp' : 'Thư mục trống'}</td></tr>`;
-      if (explorerGridContainer) explorerGridContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-faint); padding: 30px;">${searchTerm ? 'Không tìm thấy tệp phù hợp' : 'Thư mục trống'}</div>`;
+      explorerTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-faint); padding: 30px;">${emptyText}</td></tr>`;
+      if (explorerGridContainer) explorerGridContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-faint); padding: 30px;">${emptyText}</div>`;
       return;
     }
 
@@ -2587,20 +2628,20 @@
           <td style="text-align: right;">
             <div style="display: inline-flex; gap: 6px;">
               ${!isDir && isEditableFile(item.name) ? `
-                <button class="btn-pill btn-action-edit" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="Mở & Chỉnh sửa trực tiếp trên máy trạm" style="padding: 2px 8px; font-size: 0.7rem; border-color: #38BDF8; color: #38BDF8;">
+                <button class="btn-pill btn-action-edit" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_edit_title')}" style="padding: 2px 8px; font-size: 0.7rem; border-color: #38BDF8; color: #38BDF8;">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  <span>Sửa</span>
+                  <span>${t('files.action_edit')}</span>
                 </button>
               ` : ''}
               ${!isDir ? `
-                <button class="btn-pill btn-action-dl" data-path="${itemPath}" title="Tải về máy tính" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--accent); color: var(--accent);">
+                <button class="btn-pill btn-action-dl" data-path="${itemPath}" title="${t('files.action_download_title')}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--accent); color: var(--accent);">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  <span>Tải</span>
+                  <span>${t('files.action_download')}</span>
                 </button>
               ` : ''}
-              <button class="btn-pill btn-action-del" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="Xóa" style="padding: 2px 8px; font-size: 0.7rem; border-color: #EF4444; color: #EF4444;">
+              <button class="btn-pill btn-action-del" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_delete_title')}" style="padding: 2px 8px; font-size: 0.7rem; border-color: #EF4444; color: #EF4444;">
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                <span>Xóa</span>
+                <span>${t('files.action_delete')}</span>
               </button>
             </div>
           </td>
@@ -2613,7 +2654,7 @@
       explorerGridContainer.innerHTML = filtered.map(item => {
         const isDir = item.is_dir;
         const icon = getFileSvgIcon(item);
-        const sizeStr = isDir ? 'Thư mục' : formatBytes(item.size);
+        const sizeStr = isDir ? t('files.folder_type') : formatBytes(item.size);
         const itemPath = escapeHtml(item.path || item.name);
 
         return `
@@ -2667,7 +2708,7 @@
         e.stopPropagation();
         const itemName = btn.dataset.name;
         const itemPath = btn.dataset.path;
-        if (confirm(`Bạn có chắc chắn muốn xóa "${itemName}" trên máy trạm?`)) {
+        if (confirm(t('files.delete_confirm', { name: itemName }))) {
           ws.send(JSON.stringify({ type: 'file_delete_request', filepath: itemPath }));
         }
       });
@@ -2915,10 +2956,10 @@
     editorFilePath.title = msg.filepath || '';
     fileEditorTextarea.value = msg.content || '';
     currentEditorOriginalContent = msg.content || '';
-    editorDirtyBadge.textContent = 'ĐÃ LƯU';
+    editorDirtyBadge.textContent = t('editor.saved');
     editorDirtyBadge.className = 'editor-badge editor-badge--clean';
     editorEncodingBadge.textContent = (msg.encoding || 'UTF-8').toUpperCase();
-    editorSaveTime.textContent = 'Đã mở lúc ' + new Date().toLocaleTimeString();
+    editorSaveTime.textContent = t('editor.saved_at', { time: new Date().toLocaleTimeString() });
     updateEditorStats();
     fileEditorModal.classList.remove('hidden');
     setTimeout(() => fileEditorTextarea.focus(), 60);
@@ -2929,28 +2970,28 @@
     btnSaveFile.style.opacity = '1';
     if (msg.success) {
       currentEditorOriginalContent = fileEditorTextarea.value;
-      editorDirtyBadge.textContent = 'ĐÃ LƯU';
+      editorDirtyBadge.textContent = t('editor.saved');
       editorDirtyBadge.className = 'editor-badge editor-badge--clean';
-      editorSaveTime.textContent = 'Đã lưu lúc ' + new Date().toLocaleTimeString();
-      showToast(`Đã lưu tệp ${msg.filename} trực tiếp trên máy trạm!`, 'success');
+      editorSaveTime.textContent = t('editor.saved_at', { time: new Date().toLocaleTimeString() });
+      showToast(t('editor.save_success'), 'success');
       if (currentView === 'files') {
         requestBrowsePath(remoteCurrentPath);
       }
     } else {
-      editorSaveTime.textContent = 'Lỗi lưu tệp!';
-      showToast(`Lỗi lưu tệp: ${msg.error}`, 'error');
+      editorSaveTime.textContent = t('editor.save_error', { error: msg.error || '' });
+      showToast(t('editor.save_error', { error: msg.error || '' }), 'error');
     }
   }
 
   function saveCurrentFile() {
     if (!currentEditingFilePath) return;
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm, không thể lưu tệp', 'error');
+      showToast(t('editor.save_error', { error: t('ro.disconnected') }), 'error');
       return;
     }
     btnSaveFile.disabled = true;
     btnSaveFile.style.opacity = '0.6';
-    editorSaveTime.textContent = 'Đang lưu tệp...';
+    editorSaveTime.textContent = t('editor.saving');
     ws.send(JSON.stringify({
       type: 'file_save_request',
       filepath: currentEditingFilePath,
@@ -2962,7 +3003,7 @@
   function closeFileEditor() {
     const isDirty = fileEditorTextarea.value !== currentEditorOriginalContent;
     if (isDirty) {
-      if (!confirm('Tệp có thay đổi chưa lưu. Bạn có chắc muốn đóng mà không lưu?')) {
+      if (!confirm(t('editor.discard_confirm'))) {
         return;
       }
     }
@@ -2975,7 +3016,7 @@
     const val = fileEditorTextarea.value || '';
     const lines = val.split('\n').length;
     const chars = val.length;
-    editorStats.textContent = `${lines.toLocaleString()} dòng, ${chars.toLocaleString()} ký tự`;
+    editorStats.textContent = t('editor.stats', { lines: lines.toLocaleString(), chars: chars.toLocaleString() });
     updateCursorPos();
   }
 
@@ -2986,13 +3027,13 @@
     const lineNum = upToCursor.split('\n').length;
     const lastNewline = upToCursor.lastIndexOf('\n');
     const colNum = lastNewline === -1 ? selStart + 1 : selStart - lastNewline;
-    editorCursorPos.textContent = `Dòng ${lineNum}, Cột ${colNum}`;
+    editorCursorPos.textContent = t('editor.cursor', { line: lineNum, col: colNum });
   }
 
   if (fileEditorTextarea) {
     fileEditorTextarea.addEventListener('input', () => {
       const isDirty = fileEditorTextarea.value !== currentEditorOriginalContent;
-      editorDirtyBadge.textContent = isDirty ? '● ĐÃ SỬA (CHƯA LƯU)' : 'ĐÃ LƯU';
+      editorDirtyBadge.textContent = isDirty ? t('editor.dirty') : t('editor.saved');
       editorDirtyBadge.className = isDirty ? 'editor-badge editor-badge--dirty' : 'editor-badge editor-badge--clean';
       updateEditorStats();
     });
@@ -3166,8 +3207,8 @@
   function renderAuditLogs(logs, total) {
     if (!auditTableBody) return;
     if (!logs || logs.length === 0) {
-      auditTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-faint); padding: 24px;">Không tìm thấy bản ghi nhật ký phù hợp</td></tr>';
-      if (auditPageSummary) auditPageSummary.textContent = 'Hiển thị 0 / 0 bản ghi';
+      auditTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-faint); padding: 24px;">${t('audit.empty')}</td></tr>`;
+      if (auditPageSummary) auditPageSummary.textContent = t('audit.summary', { showing: '0', total: '0' });
       if (btnAuditPrev) btnAuditPrev.disabled = true;
       if (btnAuditNext) btnAuditNext.disabled = true;
       if (auditPageIndicator) auditPageIndicator.textContent = '1 / 1';
@@ -3177,7 +3218,7 @@
     const totalPages = Math.ceil(total / auditLimit) || 1;
     const startIdx = auditPage * auditLimit + 1;
     const endIdx = Math.min((auditPage + 1) * auditLimit, total);
-    if (auditPageSummary) auditPageSummary.textContent = `Hiển thị ${startIdx} - ${endIdx} / ${total} bản ghi`;
+    if (auditPageSummary) auditPageSummary.textContent = t('audit.summary', { showing: `${startIdx} - ${endIdx}`, total });
     if (auditPageIndicator) auditPageIndicator.textContent = `${auditPage + 1} / ${totalPages}`;
 
     if (btnAuditPrev) btnAuditPrev.disabled = auditPage <= 0;
@@ -3187,7 +3228,7 @@
       const dt = new Date(l.timestamp);
       const timeStr = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}:${String(dt.getSeconds()).padStart(2, '0')}`;
       const actionBadge = getActionBadge(l.action);
-      const userDisplay = escapeHtml(l.username || 'Ẩn danh');
+      const userDisplay = escapeHtml(l.username || t('audit.anonymous'));
       const ipDisplay = escapeHtml(l.client_ip || '127.0.0.1');
       const deviceDisplay = escapeHtml(l.client_device || 'Unknown');
       const targetDisplay = l.room_id
@@ -3214,7 +3255,7 @@
   if (btnRefreshAudit) {
     btnRefreshAudit.addEventListener('click', () => {
       loadAuditLogs();
-      showToast('Đã làm mới nhật ký kiểm toán', 'info');
+      showToast(t('audit.refreshed'), 'info');
     });
   }
 
@@ -3233,7 +3274,7 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      showToast('Đang tải tệp CSV nhật ký...', 'success');
+      showToast(t('audit.exporting'), 'success');
     });
   }
 

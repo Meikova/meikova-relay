@@ -33,49 +33,53 @@
     </div>
 
     <!-- Sliding Segmented Mode Navigation -->
-    <nav class="seg" id="mainNav" role="tablist" aria-label="Phân hệ điều khiển">
+    <nav class="seg" id="mainNav" role="tablist" aria-label="Phân hệ điều khiển" data-i18n-aria="nav.aria_label">
       <span class="seg__ind" aria-hidden="true"></span>
       <button type="button" class="on" data-view="dashboard" role="tab" aria-selected="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-        <span>Máy trạm</span>
+        <span data-i18n="nav.workstations">Máy trạm</span>
       </button>
       <button type="button" data-view="remote" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-        <span>Màn hình</span>
+        <span data-i18n="nav.screen">Màn hình</span>
       </button>
       <button type="button" data-view="files" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-        <span>Tệp &amp; Thư mục</span>
+        <span data-i18n="nav.files">Tệp &amp; Thư mục</span>
       </button>
       <button type="button" data-view="terminal" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-        <span>Terminal</span>
+        <span data-i18n="nav.terminal">Terminal</span>
       </button>
       <button type="button" data-view="tasks" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-        <span>Tiến trình</span>
+        <span data-i18n="nav.tasks">Tiến trình</span>
       </button>
       <button type="button" data-view="audit" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        <span>Nhật ký (Audit)</span>
+        <span data-i18n="nav.audit">Nhật ký (Audit)</span>
       </button>
     </nav>
 
     <div class="topbar-right">
+      <div class="seg lang-switch-seg" id="langSwitch" role="group" aria-label="Ngôn ngữ / Language">
+        <button type="button" class="on" data-lang-code="vi" title="Tiếng Việt">VI</button>
+        <button type="button" data-lang-code="en" title="English">EN</button>
+      </div>
       <div id="userBadge" class="user-badge mono-font hidden">
         <span id="userNameDisplay">--</span>
-        <button id="btnLogout" class="btn-pill" title="Đăng xuất">Thoát</button>
+        <button id="btnLogout" class="btn-pill" title="Đăng xuất" data-i18n-title="topbar.logout_title" data-i18n="topbar.logout">Thoát</button>
       </div>
-      <button id="btnQuickConnect" class="btn-pill" title="Kết nối trực tiếp bằng Room ID">
+      <button id="btnQuickConnect" class="btn-pill" title="Kết nối trực tiếp bằng Room ID" data-i18n-title="topbar.quick_connect_title">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-        <span>Kết nối nhanh</span>
+        <span data-i18n="topbar.quick_connect">Kết nối nhanh</span>
       </button>
     </div>
   </header>
 
   <!-- Corner Telemetry Readouts -->
   <p class="readout readout--tl" id="ro-tl">
-    TITAN ∞ REMOTE // <strong id="roStatus">CHƯA KẾT NỐI</strong>
+    TITAN ∞ REMOTE // <strong id="roStatus" data-i18n="ro.disconnected">CHƯA KẾT NỐI</strong>
   </p>
   <p class="readout readout--tr" id="ro-tr">
     RTT: <strong id="metricPing">--</strong>ms <canvas id="sparklineCanvas" width="48" height="12" style="vertical-align:middle;display:inline-block;margin:0 4px;"></canvas> // <strong id="metricFps">--</strong> FPS // RES: <strong id="metricRes">--</strong>
@@ -89,30 +93,30 @@
       <div class="instrument-card">
         <div class="card-hero">
           <div class="brand-font" style="font-size: 1.5rem; color: var(--accent); margin-bottom: 6px;">∞</div>
-          <h1 class="card-title brand-font">Đăng nhập quản trị</h1>
-          <p class="card-subtitle">Nền tảng điều khiển máy trạm toàn diện qua Outbound Relay</p>
+          <h1 class="card-title brand-font" data-i18n="auth.title">Đăng nhập quản trị</h1>
+          <p class="card-subtitle" data-i18n="auth.subtitle">Nền tảng điều khiển máy trạm toàn diện qua Outbound Relay</p>
         </div>
 
         <div class="seg auth-tabs" id="authTabs" role="tablist">
           <span class="seg__ind" aria-hidden="true"></span>
-          <button type="button" class="on" data-auth-mode="login" role="tab">Đăng nhập</button>
-          <button type="button" data-auth-mode="register" role="tab">Đăng ký</button>
+          <button type="button" class="on" data-auth-mode="login" role="tab" data-i18n="auth.tab_login">Đăng nhập</button>
+          <button type="button" data-auth-mode="register" role="tab" data-i18n="auth.tab_register">Đăng ký</button>
         </div>
 
         <div id="authError" class="auth-error hidden"></div>
 
         <form id="authForm">
           <div class="form-group">
-            <label for="authUsername">Tên tài khoản</label>
-            <input type="text" id="authUsername" class="instrument-input mono-font" placeholder="Nhập username" required autocomplete="username">
+            <label for="authUsername" data-i18n="auth.username_label">Tên tài khoản</label>
+            <input type="text" id="authUsername" class="instrument-input mono-font" placeholder="Nhập username" data-i18n-placeholder="auth.username_placeholder" required autocomplete="username">
           </div>
           <div class="form-group">
-            <label for="authPassword">Mật khẩu</label>
-            <input type="password" id="authPassword" class="instrument-input mono-font" placeholder="••••••••" required autocomplete="current-password">
+            <label for="authPassword" data-i18n="auth.password_label">Mật khẩu</label>
+            <input type="password" id="authPassword" class="instrument-input mono-font" placeholder="••••••••" data-i18n-placeholder="auth.password_placeholder" required autocomplete="current-password">
           </div>
-          <div class="auth-divider"><span>hoặc</span></div>
+          <div class="auth-divider"><span data-i18n="auth.or">hoặc</span></div>
           <div id="googleSignInBtn" class="google-btn-container"></div>
-          <button type="submit" id="btnSubmitAuth" class="btn-cta">Vào bảng điều khiển</button>
+          <button type="submit" id="btnSubmitAuth" class="btn-cta" data-i18n="auth.btn_login">Vào bảng điều khiển</button>
         </form>
       </div>
     </section>
@@ -121,17 +125,17 @@
     <section id="dashboardSection" class="dashboard-container hidden">
       <div class="dashboard-header">
         <div>
-          <h2 class="section-title">Danh sách máy trạm</h2>
-          <p class="card-subtitle">Các thiết bị đã liên kết với tài khoản của bạn</p>
+          <h2 class="section-title" data-i18n="dashboard.title">Danh sách máy trạm</h2>
+          <p class="card-subtitle" data-i18n="dashboard.subtitle">Các thiết bị đã liên kết với tài khoản của bạn</p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <button id="btnDownloadHost" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Tải file cài đặt máy trạm tự động">
+          <button id="btnDownloadHost" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Tải file cài đặt máy trạm tự động" data-i18n-title="dashboard.btn_download_host_title">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            <span>Tải bộ cài máy trạm (.bat)</span>
+            <span data-i18n="dashboard.btn_download_host">Tải bộ cài máy trạm (.bat)</span>
           </button>
           <button id="btnOpenLinkModal" class="btn-pill">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>Kết nối bằng Room ID</span>
+            <span data-i18n="dashboard.btn_quick_connect">Kết nối bằng Room ID</span>
           </button>
         </div>
       </div>
@@ -150,56 +154,56 @@
       <!-- Floating Webcam PiP Preview Container -->
       <div id="webcamContainer" class="webcam-pip-container hidden">
         <video id="webcamVideo" autoplay playsinline muted></video>
-        <div class="webcam-pip-badge">FACE CAM</div>
+        <div class="webcam-pip-badge" data-i18n="deck.face_cam_badge">FACE CAM</div>
       </div>
 
       <!-- Floating Pill Deck Controller -->
       <footer class="deck" id="floatingDeck">
-        <select id="monitorSelector" class="deck__btn" title="Chọn màn hình truyền phát">
-          <option value="0">Tất cả màn hình</option>
+        <select id="monitorSelector" class="deck__btn" title="Chọn màn hình truyền phát" data-i18n-title="deck.monitor_title">
+          <option value="0" data-i18n="deck.monitor_all">Tất cả màn hình</option>
           <option value="1">Màn 1</option>
         </select>
 
-        <select id="qualitySelector" class="deck__btn" title="Cấu hình chất lượng &amp; băng thông">
-          <option value="balanced" selected>30 FPS</option>
-          <option value="speed_60">60 FPS</option>
-          <option value="crisp_hd">HD Nét</option>
-          <option value="grayscale">Tiết kiệm</option>
+        <select id="qualitySelector" class="deck__btn" title="Cấu hình chất lượng &amp; băng thông" data-i18n-title="deck.quality_title">
+          <option value="balanced" selected data-i18n="deck.quality_balanced">30 FPS</option>
+          <option value="speed_60" data-i18n="deck.quality_speed">60 FPS</option>
+          <option value="crisp_hd" data-i18n="deck.quality_hd">HD Nét</option>
+          <option value="grayscale" data-i18n="deck.quality_grayscale">Tiết kiệm</option>
         </select>
 
-        <button id="btnScaleToggle" class="deck__btn" title="Co giãn theo cửa sổ / 100% tỷ lệ gốc">
+        <button id="btnScaleToggle" class="deck__btn" title="Co giãn theo cửa sổ / 100% tỷ lệ gốc" data-i18n-title="deck.scale_title">
           <svg id="scaleSvgFit" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
           <svg id="scaleSvg1to1" viewBox="0 0 24 24" class="hidden"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="7" y1="12" x2="12" y2="12"/></svg>
         </button>
 
-        <button id="btnFullscreen" class="deck__btn" title="Toàn màn hình">
+        <button id="btnFullscreen" class="deck__btn" title="Toàn màn hình" data-i18n-title="deck.fullscreen_title">
           <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         </button>
-        <button id="btnToggleLaser" class="deck__btn" title="Bật/Tắt Laser Pointer">
+        <button id="btnToggleLaser" class="deck__btn" title="Bật/Tắt Laser Pointer" data-i18n-title="deck.laser_title">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
         </button>
-        <button id="btnRecord" class="deck__btn" title="Ghi hình phiên làm việc">
+        <button id="btnRecord" class="deck__btn" title="Ghi hình phiên làm việc" data-i18n-title="deck.record_title">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>
         </button>
-        <button id="btnToggleCam" class="deck__btn" title="Bật/Tắt Face Cam (Webcam PiP khi ghi hình)">
+        <button id="btnToggleCam" class="deck__btn" title="Bật/Tắt Face Cam (Webcam PiP khi ghi hình)" data-i18n-title="deck.cam_title">
           <svg id="camSvgOff" viewBox="0 0 24 24"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1"/><line x1="1" y1="1" x2="23" y2="23"/><path d="M23 7l-7 5 7 5V7z"/></svg>
           <svg id="camSvgOn" viewBox="0 0 24 24" class="hidden" style="color: #38BDF8;"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
         </button>
-        <button id="btnScreenshot" class="deck__btn" title="Chụp ảnh màn hình máy trạm">
+        <button id="btnScreenshot" class="deck__btn" title="Chụp ảnh màn hình máy trạm" data-i18n-title="deck.screenshot_title">
           <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </button>
-        <button id="btnToggleAudio" class="deck__btn" title="Bật/Tắt truyền âm thanh máy trạm (Live Audio Stream)">
+        <button id="btnToggleAudio" class="deck__btn" title="Bật/Tắt truyền âm thanh máy trạm (Live Audio Stream)" data-i18n-title="deck.audio_title">
           <svg id="audioSvgMuted" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
           <svg id="audioSvgPlaying" viewBox="0 0 24 24" class="hidden" style="color: var(--accent);"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </button>
-        <button id="btnToggleMic" class="deck__btn" title="Bật/Tắt micro nói sang máy trạm (Live Voice Intercom)">
+        <button id="btnToggleMic" class="deck__btn" title="Bật/Tắt micro nói sang máy trạm (Live Voice Intercom)" data-i18n-title="deck.mic_title">
           <svg id="micSvgMuted" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M19 10v2a7 7 0 0 1-.14 1.38M12 19a6.97 6.97 0 0 1-5-2.07M5 10v2a7 7 0 0 0 2 5"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <svg id="micSvgActive" viewBox="0 0 24 24" class="hidden" style="color: #22C55E;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         </button>
-        <button id="btnToggleOSK" class="deck__btn" title="Mở bàn phím ảo">
+        <button id="btnToggleOSK" class="deck__btn" title="Mở bàn phím ảo" data-i18n-title="deck.osk_title">
           <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
         </button>
-        <button id="btnToggleBlockInput" class="deck__btn" title="Khóa chuột &amp; phím máy đích (Block Host Input)">
+        <button id="btnToggleBlockInput" class="deck__btn" title="Khóa chuột &amp; phím máy đích (Block Host Input)" data-i18n-title="deck.block_input_title">
           <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5"/></svg>
         </button>
 
@@ -220,13 +224,13 @@
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
 
-        <button id="btnPowerMenu" class="deck__btn" title="Tác vụ nguồn">
+        <button id="btnPowerMenu" class="deck__btn" title="Tác vụ nguồn" data-i18n-title="deck.power_title">
           <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
         </button>
-        <button id="btnOpenShelf" class="deck__btn" title="Truyền tệp & Clipboard">
+        <button id="btnOpenShelf" class="deck__btn" title="Truyền tệp & Clipboard" data-i18n-title="deck.shelf_title">
           <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </button>
-        <button id="btnDisconnect" class="deck__btn danger" title="Ngắt kết nối">
+        <button id="btnDisconnect" class="deck__btn danger" title="Ngắt kết nối" data-i18n-title="deck.disconnect_title">
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </footer>
@@ -235,11 +239,11 @@
       <div id="powerMenuDropdown" class="power-menu hidden">
         <button class="power-menu-item" data-power="lock">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span>Khóa màn hình</span>
+          <span data-i18n="deck.power_lock">Khóa màn hình</span>
         </button>
         <button class="power-menu-item danger" data-power="restart">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          <span>Khởi động lại</span>
+          <span data-i18n="deck.power_restart">Khởi động lại</span>
         </button>
       </div>
 
@@ -299,15 +303,15 @@
     <section id="terminalSection" class="terminal-container hidden">
       <div class="terminal-toolbar">
         <div class="terminal-toolbar-left">
-          <span class="mono-font terminal-title">PS REMOTE // HOST SHELL</span>
-          <span id="terminalStatusBadge" class="terminal-badge mono-font">CHƯA KẾT NỐI</span>
+          <span class="mono-font terminal-title" data-i18n="terminal.title">PS REMOTE // HOST SHELL</span>
+          <span id="terminalStatusBadge" class="terminal-badge mono-font" data-i18n="terminal.badge_disconnected">CHƯA KẾT NỐI</span>
         </div>
         <div class="terminal-toolbar-right">
-          <span class="terminal-hint mono-font">Enter: Thực thi | ↑/↓: Lịch sử | Ctrl+L: Xóa</span>
-          <button id="btnClearTerminal" class="btn-pill">Xóa màn hình</button>
+          <span class="terminal-hint mono-font" data-i18n="terminal.hint">Enter: Thực thi | ↑/↓: Lịch sử | Ctrl+L: Xóa</span>
+          <button id="btnClearTerminal" class="btn-pill" data-i18n="terminal.btn_clear">Xóa màn hình</button>
         </div>
       </div>
-      <div id="terminalScreen" class="terminal-screen mono-font" tabindex="0" title="Nhấn vào màn hình để gõ lệnh trực tiếp">
+      <div id="terminalScreen" class="terminal-screen mono-font" tabindex="0" title="Nhấn vào màn hình để gõ lệnh trực tiếp" data-i18n-title="terminal.screen_title">
         <div id="terminalOutput"></div>
         <div class="terminal-prompt-row">
           <span class="terminal-prompt-prefix">PS &gt;&nbsp;</span>
@@ -322,10 +326,10 @@
     <section id="tasksSection" class="tasks-container hidden">
       <div class="tasks-header">
         <div>
-          <h2 class="section-title">Giám sát &amp; Quản lý tiến trình</h2>
-          <p class="card-subtitle">Thông số phần cứng và ứng dụng đang chạy trên máy trạm</p>
+          <h2 class="section-title" data-i18n="tasks.title">Giám sát &amp; Quản lý tiến trình</h2>
+          <p class="card-subtitle" data-i18n="tasks.subtitle">Thông số phần cứng và ứng dụng đang chạy trên máy trạm</p>
         </div>
-        <button id="btnRefreshTasks" class="btn-pill" title="Làm mới">
+        <button id="btnRefreshTasks" class="btn-pill" title="Làm mới" data-i18n-title="tasks.refresh_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
       </div>
@@ -333,19 +337,19 @@
       <!-- Telemetry Gauges -->
       <div class="telemetry-grid">
         <div class="telemetry-card">
-          <div class="telemetry-card-title">Bộ nhớ RAM</div>
+          <div class="telemetry-card-title" data-i18n="tasks.ram_title">Bộ nhớ RAM</div>
           <div class="telemetry-value brand-font" id="ramValue">-- GB</div>
           <div class="gauge-bar"><div class="gauge-fill" id="ramGaugeBar" style="width: 0%;"></div></div>
-          <div class="telemetry-sub mono-font" id="ramSub">Đang đo...</div>
+          <div class="telemetry-sub mono-font" id="ramSub" data-i18n="tasks.measuring">Đang đo...</div>
         </div>
         <div class="telemetry-card">
-          <div class="telemetry-card-title">Ổ đĩa C:</div>
+          <div class="telemetry-card-title" data-i18n="tasks.disk_c_title">Ổ đĩa C:</div>
           <div class="telemetry-value brand-font" id="diskCValue">-- GB</div>
           <div class="gauge-bar"><div class="gauge-fill" id="diskCGaugeBar" style="width: 0%;"></div></div>
-          <div class="telemetry-sub mono-font" id="diskCSub">Đang đo...</div>
+          <div class="telemetry-sub mono-font" id="diskCSub" data-i18n="tasks.measuring">Đang đo...</div>
         </div>
         <div class="telemetry-card">
-          <div class="telemetry-card-title">Hệ điều hành</div>
+          <div class="telemetry-card-title" data-i18n="tasks.os_title">Hệ điều hành</div>
           <div class="telemetry-value brand-font" style="font-size: 1.15rem; padding-top: 4px;">Windows 11</div>
           <div class="telemetry-sub mono-font" style="margin-top: 14px;">64-bit Workstation</div>
         </div>
@@ -354,21 +358,21 @@
       <!-- Process Table -->
       <div class="process-table-card">
         <div class="process-table-header">
-          <h3 style="font-size: 0.95rem; font-weight: 600;">Danh sách tiến trình (Sắp xếp theo RAM)</h3>
-          <input type="text" id="processSearchInput" class="instrument-input mono-font" placeholder="Lọc tiến trình..." style="width: 220px; padding: 6px 12px; font-size: 0.8rem;">
+          <h3 style="font-size: 0.95rem; font-weight: 600;" data-i18n="tasks.table_title">Danh sách tiến trình (Sắp xếp theo RAM)</h3>
+          <input type="text" id="processSearchInput" class="instrument-input mono-font" placeholder="Lọc tiến trình..." data-i18n-placeholder="tasks.search_placeholder" style="width: 220px; padding: 6px 12px; font-size: 0.8rem;">
         </div>
         <div class="table-scroll-area">
           <table class="process-table mono-font">
             <thead>
               <tr>
-                <th>PID</th>
-                <th>Tên tiến trình</th>
-                <th>RAM (MB)</th>
-                <th>Thao tác</th>
+                <th data-i18n="tasks.th_pid">PID</th>
+                <th data-i18n="tasks.th_name">Tên tiến trình</th>
+                <th data-i18n="tasks.th_ram">RAM (MB)</th>
+                <th data-i18n="tasks.th_actions">Thao tác</th>
               </tr>
             </thead>
             <tbody id="processTableBody">
-              <tr><td colspan="4" style="text-align: center; color: var(--text-faint);">Chưa kết nối máy trạm</td></tr>
+              <tr><td colspan="4" style="text-align: center; color: var(--text-faint);" data-i18n="tasks.no_conn">Chưa kết nối máy trạm</td></tr>
             </tbody>
           </table>
         </div>
@@ -379,8 +383,8 @@
     <section id="filesSection" class="dashboard-container hidden">
       <div class="dashboard-header" style="margin-bottom: var(--space-4);">
         <div>
-          <h2 class="section-title">Trình quản lý tệp tin máy trạm</h2>
-          <p class="card-subtitle">Truyền tải tệp tin và duyệt cây thư mục đa luồng qua WebSocket 443 (Bypass Firewall/NAT)</p>
+          <h2 class="section-title" data-i18n="files.title">Trình quản lý tệp tin máy trạm</h2>
+          <p class="card-subtitle" data-i18n="files.subtitle">Truyền tải tệp tin và duyệt cây thư mục đa luồng qua WebSocket 443 (Bypass Firewall/NAT)</p>
         </div>
         <div class="drive-pill-row" id="explorerDrivesRow">
           <!-- Populated dynamically with C:\, D:\, etc. -->
@@ -394,11 +398,11 @@
             <!-- Breadcrumb segments injected here -->
           </div>
           <div class="explorer-path-input-wrap hidden" id="explorerPathInputWrap">
-            <input type="text" id="explorerDirectPathInput" class="instrument-input mono-font" placeholder="Nhập đường dẫn đầy đủ (vd: C:\Windows)..." style="flex: 1; padding: 6px 12px; font-size: 0.8rem;">
-            <button id="btnGoDirectPath" class="btn-pill" style="border-color: var(--accent); color: var(--accent); padding: 6px 12px;">Đến</button>
-            <button id="btnCancelDirectPath" class="btn-pill" style="padding: 6px 12px;">Hủy</button>
+            <input type="text" id="explorerDirectPathInput" class="instrument-input mono-font" placeholder="Nhập đường dẫn đầy đủ (vd: C:\Windows)..." data-i18n-placeholder="files.path_placeholder" style="flex: 1; padding: 6px 12px; font-size: 0.8rem;">
+            <button id="btnGoDirectPath" class="btn-pill" style="border-color: var(--accent); color: var(--accent); padding: 6px 12px;" data-i18n="files.btn_go">Đến</button>
+            <button id="btnCancelDirectPath" class="btn-pill" style="padding: 6px 12px;" data-i18n="files.btn_cancel">Hủy</button>
           </div>
-          <button id="btnTogglePathInput" class="btn-pill" title="Chỉnh sửa đường dẫn trực tiếp">
+          <button id="btnTogglePathInput" class="btn-pill" title="Chỉnh sửa đường dẫn trực tiếp" data-i18n-title="files.edit_path_title">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
         </div>
@@ -406,32 +410,32 @@
         <!-- Explorer Toolbar -->
         <div class="explorer-toolbar">
           <div class="explorer-toolbar-left">
-            <button id="btnExpUp" class="btn-pill" title="Thư mục cha">
+            <button id="btnExpUp" class="btn-pill" title="Thư mục cha" data-i18n-title="files.btn_up_title">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-              <span>Lên</span>
+              <span data-i18n="files.btn_up">Lên</span>
             </button>
-            <button id="btnExpRefresh" class="btn-pill" title="Làm mới">
+            <button id="btnExpRefresh" class="btn-pill" title="Làm mới" data-i18n-title="files.btn_refresh_title">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              <span>Làm mới</span>
+              <span data-i18n="files.btn_refresh">Làm mới</span>
             </button>
-            <button id="btnExpNewFolder" class="btn-pill" title="Tạo thư mục mới">
+            <button id="btnExpNewFolder" class="btn-pill" title="Tạo thư mục mới" data-i18n-title="files.btn_new_folder_title">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-              <span>Thư mục mới</span>
+              <span data-i18n="files.btn_new_folder">Thư mục mới</span>
             </button>
-            <button id="btnExpUpload" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Tải tệp tin lên thư mục này">
+            <button id="btnExpUpload" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Tải tệp tin lên thư mục này" data-i18n-title="files.btn_upload_title">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span>Tải tệp lên</span>
+              <span data-i18n="files.btn_upload">Tải tệp lên</span>
             </button>
             <input type="file" id="expFileInput" class="hidden">
           </div>
 
           <div class="explorer-toolbar-right">
-            <input type="text" id="explorerSearchInput" class="instrument-input mono-font" placeholder="Lọc tệp trong thư mục..." style="width: 200px; padding: 6px 12px; font-size: 0.8rem;">
+            <input type="text" id="explorerSearchInput" class="instrument-input mono-font" placeholder="Lọc tệp trong thư mục..." data-i18n-placeholder="files.search_placeholder" style="width: 200px; padding: 6px 12px; font-size: 0.8rem;">
             <div class="seg" id="viewModeSeg" style="padding: 2px;">
-              <button type="button" class="on" id="btnModeList" title="Xem danh sách">
+              <button type="button" class="on" id="btnModeList" title="Xem danh sách" data-i18n-title="files.mode_list_title">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               </button>
-              <button type="button" id="btnModeGrid" title="Xem dạng lưới">
+              <button type="button" id="btnModeGrid" title="Xem dạng lưới" data-i18n-title="files.mode_grid_title">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               </button>
             </div>
@@ -441,7 +445,7 @@
         <!-- Explorer Upload/Download Progress Bar -->
         <div id="expTransferProgress" class="hidden" style="padding: 10px 16px; background: var(--ink-2); border-bottom: 1px solid var(--line);">
           <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-family: var(--font-mono); margin-bottom: 4px;">
-            <span id="expTransferLabel">Đang truyền tải...</span>
+            <span id="expTransferLabel" data-i18n="files.transfer_label">Đang truyền tải...</span>
             <span id="expTransferPercent">0%</span>
           </div>
           <div class="file-progress-bar">
@@ -456,14 +460,14 @@
             <table class="process-table mono-font" id="explorerTable">
               <thead>
                 <tr>
-                  <th style="width: 48%;">Tên tệp / Thư mục</th>
-                  <th style="width: 16%;">Kích thước</th>
-                  <th style="width: 22%;">Ngày sửa đổi</th>
-                  <th style="width: 14%; text-align: right;">Thao tác</th>
+                  <th style="width: 48%;" data-i18n="files.th_name">Tên tệp / Thư mục</th>
+                  <th style="width: 16%;" data-i18n="files.th_size">Kích thước</th>
+                  <th style="width: 22%;" data-i18n="files.th_modified">Ngày sửa đổi</th>
+                  <th style="width: 14%; text-align: right;" data-i18n="files.th_actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="explorerTableBody">
-                <tr><td colspan="4" style="text-align: center; color: var(--text-faint);">Chưa kết nối máy trạm</td></tr>
+                <tr><td colspan="4" style="text-align: center; color: var(--text-faint);" data-i18n="files.no_conn">Chưa kết nối máy trạm</td></tr>
               </tbody>
             </table>
           </div>
@@ -487,17 +491,17 @@
     <section id="auditSection" class="dashboard-container hidden">
       <div class="dashboard-header" style="margin-bottom: var(--space-4);">
         <div>
-          <h2 class="section-title">Nhật ký truy vết &amp; Kiểm toán (Deep Audit Logs)</h2>
-          <p class="card-subtitle">Ghi nhận chi tiết IP, loại thiết bị nguồn, tài khoản truy cập, máy đích và lịch sử thao tác</p>
+          <h2 class="section-title" data-i18n="audit.title">Nhật ký truy vết &amp; Kiểm toán (Deep Audit Logs)</h2>
+          <p class="card-subtitle" data-i18n="audit.subtitle">Ghi nhận chi tiết IP, loại thiết bị nguồn, tài khoản truy cập, máy đích và lịch sử thao tác</p>
         </div>
         <div style="display: flex; gap: 8px;">
-          <button id="btnRefreshAudit" class="btn-pill" title="Làm mới dữ liệu nhật ký">
+          <button id="btnRefreshAudit" class="btn-pill" title="Làm mới dữ liệu nhật ký" data-i18n-title="audit.btn_refresh_title">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            <span>Làm mới</span>
+            <span data-i18n="audit.btn_refresh">Làm mới</span>
           </button>
-          <button id="btnExportAuditCsv" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Xuất toàn bộ nhật ký sang CSV">
+          <button id="btnExportAuditCsv" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Xuất toàn bộ nhật ký sang CSV" data-i18n-title="audit.btn_export_csv_title">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Xuất CSV</span>
+            <span data-i18n="audit.btn_export_csv">Xuất CSV</span>
           </button>
         </div>
       </div>
@@ -506,25 +510,27 @@
         <!-- Filter Toolbar -->
         <div class="explorer-toolbar">
           <div class="explorer-toolbar-left" style="flex: 1;">
-            <input type="text" id="auditSearchInput" class="instrument-input mono-font" placeholder="Tìm theo IP, tài khoản, thiết bị, Room ID, lệnh..." style="flex: 1; max-width: 380px; padding: 6px 12px; font-size: 0.8rem;">
+            <input type="text" id="auditSearchInput" class="instrument-input mono-font" placeholder="Tìm theo IP, tài khoản, thiết bị, Room ID, lệnh..." data-i18n-placeholder="audit.search_placeholder" style="flex: 1; max-width: 380px; padding: 6px 12px; font-size: 0.8rem;">
             <select id="auditActionFilter" class="instrument-input mono-font" style="padding: 6px 12px; font-size: 0.8rem; background: var(--ink-1); color: var(--text); border-color: var(--line);">
-              <option value="all">Tất cả hành động</option>
-              <option value="SESSION_CONNECTED">Kết nối máy trạm (SESSION_CONNECTED)</option>
-              <option value="SESSION_DISCONNECTED">Ngắt kết nối (SESSION_DISCONNECTED)</option>
-              <option value="CONNECT_PIN_FAILED">Sai mã PIN (CONNECT_PIN_FAILED)</option>
-              <option value="CMD_EXEC">Lệnh Terminal (CMD_EXEC)</option>
-              <option value="FILE_BROWSE">Duyệt thư mục (FILE_BROWSE)</option>
-              <option value="FILE_DOWNLOAD">Tải file về (FILE_DOWNLOAD)</option>
-              <option value="FILE_UPLOAD">Tải file lên (FILE_UPLOAD)</option>
-              <option value="FILE_DELETE">Xóa file (FILE_DELETE)</option>
-              <option value="FILE_MKDIR">Tạo thư mục (FILE_MKDIR)</option>
-              <option value="PROCESS_KILL">Dừng tiến trình (PROCESS_KILL)</option>
-              <option value="POWER_ACTION">Nguồn/Khóa máy (POWER_ACTION)</option>
-              <option value="BLOCK_INPUT">Khóa chuột/phím (BLOCK_INPUT)</option>
-              <option value="CLIPBOARD_SYNC">Đồng bộ Clipboard (CLIPBOARD_SYNC)</option>
-              <option value="AUTH_LOGIN">Đăng nhập tài khoản</option>
-              <option value="AUTH_REGISTER">Đăng ký tài khoản</option>
-              <option value="DEVICE_LINKED">Liên kết máy trạm</option>
+              <option value="all" data-i18n="audit.action_all">Tất cả hành động</option>
+              <option value="SESSION_CONNECTED" data-i18n="audit.action_session_conn">Kết nối máy trạm (SESSION_CONNECTED)</option>
+              <option value="SESSION_DISCONNECTED" data-i18n="audit.action_session_disc">Ngắt kết nối (SESSION_DISCONNECTED)</option>
+              <option value="CONNECT_PIN_FAILED" data-i18n="audit.action_pin_failed">Sai mã PIN (CONNECT_PIN_FAILED)</option>
+              <option value="CMD_EXEC" data-i18n="audit.action_cmd">Lệnh Terminal (CMD_EXEC)</option>
+              <option value="FILE_BROWSE" data-i18n="audit.action_file_browse">Duyệt thư mục (FILE_BROWSE)</option>
+              <option value="FILE_READ" data-i18n="audit.action_file_read">Đọc/Mở file trực tiếp (FILE_READ)</option>
+              <option value="FILE_SAVE" data-i18n="audit.action_file_save">Lưu file trực tiếp (FILE_SAVE)</option>
+              <option value="FILE_DOWNLOAD" data-i18n="audit.action_file_dl">Tải file về (FILE_DOWNLOAD)</option>
+              <option value="FILE_UPLOAD" data-i18n="audit.action_file_ul">Tải file lên (FILE_UPLOAD)</option>
+              <option value="FILE_DELETE" data-i18n="audit.action_file_del">Xóa file (FILE_DELETE)</option>
+              <option value="FILE_MKDIR" data-i18n="audit.action_file_mkdir">Tạo thư mục (FILE_MKDIR)</option>
+              <option value="PROCESS_KILL" data-i18n="audit.action_proc_kill">Dừng tiến trình (PROCESS_KILL)</option>
+              <option value="POWER_ACTION" data-i18n="audit.action_power">Nguồn/Khóa máy (POWER_ACTION)</option>
+              <option value="BLOCK_INPUT" data-i18n="audit.action_block_input">Khóa chuột/phím (BLOCK_INPUT)</option>
+              <option value="CLIPBOARD_SYNC" data-i18n="audit.action_clip_sync">Đồng bộ Clipboard (CLIPBOARD_SYNC)</option>
+              <option value="AUTH_LOGIN" data-i18n="audit.action_auth_login">Đăng nhập tài khoản</option>
+              <option value="AUTH_REGISTER" data-i18n="audit.action_auth_reg">Đăng ký tài khoản</option>
+              <option value="DEVICE_LINKED" data-i18n="audit.action_dev_linked">Liên kết máy trạm</option>
             </select>
           </div>
         </div>
@@ -534,15 +540,15 @@
           <table class="process-table mono-font" id="auditTable">
             <thead>
               <tr>
-                <th style="width: 16%;">Thời gian</th>
-                <th style="width: 16%;">Hành động</th>
-                <th style="width: 24%;">Người dùng &amp; IP Nguồn</th>
-                <th style="width: 20%;">Máy đích (Host)</th>
-                <th style="width: 24%;">Chi tiết nghiệp vụ</th>
+                <th style="width: 16%;" data-i18n="audit.th_time">Thời gian</th>
+                <th style="width: 16%;" data-i18n="audit.th_action">Hành động</th>
+                <th style="width: 24%;" data-i18n="audit.th_source">Người dùng &amp; IP Nguồn</th>
+                <th style="width: 20%;" data-i18n="audit.th_target">Máy đích (Host)</th>
+                <th style="width: 24%;" data-i18n="audit.th_details">Chi tiết nghiệp vụ</th>
               </tr>
             </thead>
             <tbody id="auditTableBody">
-              <tr><td colspan="5" style="text-align: center; color: var(--text-faint); padding: 24px;">Đang tải nhật ký kiểm toán...</td></tr>
+              <tr><td colspan="5" style="text-align: center; color: var(--text-faint); padding: 24px;" data-i18n="audit.loading">Đang tải nhật ký kiểm toán...</td></tr>
             </tbody>
           </table>
         </div>
@@ -551,9 +557,9 @@
         <div class="explorer-footer mono-font">
           <span id="auditPageSummary">Hiển thị 0 / 0 bản ghi</span>
           <div style="display: flex; gap: 8px;">
-            <button id="btnAuditPrev" class="btn-pill" style="padding: 2px 10px; font-size: 0.75rem;" disabled>Trang trước</button>
+            <button id="btnAuditPrev" class="btn-pill" style="padding: 2px 10px; font-size: 0.75rem;" disabled data-i18n="audit.prev">Trang trước</button>
             <span id="auditPageIndicator" style="color: var(--accent); font-size: 0.75rem; align-self: center;">1 / 1</span>
-            <button id="btnAuditNext" class="btn-pill" style="padding: 2px 10px; font-size: 0.75rem;" disabled>Trang sau</button>
+            <button id="btnAuditNext" class="btn-pill" style="padding: 2px 10px; font-size: 0.75rem;" disabled data-i18n="audit.next">Trang sau</button>
           </div>
         </div>
       </div>
@@ -562,8 +568,8 @@
     <!-- SLIDE-OVER SHELF (SIDE DRAWER 390px) -->
     <aside id="shelfDrawer" class="shelf-drawer">
       <div class="shelf-header">
-        <h3 class="shelf-title">Tệp tin &amp; Bộ nhớ tạm</h3>
-        <button id="btnCloseShelf" class="btn-pill" title="Đóng">
+        <h3 class="shelf-title" data-i18n="shelf.title">Tệp tin &amp; Bộ nhớ tạm</h3>
+        <button id="btnCloseShelf" class="btn-pill" title="Đóng" data-i18n-title="shelf.close_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -572,15 +578,15 @@
         <span class="seg__ind" aria-hidden="true"></span>
         <button type="button" class="on" data-shelf-tab="files" role="tab">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span>Tệp</span>
+          <span data-i18n="shelf.tab_files">Tệp</span>
         </button>
         <button type="button" data-shelf-tab="clipboard" role="tab">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-          <span>Clip</span>
+          <span data-i18n="shelf.tab_clipboard">Clip</span>
         </button>
         <button type="button" data-shelf-tab="chat" role="tab">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span>Chat</span>
+          <span data-i18n="shelf.tab_chat">Chat</span>
         </button>
       </div>
 
@@ -589,7 +595,7 @@
         <div id="shelfFilesTab">
           <button id="btnExpandExplorer" class="btn-pill" style="width: 100%; margin-bottom: 12px; justify-content: center; border-color: var(--accent); color: var(--accent);">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-            <span>Mở File Explorer toàn màn hình</span>
+            <span data-i18n="shelf.btn_expand">Mở File Explorer toàn màn hình</span>
           </button>
           <div id="fileDropzone" class="file-dropzone">
             <svg style="width: 32px; height: 32px; margin-bottom: 8px; color: var(--accent);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -597,8 +603,8 @@
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <p><strong>Kéo thả tệp tin để gửi</strong></p>
-            <p style="font-size: 0.75rem; margin-top: 4px; color: var(--text-faint);">hoặc bấm để chọn tệp</p>
+            <p><strong data-i18n="shelf.drop_text">Kéo thả tệp tin để gửi</strong></p>
+            <p style="font-size: 0.75rem; margin-top: 4px; color: var(--text-faint);" data-i18n="shelf.drop_sub">hoặc bấm để chọn tệp</p>
             <input type="file" id="fileInput" class="hidden">
           </div>
 
@@ -615,35 +621,35 @@
           <!-- Remote Folder Browser -->
           <div style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <p style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Duyệt thư mục máy trạm:</p>
-              <button id="btnBrowseUp" class="btn-pill" style="padding: 2px 8px; font-size: 0.7rem;">Thư mục cha ⇡</button>
+              <p style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);" data-i18n="shelf.browse_title">Duyệt thư mục máy trạm:</p>
+              <button id="btnBrowseUp" class="btn-pill" style="padding: 2px 8px; font-size: 0.7rem;" data-i18n="shelf.btn_up">Thư mục cha ⇡</button>
             </div>
-            <div id="currentFolderPath" class="mono-font" style="font-size: 0.75rem; color: var(--accent); margin-bottom: 8px; word-break: break-all;">Ổ đĩa</div>
+            <div id="currentFolderPath" class="mono-font" style="font-size: 0.75rem; color: var(--accent); margin-bottom: 8px; word-break: break-all;" data-i18n="shelf.drives_root">Ổ đĩa</div>
             <div id="remoteFolderList" class="folder-browser-list mono-font">
-              <div style="color: var(--text-faint); font-size: 0.75rem; padding: 10px;">Kết nối máy trạm để duyệt tệp</div>
+              <div style="color: var(--text-faint); font-size: 0.75rem; padding: 10px;" data-i18n="shelf.no_conn">Kết nối máy trạm để duyệt tệp</div>
             </div>
           </div>
         </div>
 
         <!-- Tab 2: Clipboard -->
         <div id="shelfClipboardTab" class="hidden">
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Nội dung bộ nhớ tạm (Tự động đồng bộ 2 chiều):</p>
-          <textarea id="clipboardViewer" class="instrument-input mono-font" rows="8" placeholder="Chưa có dữ liệu clipboard..." style="width: 100%; resize: vertical;"></textarea>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;" data-i18n="shelf.clip_title">Nội dung bộ nhớ tạm (Tự động đồng bộ 2 chiều):</p>
+          <textarea id="clipboardViewer" class="instrument-input mono-font" rows="8" placeholder="Chưa có dữ liệu clipboard..." data-i18n-placeholder="shelf.clip_placeholder" style="width: 100%; resize: vertical;"></textarea>
           <div style="display: flex; gap: 8px; margin-top: 14px;">
-            <button id="btnPushClipboard" class="btn-cta" style="flex: 1;">Đẩy clipboard</button>
-            <button id="btnTypeDirect" class="btn-pill" style="flex: 1;" title="Gõ trực tiếp ký tự Unicode vào ứng dụng đang mở (PowerPoint, Word, Notepad...)">Gõ trực tiếp</button>
+            <button id="btnPushClipboard" class="btn-cta" style="flex: 1;" data-i18n="shelf.btn_push_clip">Đẩy clipboard</button>
+            <button id="btnTypeDirect" class="btn-pill" style="flex: 1;" title="Gõ trực tiếp ký tự Unicode vào ứng dụng đang mở (PowerPoint, Word, Notepad...)" data-i18n="shelf.btn_type_direct" data-i18n-title="shelf.type_direct_title">Gõ trực tiếp</button>
           </div>
         </div>
 
         <!-- Tab 3: Live Chat with Host User -->
         <div id="shelfChatTab" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Tin nhắn trực tiếp tới người ngồi máy trạm:</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;" data-i18n="shelf.chat_title">Tin nhắn trực tiếp tới người ngồi máy trạm:</p>
           <div id="chatHistory" class="terminal-screen mono-font" style="flex: 1; min-height: 200px; max-height: 320px; margin-bottom: 12px; color: var(--text); font-size: 0.8rem; background: var(--ink-0);">
-            <div style="color: var(--text-faint);">Phiên chat trực tiếp với máy trạm</div>
+            <div style="color: var(--text-faint);" data-i18n="shelf.chat_welcome">Phiên chat trực tiếp với máy trạm</div>
           </div>
           <form id="chatInputForm" style="display: flex; gap: 8px;">
-            <input type="text" id="chatMessageInput" class="instrument-input mono-font" placeholder="Nhập tin nhắn..." style="flex: 1; padding: 8px 12px; font-size: 0.8rem;" autocomplete="off">
-            <button type="submit" class="btn-pill" style="border-color: var(--accent); color: var(--accent); padding: 8px 16px;">Gửi</button>
+            <input type="text" id="chatMessageInput" class="instrument-input mono-font" placeholder="Nhập tin nhắn..." data-i18n-placeholder="shelf.chat_placeholder" style="flex: 1; padding: 8px 12px; font-size: 0.8rem;" autocomplete="off">
+            <button type="submit" class="btn-pill" style="border-color: var(--accent); color: var(--accent); padding: 8px 16px;" data-i18n="shelf.chat_send">Gửi</button>
           </form>
         </div>
       </div>
@@ -655,28 +661,30 @@
   <div id="quickConnectModal" class="auth-container modal-overlay hidden">
     <div class="instrument-card">
       <div class="card-hero">
-        <h2 class="card-title brand-font">Kết nối bằng Room ID</h2>
-        <p class="card-subtitle">Nhập mã phòng và PIN để kết nối trực tiếp</p>
+        <h2 class="card-title brand-font" data-i18n="qc.title">Kết nối bằng Room ID</h2>
+        <p class="card-subtitle" data-i18n="qc.subtitle">Nhập mã phòng và PIN để kết nối trực tiếp</p>
       </div>
       <form id="quickConnectForm">
         <div class="form-group">
-          <label for="qcRelayUrl">Relay Server URL</label>
+          <label for="qcRelayUrl" data-i18n="qc.relay_url">Relay Server URL</label>
           <input type="text" id="qcRelayUrl" class="instrument-input mono-font" required>
         </div>
         <div class="form-group">
-          <label for="qcRoomId">Room ID / Mã phiên</label>
+          <label for="qcRoomId" data-i18n="qc.room_id">Room ID / Mã phiên</label>
           <input type="text" id="qcRoomId" class="instrument-input mono-font" value="RD-8888" required>
         </div>
         <div class="form-group">
-          <label for="qcPin">Mã PIN bảo mật</label>
+          <label for="qcPin" data-i18n="qc.pin">Mã PIN bảo mật</label>
           <input type="password" id="qcPin" class="instrument-input mono-font" value="123456" required>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 16px;">
-          <button type="button" id="btnCancelQC" class="btn-pill" style="flex: 1; padding: 10px; justify-content: center;">Hủy</button>
-          <button type="submit" class="btn-cta" style="flex: 2; margin-top: 0;">Kết nối ngay</button>
+          <button type="button" id="btnCancelQC" class="btn-pill" style="flex: 1; padding: 10px; justify-content: center;" data-i18n="qc.btn_cancel">Hủy</button>
+          <button type="submit" class="btn-cta" style="flex: 2; margin-top: 0;" data-i18n="qc.btn_connect">Kết nối ngay</button>
         </div>
       </form>
     </div>
+  </div>
+
   <!-- Online Direct File Editor Modal -->
   <div id="fileEditorModal" class="modal-overlay hidden" style="z-index: 10000; padding: 20px;">
     <div class="file-editor-card">
@@ -688,22 +696,22 @@
           <div>
             <div class="file-editor-title-row">
               <span id="editorFileName" class="file-editor-filename brand-font">document.txt</span>
-              <span id="editorDirtyBadge" class="editor-badge editor-badge--clean">ĐÃ LƯU</span>
+              <span id="editorDirtyBadge" class="editor-badge editor-badge--clean" data-i18n="editor.saved">ĐÃ LƯU</span>
               <span id="editorEncodingBadge" class="editor-badge editor-badge--meta">UTF-8</span>
             </div>
-            <div id="editorFilePath" class="file-editor-filepath mono-font" title="Đường dẫn tệp trên máy trạm">C:\path\to\file</div>
+            <div id="editorFilePath" class="file-editor-filepath mono-font" title="Đường dẫn tệp trên máy trạm" data-i18n-title="editor.path_title">C:\path\to\file</div>
           </div>
         </div>
         <div class="file-editor-header-right">
-          <label class="editor-wrap-toggle" title="Tự động xuống dòng">
+          <label class="editor-wrap-toggle" title="Tự động xuống dòng" data-i18n-title="editor.wrap_title">
             <input type="checkbox" id="editorWrapCheckbox" checked>
-            <span>Xuống dòng</span>
+            <span data-i18n="editor.wrap">Xuống dòng</span>
           </label>
-          <button id="btnSaveFile" class="btn-pill btn-save-file" title="Lưu trực tiếp lên máy trạm (Ctrl + S)">
+          <button id="btnSaveFile" class="btn-pill btn-save-file" title="Lưu trực tiếp lên máy trạm (Ctrl + S)" data-i18n-title="editor.btn_save_title">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            <span>Lưu (Ctrl+S)</span>
+            <span data-i18n="editor.btn_save">Lưu (Ctrl+S)</span>
           </button>
-          <button id="btnCloseFileEditor" class="btn-pill" title="Đóng trình soạn thảo">
+          <button id="btnCloseFileEditor" class="btn-pill" title="Đóng trình soạn thảo" data-i18n-title="editor.btn_close_title">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -713,12 +721,12 @@
       </div>
       <div class="file-editor-footer mono-font">
         <div class="file-editor-footer-left">
-          <span id="editorCursorPos">Dòng 1, Cột 1</span>
+          <span id="editorCursorPos" data-i18n="editor.cursor_default">Dòng 1, Cột 1</span>
           <span style="color: var(--line-light);">|</span>
-          <span id="editorStats">0 dòng, 0 ký tự</span>
+          <span id="editorStats" data-i18n="editor.stats_default">0 dòng, 0 ký tự</span>
         </div>
         <div class="file-editor-footer-right">
-          <span id="editorSaveTime" style="color: var(--text-faint);">Chưa sửa đổi</span>
+          <span id="editorSaveTime" style="color: var(--text-faint);" data-i18n="editor.unmodified">Chưa sửa đổi</span>
         </div>
       </div>
     </div>
@@ -727,6 +735,7 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
+  <script src="/js/i18n.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
