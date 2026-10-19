@@ -11,9 +11,15 @@ import random
 import string
 from pathlib import Path
 
-# Ensure package is resolvable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from host_agent.host_service import HostService
+# Ensure package is resolvable whether run from root or inside host_agent directory
+current_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(current_dir))
+sys.path.insert(0, str(current_dir.parent))
+
+try:
+    from host_agent.host_service import HostService
+except ModuleNotFoundError:
+    from host_service import HostService
 
 REG_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 APP_REG_NAME = "TitanRemoteHost"

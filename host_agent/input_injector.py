@@ -1,7 +1,10 @@
 import ctypes
 from ctypes import wintypes
 from typing import Optional, Tuple
-from .input_mapper import InputMapper
+try:
+    from .input_mapper import InputMapper
+except (ImportError, ValueError):
+    from input_mapper import InputMapper
 
 # Win32 Constants
 INPUT_MOUSE = 0

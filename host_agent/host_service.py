@@ -11,19 +11,33 @@ from pathlib import Path
 from typing import Optional
 import websockets
 
-# Ensure package is resolvable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Ensure package is resolvable whether run as module or standalone directory
+current_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(current_dir))
+sys.path.insert(0, str(current_dir.parent))
 
-from host_agent.protocol import Protocol
-from host_agent.screen_capture import ScreenCapture
-from host_agent.input_injector import InputInjector
-from host_agent.clipboard_manager import ClipboardManager
-from host_agent.file_manager import FileManager
-from host_agent.terminal_manager import TerminalManager
-from host_agent.system_manager import SystemManager
-from host_agent.power_manager import PowerManager
-from host_agent.audio_capture import AudioCapture
-from host_agent.audio_playback import AudioPlayback
+try:
+    from host_agent.protocol import Protocol
+    from host_agent.screen_capture import ScreenCapture
+    from host_agent.input_injector import InputInjector
+    from host_agent.clipboard_manager import ClipboardManager
+    from host_agent.file_manager import FileManager
+    from host_agent.terminal_manager import TerminalManager
+    from host_agent.system_manager import SystemManager
+    from host_agent.power_manager import PowerManager
+    from host_agent.audio_capture import AudioCapture
+    from host_agent.audio_playback import AudioPlayback
+except ModuleNotFoundError:
+    from protocol import Protocol
+    from screen_capture import ScreenCapture
+    from input_injector import InputInjector
+    from clipboard_manager import ClipboardManager
+    from file_manager import FileManager
+    from terminal_manager import TerminalManager
+    from system_manager import SystemManager
+    from power_manager import PowerManager
+    from audio_capture import AudioCapture
+    from audio_playback import AudioPlayback
 
 logging.basicConfig(
     level=logging.INFO,
@@ -476,59 +490,63 @@ class HostService:
         self.loop = asyncio.get_running_loop()
         w, h = self.capture.resolution
         logger.info(f"Starting Host Agent for Room [{self.room_id}] (Res: {w}x{h})")
+        PowerManager.prevent_sleep(True)
 
-        while self.running:
-            try:
-                logger.info(f"Connecting to Relay Server at {self.relay_url} ...")
-                async with websockets.connect(
-                    self.relay_url,
-                    ping_interval=20,
-                    ping_timeout=15,
-                    max_size=20 * 1024 * 1024
-                ) as ws:
-                    self.ws = ws
-                    init_pkt = json.dumps({
-                        "type": "init_host",
-                        "room_id": self.room_id,
-                        "pin": self.pin,
-                        "width": w,
-                        "height": h,
-                        "device_name": self.device_name,
-                        "account": self.account,
-                        "os_info": "Windows 11 x64",
-                        "monitors": self.capture.monitors
-                    })
-                    await ws.send(init_pkt)
+        try:
+            while self.running:
+                try:
+                    logger.info(f"Connecting to Relay Server at {self.relay_url} ...")
+                    async with websockets.connect(
+                        self.relay_url,
+                        ping_interval=20,
+                        ping_timeout=15,
+                        max_size=20 * 1024 * 1024
+                    ) as ws:
+                        self.ws = ws
+                        init_pkt = json.dumps({
+                            "type": "init_host",
+                            "room_id": self.room_id,
+                            "pin": self.pin,
+                            "width": w,
+                            "height": h,
+                            "device_name": self.device_name,
+                            "account": self.account,
+                            "os_info": "Windows 11 x64",
+                            "monitors": self.capture.monitors
+                        })
+                        await ws.send(init_pkt)
 
-                    ack_raw = await ws.recv()
-                    ack = json.loads(ack_raw) if isinstance(ack_raw, str) else {}
-                    if ack.get("status") != "ok":
-                        logger.error(f"Relay authentication rejected: {ack.get('message')}")
-                        await asyncio.sleep(5)
-                        continue
+                        ack_raw = await ws.recv()
+                        ack = json.loads(ack_raw) if isinstance(ack_raw, str) else {}
+                        if ack.get("status") != "ok":
+                            logger.error(f"Relay authentication rejected: {ack.get('message')}")
+                            await asyncio.sleep(5)
+                            continue
 
-                    logger.info(f"Host Registered Successfully! Room: {self.room_id}")
+                        logger.info(f"Host Registered Successfully! Room: {self.room_id}")
 
-                    self.audio_queue = asyncio.Queue(maxsize=50)
-                    send_task = asyncio.create_task(self._send_frames_loop(ws))
-                    audio_task = asyncio.create_task(self._send_audio_loop(ws))
-                    recv_task = asyncio.create_task(self._receive_events_loop(ws))
+                        self.audio_queue = asyncio.Queue(maxsize=50)
+                        send_task = asyncio.create_task(self._send_frames_loop(ws))
+                        audio_task = asyncio.create_task(self._send_audio_loop(ws))
+                        recv_task = asyncio.create_task(self._receive_events_loop(ws))
 
-                    done, pending = await asyncio.wait(
-                        [send_task, audio_task, recv_task],
-                        return_when=asyncio.FIRST_COMPLETED
-                    )
-                    for t in pending:
-                        t.cancel()
-                    self.audio_capture.stop()
-                    self.audio_playback.stop()
+                        done, pending = await asyncio.wait(
+                            [send_task, audio_task, recv_task],
+                            return_when=asyncio.FIRST_COMPLETED
+                        )
+                        for t in pending:
+                            t.cancel()
+                        self.audio_capture.stop()
+                        self.audio_playback.stop()
 
-            except (websockets.ConnectionClosed, ConnectionRefusedError, OSError) as e:
-                logger.warning(f"Connection lost ({e}). Reconnecting in 3s...")
-                await asyncio.sleep(3)
-            except Exception as e:
-                logger.error(f"Unexpected error: {e}. Reconnecting in 5s...")
-                await asyncio.sleep(5)
+                except (websockets.ConnectionClosed, ConnectionRefusedError, OSError) as e:
+                    logger.warning(f"Connection lost ({e}). Reconnecting in 3s...")
+                    await asyncio.sleep(3)
+                except Exception as e:
+                    logger.error(f"Unexpected error: {e}. Reconnecting in 5s...")
+                    await asyncio.sleep(5)
+        finally:
+            PowerManager.prevent_sleep(False)
 
 def main():
     parser = argparse.ArgumentParser(description="Titan Remote Desktop - Host Agent")

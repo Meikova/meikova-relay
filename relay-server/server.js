@@ -311,31 +311,36 @@ set "TARGET_DIR=%LOCALAPPDATA%\\TitanRemoteHost"
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
 
-echo [1/4] Kiem tra moi truong Python...
+echo [1/5] Kiem tra moi truong Python...
 where python >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo Python chua duoc cai dat. Dang thu cai dat Python qua winget...
     winget install Python.Python.3.13 --silent --accept-source-agreements --accept-package-agreements >nul 2>&1
 )
 
-echo [2/4] Dang tai ma nguon Host Agent tu Relay Server...
+echo [2/5] Dang tai ma nguon Host Agent tu Relay Server...
 powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip')"
 if exist "agent-package.zip" (
     powershell -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
     del agent-package.zip >nul 2>&1
+    if exist "host_agent\\gui_agent.py" copy /y host_agent\\*.py . >nul 2>&1
 ) else (
     echo [!] Khong the tai goi agent-package.zip. Kiem tra ket noi mang.
     pause
     exit /b 1
 )
 
-echo [3/4] Khoi tao Virtual Environment (.venv) & cai dat thu vien...
+echo [3/5] Khoi tao Virtual Environment (.venv) va cai dat thu vien...
 if not exist ".venv\\Scripts\\python.exe" (
     python -m venv .venv
 )
-".venv\\Scripts\\python.exe" -m pip install -r requirements.txt --quiet
+if exist "requirements.txt" (
+    ".venv\\Scripts\\python.exe" -m pip install -r requirements.txt --quiet
+) else if exist "host_agent\\requirements.txt" (
+    ".venv\\Scripts\\python.exe" -m pip install -r host_agent\\requirements.txt --quiet
+)
 
-echo [4/4] Ghi cau hinh lien ket voi tai khoan ${account}...
+echo [4/5] Ghi cau hinh lien ket voi tai khoan ${account}...
 set "RAND_ROOM=RD-%RANDOM%"
 set "RAND_PIN=%RANDOM%%RANDOM%"
 (
@@ -348,9 +353,13 @@ echo   "pin": "!RAND_PIN!"
 echo }
 ) > config.json
 
+echo [5/5] Dang ky tu dong khoi dong cung Windows (Auto-start on Boot / Restart)...
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "\"%TARGET_DIR%\\.venv\\Scripts\\pythonw.exe\" \"%TARGET_DIR%\\gui_agent.py\" --autostart" /f >nul 2>&1
+
 echo.
 echo ==============================================================
 echo   DA KET NOI VA LIEN KET VOI TAI KHOAN ${account}!
+echo   Room ID: !RAND_ROOM!  ^|  PIN: !RAND_PIN!
 echo   Dang khoi chay Host Agent trong che do ngam...
 echo ==============================================================
 start "" ".venv\\Scripts\\pythonw.exe" "gui_agent.py" --autostart

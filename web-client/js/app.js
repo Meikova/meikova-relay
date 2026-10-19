@@ -228,6 +228,14 @@
   let hostResolution = { width: 1920, height: 1080 };
   let isFitMode = true;
 
+  // Remote Restart & Auto-Reconnect
+  let isAwaitingRemoteRestart = false;
+  let restartReconnectRoom = '';
+  let restartReconnectPin = '';
+  let restartReconnectRelay = '';
+  let restartReconnectTimer = null;
+  let restartAttemptCount = 0;
+
   // Zoom & Pan
   let scale = 1.0;
   let panX = 0;
@@ -803,6 +811,10 @@
 
         if (msg.status === 'ok' && msg.role === 'client') {
           isConnected = true;
+          if (isAwaitingRemoteRestart) {
+            stopRestartReconnectPolling();
+            showToast('Máy trạm đã khởi động lại và kết nối thành công!', 'success');
+          }
           roStatus.textContent = `${roomId} // TRỰC TUYẾN`;
           if (msg.hostMeta) {
             updateHostResolution(msg.hostMeta.width, msg.hostMeta.height);
@@ -810,6 +822,10 @@
           }
           startPingLoop();
         } else if (msg.status === 'error') {
+          if (isAwaitingRemoteRestart) {
+            console.log('[Titan] Host is restarting, waiting before retry:', msg.message);
+            return;
+          }
           showToast(`Lỗi: ${msg.message}`, 'error');
           disconnect();
         } else if (msg.type === 'host_ready') {
@@ -930,6 +946,10 @@
             btnToggleBlockInput.title = isInputBlocked ? 'Đang khóa chuột & phím máy đích' : 'Khóa chuột & phím máy đích';
           }
         } else if (msg.type === 'host_disconnected') {
+          if (isAwaitingRemoteRestart) {
+            handleRemoteRestartReconnecting();
+            return;
+          }
           showToast('Máy trạm đã ngắt kết nối!', 'error');
           disconnect();
         }
@@ -939,12 +959,52 @@
     };
 
     ws.onclose = () => {
+      if (isAwaitingRemoteRestart) {
+        handleRemoteRestartReconnecting();
+        return;
+      }
       if (isConnected) showToast('Mất kết nối với máy trạm', 'error');
       disconnect();
     };
   }
 
+  function handleRemoteRestartReconnecting() {
+    if (!isAwaitingRemoteRestart) return;
+    if (ws) {
+      try { ws.close(); } catch {}
+      ws = null;
+    }
+    isConnected = false;
+    roStatus.textContent = `${restartReconnectRoom} // MÁY TRẠM ĐANG KHỞI ĐỘNG LẠI... (TỰ KẾT NỐI)`;
+
+    if (restartReconnectTimer) return;
+
+    showToast('Máy trạm đang khởi động lại. Đang tự động kết nối lại...', 'info', 4000);
+    restartAttemptCount = 0;
+
+    restartReconnectTimer = setInterval(() => {
+      if (!isAwaitingRemoteRestart) {
+        clearInterval(restartReconnectTimer);
+        restartReconnectTimer = null;
+        return;
+      }
+      restartAttemptCount++;
+      roStatus.textContent = `${restartReconnectRoom} // TỰ KẾT NỐI LẠI (LẦN ${restartAttemptCount})...`;
+      startRemoteSession(restartReconnectRelay || defaultWsUrl, restartReconnectRoom, restartReconnectPin);
+    }, 5000);
+  }
+
+  function stopRestartReconnectPolling() {
+    isAwaitingRemoteRestart = false;
+    if (restartReconnectTimer) {
+      clearInterval(restartReconnectTimer);
+      restartReconnectTimer = null;
+    }
+    restartAttemptCount = 0;
+  }
+
   function disconnect() {
+    stopRestartReconnectPolling();
     isConnected = false;
     currentRoom = null;
     currentPin = '';
@@ -1777,8 +1837,13 @@
           ws.send(JSON.stringify({ type: 'power_action', action: 'lock' }));
         }
       } else if (act === 'restart') {
-        if (confirm('Khởi động lại máy trạm sẽ ngắt phiên làm việc. Bạn có chắc chắn?')) {
+        if (confirm('Khởi động lại máy trạm sẽ ngắt phiên làm việc tạm thời. Hệ thống sẽ tự động kết nối lại khi máy online. Bạn có chắc chắn?')) {
+          isAwaitingRemoteRestart = true;
+          restartReconnectRoom = currentRoom;
+          restartReconnectPin = currentPin;
+          restartReconnectRelay = defaultWsUrl;
           ws.send(JSON.stringify({ type: 'power_action', action: 'restart' }));
+          showToast('Đã gửi lệnh khởi động lại. Hệ thống sẽ tự động kết nối lại...', 'warning', 5000);
         }
       }
     });

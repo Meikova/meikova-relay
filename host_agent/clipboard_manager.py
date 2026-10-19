@@ -1,7 +1,13 @@
 import time
 import threading
-import win32clipboard
+import ctypes
 from typing import Callable, Optional
+
+try:
+    import win32clipboard
+    HAS_WIN32 = True
+except ImportError:
+    HAS_WIN32 = False
 
 class ClipboardManager:
     """Synchronizes Windows clipboard with remote client."""
@@ -13,34 +19,86 @@ class ClipboardManager:
         self._thread: Optional[threading.Thread] = None
 
     def get_clipboard_text(self) -> Optional[str]:
+        if HAS_WIN32:
+            try:
+                win32clipboard.OpenClipboard()
+                if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_UNICODETEXT):
+                    return win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
+                return None
+            except Exception:
+                return None
+            finally:
+                try: win32clipboard.CloseClipboard()
+                except Exception: pass
+
+        # Native Windows ctypes fallback (Zero external dependencies)
         try:
-            win32clipboard.OpenClipboard()
-            if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_UNICODETEXT):
-                data = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
-                return data
-            return None
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            CF_UNICODETEXT = 13
+            if not user32.OpenClipboard(None):
+                return None
+            try:
+                if not user32.IsClipboardFormatAvailable(CF_UNICODETEXT):
+                    return None
+                h_mem = user32.GetClipboardData(CF_UNICODETEXT)
+                if not h_mem:
+                    return None
+                p_mem = kernel32.GlobalLock(h_mem)
+                if not p_mem:
+                    return None
+                try:
+                    return ctypes.wstring_at(p_mem)
+                finally:
+                    kernel32.GlobalUnlock(h_mem)
+            finally:
+                user32.CloseClipboard()
         except Exception:
             return None
-        finally:
-            try:
-                win32clipboard.CloseClipboard()
-            except Exception:
-                pass
 
     def set_clipboard_text(self, text: str) -> bool:
+        if HAS_WIN32:
+            try:
+                win32clipboard.OpenClipboard()
+                win32clipboard.EmptyClipboard()
+                win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, text)
+                self.last_text = text
+                return True
+            except Exception:
+                return False
+            finally:
+                try: win32clipboard.CloseClipboard()
+                except Exception: pass
+
+        # Native Windows ctypes fallback
         try:
-            win32clipboard.OpenClipboard()
-            win32clipboard.EmptyClipboard()
-            win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, text)
-            self.last_text = text # prevent loop echo
-            return True
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            CF_UNICODETEXT = 13
+            GMEM_MOVEABLE = 0x0002
+            data = text.encode('utf-16le') + b'\x00\x00'
+            h_mem = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+            if not h_mem:
+                return False
+            p_mem = kernel32.GlobalLock(h_mem)
+            if not p_mem:
+                kernel32.GlobalFree(h_mem)
+                return False
+            ctypes.memmove(p_mem, data, len(data))
+            kernel32.GlobalUnlock(h_mem)
+
+            if not user32.OpenClipboard(None):
+                kernel32.GlobalFree(h_mem)
+                return False
+            try:
+                user32.EmptyClipboard()
+                user32.SetClipboardData(CF_UNICODETEXT, h_mem)
+                self.last_text = text
+                return True
+            finally:
+                user32.CloseClipboard()
         except Exception:
             return False
-        finally:
-            try:
-                win32clipboard.CloseClipboard()
-            except Exception:
-                pass
 
     def start_listener(self):
         self._running = True

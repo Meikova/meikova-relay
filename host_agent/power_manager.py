@@ -38,3 +38,18 @@ class PowerManager:
             return res == 0
         except Exception:
             return False
+
+    @staticmethod
+    def prevent_sleep(enable: bool = True) -> bool:
+        """Keeps Windows awake, preventing display off and sleep while agent is running."""
+        try:
+            ES_CONTINUOUS = 0x80000000
+            ES_SYSTEM_REQUIRED = 0x00000001
+            ES_DISPLAY_REQUIRED = 0x00000002
+            if enable:
+                flags = ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
+            else:
+                flags = ES_CONTINUOUS
+            return ctypes.windll.kernel32.SetThreadExecutionState(flags) != 0
+        except Exception:
+            return False
