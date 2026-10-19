@@ -204,6 +204,7 @@
   let ws = null;
   let isConnected = false;
   let currentRoom = null;
+  let currentPin = '';
   let hostResolution = { width: 1920, height: 1080 };
   let isFitMode = true;
 
@@ -293,21 +294,147 @@
     return res.json();
   }
 
+  // --- URL ROUTING & PATH / QUERY STATE ENGINE ---
+  function getRouteStateFromUrl() {
+    const rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    let view = 'dashboard';
+    if (rawPath === 'auth' || rawPath === 'login') view = 'auth';
+    else if (rawPath === 'remote') view = 'remote';
+    else if (rawPath === 'files') view = 'files';
+    else if (rawPath === 'terminal') view = 'terminal';
+    else if (rawPath === 'tasks') view = 'tasks';
+    else if (rawPath === 'dashboard' || rawPath === '') view = 'dashboard';
+
+    return {
+      view,
+      room: params.get('room') || '',
+      pin: params.get('pin') || '',
+      browsePath: params.get('path') || ''
+    };
+  }
+
+  function syncUrlWithState(replace = false) {
+    let path = '/' + currentView;
+    if (currentView === 'dashboard') path = '/dashboard';
+    if (currentView === 'auth') path = '/auth';
+
+    const params = new URLSearchParams();
+    if (currentRoom && ['remote', 'files', 'terminal', 'tasks'].includes(currentView)) {
+      params.set('room', currentRoom);
+      if (currentPin) {
+        params.set('pin', currentPin);
+      }
+      if (currentView === 'files' && remoteCurrentPath) {
+        params.set('path', remoteCurrentPath);
+      }
+    }
+
+    const qs = params.toString() ? '?' + params.toString() : '';
+    const targetUrl = path + qs;
+    const currentUrl = window.location.pathname + window.location.search;
+
+    if (currentUrl !== targetUrl) {
+      if (replace) {
+        history.replaceState({ view: currentView, room: currentRoom, path: remoteCurrentPath }, '', targetUrl);
+      } else {
+        history.pushState({ view: currentView, room: currentRoom, path: remoteCurrentPath }, '', targetUrl);
+      }
+    }
+  }
+
+  window.addEventListener('popstate', () => {
+    const route = getRouteStateFromUrl();
+    if (route.view !== 'auth' && (!authToken || !currentUser)) {
+      switchView('auth', false);
+      return;
+    }
+    if (route.room && route.room !== currentRoom) {
+      currentRoom = route.room;
+      currentPin = route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
+      remoteCurrentPath = route.browsePath || '';
+      switchView(route.view, false);
+      startRemoteSession(defaultWsUrl, route.room, currentPin);
+      return;
+    }
+    if (route.browsePath && route.browsePath !== remoteCurrentPath) {
+      remoteCurrentPath = route.browsePath;
+    }
+    switchView(route.view, false);
+  });
+
   // --- INITIALIZATION ---
   async function initApp() {
+    const route = getRouteStateFromUrl();
+
     if (authToken) {
       try {
         const data = await apiFetch('/api/auth/me');
         if (data.success && data.user) {
           currentUser = data.user;
           renderUserBadge();
-          switchView('dashboard');
-          loadDeviceFleet();
+
+          // Restore deep link from URL
+          if (route.view === 'auth') {
+            switchView('dashboard', true);
+            return;
+          }
+
+          if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
+            currentRoom = route.room;
+            const savedPin = route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
+            currentPin = savedPin;
+            if (route.browsePath) {
+              remoteCurrentPath = route.browsePath;
+            }
+            switchView(route.view, false);
+            syncUrlWithState(true);
+            startRemoteSession(defaultWsUrl, route.room, savedPin);
+            return;
+          }
+
+          switchView(route.view || 'dashboard', false);
+          syncUrlWithState(true);
           return;
         }
       } catch {}
     }
-    switchView('auth');
+
+    // Unauthenticated
+    if (route.view !== 'auth' && route.room) {
+      sessionStorage.setItem('titan_pending_route', window.location.pathname + window.location.search);
+    }
+    switchView('auth', false);
+    syncUrlWithState(true);
+  }
+
+  function handleAuthSuccess(res) {
+    authToken = res.token;
+    localStorage.setItem('titan_token', authToken);
+    currentUser = res.user;
+    renderUserBadge();
+
+    const pending = sessionStorage.getItem('titan_pending_route');
+    if (pending) {
+      sessionStorage.removeItem('titan_pending_route');
+      history.replaceState(null, '', pending);
+      const route = getRouteStateFromUrl();
+      if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
+        currentRoom = route.room;
+        currentPin = route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
+        if (route.browsePath) remoteCurrentPath = route.browsePath;
+        switchView(route.view, false);
+        syncUrlWithState(true);
+        startRemoteSession(defaultWsUrl, route.room, currentPin);
+        return;
+      }
+      switchView(route.view, false);
+      syncUrlWithState(true);
+      return;
+    }
+
+    switchView('dashboard', true);
+    loadDeviceFleet();
   }
 
   function renderUserBadge() {
@@ -351,12 +478,7 @@
         credential: response.credential
       });
       if (res.success && res.token) {
-        authToken = res.token;
-        localStorage.setItem('titan_token', authToken);
-        currentUser = res.user;
-        renderUserBadge();
-        switchView('dashboard');
-        loadDeviceFleet();
+        handleAuthSuccess(res);
       } else {
         authError.textContent = res.message || 'Google đăng nhập thất bại';
         authError.classList.remove('hidden');
@@ -369,7 +491,7 @@
 
   initGoogleSignIn();
 
-  function switchView(view) {
+  function switchView(view, updateUrl = true) {
     currentView = view;
     authSection.classList.add('hidden');
     dashboardSection.classList.add('hidden');
@@ -394,7 +516,7 @@
       loadDeviceFleet();
     } else if (view === 'remote') {
       remoteSection.classList.remove('hidden');
-      roStatus.textContent = isConnected ? `${currentRoom} // TRỰC TUYẾN` : 'CHƯA KẾT NỐI';
+      roStatus.textContent = isConnected ? `${currentRoom} // TRỰC TUYẾN` : (currentRoom ? `${currentRoom} // ĐANG KẾT NỐI...` : 'CHƯA KẾT NỐI');
       resetDeckIdle();
     } else if (view === 'files') {
       filesSection.classList.remove('hidden');
@@ -409,6 +531,10 @@
       roStatus.textContent = isConnected ? `${currentRoom} // TIẾN TRÌNH` : 'CHƯA KẾT NỐI';
       if (isConnected) requestTelemetryAndTasks();
     }
+
+    if (updateUrl) {
+      syncUrlWithState(false);
+    }
   }
 
   // Navigation Click Handler
@@ -417,10 +543,10 @@
     if (!btn) return;
     const view = btn.dataset.view;
     if (view !== 'auth' && (!authToken || !currentUser)) {
-      switchView('auth');
+      switchView('auth', true);
       return;
     }
-    switchView(view);
+    switchView(view, true);
   });
 
   // --- AUTHENTICATION ---
@@ -446,12 +572,7 @@
     try {
       const res = await apiFetch(endpoint, 'POST', { username, password });
       if (res.success && res.token) {
-        authToken = res.token;
-        localStorage.setItem('titan_token', authToken);
-        currentUser = res.user;
-        renderUserBadge();
-        switchView('dashboard');
-        loadDeviceFleet();
+        handleAuthSuccess(res);
       } else {
         authError.textContent = res.message || 'Thao tác không thành công';
         authError.classList.remove('hidden');
@@ -463,11 +584,12 @@
   });
 
   btnLogout.addEventListener('click', () => {
+    disconnect();
     authToken = null;
     currentUser = null;
     localStorage.removeItem('titan_token');
     renderUserBadge();
-    switchView('auth');
+    switchView('auth', true);
   });
 
   // --- DASHBOARD FLEET ---
@@ -596,9 +718,18 @@
 
   // --- REMOTE DESKTOP SESSION ---
   function startRemoteSession(relayUrl, roomId, pin) {
-    switchView('remote');
-    roStatus.textContent = `${roomId} // ĐANG KẾT NỐI...`;
     currentRoom = roomId;
+    currentPin = pin || '';
+    if (pin) {
+      sessionStorage.setItem('titan_pin_' + roomId, pin);
+    }
+
+    if (!['files', 'terminal', 'tasks', 'remote'].includes(currentView)) {
+      switchView('remote', true);
+    } else {
+      syncUrlWithState(false);
+    }
+    roStatus.textContent = `${roomId} // ĐANG KẾT NỐI...`;
 
     if (ws) {
       ws.close();
@@ -773,6 +904,8 @@
 
   function disconnect() {
     isConnected = false;
+    currentRoom = null;
+    currentPin = '';
     updateAudioStreamUi(false);
     if (audioContext && audioContext.state !== 'closed') {
       try { audioContext.suspend(); } catch {}
@@ -783,7 +916,7 @@
       ws = null;
     }
     stopRecording();
-    switchView('dashboard');
+    switchView('dashboard', true);
   }
 
   btnDisconnect.addEventListener('click', disconnect);
@@ -1684,6 +1817,10 @@
     remoteParentPath = data.parent_path || '';
     currentExplorerDrives = data.drives || [];
     currentExplorerItems = data.items || [];
+
+    if (currentView === 'files') {
+      syncUrlWithState(true);
+    }
 
     // Render Quick Drive Selector Pills
     if (explorerDrivesRow) {

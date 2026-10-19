@@ -251,6 +251,17 @@ timeout /t 5
 
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
+      // SPA Fallback: Serve index.html for application routes without file extensions
+      if (!pathname.startsWith('/api/') && !path.extname(pathname)) {
+        const indexPath = path.join(WEB_CLIENT_DIR, 'index.html');
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        fs.createReadStream(indexPath).pipe(res);
+        return;
+      }
+
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('404 Not Found - Titan Remote Client');
       return;
