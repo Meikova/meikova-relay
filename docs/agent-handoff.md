@@ -1,6 +1,31 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.25)
+### Recent Updates (Version 1.0.26)
+- **Ẩn Titlebar Mặc Định & Tùy Biến Cửa Sổ Chuẩn EveryThingDownloader & MashLoop:**
+  - **Frameless Window & Custom Controls ([desktop_client.py](file:///D:/JOB/DEV/titan-remote/client_desktop/desktop_client.py)):**
+    - Cấu hình `frameless=True, easy_drag=False, shadow=True` ẩn thanh tiêu đề mặc định của Windows/macOS.
+    - Bật `WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX` cho phép kéo viền thay đổi kích thước và hiệu ứng Aero Snap.
+    - Tích hợp cụm nút điều khiển cửa sổ chuẩn hàng không avionics: Thu nhỏ (`-`), Phóng to / Khôi phục (`□` / `❐`), Đóng xuống khay (`✕`). Chỉ hiện khi chạy trong Desktop App (`is-desktop-app`), hoàn toàn ẩn trên Web Browser & Mobile PWA.
+    - Kéo thả mượt mà trên thanh topbar thông qua Win32 `ReleaseCapture()` + `SendMessage(WM_NCLBUTTONDOWN, HTCAPTION)`. Click đúp topbar để phóng to / khôi phục.
+  - **Menu Khay Hệ Thống Chuẩn Ambient-Dark ([client_desktop/desktop_client.py](file:///D:/JOB/DEV/titan-remote/client_desktop/desktop_client.py)):**
+    - Áp dụng `AmbientDarkRenderer` & `AmbientDarkColorTable` chuẩn `MashLoop` trên nền WinForms .NET (nền `#070D17`, viền `#1e293b`, hover xanh neon `#22c55e`, nút thoát đỏ `#ef4444`).
+    - Nạp bộ icon đồ họa PNG độ nét cao trong thư mục `client_desktop/tray_icons/` (`logo.png`, `window.png`, `browser.png`, `folder.png`, `autostart.png`, `refresh.png`, `quit.png`).
+    - Menu bao gồm:
+      1. Tiêu đề thương hiệu: `TITAN REMOTE // v1.0.25` (Disabled, in đậm, icon vô cực xanh).
+      2. `Mở Titan Remote` (In đậm, restore & bring to front).
+      3. `Mở trên trình duyệt Web` (Mở URL máy chủ trên trình duyệt mặc định).
+      4. `Mở thư mục tệp tin (Downloads)` (Truy cập nhanh tệp tin nhận được).
+      5. `Khởi động cùng Windows: Bật / Tắt` (Ghi trực tiếp Registry `HKCU\Run`).
+      6. `Tải lại giao diện (F5)` (Làm mới WebView2).
+      7. `Thoát hoàn toàn` (Chữ đỏ cảnh báo, dọn dẹp khay và tắt ứng dụng).
+    - Hỗ trợ click chuột trái và click đúp để mở lại cửa sổ; fallback đa nền tảng sang `pystray`.
+  - **Đóng gói & Bàn giao Git:**
+    - Rebuild thành công [TitanRemoteClient.exe](file:///D:/JOB/DEV/titan-remote/dist/TitanRemoteClient.exe).
+    - Commit `c9c9258` đã push lên `origin/main`.
+
+---
+
+### Previous Updates (Version 1.0.25)
 - **Chạy Ngầm Close-to-Tray & Chuẩn hóa Đa Nền tảng Toàn Diện (Desktop Client, Web PWA, Mobile):**
   - **Cơ chế Chạy Ngầm Khay Hệ Thống (Close-to-Tray):**
     - Bắt sự kiện `window.events.closing`: Khi người dùng bấm nút tắt [X] hoặc Alt+F4, cửa sổ tự động ẩn (`window.hide()`), tiến trình tiếp tục chạy nền ở System Tray.
