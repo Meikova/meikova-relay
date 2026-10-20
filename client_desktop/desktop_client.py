@@ -298,6 +298,19 @@ def main(argv=None):
     local_db = ClientLocalDB()
     bridge = DesktopBridge(local_db)
 
+    # AppUserModelID for Windows Taskbar Grouping & Icon
+    if sys.platform == "win32":
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("TitanRemote.DesktopClient.1.0")
+        except Exception:
+            pass
+
+    # Find icon
+    ico_path = _root_dir / "client_desktop" / "icon.ico"
+    if not ico_path.exists():
+        ico_path = _root_dir / "host_agent" / "icon.ico"
+    icon_str = str(ico_path) if ico_path.exists() else None
+
     # Initialize webview window with ambient dark styling
     window = webview.create_window(
         title="Titan Remote — Avionics Console",
@@ -315,8 +328,7 @@ def main(argv=None):
     tray.start()
 
     def on_loaded():
-        # Apply dark titlebar and window icon once HWND is created
-        if sys.platform == "win32":
+        def _apply_theme():
             time.sleep(0.3)
             try:
                 hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
@@ -325,12 +337,14 @@ def main(argv=None):
                     set_window_icon(hwnd)
             except Exception as e:
                 logger.debug("Failed applying window theme: %s", e)
+        if sys.platform == "win32":
+            threading.Thread(target=_apply_theme, daemon=True).start()
 
     window.events.loaded += on_loaded
 
     # Start Edge WebView2
     try:
-        webview.start(debug=args.debug, gui="edgechromium" if sys.platform == "win32" else None)
+        webview.start(debug=args.debug, icon=icon_str)
     finally:
         tray.stop()
 
