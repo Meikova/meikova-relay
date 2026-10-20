@@ -2,7 +2,15 @@
 
 ### Project Status
 - Path: `D:\JOB\DEV\titan-remote`
-- Exit Code: 0 (67/67 unit tests pass)
+- GitHub Repo: `https://github.com/m3iK18dp/titan-remote.git`
+- GitHub Release: `https://github.com/m3iK18dp/titan-remote/releases/tag/v1.0.5`
+- GitHub Actions CI/CD Run: `https://github.com/m3iK18dp/titan-remote/actions/runs/39365130954` (Conclusion: SUCCESS across all 3 OS runners)
+- Local Test Suite: Exit Code 0 (67/67 unit tests pass)
+- Published Workstation Packages:
+  1. Windows: `TitanRemoteHost.exe` (20.34 MB), `TitanRemoteHost-windows-x64.zip` (20.08 MB)
+  2. Linux: `titan-remote-host` (36.14 MB), `titan-remote-host_amd64.deb` (35.91 MB), `titan-remote-host-linux-x64.tar.gz` (35.91 MB)
+  3. macOS: `TitanRemoteHost` (17.80 MB), `titan-remote-host-macos.tar.gz` (17.59 MB)
+  4. Checksums: `SHA256SUMS.txt` (Consolidated SHA256 hashes)
 
 ## Completed Features
 1. **Multi-Platform Workstation Build Engine & CI/CD Matrix Pipeline:**
@@ -11,18 +19,21 @@
      - Linux: Tự động biên dịch ELF standalone `titan-remote-host`, tạo gói Debian / Ubuntu `titan-remote-host_amd64.deb` chuẩn format `ar` + `control.tar.gz` + `data.tar.gz` (tích hợp systemd unit và desktop entry) và gói `titan-remote-host-linux-x64.tar.gz`.
      - macOS: Tự động biên dịch `TitanRemoteHost`, tạo gói `titan-remote-host-macos.tar.gz` (tích hợp launchd plist) và `.dmg`.
      - Tự động tính toán và xuất mã băm `SHA256SUMS.txt` cho toàn bộ artifact.
-   - **Shell & Batch Wrappers:**
-     - `build-exe.bat`: Cập nhật gọi `scripts/build.py --target windows`.
-     - `scripts/build-linux.sh`: Script 1-click build trên Linux.
-     - `scripts/build-macos.sh`: Script 1-click build trên macOS.
+   - **Cross-Platform Guards & Headless CI Hardening:**
+     - `host_agent/deployment_manager.py`: Guard an toàn `winreg`, hỗ trợ phân quyền người dùng và đường dẫn cài đặt trên Linux (`~/.titan_remote_host`, `/opt/titan-remote-host`) và macOS.
+     - `host_agent/system_manager.py`: Fallback telemetry không phụ thuộc `ctypes.windll`, dùng `/proc/meminfo` và `ps` POSIX chuẩn.
+     - `host_agent/clipboard_manager.py`: Guard nền tảng `win32` trước `win32clipboard` và `ctypes.windll`, fallback POSIX qua `pbpaste`/`pbcopy` (macOS) và `xclip`/`xsel` (Linux).
+     - `host_agent/file_manager.py`: Bổ sung kiểm tra ổ đĩa POSIX Root (`/`) và các điểm mount `/Volumes`, `/media`, `/mnt`.
+     - `host_agent/gui_agent.py`: Bọc an toàn `winreg` và bắt ngoại lệ headless (`except Exception:`) khi `pystray`/`pywebview` chạy trong môi trường CI không có `$DISPLAY`.
+     - `host_agent/terminal_manager.py`: Phân nhánh lệnh xả đệm terminal: PowerShell `[Console]::Out.Flush()` chỉ kích hoạt trên Windows, POSIX dùng chuẩn stream stdin flush.
    - **GitHub Actions CI/CD Pipeline (`.github/workflows/build-release.yml`):**
-     - Thiết lập ma trận 3 runner độc lập: `windows-latest`, `ubuntu-latest`, `macos-latest`.
-     - Chạy toàn bộ test suite trên từng hệ điều hành.
-     - Tự động xuất bản GitHub Release đa nền tảng gồm đầy đủ file: `.exe`, `.zip`, `.deb`, `.tar.gz`, `.dmg`, `SHA256SUMS.txt`.
+     - Ma trận 3 runner độc lập: `windows-latest`, `ubuntu-latest`, `macos-latest`.
+     - Tự động cấu hình Node.js 20 và cài đặt dependencies cho relay server để chạy trọn vẹn E2E tests trên mọi runner.
+     - Cơ chế Release trực tiếp qua GitHub Releases API (`softprops/action-gh-release@v2`), vượt qua giới hạn dung lượng GitHub Actions storage quota.
    - **Relay Server & Landing UI Endpoints:**
      - Relay Server hỗ trợ endpoint tải trực tiếp: `/api/download/titan-remote-host_amd64.deb`, `/api/download/titan-remote-host-linux-x64.tar.gz`, `/api/download/titan-remote-host-macos.tar.gz`, `/api/download/TitanRemoteHost-windows-x64.zip`.
      - Giao diện Landing Hub bổ sung nút tải gói `.deb`, `.tar.gz` trực tiếp cho Linux & macOS.
-   - **Kiểm thử tự động:** Bổ sung `tests/test_build_packaging.py`, toàn bộ 67/67 tests chạy thành công (Exit Code 0).
+   - **Kiểm thử tự động:** Toàn bộ 67/67 unit & integration tests chạy thành công trên cả 3 runner Windows, Linux và macOS (Exit Code 0).
 1. **True 1:1 Pixel-Perfect Native Replication & Auto-Sync Display Engine:**
    - **1:1 Chuẩn gốc (Pixel-Perfect Native Replica):**
      - Host Agent streaming engine: Bổ sung cấu hình `native_1to1` (`quality: 95`, `max_width: None`, `frame_interval: 1/60.0`), loại bỏ triệt để hiện tượng nén mờ điểm ảnh.
