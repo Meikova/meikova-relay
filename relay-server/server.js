@@ -1,4 +1,5 @@
 const http = require('http');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer, WebSocket } = require('ws');
@@ -196,6 +197,134 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         return jsonResponse(res, 400, { success: false, message: 'Google token không hợp lệ: ' + err.message });
       }
+    }
+
+    // 2.6 Auth: Google Desktop Flow (RFC 8252 System Browser Authorization)
+    if (pathname === '/api/auth/google/url' && req.method === 'GET') {
+      const ticket = crypto.randomBytes(16).toString('hex');
+      if (!global.desktopAuthTickets) global.desktopAuthTickets = new Map();
+      global.desktopAuthTickets.set(ticket, { status: 'pending', expiresAt: Date.now() + 300000 });
+      
+      const hostHeader = req.headers['host'] || `127.0.0.1:${PORT}`;
+      const proto = req.headers['x-forwarded-proto'] || 'http';
+      const redirectUri = `${proto}://${hostHeader}/api/auth/google/callback`;
+      const googleClientId = process.env.GOOGLE_CLIENT_ID || '515668723869-066g74dbt8c3b61odfigv6gl3552coj3.apps.googleusercontent.com';
+      
+      const params = new URLSearchParams({
+        client_id: googleClientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'openid email profile',
+        access_type: 'offline',
+        prompt: 'consent select_account',
+        state: ticket
+      });
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      return jsonResponse(res, 200, { success: true, auth_url: authUrl, ticket, redirect_uri: redirectUri });
+    }
+
+    if (pathname === '/api/auth/google/callback' && req.method === 'GET') {
+      const code = url.searchParams.get('code');
+      const ticket = url.searchParams.get('state');
+      const error = url.searchParams.get('error');
+      
+      if (error || !code) {
+        res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<div style="background:#070D17;color:#EF4444;padding:32px;font-family:sans-serif;text-align:center;">
+          <h2>Lỗi xác thực Google</h2>
+          <p>${error || 'Không nhận được mã ủy quyền từ Google'}</p>
+        </div>`);
+        return;
+      }
+      
+      try {
+        const hostHeader = req.headers['host'] || `127.0.0.1:${PORT}`;
+        const proto = req.headers['x-forwarded-proto'] || 'http';
+        const redirectUri = `${proto}://${hostHeader}/api/auth/google/callback`;
+        const googleClientId = process.env.GOOGLE_CLIENT_ID || '515668723869-066g74dbt8c3b61odfigv6gl3552coj3.apps.googleusercontent.com';
+        const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
+        
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            code,
+            client_id: googleClientId,
+            client_secret: googleClientSecret,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code'
+          })
+        });
+        
+        const tokenData = await tokenRes.json();
+        if (!tokenData.id_token) {
+          throw new Error(tokenData.error_description || 'Không thể đổi ID Token');
+        }
+        
+        const parts = tokenData.id_token.split('.');
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+        const email = payload.email;
+        const name = payload.name || email.split('@')[0];
+        const auth = DB.googleAuth(email, name);
+        
+        if (ticket && global.desktopAuthTickets && global.desktopAuthTickets.has(ticket)) {
+          global.desktopAuthTickets.set(ticket, {
+            status: 'success',
+            token: auth.token,
+            user: auth.user,
+            expiresAt: Date.now() + 60000
+          });
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<!DOCTYPE html>
+        <html lang="vi">
+        <head>
+          <meta charset="utf-8">
+          <title>Titan Remote // Đăng nhập Google thành công</title>
+          <style>
+            body { background: #070D17; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .card { background: #0F172A; border: 1px solid #1E293B; border-radius: 16px; padding: 36px 32px; text-align: center; max-width: 440px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); }
+            .badge { display: inline-flex; align-items: center; gap: 8px; color: #22C55E; font-size: 13px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 16px; background: rgba(34, 197, 94, 0.12); padding: 6px 14px; border-radius: 999px; }
+            h2 { margin: 0 0 10px; font-size: 22px; font-weight: 600; }
+            p { color: #94A3B8; font-size: 14px; line-height: 1.5; margin: 0 0 24px; }
+            .dot { width: 8px; height: 8px; border-radius: 50%; background: #22C55E; display: inline-block; animation: pulse 1.5s infinite; }
+            @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="badge"><span class="dot"></span> XÁC THỰC GOOGLE THÀNH CÔNG</div>
+            <h2>Xin chào, ${name}</h2>
+            <p>Tài khoản đã được liên kết với cụm Titan Remote. Ứng dụng Desktop đang tự động kích hoạt phiên làm việc...</p>
+          </div>
+          <script>
+            try { localStorage.setItem('titan_token', '${auth.token}'); } catch(e){}
+            setTimeout(function() { window.location.href = '/'; }, 1500);
+          </script>
+        </body>
+        </html>`);
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<div style="background:#070D17;color:#EF4444;padding:32px;font-family:sans-serif;text-align:center;">
+          <h2>Lỗi trao đổi mã với Google</h2>
+          <p>${err.message}</p>
+        </div>`);
+      }
+      return;
+    }
+
+    if (pathname === '/api/auth/google/poll' && req.method === 'GET') {
+      const ticket = url.searchParams.get('ticket');
+      if (!ticket || !global.desktopAuthTickets || !global.desktopAuthTickets.has(ticket)) {
+        return jsonResponse(res, 404, { success: false, message: 'Ticket không tồn tại hoặc đã hết hạn' });
+      }
+      const entry = global.desktopAuthTickets.get(ticket);
+      if (entry.status === 'success') {
+        global.desktopAuthTickets.delete(ticket);
+        return jsonResponse(res, 200, { success: true, token: entry.token, user: entry.user });
+      }
+      return jsonResponse(res, 200, { success: false, status: 'pending' });
     }
 
     // Auth Middleware for protected endpoints
