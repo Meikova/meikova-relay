@@ -5,7 +5,9 @@ const { WebSocketServer, WebSocket } = require('ws');
 const DB = require('./db');
 
 const PORT = process.env.PORT || 8080;
-const WEB_CLIENT_DIR = path.join(__dirname, '..', 'web-client');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const FALLBACK_DIR = path.join(__dirname, '..', 'web-client');
+const WEB_CLIENT_DIR = fs.existsSync(path.join(PUBLIC_DIR, 'index.html')) ? PUBLIC_DIR : FALLBACK_DIR;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
