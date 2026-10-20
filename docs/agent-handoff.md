@@ -1,6 +1,21 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.15)
+### Recent Updates (Version 1.0.16)
+- **Sửa lỗi dính thông tin Telemetry Overlay (`#ro-tr`) sau khi ngắt kết nối:**
+  - **Nguyên nhân:** Khi kết thúc phiên remote điều khiển (`disconnect()`), client chỉ đóng WebSocket và chuyển về Dashboard nhưng không dọn dẹp biến telemetry. Phần tử `#ro-tr` ở góc trên bên phải vẫn giữ nguyên DOM hiển thị `RTT: 1ms _____ // 21 FPS // RES: 1920x1080` kèm đồ thị sparkline canvas.
+  - **Khắc phục:**
+    - Tạo hàm `resetSessionMetrics()` trong `web-client/js/app.js`: Đặt lại `metricPing`, `metricFps`, `metricRes` về `--`, xóa mảng `pingSamples`, xóa sạch nét vẽ canvas `sparkCtx.clearRect()`.
+    - Cập nhật hàm `updateRoStatus()`: Quản lý hiển thị `#ro-tr` theo điều kiện nghiêm ngặt `const showTr = isConnected && (currentView === 'remote' || currentView === 'terminal' || currentView === 'files' || currentView === 'tasks')`. Khi không kết nối hoặc đang ở Dashboard / Landing / Auth, ẩn hoàn toàn `#ro-tr` (`display: none`).
+    - Khởi tạo ẩn mặc định `#ro-tr` trong `web-client/index.html` (`style="display: none;"`).
+- **Tối ưu trải nghiệm cài đặt & Khởi động Host Agent:**
+  - Cài đặt đầy đủ `pywebview`, `pythonnet`, `pystray`, `pillow` vào môi trường Python 3.12 và đóng gói lại bản nhị phân `dist/TitanRemoteHost.exe`.
+  - Trong `host_agent/gui_agent.py`: Tự động kích hoạt dịch vụ kết nối `api.start_service()` ngay khi nạp giao diện; chỉ thu nhỏ xuống System Tray nếu có tham số `--autostart` (dành cho Windows Startup). Khi người dùng chạy trực tiếp hoặc cài qua file `.bat`, cửa sổ GUI sẽ lập tức hiển thị trên màn hình để quan sát Room ID, PIN và trạng thái kết nối.
+  - Cập nhật kịch bản `setup.bat` khởi chạy ứng dụng trực quan (không thêm `--autostart` ở lần chạy đầu tiên, giữ `--autostart` trong registry Run).
+- **Bump phiên bản v1.0.16** trên toàn bộ asset (`package.json`, `index.html`, CSS, JS).
+
+---
+
+### Previous Updates (Version 1.0.15)
 - **Sửa triệt để lỗi treo GUI ("TitanRemoteHost.exe is not responding") và liên kết máy trạm vào Dashboard:**
   - **Nguyên nhân 1 (PyWebView Reflection Deadlock):** Lớp `HostApi` trước đây khai báo các thuộc tính công khai như `self.window`, `self.host_service`, `self.service_thread`, `self.tray_icon`. Cơ chế JS Bridge của PyWebView tự động dùng reflection duyệt qua toàn bộ thuộc tính không có dấu `_`. Khi duyệt vào đối tượng native Windows Forms (`window.native`) và WebView2 controller từ background thread, hệ thống ném hàng ngàn ngoại lệ `CoreWebView2Controller members can only be accessed from the UI thread`, làm kẹt hoàn toàn Windows message loop khiến cửa sổ bị treo cứng và hiện thông báo "is not responding".
     - *Khắc phục:* Chuyển toàn bộ biến trạng thái nội bộ sang private có tiền tố `_` (`self._window`, `self._host_service`, `self._service_thread`, `self._tray_icon`, `self._is_quitting`). Loại bỏ thao tác Win32 icon chéo luồng trong `on_shown`.

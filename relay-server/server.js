@@ -419,10 +419,10 @@ copy /y config.json "%USERPROFILE%\\.titan_remote_config.json" >nul 2>&1
 
 if "%USE_STANDALONE%"=="1" (
     reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "\"%TARGET_DIR%\\TitanRemoteHost.exe\" --autostart" /f >nul 2>&1
-    start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\TitanRemoteHost.exe" --autostart
+    start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\TitanRemoteHost.exe"
 ) else (
     reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "pythonw.exe \"%TARGET_DIR%\\gui_agent.py\" --autostart" /f >nul 2>&1
-    start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py" --autostart
+    start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py"
 )
 
 echo.

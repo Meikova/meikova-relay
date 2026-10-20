@@ -1818,8 +1818,8 @@ def launch_webview_app(autostart: bool = False):
             pass
 
     def on_loaded():
+        threading.Thread(target=api.start_service, daemon=True).start()
         if autostart:
-            threading.Thread(target=api.start_service, daemon=True).start()
             if HAS_TRAY:
                 api.minimize_to_tray()
 
@@ -1950,8 +1950,8 @@ def main():
     if "--legacy-tk" in sys.argv or not HAS_WEBVIEW:
         root = tk.Tk()
         app = TitanHostGUI(root)
+        root.after(100, app._start_service)
         if autostart:
-            root.after(100, app._start_service)
             if HAS_TRAY:
                 root.after(200, app._minimize_to_tray)
             else:
@@ -1965,8 +1965,8 @@ def main():
         print(f"[WARN] WebView2 launch failed ({e}), falling back to Tkinter GUI.")
         root = tk.Tk()
         app = TitanHostGUI(root)
+        root.after(100, app._start_service)
         if autostart:
-            root.after(100, app._start_service)
             if HAS_TRAY:
                 root.after(200, app._minimize_to_tray)
             else:

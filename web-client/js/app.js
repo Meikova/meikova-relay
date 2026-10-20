@@ -101,6 +101,7 @@
   let gridMonitorOrder = [];
   let monitorTileMap = new Map(); // id -> { tile, canvas, ctx, mon }
   const roStatus = document.getElementById('roStatus');
+  const roTr = document.getElementById('ro-tr');
   const metricPing = document.getElementById('metricPing');
   const metricFps = document.getElementById('metricFps');
   const metricRes = document.getElementById('metricRes');
@@ -108,6 +109,16 @@
   const sparkCtx = sparklineCanvas ? sparklineCanvas.getContext('2d') : null;
   const pingSamples = [];
   const toastContainer = document.getElementById('toastContainer');
+
+  function resetSessionMetrics() {
+    if (metricPing) metricPing.textContent = '--';
+    if (metricFps) metricFps.textContent = '--';
+    if (metricRes) metricRes.textContent = '--';
+    pingSamples.length = 0;
+    if (sparkCtx && sparklineCanvas) {
+      sparkCtx.clearRect(0, 0, sparklineCanvas.width, sparklineCanvas.height);
+    }
+  }
 
   function showToast(message, type = 'info', duration = 3500) {
     if (!toastContainer) return;
@@ -1558,6 +1569,11 @@
     } else if (currentView === 'audit') {
       roStatus.textContent = isConnected ? `${currentRoom} // ${t('nav.audit').toUpperCase()}` : t('nav.audit').toUpperCase();
     }
+
+    if (roTr) {
+      const showTr = isConnected && (currentView === 'remote' || currentView === 'terminal' || currentView === 'files' || currentView === 'tasks');
+      roTr.style.display = showTr ? '' : 'none';
+    }
   }
 
   function switchView(view, updateUrl = true) {
@@ -2254,6 +2270,7 @@
 
   // --- REMOTE DESKTOP SESSION ---
   function startRemoteSession(relayUrl, roomId, pin) {
+    resetSessionMetrics();
     currentRoom = roomId;
     currentPin = pin || '';
     if (pin) {
@@ -2311,6 +2328,7 @@
             showToast('Máy trạm đã khởi động lại và kết nối thành công!', 'success');
           }
           roStatus.textContent = `${roomId} // ${t('ro.connected')}`;
+          updateRoStatus();
           updateTerminalStatusBadge();
           if (msg.hostMeta) {
             updateHostResolution(msg.hostMeta.width, msg.hostMeta.height);
@@ -2509,6 +2527,7 @@
   function disconnect() {
     stopRestartReconnectPolling();
     isConnected = false;
+    resetSessionMetrics();
     updateTerminalStatusBadge();
     currentRoom = null;
     currentPin = '';
@@ -2524,6 +2543,7 @@
     }
     stopRecording();
     stopWebcam();
+    updateRoStatus();
     switchView('dashboard', true);
   }
 
