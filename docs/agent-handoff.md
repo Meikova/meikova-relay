@@ -1,6 +1,24 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.24)
+### Recent Updates (Version 1.0.25)
+- **Chạy Ngầm Close-to-Tray & Chuẩn hóa Đa Nền tảng Toàn Diện (Desktop Client, Web PWA, Mobile):**
+  - **Cơ chế Chạy Ngầm Khay Hệ Thống (Close-to-Tray):**
+    - Bắt sự kiện `window.events.closing`: Khi người dùng bấm nút tắt [X] hoặc Alt+F4, cửa sổ tự động ẩn (`window.hide()`), tiến trình tiếp tục chạy nền ở System Tray.
+    - Click đúp vào biểu tượng khay hoặc chọn *"Mở Titan Remote"* sẽ kích hoạt lại cửa sổ (`show()`, `restore()`, và kéo lên foreground).
+    - Chỉ thoát hoàn toàn khi chọn *"Thoát"* từ menu System Tray.
+  - **Khả Năng Tương Thích Đa Nền Tảng (Cross-Platform):**
+    - **Windows:** Sử dụng WinForms/EdgeChromium, Win32 API (`FindWindowW`, `ShowWindow` SW_RESTORE/SW_SHOW, `SetForegroundWindow`, `SetCurrentProcessExplicitAppUserModelID`). Icon dùng `.ico` với đầy đủ 7 phân giải.
+    - **macOS:** Hỗ trợ pywebview Cocoa/WebKit, kích hoạt cửa sổ bằng AppleScript (`osascript -e 'tell application "Titan Remote Client" to activate'`). Icon tự động trỏ sang `.png`.
+    - **Linux:** Hỗ trợ GTK/WebKitGTK, kích hoạt cửa sổ bằng `wmctrl -a "Titan Remote — Avionics Console"`. Icon tự động trỏ sang `.png`.
+    - **Web PWA & Mobile:** Manifest standalone (`manifest.json`), Stale-While-Revalidate Service Worker (`sw.js`), viewport-fit=cover, iOS meta tags, hỗ trợ Deep Link `titanremote://` cho native app di động.
+  - **Kiểm Thử & Đóng Gói:**
+    - Chạy unit test mô phỏng `on_closing` và `show_window`: Exit Code 0 (ALL CHECKS PASSED).
+    - Biên dịch lại [TitanRemoteClient.exe](file:///D:/JOB/DEV/titan-remote/dist/TitanRemoteClient.exe) với PyInstaller.
+    - Đã push commit `658dd09` lên `origin/main`.
+
+---
+
+### Previous Updates (Version 1.0.24)
 - **Cô lập Phiên Đăng nhập Google OAuth (Desktop, Mobile & Web theo chuẩn EveryThingDownloader & MashLoop):**
   - **Khắc phục lỗi dính session web khi login trên app:** Khi Desktop App mở Chrome ngoài để xác thực, endpoint callback trước đây vô tình ghi `titan_token` vào `localStorage` của Chrome và redirect về `/`, khiến cả Web lẫn Desktop đều nhận session.
   - **Tách 3 luồng xác thực độc lập bằng tiền tố `state` (`desktop_`, `mobile_`, `web_`):**
