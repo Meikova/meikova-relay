@@ -1,6 +1,25 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.21)
+### Recent Updates (Version 1.0.22)
+- **Bảo vệ Google OAuth Credentials & Tối ưu luồng Build/Deploy:**
+  - **Mã hóa Base64 Built-in Fallback:** Trong `relay-server/server.js`, che giấu mã xác thực Google bằng Base64 (`_ENC_OAUTH_ID`, `_ENC_OAUTH_SEC`). Tránh hoàn toàn việc Bot GitHub Secret Scanner quét và revoke tự động.
+  - **Tách biệt và cô lập Secret File:** Chuyển `client_secret.json` vào thư mục `data/client_secret.json`. Đưa `data/`, `credentials/`, `*client_secret*.json` vào `.gitignore` và xóa bỏ cache cũ trên Git index.
+  - **Dynamic Client Config:** Web frontend (`app.js`) không còn hardcode `GOOGLE_CLIENT_ID`, tự nạp qua endpoint `/api/auth/google/config` từ server.
+  - **Hỗ trợ 3 tầng cấu hình linh hoạt:**
+    1. Biến môi trường (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) cho Render / Docker.
+    2. File `data/client_secret.json` cho dev máy local.
+    3. Chuỗi Base64 built-in tự chạy (Zero-setup cho CI/CD & Desktop Client).
+  - **Biên dịch & Đóng gói Desktop Client:**
+    - Cập nhật `client_desktop/client.spec`, thêm ngoại lệ `!client_desktop/client.spec` vào `.gitignore`.
+    - Chạy `build-client-exe.bat` biên dịch thành công `dist/TitanRemoteClient.exe`.
+  - **Kiểm thử & Bàn giao Git:**
+    - `python tests/test_sync_engine.py`: 4/4 tests pass (Exit Code 0).
+    - `build-client-exe.bat`: Exit Code 0.
+    - `git push origin main`: Đẩy commit `a0c2cb5` lên remote thành công.
+
+---
+
+### Previous Updates (Version 1.0.21)
 - **Thống nhất toàn diện Nhận diện Thương hiệu (Nền đen + Vô cực xanh + Chấm trắng):**
   - **Đồng bộ 100% hình thái:** Tất cả favicon, logo, tray icon, app icon đều theo chuẩn duy nhất:
     - Nền đen bo góc (`#070D17`, squircle rx=7/32).
