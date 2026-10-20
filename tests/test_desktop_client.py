@@ -73,7 +73,12 @@ class TestDesktopClient(unittest.TestCase):
 
     def test_05_server_online_check(self):
         """Verify server online status helper."""
-        self.assertTrue(is_server_online("http://localhost:8080"))
+        from unittest.mock import patch, MagicMock
+        with patch("urllib.request.urlopen") as mock_url:
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_url.return_value.__enter__.return_value = mock_resp
+            self.assertTrue(is_server_online("http://localhost:8080"))
         self.assertFalse(is_server_online("http://localhost:59999"))
 
 

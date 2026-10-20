@@ -1,29 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-from pathlib import Path
 
-ROOT = Path(SPECPATH).resolve()
 
 a = Analysis(
-    [str(ROOT / 'host_agent' / 'gui_agent.py')],
-    pathex=[str(ROOT)],
+    ['D:/JOB/DEV/titan-remote/host_agent/gui_agent.py'],
+    pathex=[],
     binaries=[],
-    datas=[
-        (str(ROOT / 'host_agent' / 'gui_view.html'), 'host_agent'),
-        (str(ROOT / 'host_agent' / 'gui_view.html'), '.'),
-        (str(ROOT / 'host_agent' / 'icon.ico'), 'host_agent'),
-        (str(ROOT / 'host_agent' / 'icon.ico'), '.'),
-        (str(ROOT / 'host_agent' / 'icon.png'), 'host_agent'),
-        (str(ROOT / 'host_agent' / 'icon.png'), '.'),
-        (str(ROOT / 'host_agent' / 'tray_icon.png'), 'host_agent'),
-        (str(ROOT / 'host_agent' / 'tray_icon.png'), '.')
-    ],
-    hiddenimports=[
-        'host_agent', 'host_agent.tray_menu',
-        'pystray', 'pystray._win32', 'pystray._util.win32',
-        'six', 'six.moves', 'six.moves.queue',
-        'PIL', 'PIL.Image', 'PIL.ImageDraw',
-        'webview', 'clr'
-    ],
+    datas=[('D:/JOB/DEV/titan-remote/host_agent/gui_view.html', 'host_agent'), ('D:/JOB/DEV/titan-remote/host_agent/gui_view.html', '.'), ('D:/JOB/DEV/titan-remote/host_agent/icon.ico', 'host_agent'), ('D:/JOB/DEV/titan-remote/host_agent/icon.ico', '.'), ('D:/JOB/DEV/titan-remote/host_agent/icon.png', 'host_agent'), ('D:/JOB/DEV/titan-remote/host_agent/icon.png', '.')],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -52,5 +35,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=[str(ROOT / 'host_agent' / 'icon.ico')],
 )

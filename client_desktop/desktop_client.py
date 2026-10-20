@@ -14,13 +14,20 @@ Features:
 """
 
 import argparse
+import json
 import logging
+import mimetypes
 import os
+import shutil
+import subprocess
 import sys
 import threading
 import time
 import urllib.request
+import urllib.error
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
+from typing import Optional
 
 # Bootstrap sys.path for local module imports
 _current_dir = Path(__file__).resolve().parent
@@ -53,6 +60,27 @@ try:
 except Exception:
     pass
 
+
+def find_client_resource(rel_path: str) -> Optional[Path]:
+    """Locate bundled asset across development, installed, and PyInstaller frozen modes."""
+    meipass = getattr(sys, "_MEIPASS", None)
+    candidates = [
+        Path(meipass) / rel_path if meipass else None,
+        Path(meipass) / "client_desktop" / rel_path if meipass else None,
+        Path(meipass) / "host_agent" / rel_path if meipass else None,
+        _root_dir / "client_desktop" / rel_path,
+        _root_dir / "host_agent" / rel_path,
+        _current_dir / rel_path,
+        _current_dir / "tray_icons" / rel_path,
+        _root_dir / rel_path,
+    ]
+    for c in candidates:
+        if c:
+            p = Path(c)
+            if p.is_file() or p.is_dir():
+                return p.resolve()
+    return None
+
 # Win32 High DPI Awareness & DWM Dark Mode
 if sys.platform == "win32":
     import ctypes
@@ -70,6 +98,26 @@ if sys.platform == "win32":
                 pass
 
 
+def ensure_interactive_desktop() -> bool:
+    """Attaches process and thread to winsta0\\default so windows & tray icon appear on the active user desktop."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            u = ctypes.windll.user32
+            hw = u.OpenWindowStationW('winsta0', False, 0x000F037F)
+            if hw:
+                u.SetProcessWindowStation(hw)
+            hd = u.OpenDesktopW('default', 0, False, 0x000F01FF)
+            if hd:
+                u.SetThreadDesktop(hd)
+            return True
+        except Exception:
+            pass
+    return False
+
+ensure_interactive_desktop()
+
+
 def hide_console():
     """Hides terminal window if launched via python.exe on Windows."""
     if sys.platform == "win32":
@@ -82,20 +130,34 @@ def hide_console():
 
 
 def apply_dark_titlebar(hwnd):
-    """Applies immersive dark theme to Windows titlebar to match #070D17 palette."""
+    """Applies immersive dark theme to Windows titlebar to match #070D17 palette and eliminates white borders."""
     if sys.platform != "win32" or not hwnd:
         return
     try:
         dwmapi = ctypes.windll.dwmapi
-        # DWMWA_USE_IMMERSIVE_DARK_MODE = 20
         dark = c_int(1)
+        # DWMWA_USE_IMMERSIVE_DARK_MODE = 20 (or 19 on older builds)
         dwmapi.DwmSetWindowAttribute(hwnd, 20, byref(dark), ctypes.sizeof(dark))
+        dwmapi.DwmSetWindowAttribute(hwnd, 19, byref(dark), ctypes.sizeof(dark))
         # DWMWA_CAPTION_COLOR = 35 -> #070D17 (BGR: 0x00170D07)
         caption_color = c_int(0x00170D07)
         dwmapi.DwmSetWindowAttribute(hwnd, 35, byref(caption_color), ctypes.sizeof(caption_color))
+        # DWMWA_BORDER_COLOR = 34 -> #070D17 (BGR: 0x00170D07)
+        dwmapi.DwmSetWindowAttribute(hwnd, 34, byref(caption_color), ctypes.sizeof(caption_color))
         # DWMWA_TEXT_COLOR = 36 -> #F8FAFC (BGR: 0x00FCFAF8)
         text_color = c_int(0x00FCFAF8)
         dwmapi.DwmSetWindowAttribute(hwnd, 36, byref(text_color), ctypes.sizeof(text_color))
+
+        # Extend DWM frame over entire client area to completely remove white non-client title/border strip
+        class _MARGINS(ctypes.Structure):
+            _fields_ = [
+                ('cxLeftWidth', ctypes.c_int),
+                ('cxRightWidth', ctypes.c_int),
+                ('cyTopHeight', ctypes.c_int),
+                ('cyBottomHeight', ctypes.c_int)
+            ]
+        m = _MARGINS(-1, -1, -1, -1)
+        dwmapi.DwmExtendFrameIntoClientArea(hwnd, byref(m))
     except Exception as e:
         logger.debug("DWM dark titlebar error: %s", e)
 
@@ -105,11 +167,18 @@ def set_window_icon(hwnd):
     if sys.platform != "win32" or not hwnd:
         return
     try:
-        from host_agent.make_icon import render_unified_icon
-        icon_path = get_client_data_dir() / "titan_icon.ico"
-        if not icon_path.exists():
-            img = render_unified_icon(256)
-            img.save(str(icon_path), format="ICO", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+        icon_path = find_client_resource("icon.ico")
+        if not icon_path or not icon_path.is_file():
+            icon_path = find_client_resource("client_desktop/icon.ico")
+        if not icon_path or not icon_path.is_file():
+            icon_path = find_client_resource("host_agent/icon.ico")
+
+        if not icon_path or not icon_path.is_file():
+            icon_path = get_client_data_dir() / "titan_icon.ico"
+            if not icon_path.exists():
+                from host_agent.make_icon import render_unified_icon
+                img = render_unified_icon(256)
+                img.save(str(icon_path), format="ICO", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
 
         user32 = ctypes.windll.user32
         # LR_LOADFROMFILE = 0x0010, IMAGE_ICON = 1, WM_SETICON = 0x0080
@@ -480,9 +549,10 @@ _GLOBAL_TRAY_REFS = []
 class ClientTray:
     """Cross-platform Ambient-Dark Tray Manager for Titan Remote Client (EveryThingDownloader & MashLoop standard)."""
 
-    def __init__(self, window, url: str = "http://localhost:8080"):
+    def __init__(self, window, url: str = "http://localhost:8080", server=None):
         self.window = window
         self.url = url
+        self.server = server
         self._tray = None
         self.is_quitting = False
         self._autostart_item = None
@@ -492,15 +562,17 @@ class ClientTray:
             return None
         try:
             from System.Drawing import Bitmap
-            icon_dir = _root_dir / "client_desktop" / "tray_icons"
-            p = icon_dir / f"{name}.png"
-            if p.is_file():
+            p = find_client_resource(f"tray_icons/{name}.png")
+            if not p:
+                p = find_client_resource(f"{name}.png")
+            if p and p.is_file():
                 return Bitmap(str(p))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed loading icon bitmap %s: %s", name, e)
         return None
 
     def show_window(self):
+        ensure_interactive_desktop()
         if not self.window:
             return
         try:
@@ -544,6 +616,11 @@ class ClientTray:
 
     def quit(self):
         self.is_quitting = True
+        if self.server:
+            try:
+                self.server.stop_local_relay()
+            except Exception:
+                pass
         self.stop()
         if self.window:
             try:
@@ -553,8 +630,20 @@ class ClientTray:
         os._exit(0)
 
     def start(self):
+        if self._tray is not None:
+            return
+        ensure_interactive_desktop()
         if sys.platform == "win32" and AmbientDarkRenderer:
             try:
+                import clr
+                clr.AddReference("System.Windows.Forms")
+                from System.Windows.Forms import Application, MethodInvoker
+                for _ in range(15):
+                    if Application.OpenForms.Count > 0:
+                        form = Application.OpenForms[0]
+                        form.Invoke(MethodInvoker(self._setup_winforms))
+                        return
+                    time.sleep(0.05)
                 self._setup_winforms()
                 return
             except Exception as e:
@@ -562,6 +651,9 @@ class ClientTray:
         self._setup_pystray()
 
     def _setup_winforms(self):
+        if self._tray is not None:
+            return
+        ensure_interactive_desktop()
         import clr
         clr.AddReference("System.Windows.Forms")
         clr.AddReference("System.Drawing")
@@ -578,16 +670,29 @@ class ClientTray:
         from System import EventHandler
 
         tray = NotifyIcon()
-        ico_file = _root_dir / "client_desktop" / "icon.ico"
-        if not ico_file.is_file():
-            ico_file = _root_dir / "host_agent" / "icon.ico"
+        ico_file = find_client_resource("icon.ico")
+        if not ico_file or not ico_file.is_file():
+            ico_file = find_client_resource("client_desktop/icon.ico")
+        if not ico_file or not ico_file.is_file():
+            ico_file = find_client_resource("host_agent/icon.ico")
+
+        if not ico_file or not ico_file.is_file():
+            ico_file = get_client_data_dir() / "titan_icon.ico"
+            if not ico_file.is_file():
+                try:
+                    from host_agent.make_icon import render_unified_icon
+                    img = render_unified_icon(64)
+                    img.save(str(ico_file), format="ICO", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64)])
+                except Exception:
+                    pass
 
         try:
-            if ico_file.is_file():
+            if ico_file and Path(ico_file).is_file():
                 tray.Icon = Icon(str(ico_file))
             else:
                 tray.Icon = SystemIcons.Application
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed loading tray icon from file: %s", e)
             tray.Icon = SystemIcons.Application
 
         tray.Text = "Titan Remote — Avionics Console"[:63]
@@ -774,6 +879,147 @@ class ClientTray:
         _GLOBAL_TRAY_REFS.clear()
 
 
+def resolve_web_client_dir() -> Path:
+    """Locate bundled web-client directory across development and PyInstaller frozen modes."""
+    meipass = getattr(sys, "_MEIPASS", None)
+    candidates = [
+        Path(meipass) / "web-client" if meipass else None,
+        _root_dir / "web-client",
+        Path(__file__).resolve().parent.parent / "web-client",
+        Path.cwd() / "web-client",
+    ]
+    for c in candidates:
+        if c and Path(c).is_dir():
+            return Path(c).resolve()
+    return _root_dir / "web-client"
+
+
+class ClientEmbeddedServer:
+    """Internal loopback HTTP server serving bundled web-client static files and reverse-proxying API."""
+    def __init__(self, web_client_dir: Path, target_relay_url: str = "http://localhost:8080"):
+        self.web_client_dir = web_client_dir
+        self.target_relay_url = target_relay_url.rstrip("/")
+        self.server = None
+        self.port = 0
+        self.relay_process = None
+
+    def auto_start_local_relay(self):
+        """Auto-spawns node relay-server/server.js if target is localhost, currently offline, and node is present."""
+        if "localhost" not in self.target_relay_url and "127.0.0.1" not in self.target_relay_url:
+            return
+        if is_server_online(self.target_relay_url):
+            return
+        server_js = _root_dir / "relay-server" / "server.js"
+        if server_js.exists() and shutil.which("node"):
+            try:
+                creationflags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
+                self.relay_process = subprocess.Popen(
+                    ["node", str(server_js)],
+                    cwd=str(server_js.parent),
+                    creationflags=creationflags
+                )
+                logger.info("Auto-spawned local relay server (PID: %d)", self.relay_process.pid)
+                # Wait briefly for server to be responsive
+                for _ in range(15):
+                    time.sleep(0.2)
+                    if is_server_online(self.target_relay_url):
+                        logger.info("Local relay server online at %s", self.target_relay_url)
+                        break
+            except Exception as e:
+                logger.debug("Failed spawning local relay server: %s", e)
+
+    def stop_local_relay(self):
+        if self.relay_process:
+            try:
+                self.relay_process.terminate()
+                self.relay_process.wait(timeout=2)
+            except Exception:
+                try:
+                    self.relay_process.kill()
+                except Exception:
+                    pass
+            self.relay_process = None
+
+    def start(self) -> str:
+        app_self = self
+        web_dir = str(self.web_client_dir)
+
+        class Handler(SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, directory=web_dir, **kwargs)
+
+            def log_message(self, format, *args):
+                pass  # suppress console log spam
+
+            def do_GET(self):
+                if self.path.startswith("/api/"):
+                    self._proxy_request("GET")
+                    return
+                super().do_GET()
+
+            def do_POST(self):
+                if self.path.startswith("/api/"):
+                    self._proxy_request("POST")
+                    return
+                super().do_POST()
+
+            def do_PUT(self):
+                if self.path.startswith("/api/"):
+                    self._proxy_request("PUT")
+                    return
+                super().do_PUT()
+
+            def do_DELETE(self):
+                if self.path.startswith("/api/"):
+                    self._proxy_request("DELETE")
+                    return
+                super().do_DELETE()
+
+            def _proxy_request(self, method: str):
+                target_url = f"{app_self.target_relay_url}{self.path}"
+                content_len = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_len) if content_len > 0 else None
+                headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "content-length")}
+                headers["User-Agent"] = "TitanDesktopClient"
+                try:
+                    req = urllib.request.Request(target_url, data=body, headers=headers, method=method)
+                    with urllib.request.urlopen(req, timeout=5.0) as resp:
+                        resp_data = resp.read()
+                        self.send_response(resp.status)
+                        for h_key, h_val in resp.getheaders():
+                            if h_key.lower() not in ("content-length", "transfer-encoding"):
+                                self.send_header(h_key, h_val)
+                        self.send_header("Content-Length", str(len(resp_data)))
+                        self.end_headers()
+                        self.wfile.write(resp_data)
+                except urllib.error.HTTPError as he:
+                    err_data = he.read()
+                    self.send_response(he.code)
+                    self.send_header("Content-Type", he.headers.get("Content-Type", "application/json"))
+                    self.send_header("Content-Length", str(len(err_data)))
+                    self.end_headers()
+                    self.wfile.write(err_data)
+                except Exception:
+                    # Relay server is offline or unreachable - return friendly JSON, NEVER crash WebView
+                    err_json = json.dumps({
+                        "success": False,
+                        "offline": True,
+                        "error": "Relay Server is offline",
+                        "relay_url": app_self.target_relay_url
+                    }).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Length", str(len(err_json)))
+                    self.end_headers()
+                    self.wfile.write(err_json)
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.port = self.server.server_port
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        logger.info("Embedded Desktop Web Server started at http://127.0.0.1:%d", self.port)
+        return f"http://127.0.0.1:{self.port}"
+
+
 def is_server_online(url: str) -> bool:
     try:
         status_url = f"{url.rstrip('/')}/api/sync/status"
@@ -785,6 +1031,7 @@ def is_server_online(url: str) -> bool:
 
 
 def main(argv=None):
+    ensure_interactive_desktop()
     parser = argparse.ArgumentParser(prog="TitanRemoteClient", description="Titan Remote Desktop Avionics Client")
     parser.add_argument("--url", type=str, default="http://localhost:8080", help="Relay Server URL (default: http://localhost:8080)")
     parser.add_argument("--debug", action="store_true", help="Enable WebView DevTools")
@@ -815,6 +1062,13 @@ def main(argv=None):
     local_db = ClientLocalDB()
     bridge = DesktopBridge(local_db)
 
+    # Start embedded server serving bundled web-client static files
+    web_client_dir = resolve_web_client_dir()
+    embedded_server = ClientEmbeddedServer(web_client_dir, target_relay_url=args.url)
+    embedded_server.auto_start_local_relay()
+    local_base_url = embedded_server.start()
+    app_url = f"{local_base_url}/index.html"
+
     # AppUserModelID for Windows Taskbar Grouping & Icon
     if sys.platform == "win32":
         try:
@@ -824,18 +1078,22 @@ def main(argv=None):
 
     # Find icon cross-platform (ico for Windows, png for macOS/Linux)
     if sys.platform == "win32":
-        ico_path = _root_dir / "client_desktop" / "icon.ico"
-        if not ico_path.exists():
-            ico_path = _root_dir / "host_agent" / "icon.ico"
-        icon_str = str(ico_path) if ico_path.exists() else None
+        ico_path = find_client_resource("icon.ico")
+        if not ico_path:
+            ico_path = find_client_resource("client_desktop/icon.ico")
+        if not ico_path:
+            ico_path = find_client_resource("host_agent/icon.ico")
+        icon_str = str(ico_path) if ico_path and ico_path.exists() else None
     else:
-        png_path = _root_dir / "host_agent" / "icon.png"
-        icon_str = str(png_path) if png_path.exists() else None
+        png_path = find_client_resource("icon.png")
+        if not png_path:
+            png_path = find_client_resource("host_agent/icon.png")
+        icon_str = str(png_path) if png_path and png_path.exists() else None
 
     # Initialize webview window with ambient dark styling and custom frameless titlebar
     window = webview.create_window(
         title="Titan Remote — Avionics Console",
-        url=args.url,
+        url=app_url,
         width=1366,
         height=840,
         min_size=(380, 520),
@@ -848,7 +1106,7 @@ def main(argv=None):
     bridge.set_window(window)
 
     # Initialize system tray (delayed startup after webview creates WinForms context)
-    tray = ClientTray(window, url=args.url)
+    tray = ClientTray(window, url=args.url, server=embedded_server)
 
     def on_shown():
         try:
@@ -863,13 +1121,13 @@ def main(argv=None):
                 hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
                 if hwnd:
                     set_window_icon(hwnd)
-                    # Enable resize borders and minimize/maximize styles for Aero snap & resizing
+                    # Enable minimize/maximize styles for taskbar & titlebar controls
                     GWL_STYLE = -16
-                    WS_THICKFRAME = 0x00040000
                     WS_MINIMIZEBOX = 0x00020000
                     WS_MAXIMIZEBOX = 0x00010000
                     style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
-                    ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
+                    ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
+                    apply_dark_titlebar(hwnd)
                     ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
             except Exception as e:
                 logger.debug("Failed applying window theme: %s", e)
@@ -902,6 +1160,7 @@ def main(argv=None):
     try:
         webview.start(debug=args.debug, icon=icon_str)
     finally:
+        embedded_server.stop_local_relay()
         tray.stop()
 
 

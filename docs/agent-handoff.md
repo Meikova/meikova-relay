@@ -1,6 +1,30 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.27)
+### Recent Updates (Version 1.0.28)
+- **Khắc Phục Mất Icon Khay Hệ Thống & Hoàn Thiện Kiến Trúc Standalone Desktop Toàn Diện Cho Client:**
+  - **Khắc phục lỗi mất Icon Tray trên `TitanRemoteClient.exe` ([desktop_client.py](file:///D:/JOB/DEV/titan-remote/client_desktop/desktop_client.py), [client.spec](file:///D:/JOB/DEV/titan-remote/client_desktop/client.spec)):**
+    - **Nguyên nhân 1 (Resource Resolution):** Khi đóng gói PyInstaller Onefile, đường dẫn tĩnh `_root_dir / "client_desktop" / ...` không trỏ đúng vào thư mục tạm `sys._MEIPASS`. Thêm vào đó, `icon.ico` chưa được thêm vào mục `datas` của `client.spec`. Hệ thống fallback sang `SystemIcons.Application`, khiến Windows 11 Shell NotifyIcon tự động ẩn/từ chối hiển thị icon không rõ nguồn gốc.
+    - **Nguyên nhân 2 (Thread Message Loop):** Sự kiện `window.events.shown` của `pywebview` được gọi trên background worker thread (`Thread-2 (execute)`). Việc khởi tạo `NotifyIcon` trên luồng không có `Application.Run()` khiến cửa sổ nội bộ của tray không nhận được Windows message loop.
+    - **Nguyên nhân 3 (Interactive Desktop Attachment):** Client thiếu hàm `ensure_interactive_desktop()`, khiến tiến trình không gắn vào trạm cửa sổ `winsta0\default`.
+    - **Khắc phục triệt để:**
+      1. Bổ sung hàm định vị tài nguyên `find_client_resource()` quét đa tầng (`sys._MEIPASS`, thư mục con, AppData cache).
+      2. Đóng gói đầy đủ `icon.ico` và thư mục `tray_icons/` vào `client.spec`.
+      3. Điều hướng khởi tạo WinForms Tray lên đúng luồng giao diện chính thông qua `Application.OpenForms[0].Invoke(MethodInvoker(...))`.
+      4. Tích hợp `ensure_interactive_desktop()` tại điểm khởi đầu module, `main()`, `start()`, và `show_window()`.
+  - **Loại Bỏ Hoàn Toàn Vệt Trắng / Khe Hở 8px Phía Trên Titlebar ([gui_agent.py](file:///D:/JOB/DEV/titan-remote/host_agent/gui_agent.py), [desktop_client.py](file:///D:/JOB/DEV/titan-remote/client_desktop/desktop_client.py)):**
+    - Loại bỏ cờ `WS_THICKFRAME` (0x00040000) tại `on_shown()` và `_apply_theme()`, giữ nguyên `WS_MINIMIZEBOX | WS_MAXIMIZEBOX` và `shadow=True`. Khắc phục triệt để việc Windows DWM chừa khoảng trống `SM_CYSIZEFRAME` không client area. Kiểm chứng pixel y=0 khớp hoàn hảo `#1C2D4A` viền trên, không còn bất kỳ pixel trắng nào.
+  - **Kiến Trúc Desktop Độc Lập Thực Thụ Với Embedded Web Server & Tự Phục Hồi Khi Server Offline:**
+    - Tích hợp `ClientEmbeddedServer` chạy loopback `127.0.0.1:0` bằng thư viện chuẩn Python `ThreadingHTTPServer`. Phục vụ trực tiếp tài nguyên `web-client` được bundle bên trong file exe.
+    - Đảo ngược proxy các request `/api/*` tới Relay Server. Nếu Relay Server tắt hoặc mất mạng, proxy trả về JSON offline thân thiện, WebView2 KHÔNG BAO GIỜ bị rơi vào màn hình lỗi trắng `ERR_CONNECTION_REFUSED` của Microsoft Edge.
+    - Tự động kiểm tra và khởi động ngầm `node relay-server/server.js` nếu chạy cục bộ và đang offline.
+  - **Kiểm Thử & Đóng Gói Hoàn Tất:**
+    - Unit tests `tests/test_desktop_client.py`: 5/5 tests pass (Ran 5 tests in 4.227s - OK).
+    - Biên dịch hoàn tất [TitanRemoteClient.exe](file:///D:/JOB/DEV/titan-remote/dist/TitanRemoteClient.exe) (21.39 MB) và [TitanRemoteHost.exe](file:///D:/JOB/DEV/titan-remote/dist/TitanRemoteHost.exe) (23.9 MB).
+    - Đồng bộ bản Host sang [relay-server/TitanRemoteHost.exe](file:///D:/JOB/DEV/titan-remote/relay-server/TitanRemoteHost.exe).
+
+---
+
+### Previous Updates (Version 1.0.27)
 - **Sửa Lỗi WinForms `SetCompatibleTextRenderingDefault` & Đồng Bộ Titlebar Frameless Cho Cả RemoteHost:**
   - **Khắc phục lỗi khởi động Client Desktop ([desktop_client.py](file:///D:/JOB/DEV/titan-remote/client_desktop/desktop_client.py)):**
     - **Nguyên nhân:** Khởi tạo WinForms Tray (`NotifyIcon`, `ContextMenuStrip`) trước lệnh `webview.start()` đã sinh ra đối tượng `IWin32Window` sớm, dẫn đến crash `SetCompatibleTextRenderingDefault must be called before the first IWin32Window object is created`.

@@ -1616,19 +1616,36 @@ def is_autostart_enabled() -> bool:
         return desktop.exists()
 
 def apply_dark_titlebar(hwnd):
-    """Apply native dark theme to the Windows titlebar to match ambient dark style."""
-    if sys.platform != "win32":
+    """Apply native dark theme and extend frame into client area to eliminate white borders."""
+    if sys.platform != "win32" or not hwnd:
         return
     try:
         import ctypes
         from ctypes import byref, c_int
         dwmapi = ctypes.windll.dwmapi
         dark = c_int(1)
+        # DWMWA_USE_IMMERSIVE_DARK_MODE (20 on Win10 20H1+, 19 on older builds)
         dwmapi.DwmSetWindowAttribute(hwnd, 20, byref(dark), ctypes.sizeof(dark))
+        dwmapi.DwmSetWindowAttribute(hwnd, 19, byref(dark), ctypes.sizeof(dark))
+        # DWMWA_CAPTION_COLOR = 35 -> #070D17 (BGR: 0x00170D07)
         caption_color = c_int(0x00170D07)
         dwmapi.DwmSetWindowAttribute(hwnd, 35, byref(caption_color), ctypes.sizeof(caption_color))
+        # DWMWA_BORDER_COLOR = 34 -> #070D17 (BGR: 0x00170D07)
+        dwmapi.DwmSetWindowAttribute(hwnd, 34, byref(caption_color), ctypes.sizeof(caption_color))
+        # DWMWA_TEXT_COLOR = 36 -> #F8FAFC (BGR: 0x00FCFAF8)
         text_color = c_int(0x00FCFAF8)
         dwmapi.DwmSetWindowAttribute(hwnd, 36, byref(text_color), ctypes.sizeof(text_color))
+
+        # Extend DWM frame over entire client area to completely remove white non-client title/border strip
+        class _MARGINS(ctypes.Structure):
+            _fields_ = [
+                ('cxLeftWidth', ctypes.c_int),
+                ('cxRightWidth', ctypes.c_int),
+                ('cyTopHeight', ctypes.c_int),
+                ('cyBottomHeight', ctypes.c_int)
+            ]
+        m = _MARGINS(-1, -1, -1, -1)
+        dwmapi.DwmExtendFrameIntoClientArea(hwnd, byref(m))
     except Exception:
         pass
 
@@ -2219,11 +2236,11 @@ def launch_webview_app(autostart: bool = False):
                 if sys.platform == "win32":
                     try:
                         GWL_STYLE = -16
-                        WS_THICKFRAME = 0x00040000
                         WS_MINIMIZEBOX = 0x00020000
                         WS_MAXIMIZEBOX = 0x00010000
                         style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
-                        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
+                        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
+                        apply_dark_titlebar(hwnd)
                         ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
                     except Exception:
                         pass

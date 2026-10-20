@@ -9,10 +9,13 @@ ROOT = SPEC_DIR.parent
 
 datas = [
     (str(ROOT / "web-client"), "web-client"),
+    (str(SPEC_DIR / "icon.ico"), "client_desktop"),
+    (str(SPEC_DIR / "icon.ico"), "."),
     (str(ROOT / "host_agent" / "icon.ico"), "host_agent"),
     (str(ROOT / "host_agent" / "icon.png"), "host_agent"),
     (str(ROOT / "host_agent" / "tray_icon.png"), "host_agent"),
     (str(SPEC_DIR / "tray_icons"), "client_desktop/tray_icons"),
+    (str(SPEC_DIR / "tray_icons"), "tray_icons"),
 ]
 
 hiddenimports = [
@@ -71,5 +74,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(ROOT / "host_agent" / ("icon.ico" if sys.platform == "win32" else "icon.png")),
+    icon=str(SPEC_DIR / "icon.ico" if sys.platform == "win32" else ROOT / "host_agent" / "icon.png"),
 )

@@ -375,9 +375,21 @@
   };
 
   // Default server URLs
-  const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const defaultWsUrl = `${wsProto}//${window.location.host}`;
-  qcRelayUrl.value = defaultWsUrl;
+  const isDesktopLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+  let defaultWsUrl;
+  if (isDesktopLocal && window.location.port !== '8080') {
+    defaultWsUrl = 'ws://localhost:8080';
+  } else {
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    defaultWsUrl = `${wsProto}//${window.location.host}`;
+  }
+  const savedWsRelay = localStorage.getItem('titan_custom_relay_url');
+  qcRelayUrl.value = savedWsRelay || defaultWsUrl;
+  qcRelayUrl.addEventListener('change', () => {
+    if (qcRelayUrl.value.trim()) {
+      localStorage.setItem('titan_custom_relay_url', qcRelayUrl.value.trim());
+    }
+  });
 
   // --- SLIDING SEGMENTED INDICATOR ENGINE (MASHLOOP PATTERN) ---
   function placeIndicator(seg) {
@@ -1657,6 +1669,12 @@
         const res = await fetch('/api/health', { cache: 'no-store' });
         const t1 = performance.now();
         if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data && data.offline) {
+            if (pingReadout) pingReadout.textContent = 'RTT: --';
+            if (relayStatusText) relayStatusText.textContent = 'Relay Tunnel: Đang tắt (Offline)';
+            return;
+          }
           const rtt = Math.max(0.8, (t1 - t0)).toFixed(1);
           if (pingReadout) {
             pingReadout.textContent = `RTT: ${rtt}ms`;
@@ -1664,6 +1682,9 @@
           if (relayStatusText) {
             relayStatusText.textContent = `Relay Tunnel: Sẵn sàng (${rtt}ms)`;
           }
+        } else {
+          if (pingReadout) pingReadout.textContent = 'RTT: --';
+          if (relayStatusText) relayStatusText.textContent = 'Relay Tunnel: Đang tắt (Offline)';
         }
       } catch {
         if (pingReadout) pingReadout.textContent = 'RTT: --';
