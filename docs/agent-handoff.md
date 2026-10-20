@@ -1,5 +1,23 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.11)
+- **Zero-Flash Route Hydration on Reload:**
+  - Triệt tiêu hoàn toàn hiện tượng nhấp nháy/nhảy về dashboard hoặc landing khi reload trang ở bất kỳ URL phân hệ nào (`/audit`, `/files`, `/terminal`, `/tasks`, `/remote`, `/dashboard`).
+  - `initApp()` trong `web-client/js/app.js` được tái cấu trúc thực thi đồng bộ: Phân giải `targetView` từ URL và token lưu tại `localStorage` rồi lập tức kích hoạt `switchView(targetView, false)` ngay frame đầu tiên, trước khi bắt đầu network fetch xác thực `/api/auth/me`.
+  - Toàn bộ `<section>` (kể cả `landingSection`) khởi tạo với class `hidden` trong `index.html`. Tab `mainNav` không còn hardcode `.on` ở "Trang chủ", đảm bảo sliding pill indicator đặt chính xác vào tab đích mà không bị trượt từ tab 1 qua.
+- **Multi-OS Workstation Modal & Direct Desktop App Distribution:**
+  - Thiết kế modal `#addDeviceModal` đa nền tảng cân đối, đồng bộ 2-card layout (1-line terminal command + download button) cho 3 tab Windows, macOS, Linux.
+  - Phục vụ trực tiếp gói cài đặt nhị phân độc lập Windows 24MB `TitanRemoteHost.exe` tại `/api/download/TitanRemoteHost.exe` (đã whitelist trong `.gitignore`).
+  - Cập nhật script cài đặt `Setup-TitanHost.bat` tự động kiểm tra kích thước `TitanRemoteHost.exe` (>5MB) và kết thúc bằng `pause >nul` thay vì đóng đột ngột cửa sổ console.
+  - Đồng bộ hóa các endpoint script cho macOS (`/api/download/setup-macos.sh` & `install-macos.sh`) và Linux (`/api/download/setup-linux.sh` & `install-linux.sh`).
+- **Xác thực kiểm thử & Triển khai:**
+  - Node.js syntax checks và CSS bracket balance: Exit Code 0.
+  - Kiểm thử 10 HTTP endpoints local: Exit Code 0 (Status 200 OK).
+  - Tải file nhị phân `TitanRemoteHost.exe`: 23.96MB Status 200 OK.
+  - Commit & Push thành công lên GitHub `origin/main` (`584d5a4`), kích hoạt auto-deploy Render v1.0.11.
+
+---
+
 ### Project Status
 - Path: `D:\JOB\DEV\titan-remote`
 - GitHub Repo: `https://github.com/m3iK18dp/titan-remote.git`
