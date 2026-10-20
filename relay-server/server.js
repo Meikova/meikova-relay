@@ -57,6 +57,42 @@ function parseClientDevice(ua) {
   return `${os} // ${browser}`;
 }
 
+function getGoogleCredentials() {
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    return {
+      clientId: process.env.GOOGLE_CLIENT_ID.trim(),
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET.trim()
+    };
+  }
+
+  const candidates = [
+    path.join(__dirname, 'client_secret.json'),
+    path.join(__dirname, '..', 'client_secret.json'),
+    'E:/Downloads/client_secret_515668723869-qorjmkoo84h2ac3h2u0vc9arpqqsk083.apps.googleusercontent.com.json'
+  ];
+
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf-8');
+        const data = JSON.parse(raw);
+        const web = data.web || data.installed || {};
+        if (web.client_id && web.client_secret) {
+          return {
+            clientId: web.client_id.trim(),
+            clientSecret: web.client_secret.trim()
+          };
+        }
+      }
+    } catch (_) {}
+  }
+
+  return {
+    clientId: '515668723869-qorjmkoo84h2ac3h2u0vc9arpqqsk083.apps.googleusercontent.com',
+    clientSecret: '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'
+  };
+}
+
 function parseBody(req) {
   return new Promise((resolve) => {
     let body = '';
@@ -208,7 +244,7 @@ const server = http.createServer(async (req, res) => {
       const hostHeader = req.headers['host'] || `127.0.0.1:${PORT}`;
       const proto = req.headers['x-forwarded-proto'] || 'http';
       const redirectUri = `${proto}://${hostHeader}/api/auth/google/callback`;
-      const googleClientId = process.env.GOOGLE_CLIENT_ID || '515668723869-066g74dbt8c3b61odfigv6gl3552coj3.apps.googleusercontent.com';
+      const { clientId: googleClientId } = getGoogleCredentials();
       
       const params = new URLSearchParams({
         client_id: googleClientId,
@@ -241,8 +277,7 @@ const server = http.createServer(async (req, res) => {
         const hostHeader = req.headers['host'] || `127.0.0.1:${PORT}`;
         const proto = req.headers['x-forwarded-proto'] || 'http';
         const redirectUri = `${proto}://${hostHeader}/api/auth/google/callback`;
-        const googleClientId = process.env.GOOGLE_CLIENT_ID || '515668723869-066g74dbt8c3b61odfigv6gl3552coj3.apps.googleusercontent.com';
-        const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
+        const { clientId: googleClientId, clientSecret: googleClientSecret } = getGoogleCredentials();
         
         const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
