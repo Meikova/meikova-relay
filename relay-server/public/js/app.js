@@ -712,7 +712,10 @@
 
   async function startDesktopGoogleAuth() {
     try {
-      const res = await apiFetch('/api/auth/google/url');
+      const isMobileDevice = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+      const isDesktopApp = typeof window !== 'undefined' && Boolean(window.pywebview);
+      const source = isDesktopApp ? 'desktop' : (isMobileDevice ? 'mobile' : 'desktop');
+      const res = await apiFetch(`/api/auth/google/url?source=${source}`);
       if (!res.success || !res.auth_url) {
         showToast('Không lấy được URL ủy quyền Google', 'error');
         return;

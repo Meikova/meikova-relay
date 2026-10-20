@@ -251,7 +251,11 @@ const server = http.createServer(async (req, res) => {
           error: 'Chưa cấu hình Google OAuth. Đặt file client_secret.json vào thư mục data/'
         });
       }
-      const ticket = crypto.randomBytes(16).toString('hex');
+      
+      const sourceParam = url.searchParams.get('source') || url.searchParams.get('client') || 'desktop';
+      const prefix = sourceParam.startsWith('mobile') ? 'mobile' : (sourceParam.startsWith('web') ? 'web' : 'desktop');
+      const ticket = `${prefix}_${crypto.randomBytes(16).toString('hex')}`;
+
       if (!global.desktopAuthTickets) global.desktopAuthTickets = new Map();
       global.desktopAuthTickets.set(ticket, { status: 'pending', expiresAt: Date.now() + 300000 });
       
@@ -318,8 +322,13 @@ const server = http.createServer(async (req, res) => {
         const name = payload.name || email.split('@')[0];
         const auth = DB.googleAuth(email, name);
         
-        if (ticket && global.desktopAuthTickets && global.desktopAuthTickets.has(ticket)) {
-          global.desktopAuthTickets.set(ticket, {
+        const state = ticket || '';
+        const is_desktop = state.startsWith('desktop') || state === 'desktop';
+        const is_mobile = state.startsWith('mobile') || state === 'mobile';
+        const is_web = !is_desktop && !is_mobile;
+
+        if (state && global.desktopAuthTickets && global.desktopAuthTickets.has(state)) {
+          global.desktopAuthTickets.set(state, {
             status: 'success',
             token: auth.token,
             user: auth.user,
@@ -328,33 +337,122 @@ const server = http.createServer(async (req, res) => {
         }
         
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+
+        if (is_mobile) {
+          const appScheme = 'titanremote';
+          const deepLinkUrl = `${appScheme}://auth-success?token=${auth.token}&email=${encodeURIComponent(email)}`;
+          res.end(`<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Titan Remote // Đã xác thực cho Mobile App</title>
+  <style>
+    body { background: #070D17; color: #22C55E; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 16px; box-sizing: border-box; text-align: center; }
+    .card { background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 16px; padding: 32px 24px; box-shadow: 0 0 30px rgba(34, 197, 94, 0.2); max-width: 380px; width: 100%; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); font-size: 0.75rem; color: #22C55E; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.05em; }
+    h2 { margin: 0 0 10px; font-size: 1.15rem; color: #F8FAFC; }
+    p { color: #94A3B8; font-size: 0.875rem; line-height: 1.5; margin: 0 0 20px; }
+    .actions { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    .btn { display: inline-block; background: #22C55E; color: #070D17; font-weight: 700; font-size: 0.875rem; padding: 12px 28px; border-radius: 9999px; text-decoration: none; border: none; cursor: pointer; width: 85%; box-sizing: border-box; box-shadow: 0 0 16px rgba(34, 197, 94, 0.4); }
+    .btn-ghost { background: rgba(255, 255, 255, 0.06); color: #94A3B8; box-shadow: none; border: 1px solid rgba(255, 255, 255, 0.1); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">MOBILE APP // KẾT NỐI THÀNH CÔNG</div>
+    <h2>ĐÃ ĐĂNG NHẬP GOOGLE</h2>
+    <p>Chào mừng <strong>${name}</strong> (${email}).<br>Đã cấp phiên đăng nhập cho Titan Remote Mobile.<br>Nhấn nút bên dưới để quay lại app.</p>
+    <div class="actions">
+      <a href="${deepLinkUrl}" class="btn">Mở lại Titan Remote</a>
+      <button class="btn btn-ghost" onclick="window.close()">Đóng tab</button>
+    </div>
+  </div>
+  <script>
+    setTimeout(() => { window.location.href = "${deepLinkUrl}"; }, 300);
+    setTimeout(() => { try { window.close(); } catch(e) {} }, 2500);
+  </script>
+</body>
+</html>`);
+          return;
+        }
+
+        if (is_desktop) {
+          // Ponytail: Desktop app retrieves token via poll. Do NOT set localStorage or cookie, and do NOT redirect to web app!
+          res.end(`<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Xác thực thành công // Titan Remote Desktop</title>
+  <style>
+    body { background: #070D17; color: #22C55E; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
+    .card { background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 16px; padding: 36px 40px; box-shadow: 0 0 40px rgba(34, 197, 94, 0.2); max-width: 440px; }
+    .badge { display: inline-block; padding: 5px 14px; border-radius: 9999px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); font-size: 0.75rem; color: #22C55E; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.05em; }
+    h2 { margin: 0 0 12px; font-size: 1.15rem; color: #F8FAFC; }
+    p { color: #94A3B8; font-size: 0.85rem; line-height: 1.5; margin: 0 0 20px; }
+    .btn-close { display: inline-block; background: #22C55E; color: #070D17; font-weight: 700; font-size: 0.8125rem; padding: 10px 26px; border-radius: 9999px; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s ease; }
+    .btn-close:hover { box-shadow: 0 0 16px rgba(34, 197, 94, 0.6); transform: scale(1.02); }
+    .tip { margin-top: 14px; font-size: 0.75rem; color: #64748B; line-height: 1.5; }
+    kbd { background: #1E293B; border: 1px solid rgba(255, 255, 255, 0.1); padding: 2px 6px; border-radius: 4px; color: #94A3B8; font-family: inherit; font-size: 0.6875rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">DESKTOP APP // KẾT NỐI THÀNH CÔNG</div>
+    <h2>ĐÃ ĐĂNG NHẬP GOOGLE</h2>
+    <p>Tài khoản <strong>${email}</strong> đã kết nối với ứng dụng Desktop.<br>Bạn có thể đóng tab này và quay lại Titan Remote.</p>
+    <button type="button" id="close-btn" class="btn-close" onclick="attemptClose()">Đóng tab này</button>
+    <div id="close-tip" class="tip">(Nếu trình duyệt chặn script đóng, hãy bấm <kbd>Ctrl + W</kbd>)</div>
+  </div>
+  <script>
+    function attemptClose() {
+      try { window.open('', '_self', ''); window.close(); } catch(e) {}
+      try { window.close(); } catch(e) {}
+      setTimeout(() => {
+        const btn = document.getElementById("close-btn");
+        if (btn) {
+          btn.textContent = "Nhấn Ctrl + W để đóng tab";
+          btn.style.background = "rgba(34, 197, 94, 0.12)";
+          btn.style.color = "#22C55E";
+          btn.style.border = "1px solid rgba(34, 197, 94, 0.3)";
+        }
+      }, 200);
+    }
+    setTimeout(attemptClose, 1500);
+  </script>
+</body>
+</html>`);
+          return;
+        }
+
+        // Web Browser Flow: set localStorage and redirect to '/'
         res.end(`<!DOCTYPE html>
-        <html lang="vi">
-        <head>
-          <meta charset="utf-8">
-          <title>Titan Remote // Đăng nhập Google thành công</title>
-          <style>
-            body { background: #070D17; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-            .card { background: #0F172A; border: 1px solid #1E293B; border-radius: 16px; padding: 36px 32px; text-align: center; max-width: 440px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); }
-            .badge { display: inline-flex; align-items: center; gap: 8px; color: #22C55E; font-size: 13px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 16px; background: rgba(34, 197, 94, 0.12); padding: 6px 14px; border-radius: 999px; }
-            h2 { margin: 0 0 10px; font-size: 22px; font-weight: 600; }
-            p { color: #94A3B8; font-size: 14px; line-height: 1.5; margin: 0 0 24px; }
-            .dot { width: 8px; height: 8px; border-radius: 50%; background: #22C55E; display: inline-block; animation: pulse 1.5s infinite; }
-            @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <div class="badge"><span class="dot"></span> XÁC THỰC GOOGLE THÀNH CÔNG</div>
-            <h2>Xin chào, ${name}</h2>
-            <p>Tài khoản đã được liên kết với cụm Titan Remote. Ứng dụng Desktop đang tự động kích hoạt phiên làm việc...</p>
-          </div>
-          <script>
-            try { localStorage.setItem('titan_token', '${auth.token}'); } catch(e){}
-            setTimeout(function() { window.location.href = '/'; }, 1500);
-          </script>
-        </body>
-        </html>`);
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Titan Remote // Đăng nhập Google thành công</title>
+  <style>
+    body { background: #070D17; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .card { background: #0F172A; border: 1px solid #1E293B; border-radius: 16px; padding: 36px 32px; text-align: center; max-width: 440px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); }
+    .badge { display: inline-flex; align-items: center; gap: 8px; color: #22C55E; font-size: 13px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 16px; background: rgba(34, 197, 94, 0.12); padding: 6px 14px; border-radius: 999px; }
+    h2 { margin: 0 0 10px; font-size: 22px; font-weight: 600; }
+    p { color: #94A3B8; font-size: 14px; line-height: 1.5; margin: 0 0 24px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22C55E; display: inline-block; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge"><span class="dot"></span> XÁC THỰC GOOGLE THÀNH CÔNG</div>
+    <h2>Xin chào, ${name}</h2>
+    <p>Đang chuyển hướng về bảng điều khiển Titan Remote...</p>
+  </div>
+  <script>
+    try { localStorage.setItem('titan_token', '${auth.token}'); } catch(e){}
+    setTimeout(function() { window.location.href = '/'; }, 1500);
+  </script>
+</body>
+</html>`);
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(`<div style="background:#070D17;color:#EF4444;padding:32px;font-family:sans-serif;text-align:center;">
