@@ -143,6 +143,7 @@ const DB = {
 
   // --- Device Management ---
   getDevices(userId) {
+    this.deduplicateDevices(userId);
     const stmt = db.prepare(`
       SELECT id, device_name, room_id, pin, is_online, last_seen, os_info, resolution 
       FROM devices 
@@ -152,19 +153,52 @@ const DB = {
     return stmt.all(userId);
   },
 
+  deduplicateDevices(userId) {
+    if (!userId) return;
+    try {
+      db.prepare(`
+        DELETE FROM devices 
+        WHERE user_id = ? AND id NOT IN (
+          SELECT id FROM (
+            SELECT id, ROW_NUMBER() OVER (
+              PARTITION BY user_id, device_name 
+              ORDER BY is_online DESC, last_seen DESC
+            ) as rn 
+            FROM devices
+            WHERE user_id = ?
+          ) WHERE rn = 1
+        )
+      `).run(userId, userId);
+    } catch (err) {
+      console.error('[DB] Error deduplicating devices:', err);
+    }
+  },
+
+  deleteDevice(deviceId, userId) {
+    if (!deviceId || !userId) return false;
+    const stmt = db.prepare('DELETE FROM devices WHERE id = ? AND user_id = ?');
+    const result = stmt.run(deviceId, userId);
+    return result.changes > 0;
+  },
+
   upsertDevice({ userId, deviceName, roomId, pin, resolution, osInfo }) {
     const now = Date.now();
-    const existingStmt = db.prepare('SELECT id, user_id FROM devices WHERE room_id = ?');
-    const existing = existingStmt.get(roomId);
+    let existing = null;
+    if (userId && deviceName) {
+      existing = db.prepare('SELECT id, user_id, room_id FROM devices WHERE user_id = ? AND device_name = ?').get(userId, deviceName);
+    }
+    if (!existing && roomId) {
+      existing = db.prepare('SELECT id, user_id, room_id FROM devices WHERE room_id = ?').get(roomId);
+    }
 
     if (existing) {
       // Update existing
       const updateStmt = db.prepare(`
         UPDATE devices 
-        SET device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?, user_id = COALESCE(?, user_id)
-        WHERE room_id = ?
+        SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?, user_id = COALESCE(?, user_id)
+        WHERE id = ?
       `);
-      updateStmt.run(deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, userId || null, roomId);
+      updateStmt.run(roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, userId || null, existing.id);
       return existing.id;
     } else {
       // Insert new device

@@ -22,6 +22,7 @@ class ScreenCapture:
     def __init__(self, quality: int = 65, max_width: Optional[int] = None):
         self.quality = quality
         self.max_width = max_width
+        self._attached = False
         self._attach_window_station()
         self.active_monitor_id = 0 # 0 = All monitors (virtual desktop), 1..N = specific monitor
         self.monitors = self.detect_monitors()
@@ -29,7 +30,7 @@ class ScreenCapture:
 
     def _attach_window_station(self) -> bool:
         """Attaches current thread to winsta0\\default to ensure desktop capture works in all sessions."""
-        if not user32:
+        if not user32 or self._attached:
             return True
         try:
             hwinsta = user32.OpenWindowStationW('winsta0', False, 0x000F037F)
@@ -38,6 +39,7 @@ class ScreenCapture:
             hdesk = user32.OpenDesktopW('default', 0, False, 0x000F01FF)
             if hdesk:
                 user32.SetThreadDesktop(hdesk)
+            self._attached = True
             return True
         except Exception:
             return False
@@ -138,8 +140,6 @@ class ScreenCapture:
         Returns None if frame is identical to previous frame (skip static frames).
         """
         try:
-            self._attach_window_station()
-
             bbox = None
             all_screens = False
             if self.active_monitor_id == 0:

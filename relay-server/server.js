@@ -277,6 +277,36 @@ const server = http.createServer(async (req, res) => {
       return jsonResponse(res, 200, { success: true, message: 'Đã liên kết thiết bị thành công' });
     }
 
+    // 5.1 Devices: Delete a device
+    if ((pathname.startsWith('/api/devices/') && req.method === 'DELETE') || (pathname === '/api/devices/delete' && req.method === 'POST')) {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
+      }
+      let deviceId = null;
+      if (req.method === 'DELETE') {
+        deviceId = pathname.replace('/api/devices/', '');
+      } else {
+        const body = await parseBody(req);
+        deviceId = body.deviceId || body.id;
+      }
+      if (!deviceId) {
+        return jsonResponse(res, 400, { success: false, message: 'Thiếu ID thiết bị' });
+      }
+      const ok = DB.deleteDevice(deviceId, session.id);
+      if (ok) {
+        DB.logAudit({
+          action: 'DEVICE_DELETED',
+          userId: session.id,
+          username: session.username,
+          clientIp: getClientIp(req),
+          clientDevice: parseClientDevice(req.headers['user-agent']),
+          details: { deviceId }
+        });
+        return jsonResponse(res, 200, { success: true, message: 'Đã xóa máy trạm khỏi danh sách' });
+      }
+      return jsonResponse(res, 404, { success: false, message: 'Không tìm thấy máy trạm hoặc không có quyền xóa' });
+    }
+
     // 5.5 Audit Logs: Query
     if (pathname === '/api/audit-logs' && req.method === 'GET') {
       if (!session) {

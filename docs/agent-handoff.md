@@ -1,6 +1,27 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.17)
+### Recent Updates (Version 1.0.18)
+- **Ghi đè và khử trùng lặp máy trạm (Device Deduplication & Upsert):**
+  - **Vấn đề:** Mỗi lần chạy `setup.bat` sinh `room_id` ngẫu nhiên mới khiến cơ sở dữ liệu ghi thêm bản ghi riêng biệt cho cùng một thiết bị (`PHAMDOANKIEM`), dẫn đến danh sách hiển thị 4-5 card trùng tên máy.
+  - **Khắc phục:** 
+    - Sửa `DB.upsertDevice` trong `relay-server/db.js`: Kiểm tra `(user_id, device_name)` trước. Nếu đã tồn tại máy trạm có tên tương ứng của người dùng, cập nhật thẳng `room_id`, `pin`, `resolution`, `os_info`, `is_online = 1`, `last_seen` thay vì tạo dòng mới.
+    - Thêm hàm `DB.deduplicateDevices(userId)` tự động dọn dẹp các bản ghi cũ trùng tên, giữ lại duy nhất 1 bản ghi mới nhất/đang online.
+- **Bổ sung tính năng Xóa máy trạm (Device Deletion):**
+  - Thêm API `DELETE /api/devices/:id` và `POST /api/devices/delete` trong `relay-server/server.js`, kèm ghi nhật ký kiểm toán `DEVICE_DELETED`.
+  - Bổ sung nút biểu tượng thùng rác (Xóa) cạnh nút Kết nối trên mỗi card máy trạm trong `web-client/js/app.js`, kèm hộp thoại xác nhận hủy liên kết và tự động cập nhật danh sách.
+- **Sửa triệt để rò rỉ GDI/Window Station handle gây mất System Tray icon:**
+  - **Nguyên nhân cốt lõi:** Lớp `ScreenCapture` trong `host_agent/screen_capture.py` gọi `_attach_window_station()` 25 lần mỗi giây nhưng không đóng handle `winsta0` và `default`, làm rò rỉ 50 handle/giây. Chỉ sau vài phút tiến trình tích tụ tới 64,886 handle, làm cạn kiệt Desktop Heap của Windows khiến Windows API từ chối cấp phát icon khay hệ thống (`Shell_NotifyIcon`).
+  - **Khắc phục:**
+    - Cờ `self._attached`: Chỉ gắn window station 1 lần duy nhất lúc khởi tạo capture.
+    - Tối ưu `_send_frames_loop` trong `host_agent/host_service.py`: Khi không có viewer kết nối (`has_active_client = False`), chuyển sang chế độ ngủ tiết kiệm năng lượng (`asyncio.sleep(0.2)`) và gửi heartbeat ping định kỳ, không capture khung hình liên tục (giảm CPU từ 100% xuống 0% và giữ số lượng handle cố định ~800).
+- **Xác thực kiểm thử:**
+  - 69/69 test suite pass (Exit Code 0).
+  - Bản build PyInstaller 31.1 MB chạy trực tiếp với mức tài nguyên ổn định: 833 handles, CPU 1.5s, RAM 135 MB.
+  - Danh sách máy trạm đã tự động gom thành 1 máy duy nhất `PHAMDOANKIEM` (Trực tuyến, Room `RD-8571`).
+
+---
+
+### Previous Updates (Version 1.0.17)
 - **Bổ sung 4 thiết lập hệ thống chuẩn cho máy trạm (Workstation Behavior Settings):**
   - **Khởi động cùng Windows (`autostart`):** Ghi/xóa khóa Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
   - **Mở cửa sổ khi Windows khởi động (`open_on_boot`):** Tùy chọn hiển thị giao diện Desktop khi Windows khởi động thay vì mặc định tự thu nhỏ xuống System Tray.

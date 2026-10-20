@@ -212,6 +212,16 @@ class HostService:
         logger.info(f"Frame streamer started targeting {self.fps} FPS")
         last_heartbeat = time.time()
         while self.running:
+            if not self.has_active_client:
+                if time.time() - last_heartbeat > 10:
+                    try:
+                        await ws.send(json.dumps({"type": "ping", "ts": time.time()}))
+                        last_heartbeat = time.time()
+                    except Exception:
+                        break
+                await asyncio.sleep(0.2)
+                continue
+
             start_time = time.perf_counter()
 
             frame_bytes = self.capture.capture_frame(force=False)
