@@ -1,21 +1,29 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 
+ROOT = Path(SPECPATH).resolve()
 
 a = Analysis(
-    ['D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_agent.py'],
-    pathex=[],
+    [str(ROOT / 'host_agent' / 'gui_agent.py')],
+    pathex=[str(ROOT)],
     binaries=[],
     datas=[
-        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_view.html', 'host_agent'),
-        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_view.html', '.'),
-        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico', 'host_agent'),
-        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico', '.'),
-        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.png', 'host_agent'),
-        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.png', '.'),
-        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\tray_icon.png', 'host_agent'),
-        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\tray_icon.png', '.')
+        (str(ROOT / 'host_agent' / 'gui_view.html'), 'host_agent'),
+        (str(ROOT / 'host_agent' / 'gui_view.html'), '.'),
+        (str(ROOT / 'host_agent' / 'icon.ico'), 'host_agent'),
+        (str(ROOT / 'host_agent' / 'icon.ico'), '.'),
+        (str(ROOT / 'host_agent' / 'icon.png'), 'host_agent'),
+        (str(ROOT / 'host_agent' / 'icon.png'), '.'),
+        (str(ROOT / 'host_agent' / 'tray_icon.png'), 'host_agent'),
+        (str(ROOT / 'host_agent' / 'tray_icon.png'), '.')
     ],
-    hiddenimports=['host_agent', 'host_agent.tray_menu', 'pystray', 'pystray._win32', 'pystray._util.win32', 'six', 'six.moves', 'six.moves.queue', 'PIL', 'PIL.Image', 'PIL.ImageDraw', 'webview', 'clr'],
+    hiddenimports=[
+        'host_agent', 'host_agent.tray_menu',
+        'pystray', 'pystray._win32', 'pystray._util.win32',
+        'six', 'six.moves', 'six.moves.queue',
+        'PIL', 'PIL.Image', 'PIL.ImageDraw',
+        'webview', 'clr'
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -44,5 +52,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico'],
+    icon=[str(ROOT / 'host_agent' / 'icon.ico')],
 )
