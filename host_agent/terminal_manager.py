@@ -63,11 +63,18 @@ class TerminalManager:
         if self.process and self.process.stdin:
             try:
                 cmd = text.strip()
-                if cmd:
-                    # Append Out.Flush() to ensure immediate pipe transmission to web client
-                    self.process.stdin.write(f"{cmd}; [Console]::Out.Flush()\n")
+                if os.name == 'nt':
+                    # Append Out.Flush() for PowerShell immediate pipe transmission
+                    if cmd:
+                        self.process.stdin.write(f"{cmd}; [Console]::Out.Flush()\n")
+                    else:
+                        self.process.stdin.write("[Console]::Out.Flush()\n")
                 else:
-                    self.process.stdin.write("[Console]::Out.Flush()\n")
+                    # POSIX shell (bash/sh)
+                    if cmd:
+                        self.process.stdin.write(f"{cmd}\n")
+                    else:
+                        self.process.stdin.write("\n")
                 self.process.stdin.flush()
             except Exception as e:
                 self.on_output(f"\n[Stdin Error]: {e}\n")
