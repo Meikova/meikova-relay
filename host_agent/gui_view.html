@@ -93,24 +93,39 @@
     }
     .titlebar-btn {
       background: transparent;
-      border: none;
+      border: 1px solid transparent;
       color: var(--text-muted);
-      width: 34px;
-      height: 28px;
+      width: 38px;
+      height: 30px;
       border-radius: 4px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.15s ease;
+      padding: 0;
+      margin: 0;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     }
     .titlebar-btn:hover {
-      background: var(--btn-surface);
-      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+    }
+    .titlebar-btn:active {
+      background: rgba(255, 255, 255, 0.15);
     }
     .titlebar-btn.btn-close:hover {
-      background: var(--accent-red);
-      color: #FFFFFF;
+      background: #ef4444;
+      color: #ffffff;
+      border-color: #dc2626;
+    }
+    .titlebar-btn.btn-close:active {
+      background: #dc2626;
+      color: #ffffff;
+    }
+    .titlebar-btn svg {
+      width: 11px;
+      height: 11px;
+      pointer-events: none;
     }
 
     /* Subheader & Content Container */
@@ -552,7 +567,7 @@
 <body oncontextmenu="return false;">
 
   <!-- Custom Ambient Titlebar (Frameless Drag Region) -->
-  <header class="titlebar pywebview-drag-region" onmousedown="handleTitlebarMouseDown(event)">
+  <header class="titlebar pywebview-drag-region" onmousedown="handleTitlebarMouseDown(event)" ondblclick="handleTitlebarDblClick(event)">
     <div class="titlebar-brand">
       <svg class="titlebar-logo" viewBox="0 0 32 32" style="border-radius: 4px;">
         <rect width="32" height="32" rx="7" fill="#070D17"/>
@@ -565,13 +580,14 @@
     <div class="titlebar-spacer pywebview-drag-region"></div>
     <div class="titlebar-actions">
       <button class="titlebar-btn btn-min" onclick="minimizeWindow()" title="Thu nhỏ">
-        <svg width="10" height="2" viewBox="0 0 10 2"><rect width="10" height="2" fill="currentColor"/></svg>
+        <svg viewBox="0 0 11 11"><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       </button>
-      <button class="titlebar-btn btn-close" onclick="closeWindow()" title="Đóng">
-        <svg width="10" height="10" viewBox="0 0 10 10">
-          <line x1="1.5" y1="1.5" x2="8.5" y2="8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="8.5" y1="1.5" x2="1.5" y2="8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-        </svg>
+      <button class="titlebar-btn btn-max" id="btnHostMax" onclick="toggleMaximizeWindow()" title="Phóng to / Khôi phục">
+        <svg viewBox="0 0 11 11" class="icon-max"><rect x="1.5" y="1.5" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+        <svg viewBox="0 0 11 11" class="icon-restore" style="display:none;"><path d="M3.5 3.5V1.5h6v6h-2M1.5 3.5h6v6h-6z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+      </button>
+      <button class="titlebar-btn btn-close" onclick="closeWindow()" title="Đóng (Ẩn xuống khay)">
+        <svg viewBox="0 0 11 11"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       </button>
     </div>
   </header>
@@ -1237,6 +1253,29 @@
         if (window.pywebview && window.pywebview.api && window.pywebview.api.drag_window) {
           window.pywebview.api.drag_window();
         }
+      }
+    }
+
+    async function toggleMaximizeWindow() {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.toggle_maximize) {
+        try {
+          const isMax = await window.pywebview.api.toggle_maximize();
+          const btn = document.getElementById('btnHostMax');
+          if (btn) {
+            const iconMax = btn.querySelector('.icon-max');
+            const iconRestore = btn.querySelector('.icon-restore');
+            if (iconMax && iconRestore) {
+              iconMax.style.display = isMax ? 'none' : 'block';
+              iconRestore.style.display = isMax ? 'block' : 'none';
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    function handleTitlebarDblClick(e) {
+      if (!e.target.closest('.titlebar-btn')) {
+        toggleMaximizeWindow();
       }
     }
 

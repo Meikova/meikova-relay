@@ -1765,6 +1765,38 @@ class HostApi:
             except Exception:
                 pass
 
+    def toggle_maximize(self) -> bool:
+        if self._window:
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+                    hwnd = self._resolve_hwnd()
+                    if hwnd:
+                        is_zoomed = bool(ctypes.windll.user32.IsZoomed(hwnd))
+                        if is_zoomed:
+                            ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                        else:
+                            ctypes.windll.user32.ShowWindow(hwnd, 3)  # SW_MAXIMIZE
+                        return not is_zoomed
+                except Exception:
+                    pass
+            try:
+                self._window.toggle_fullscreen()
+            except Exception:
+                pass
+        return False
+
+    def is_maximized(self) -> bool:
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                hwnd = self._resolve_hwnd()
+                if hwnd:
+                    return bool(ctypes.windll.user32.IsZoomed(hwnd))
+            except Exception:
+                pass
+        return False
+
     def close_window(self):
         close_to_tray = self._config.get("close_to_tray", True)
         if close_to_tray and HAS_TRAY:
@@ -2169,9 +2201,11 @@ def launch_webview_app(autostart: bool = False):
         js_api=api,
         width=560,
         height=740,
+        min_size=(460, 600),
         frameless=True,
         easy_drag=False,
-        resizable=False,
+        resizable=True,
+        shadow=True,
         background_color="#070D17",
     )
     api.set_window(window)
@@ -2179,8 +2213,20 @@ def launch_webview_app(autostart: bool = False):
     def on_shown():
         try:
             hwnd = api._resolve_hwnd()
-            if hwnd and ico_path and ico_path.is_file():
-                set_window_icon(hwnd, ico_path)
+            if hwnd:
+                if ico_path and ico_path.is_file():
+                    set_window_icon(hwnd, ico_path)
+                if sys.platform == "win32":
+                    try:
+                        GWL_STYLE = -16
+                        WS_THICKFRAME = 0x00040000
+                        WS_MINIMIZEBOX = 0x00020000
+                        WS_MAXIMIZEBOX = 0x00010000
+                        style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
+                        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
+                        ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
+                    except Exception:
+                        pass
         except Exception:
             pass
 

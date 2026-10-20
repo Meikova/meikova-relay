@@ -847,11 +847,16 @@ def main(argv=None):
     )
     bridge.set_window(window)
 
-    # Start system tray with ambient dark custom menu
+    # Initialize system tray (delayed startup after webview creates WinForms context)
     tray = ClientTray(window, url=args.url)
-    tray.start()
 
-    def on_loaded():
+    def on_shown():
+        try:
+            if not tray._tray:
+                tray.start()
+        except Exception as e:
+            logger.debug("Tray setup error in on_shown: %s", e)
+
         def _apply_theme():
             time.sleep(0.3)
             try:
@@ -870,6 +875,15 @@ def main(argv=None):
                 logger.debug("Failed applying window theme: %s", e)
         if sys.platform == "win32":
             threading.Thread(target=_apply_theme, daemon=True).start()
+
+    window.events.shown += on_shown
+
+    def on_loaded():
+        if not tray._tray:
+            try:
+                tray.start()
+            except Exception:
+                pass
 
     window.events.loaded += on_loaded
 
