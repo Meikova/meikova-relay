@@ -158,10 +158,13 @@ class TestExtendedFeatures(unittest.TestCase):
         term = TerminalManager(on_output=on_out)
         term.start()
         for _ in range(30):
-            if any("POWERSHELL" in o for o in output_received):
+            if any("SẴN SÀNG" in o or "POWERSHELL" in o or "BASH" in o or "TERMINAL" in o for o in output_received):
                 break
             time.sleep(0.1)
-        term.send_input("Write-Output 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'")
+        if sys.platform == "win32":
+            term.send_input("Write-Output 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'")
+        else:
+            term.send_input("echo 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'")
         for _ in range(30):
             if any("Hà Nội" in o for o in output_received):
                 break
