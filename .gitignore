@@ -7,6 +7,7 @@ build/
 dist/
 *.spec
 !TitanRemoteHost.spec
+!client_desktop/client.spec
 *.exe
 !relay-server/TitanRemoteHost.exe
 *.msi
@@ -47,6 +48,9 @@ config.json
 .env
 .env.*
 !.env.example
+*client_secret*.json
+data/
+credentials/
 
 # Virtual Environments
 .venv/

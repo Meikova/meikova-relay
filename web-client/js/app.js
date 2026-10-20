@@ -658,9 +658,9 @@
   }
 
   // --- GOOGLE SIGN-IN (GIS + DESKTOP RFC 8252) ---
-  const GOOGLE_CLIENT_ID = '515668723869-qorjmkoo84h2ac3h2u0vc9arpqqsk083.apps.googleusercontent.com';
+  let googleClientIdCache = null;
 
-  function initGoogleSignIn() {
+  async function initGoogleSignIn() {
     const isDesktopApp = typeof window !== 'undefined' && Boolean(window.pywebview);
     const container = document.getElementById('googleSignInBtn');
 
@@ -681,8 +681,20 @@
       setTimeout(initGoogleSignIn, 500);
       return;
     }
+
+    if (!googleClientIdCache) {
+      try {
+        const confRes = await apiFetch('/api/auth/google/config');
+        if (confRes && confRes.success && confRes.client_id) {
+          googleClientIdCache = confRes.client_id;
+        }
+      } catch (_) {}
+    }
+
+    if (!googleClientIdCache) return;
+
     google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
+      client_id: googleClientIdCache,
       callback: handleGoogleCredentialResponse,
       auto_select: false
     });
