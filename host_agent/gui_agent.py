@@ -141,6 +141,81 @@ try:
 except Exception:
     HAS_WEBVIEW = False
 
+def get_tray_icon_image():
+    """Returns crisp vector-drawn infinity tray icon with transparent background,
+    matching EveryThingDownloader and MashLoop design standards.
+    """
+    if not HAS_TRAY:
+        return None
+    try:
+        base_dirs = [
+            current_dir,
+            Path(__file__).resolve().parent,
+            Path(getattr(sys, "_MEIPASS", current_dir)),
+            Path(getattr(sys, "_MEIPASS", current_dir)) / "host_agent",
+        ]
+        for b in base_dirs:
+            candidate = b / "tray_icon.png"
+            if candidate.is_file():
+                return Image.open(candidate)
+    except Exception:
+        pass
+
+    try:
+        size = 256
+        s = size / 32.0
+        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+
+        def bpt(p0, p1, p2, p3, u):
+            u1 = 1.0 - u
+            return (
+                u1**3 * p0[0] + 3 * u1**2 * u * p1[0] + 3 * u1 * u**2 * p2[0] + u**3 * p3[0],
+                u1**3 * p0[1] + 3 * u1**2 * u * p1[1] + 3 * u1 * u**2 * p2[1] + u**3 * p3[1]
+            )
+
+        segs = [
+            ((16*s, 16*s), (19.5*s, 10.5*s), (27*s, 10.5*s), (27*s, 16*s)),
+            ((27*s, 16*s), (27*s, 21.5*s), (19.5*s, 21.5*s), (16*s, 16*s)),
+            ((16*s, 16*s), (12.5*s, 10.5*s), (5*s, 10.5*s), (5*s, 16*s)),
+            ((5*s, 16*s), (5*s, 21.5*s), (12.5*s, 21.5*s), (16*s, 16*s)),
+        ]
+        points = []
+        for p0, p1, p2, p3 in segs:
+            for i in range(240):
+                points.append(bpt(p0, p1, p2, p3, i / 240.0))
+
+        # 1. Dark emerald contour (ensures high contrast on light taskbars)
+        for i in range(len(points)):
+            p1 = points[i]
+            p2 = points[(i + 1) % len(points)]
+            d.line([p1, p2], fill=(4, 120, 87, 190), width=int(3.6 * s))
+
+        # 2. Main emerald neon stroke
+        for i in range(len(points)):
+            p1 = points[i]
+            p2 = points[(i + 1) % len(points)]
+            d.line([p1, p2], fill=(34, 197, 94, 255), width=int(2.8 * s))
+
+        # 3. Bright core highlight line
+        for i in range(len(points)):
+            p1 = points[i]
+            p2 = points[(i + 1) % len(points)]
+            d.line([p1, p2], fill=(220, 252, 231, 255), width=int(0.9 * s))
+
+        # 4. Signature orbiting pulse beacon dot at cx=23.2, cy=12.4
+        cx, cy = 23.2 * s, 12.4 * s
+        r = 2.1 * s
+        d.ellipse([cx - r * 1.35, cy - r * 1.35, cx + r * 1.35, cy + r * 1.35], fill=(4, 120, 87, 210))
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 255, 255, 255))
+
+        return img.resize((32, 32), Image.Resampling.LANCZOS)
+    except Exception:
+        fallback = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+        d = ImageDraw.Draw(fallback)
+        d.ellipse([4, 4, 28, 28], outline="#22C55E", width=3)
+        return fallback
+
 REG_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 APP_REG_NAME = "TitanRemoteHost"
 
@@ -1324,29 +1399,12 @@ class TitanHostGUI:
         if not HAS_TRAY:
             return
 
-        def get_tray_image():
-            try:
-                size = 64
-                img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-                draw = ImageDraw.Draw(img)
-                draw.ellipse((2, 2, 61, 61), fill='#10B981', outline='#047857', width=2)
-                draw.ellipse((7, 7, 56, 56), fill='#070D17')
-                draw.ellipse((14, 22, 34, 42), outline='#22C55E', width=4)
-                draw.ellipse((30, 22, 50, 42), outline='#22C55E', width=4)
-                draw.ellipse((28, 28, 36, 36), fill='#FFFFFF')
-                return img
-            except Exception:
-                img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-                draw = ImageDraw.Draw(img)
-                draw.ellipse((4, 4, 60, 60), fill="#10B981", outline="#047857", width=4)
-                return img
-
         menu = pystray.Menu(
             pystray.MenuItem(self.t("tray_open"), self._restore_from_tray, default=True),
             pystray.MenuItem(self.t("tray_copy"), self._copy_share_info),
             pystray.MenuItem(self.t("tray_exit"), self._exit_application)
         )
-        self.tray_icon = pystray.Icon("TitanRemoteHost", get_tray_image(), "Titan Remote Host", menu)
+        self.tray_icon = pystray.Icon("TitanRemoteHost", get_tray_icon_image(), "Titan Remote Host", menu)
 
         def setup_tray(icon):
             ensure_interactive_desktop()
@@ -1937,27 +1995,6 @@ def launch_webview_app(autostart: bool = False):
     window.events.closing += on_closing
 
     if HAS_TRAY:
-        def get_tray_img():
-            try:
-                size = 64
-                img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-                draw = ImageDraw.Draw(img)
-                # Vibrant Emerald Green Circle (stands out on both light & dark taskbars)
-                draw.ellipse((2, 2, 61, 61), fill='#10B981', outline='#047857', width=2)
-                # Inner dark cockpit
-                draw.ellipse((7, 7, 56, 56), fill='#070D17')
-                # Bold neon green infinity loops
-                draw.ellipse((14, 22, 34, 42), outline='#22C55E', width=4)
-                draw.ellipse((30, 22, 50, 42), outline='#22C55E', width=4)
-                # Center white phosphor core
-                draw.ellipse((28, 28, 36, 36), fill='#FFFFFF')
-                return img
-            except Exception:
-                img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-                draw = ImageDraw.Draw(img)
-                draw.ellipse((4, 4, 60, 60), fill="#10B981", outline="#047857", width=4)
-                return img
-
         def tray_restore(icon=None, item=None):
             if window:
                 try:
@@ -1989,7 +2026,7 @@ def launch_webview_app(autostart: bool = False):
             pystray.MenuItem(api.t("tray_copy"), tray_copy),
             pystray.MenuItem(api.t("tray_exit"), tray_exit),
         )
-        api._tray_icon = pystray.Icon("TitanRemoteHost", get_tray_img(), "Titan Remote Host", tray_menu)
+        api._tray_icon = pystray.Icon("TitanRemoteHost", get_tray_icon_image(), "Titan Remote Host", tray_menu)
 
         def setup_tray(icon):
             ensure_interactive_desktop()

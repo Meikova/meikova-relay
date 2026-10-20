@@ -1,86 +1,149 @@
-﻿import math
+import math
 import os
+from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
 def bezier_point(p0, p1, p2, p3, u):
     u1 = 1.0 - u
-    x = u1**3 * p0[0] + 3 * u1**2 * u * p1[0] + 3 * u1 * u**2 * p2[0] + u**3 * p3[0]
-    y = u1**3 * p0[1] + 3 * u1**2 * u * p1[1] + 3 * u1 * u**2 * p2[1] + u**3 * p3[1]
-    return (x, y)
+    return (
+        u1**3 * p0[0] + 3 * u1**2 * u * p1[0] + 3 * u1 * u**2 * p2[0] + u**3 * p3[0],
+        u1**3 * p0[1] + 3 * u1**2 * u * p1[1] + 3 * u1 * u**2 * p2[1] + u**3 * p3[1]
+    )
 
-def create_favicon_icon():
-    size = 1024
-    s = size / 64.0  # Scale factor = 16.0
+def generate_curve_points(s, steps=400):
+    """Generates precision points along MashLoop / EveryThingDownloader cubic bezier infinity loop."""
+    segs = [
+        ((16*s, 16*s), (19.5*s, 10.5*s), (27*s, 10.5*s), (27*s, 16*s)),
+        ((27*s, 16*s), (27*s, 21.5*s), (19.5*s, 21.5*s), (16*s, 16*s)),
+        ((16*s, 16*s), (12.5*s, 10.5*s), (5*s, 10.5*s), (5*s, 16*s)),
+        ((5*s, 16*s), (5*s, 21.5*s), (12.5*s, 21.5*s), (16*s, 16*s)),
+    ]
+    points = []
+    for p0, p1, p2, p3 in segs:
+        for i in range(steps):
+            points.append(bezier_point(p0, p1, p2, p3, i / float(steps)))
+    return points
 
+def create_tray_icon():
+    """Creates pixel-perfect, transparent-background tray icon matching EveryThingDownloader & MashLoop."""
+    size = 256
+    s = size / 32.0  # scale = 8.0
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    points = generate_curve_points(s)
 
-    # 1. Background Chamber (Pure Dark Squircle, NO BORDER)
-    radius = int(18 * s)
+    # 1. Dark emerald contour (ensures razor-sharp contrast on light taskbars)
+    for i in range(len(points)):
+        p1 = points[i]
+        p2 = points[(i + 1) % len(points)]
+        d.line([p1, p2], fill=(4, 120, 87, 190), width=int(3.6 * s))
+
+    # 2. Main vibrant emerald neon stroke
+    for i in range(len(points)):
+        p1 = points[i]
+        p2 = points[(i + 1) % len(points)]
+        d.line([p1, p2], fill=(34, 197, 94, 255), width=int(2.8 * s))
+
+    # 3. Bright core highlight line
+    for i in range(len(points)):
+        p1 = points[i]
+        p2 = points[(i + 1) % len(points)]
+        d.line([p1, p2], fill=(220, 252, 231, 255), width=int(0.9 * s))
+
+    # 4. Signature orbiting pulse beacon dot at cx=23.2, cy=12.4
+    cx, cy = 23.2 * s, 12.4 * s
+    r = 2.1 * s
+    d.ellipse([cx - r * 1.35, cy - r * 1.35, cx + r * 1.35, cy + r * 1.35], fill=(4, 120, 87, 210))
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 255, 255, 255))
+
+    res32 = img.resize((32, 32), Image.Resampling.LANCZOS)
+    return res32
+
+def create_app_icon():
+    """Creates high-resolution squircle app icon for desktop window and installer."""
+    size = 512
+    s = size / 32.0  # scale = 16.0
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
+
+    # Rounded squircle background
+    radius = int(8 * s)
     draw.rounded_rectangle((0, 0, size, size), radius=radius, fill="#070D17")
 
-    # Subtle radial depth gradient (seamless, no harsh border)
-    grad_img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    grad_draw = ImageDraw.Draw(grad_img)
-    grad_draw.ellipse((int(size*0.12), int(size*0.12), int(size*0.88), int(size*0.88)), fill=(15, 23, 42, 120))
-    grad_img = grad_img.filter(ImageFilter.GaussianBlur(int(45 * s)))
-    img.alpha_composite(grad_img)
+    # Subtle radial inner ambient chamber glow
+    glow_img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(glow_img).ellipse(
+        (int(size * 0.1), int(size * 0.1), int(size * 0.9), int(size * 0.9)),
+        fill=(16, 27, 46, 140)
+    )
+    glow_img = glow_img.filter(ImageFilter.GaussianBlur(int(40)))
+    img.alpha_composite(glow_img)
 
-    # Re-mask strictly to rounded squircle
+    # Re-clip to squircle mask
     mask = Image.new("L", (size, size), 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, size, size), radius=radius, fill=255)
     img.putalpha(mask)
 
-    # 2. Cubic Bezier curve segments from favicon.svg:
-    # M32 32 C 40 20, 54 20, 54 32 C 54 44, 40 44, 32 32 C 24 20, 10 20, 10 32 C 10 44, 24 44, 32 32 Z
-    segs = [
-        ((32*s, 32*s), (40*s, 20*s), (54*s, 20*s), (54*s, 32*s)),
-        ((54*s, 32*s), (54*s, 44*s), (40*s, 44*s), (32*s, 32*s)),
-        ((32*s, 32*s), (24*s, 20*s), (10*s, 20*s), (10*s, 32*s)),
-        ((10*s, 32*s), (10*s, 44*s), (24*s, 44*s), (32*s, 32*s)),
-    ]
+    d = ImageDraw.Draw(img)
+    points = generate_curve_points(s)
 
-    points = []
-    steps_per_seg = 600
-    for p0, p1, p2, p3 in segs:
-        for i in range(steps_per_seg):
-            u = i / float(steps_per_seg)
-            points.append(bezier_point(p0, p1, p2, p3, u))
+    # Outer neon green aura
+    aura_img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    ad = ImageDraw.Draw(aura_img)
+    for i in range(len(points)):
+        p1 = points[i]
+        p2 = points[(i + 1) % len(points)]
+        ad.line([p1, p2], fill=(34, 197, 94, 110), width=int(5.2 * s))
+    aura_img = aura_img.filter(ImageFilter.GaussianBlur(int(6 * (s / 8.0))))
+    img.alpha_composite(aura_img)
 
-    # Glow layer
-    glow_img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    glow_draw = ImageDraw.Draw(glow_img)
-    glow_r = int(5.5 * s)
-    for x, y in points:
-        glow_draw.ellipse((x - glow_r, y - glow_r, x + glow_r, y + glow_r), fill=(34, 197, 94, 95))
-    glow_img = glow_img.filter(ImageFilter.GaussianBlur(int(2.5 * s)))
-    img.alpha_composite(glow_img)
+    # Main stroke
+    for i in range(len(points)):
+        p1 = points[i]
+        p2 = points[(i + 1) % len(points)]
+        d.line([p1, p2], fill=(34, 197, 94, 255), width=int(2.8 * s))
 
-    # Main stroke: stroke-width="4.5" -> radius = 2.25 * s = 36px
-    stroke_r = 2.25 * s
-    draw_main = ImageDraw.Draw(img)
-    for x, y in points:
-        draw_main.ellipse((x - stroke_r, y - stroke_r, x + stroke_r, y + stroke_r), fill="#22C55E")
+    # Inner core highlight
+    for i in range(len(points)):
+        p1 = points[i]
+        p2 = points[(i + 1) % len(points)]
+        d.line([p1, p2], fill=(220, 252, 231, 255), width=int(0.8 * s))
 
-    # 3. Core Phosphor Pulse Dot: cx="32" cy="32" r="3.2" -> radius = 3.2 * s = 51.2px
-    dot_cx, dot_cy = 32 * s, 32 * s
-    dot_glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    dot_glow_draw = ImageDraw.Draw(dot_glow)
-    dot_glow_draw.ellipse(
-        (dot_cx - 60, dot_cy - 60, dot_cx + 60, dot_cy + 60),
-        fill=(34, 197, 94, 180)
+    # Beacon dot at cx=23.2, cy=12.4
+    cx, cy = 23.2 * s, 12.4 * s
+    r = 2.1 * s
+    # Beacon aura
+    b_aura = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(b_aura).ellipse(
+        (cx - r * 2.5, cy - r * 2.5, cx + r * 2.5, cy + r * 2.5),
+        fill=(34, 197, 94, 160)
     )
-    dot_glow = dot_glow.filter(ImageFilter.GaussianBlur(16))
-    img.alpha_composite(dot_glow)
+    b_aura = b_aura.filter(ImageFilter.GaussianBlur(8))
+    img.alpha_composite(b_aura)
 
-    dot_r = 3.2 * s
-    ImageDraw.Draw(img).ellipse((dot_cx - dot_r, dot_cy - dot_r, dot_cx + dot_r, dot_cy + dot_r), fill="#FFFFFF")
+    # Core white dot
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 255, 255, 255))
+    return img
 
-    os.makedirs("host_agent", exist_ok=True)
-    img.save("host_agent/icon.png", format="PNG")
+def main():
+    root = Path(__file__).resolve().parent
+    out_dir = root
+    os.makedirs(out_dir, exist_ok=True)
 
+    # 1. Tray Icon (32x32 transparent)
+    tray_img = create_tray_icon()
+    tray_img.save(out_dir / "tray_icon.png", format="PNG")
+    print(f"Generated {out_dir / 'tray_icon.png'}")
+
+    # 2. App Icon (512x512)
+    app_img = create_app_icon()
+    app_img.save(out_dir / "icon.png", format="PNG")
+    print(f"Generated {out_dir / 'icon.png'}")
+
+    # 3. Multi-resolution ICO
     sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
-    img.save("host_agent/icon.ico", format="ICO", sizes=sizes)
-    print("Border removed, clean infinity icon created!")
+    app_img.save(out_dir / "icon.ico", format="ICO", sizes=sizes)
+    print(f"Generated {out_dir / 'icon.ico'}")
 
-create_favicon_icon()
+if __name__ == "__main__":
+    main()

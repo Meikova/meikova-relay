@@ -5,7 +5,16 @@ a = Analysis(
     ['D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_agent.py'],
     pathex=[],
     binaries=[],
-    datas=[('D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_view.html', 'host_agent'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_view.html', '.'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico', 'host_agent'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico', '.'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.png', 'host_agent'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.png', '.')],
+    datas=[
+        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_view.html', 'host_agent'),
+        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_view.html', '.'),
+        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico', 'host_agent'),
+        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico', '.'),
+        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.png', 'host_agent'),
+        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.png', '.'),
+        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\tray_icon.png', 'host_agent'),
+        ('D:\\JOB\\DEV\\titan-remote\\host_agent\\tray_icon.png', '.')
+    ],
     hiddenimports=['pystray', 'pystray._win32', 'pystray._util.win32', 'six', 'six.moves', 'six.moves.queue', 'PIL', 'PIL.Image', 'PIL.ImageDraw', 'webview', 'clr'],
     hookspath=[],
     hooksconfig={},
@@ -35,4 +44,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico'],
 )

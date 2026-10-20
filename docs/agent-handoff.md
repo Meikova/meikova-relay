@@ -1,6 +1,29 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.19)
+### Recent Updates (Version 1.0.20)
+- **Tái thiết kế toàn diện Icon Khay Hệ Thống và Nhận diện Thương hiệu (Theo chuẩn MashLoop & EveryThingDownloader):**
+  - **Phân tích vấn đề:** Icon khay cũ vẽ hình tròn tối màu `#070D17` viền xanh và 2 elip crude trong `create_tray_badge`. Khi Windows 11 thu nhỏ xuống kích thước khay 16x16 / 24x24 pixel, hình tròn đen bị nhòe thành đốm đen mờ đục với 2 chấm mắt méo mó ("icon không ổn").
+  - **Áp dụng chuẩn thiết kế MashLoop & EveryThingDownloader:**
+    - Loại bỏ hoàn toàn khối hộp tròn đen đặc nền. Nền chuyển sang trong suốt 100% `(0, 0, 0, 0)`.
+    - Biểu tượng vô cực toán học (Cubic Bezier Infinity Loop `M16 16 C 19.5 10.5, 27 10.5, 27 16 C 27 21.5, 19.5 21.5, 16 16 C 12.5 10.5, 5 10.5, 5 16 C 5 21.5, 12.5 21.5, 16 16 Z`).
+    - Viền tối emerald contour `#047857` chống chìm trên nền Taskbar trắng/sáng, dải nét neon xanh ngọc `#22C55E` cùng lõi phosphor sáng `#DCFCE7`.
+    - Điểm phát sóng viễn trắc quỹ đạo (Signature orbiting pulse beacon dot) tại tọa độ `(23.2, 12.4)` với tâm trắng tinh khiết `#FFFFFF` và vầng hào quang ngọc bích.
+    - Render vector ở độ phân giải 256x256 / 512x512 rồi downsample bằng thuật toán `Image.Resampling.LANCZOS` để đạt độ sắc nét tuyệt đối ở mọi kích thước 16x16, 24x24, 32x32 trên Windows 11.
+  - **Đồng bộ toàn hệ thống:**
+    - Cập nhật `host_agent/make_icon.py` tạo `tray_icon.png` (32x32 transparent), `icon.png` (512x512 squircle), `icon.ico` (multi-resolution 16->256px).
+    - Cập nhật `host_agent/gui_agent.py`: hàm dùng chung `get_tray_icon_image()` cho cả giao diện Tkinter và Edge WebView2.
+    - Cập nhật `TitanRemoteHost.spec`: nhúng `tray_icon.png` và gắn resource PE icon cho file `.exe`.
+    - Đồng bộ `web-client/favicon.svg` và `relay-server/public/favicon.svg` theo chuẩn SVG mới (viewBox 32x32, squircle rx=8, beacon dot tại 23.2, 12.4).
+  - **Biên dịch & Đóng gói:**
+    - Chạy lại PyInstaller tạo `TitanRemoteHost.exe` mới.
+    - Cập nhật bản build vào `relay-server/TitanRemoteHost.exe` và `%LOCALAPPDATA%\TitanRemoteHost\TitanRemoteHost.exe`.
+  - **Kiểm thử:**
+    - Toàn bộ 69/69 test suite pass (Exit Code 0).
+    - Tiến trình host agent chạy trực tuyến, kết nối WebSocket relay ổn định và hiển thị icon sắc nét trên taskbar.
+
+---
+
+### Previous Updates (Version 1.0.19)
 - **Sửa tận gốc nguyên nhân System Tray Icon không hiển thị / bị tàng hình:**
   - **Nguyên nhân 1 (Lệch WindowStation/Desktop per-thread):** `SetThreadDesktop` trong Win32 là thuộc tính riêng của từng luồng (per-thread). Khi `pystray.Icon.run()` khởi tạo luồng nội bộ `setup_thread`, luồng này không tự kế thừa desktop handle `winsta0\default` của luồng cha, khiến hàm gọi `Shell_NotifyIconW(NIM_ADD)` bị Windows trả về mã lỗi `0x80004005 (E_FAIL)` do không tìm thấy `Shell_TrayWnd` (Taskbar).
     - *Khắc phục:* Truyền callback `setup=setup_tray` vào `Icon.run(setup=setup_tray)`, gọi `ensure_interactive_desktop()` ngay trong luồng `setup_thread` trước khi gán `icon.visible = True`.
