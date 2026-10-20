@@ -1,6 +1,14 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.12)
+### Recent Updates (Version 1.0.13)
+- **Tăng chiều rộng modal #addDeviceModal & Chống rớt chữ:**
+  - Tăng `max-width` thẻ modal từ `580px` lên `680px` (`width: 92vw`), tăng 100px không gian hiển thị giúp các dòng lệnh terminal và ghi chú quyền hạn không bị rớt chữ đơn lẻ xuống dòng mới.
+  - Tinh chỉnh `.cmd-box` CSS: chuyển `word-break: break-all` sang `word-break: normal; overflow-wrap: anywhere;`, ngăn chặn ngắt đôi từ ngẫu nhiên (như `acc` và `ount`), ngắt dòng tự nhiên theo dấu phân cách tham số (`?`, `&`, khoảng trắng).
+  - Bump phiên bản v1.0.13 trên toàn bộ asset để tránh cache trình duyệt.
+
+---
+
+### Previous Updates (Version 1.0.12)
 - **Sửa triệt để lỗi thực thi script cài đặt Windows (`Setup-TitanHost.bat`):**
   - **Nguyên nhân cốt lõi gây lỗi:** Lệnh `setlocal EnableDelayedExpansion` trong `server.js` khiến CMD hiểu dấu chấm than `!` trong các câu lệnh `echo [!]...` và `echo ...!` là biến nội suy chưa đóng, gây lỗi cú pháp lập tức: `! was unexpected at this time.` và dừng chương trình trước khi tải bất kỳ file nào.
   - **Khắc phục cú pháp:** Chuyển sang `setlocal DisableDelayedExpansion`, loại bỏ toàn bộ dấu `!` trong các chuỗi thông báo, dùng biến chuẩn `%RAND_ROOM%` và `%RAND_PIN%`.
