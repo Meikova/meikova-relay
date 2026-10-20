@@ -354,26 +354,22 @@ if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
 
 echo [1/3] Kiem tra phan mem Standalone Desktop (.exe)...
-if exist "TitanRemoteHost.exe" (
-    for %%I in ("TitanRemoteHost.exe") do (
-        if %%~zI LSS 5000000 del /f /q "TitanRemoteHost.exe" >nul 2>&1
-    )
-)
+if not exist "TitanRemoteHost.exe" goto :DOWNLOAD_EXE
+for %%I in ("TitanRemoteHost.exe") do if %%~zI LSS 5000000 del /f /q "TitanRemoteHost.exe" >nul 2>&1
 
-if not exist "TitanRemoteHost.exe" (
-    echo Dang tai TitanRemoteHost.exe tu Relay Server...
-    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe')"
-)
+:DOWNLOAD_EXE
+if exist "TitanRemoteHost.exe" goto :CHECK_STANDALONE
+echo Dang tai TitanRemoteHost.exe tu Relay Server...
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe')"
 
+:CHECK_STANDALONE
 set "USE_STANDALONE=0"
 if exist "TitanRemoteHost.exe" (
-    for %%I in ("TitanRemoteHost.exe") do (
-        if %%~zI GTR 5000000 set "USE_STANDALONE=1"
-    )
+    for %%I in ("TitanRemoteHost.exe") do if %%~zI GTR 5000000 set "USE_STANDALONE=1"
 )
 
 if "%USE_STANDALONE%"=="1" (
-    echo [OK] Ban Standalone Desktop san sang hoat dong (Khong can Python)
+    echo [OK] Ban Standalone Desktop san sang hoat dong - Khong can Python
     goto :WRITE_CONFIG
 )
 
@@ -387,16 +383,18 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo [2/3] Dang tai goi ma nguon Host Agent tu Relay Server...
 powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip')"
-if exist "agent-package.zip" (
-    powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
-    del /f /q agent-package.zip >nul 2>&1
-    if exist "host_agent\\gui_agent.py" copy /y host_agent\\*.py . >nul 2>&1
-) else (
-    echo [LOI] Khong the tai goi agent tu ${origin}. Vui long kiem tra ket noi mang.
-    pause
-    exit /b 1
-)
+if not exist "agent-package.zip" goto :DOWNLOAD_FAIL
+powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
+del /f /q agent-package.zip >nul 2>&1
+if exist "host_agent\\gui_agent.py" copy /y host_agent\\*.py . >nul 2>&1
+goto :INSTALL_DEPS
 
+:DOWNLOAD_FAIL
+echo [LOI] Khong the tai goi agent tu ${origin}. Vui long kiem tra ket noi mang.
+pause
+exit /b 1
+
+:INSTALL_DEPS
 echo [3/3] Cai dat thu vien can thiet...
 python -m pip install websockets Pillow pystray --quiet >nul 2>&1
 
@@ -417,13 +415,17 @@ echo }
 REM Dong bo cau hinh vao thu muc nguoi dung de tranh ghi de hoac thieu tai khoan
 copy /y config.json "%USERPROFILE%\\.titan_remote_config.json" >nul 2>&1
 
-if "%USE_STANDALONE%"=="1" (
-    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "\"%TARGET_DIR%\\TitanRemoteHost.exe\" --autostart" /f >nul 2>&1
-    start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\TitanRemoteHost.exe"
-) else (
-    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "pythonw.exe \"%TARGET_DIR%\\gui_agent.py\" --autostart" /f >nul 2>&1
-    start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py"
-)
+if "%USE_STANDALONE%"=="1" goto :RUN_STANDALONE
+
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "pythonw.exe \\"%TARGET_DIR%\\gui_agent.py\\" --autostart" /f >nul 2>&1
+start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py"
+goto :FINISH_SETUP
+
+:RUN_STANDALONE
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "\\"%TARGET_DIR%\\TitanRemoteHost.exe\\" --autostart" /f >nul 2>&1
+start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\TitanRemoteHost.exe"
+
+:FINISH_SETUP
 
 echo.
 echo ==============================================================

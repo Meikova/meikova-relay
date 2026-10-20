@@ -698,6 +698,23 @@
         </div>
       </div>
 
+      <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin: 8px 0 3px;" id="lblSystemBehavior">CẤU HÌNH KHỞI ĐỘNG & HỆ THỐNG:</div>
+
+      <div class="toggle-row" onclick="toggleSwitch('autostart')">
+        <span class="toggle-lbl" id="lblAutostart">Khởi động cùng Windows (Tự chạy khi bật máy)</span>
+        <div id="swAutostart" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
+      <div class="toggle-row" onclick="toggleSwitch('open_on_boot')">
+        <span class="toggle-lbl" id="lblOpenOnBoot">Mở cửa sổ khi Windows khởi động (Hiển thị giao diện)</span>
+        <div id="swOpenOnBoot" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
+      <div class="toggle-row" onclick="toggleSwitch('close_to_tray')">
+        <span class="toggle-lbl" id="lblCloseToTray">Thu nhỏ vào khay khi bấm đóng [X]</span>
+        <div id="swCloseToTray" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
       <div class="toggle-row" onclick="toggleSwitch('keepawake')">
         <span class="toggle-lbl" id="lblKeepawake">Chống tắt màn hình / Sleep (Anti-Sleep)</span>
         <div id="swKeepawake" class="toggle-switch"><div class="toggle-thumb"></div></div>
@@ -769,7 +786,11 @@
         lbl_account: "Tài khoản chủ sở hữu (Email / Username):",
         lbl_device: "Tên máy trạm hiển thị (Fleet Name):",
         lbl_perm_pin: "Mật khẩu bảo mật cố định (Permanent PIN):",
-        lbl_autostart: "Khởi động cùng Windows (Bảo vệ đường dẫn & Vượt UAC)",
+        lbl_system_behavior: "CẤU HÌNH KHỞI ĐỘNG & HỆ THỐNG:",
+        lbl_autostart: "Khởi động cùng Windows (Tự chạy khi bật máy)",
+        lbl_open_on_boot: "Mở cửa sổ khi Windows khởi động (Hiển thị giao diện)",
+        lbl_close_to_tray: "Thu nhỏ vào khay khi bấm đóng [X]",
+        lbl_keepawake: "Chống tắt màn hình / Sleep (Anti-Sleep)",
         lbl_service: "Dịch vụ hệ thống 24/7 (Trước màn hình khóa Lock Screen)",
         lbl_install_tiers: "PHƯƠNG THỨC CÀI ĐẶT MÁY TRẠM:",
         tag_tier_user: "CÀI ĐẶT NGƯỜI DÙNG // USER LEVEL",
@@ -815,7 +836,11 @@
         lbl_account: "Owner Account (Email / Username):",
         lbl_device: "Workstation Fleet Name:",
         lbl_perm_pin: "Permanent Security PIN:",
-        lbl_autostart: "Start on Windows boot (Safe path & UAC bypass)",
+        lbl_system_behavior: "STARTUP & SYSTEM BEHAVIOR:",
+        lbl_autostart: "Start with Windows (Auto-run on boot)",
+        lbl_open_on_boot: "Open window on Windows boot (Show UI)",
+        lbl_close_to_tray: "Minimize to tray when clicking close [X]",
+        lbl_keepawake: "Prevent sleep & screen shutoff (Anti-Sleep)",
         lbl_service: "24/7 Windows Service (Pre-login & Lock Screen)",
         lbl_install_tiers: "WORKSTATION DEPLOYMENT METHOD:",
         tag_tier_user: "USER-LEVEL INSTALLATION",
@@ -898,7 +923,11 @@
       if (document.getElementById('tagTierAdmin')) document.getElementById('tagTierAdmin').innerText = t('tag_tier_admin');
       if (document.getElementById('badgeNeedAdmin')) document.getElementById('badgeNeedAdmin').innerText = t('badge_need_admin');
       if (document.getElementById('descTierAdmin')) document.getElementById('descTierAdmin').innerText = t('desc_tier_admin');
-      document.getElementById('lblKeepawake').innerText = t('lbl_keepawake');
+      if (document.getElementById('lblSystemBehavior')) document.getElementById('lblSystemBehavior').innerText = t('lbl_system_behavior');
+      if (document.getElementById('lblAutostart')) document.getElementById('lblAutostart').innerText = t('lbl_autostart');
+      if (document.getElementById('lblOpenOnBoot')) document.getElementById('lblOpenOnBoot').innerText = t('lbl_open_on_boot');
+      if (document.getElementById('lblCloseToTray')) document.getElementById('lblCloseToTray').innerText = t('lbl_close_to_tray');
+      if (document.getElementById('lblKeepawake')) document.getElementById('lblKeepawake').innerText = t('lbl_keepawake');
       document.getElementById('txtMinimizeTray').innerText = t('btn_minimize_tray');
       document.getElementById('txtSettingsTitle').innerText = t('settings_title');
       document.getElementById('txtSettingsDesc').innerText = t('settings_desc');
@@ -1057,12 +1086,18 @@
 
     function toggleSwitch(name) {
       let swId = 'swAutostart';
-      if (name === 'service') swId = 'swService';
+      if (name === 'open_on_boot') swId = 'swOpenOnBoot';
+      else if (name === 'close_to_tray') swId = 'swCloseToTray';
+      else if (name === 'service') swId = 'swService';
       else if (name === 'keepawake') swId = 'swKeepawake';
       const sw = document.getElementById(swId);
+      if (!sw) return;
       const isOn = sw.classList.toggle('on');
       if (window.pywebview && window.pywebview.api) {
         if (name === 'autostart') window.pywebview.api.toggle_autostart(isOn);
+        else if (name === 'open_on_boot') window.pywebview.api.toggle_open_on_boot(isOn);
+        else if (name === 'close_to_tray') window.pywebview.api.toggle_close_to_tray(isOn);
+        else if (name === 'keepawake') window.pywebview.api.toggle_keepawake(isOn);
         else if (name === 'service') {
           window.pywebview.api.toggle_service(isOn).then(res => {
             if (!res || !res.success) {
@@ -1073,7 +1108,6 @@
             }
           });
         }
-        else window.pywebview.api.toggle_keepawake(isOn);
       }
     }
 
@@ -1112,6 +1146,8 @@
       document.getElementById('inpRelay').value = cfg.relay_url || 'ws://localhost:8080';
       
       if (autostartOn && document.getElementById('swAutostart')) document.getElementById('swAutostart').classList.add('on');
+      if (cfg.open_on_boot && document.getElementById('swOpenOnBoot')) document.getElementById('swOpenOnBoot').classList.add('on');
+      if (cfg.close_to_tray !== false && document.getElementById('swCloseToTray')) document.getElementById('swCloseToTray').classList.add('on');
       if (serviceOn && document.getElementById('swService')) document.getElementById('swService').classList.add('on');
       if (cfg.keep_awake && document.getElementById('swKeepawake')) document.getElementById('swKeepawake').classList.add('on');
       

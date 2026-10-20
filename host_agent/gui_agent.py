@@ -15,13 +15,19 @@ import random
 import string
 from pathlib import Path
 from typing import Optional
+import multiprocessing
+multiprocessing.freeze_support()
 
-# Ensure UTF-8 output on Windows
+# Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":
     try:
-        if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+        if sys.stdout is None:
+            sys.stdout = open(os.devnull, "w", encoding="utf-8", errors="replace")
+        elif hasattr(sys.stdout, "reconfigure"):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+        if sys.stderr is None:
+            sys.stderr = open(os.devnull, "w", encoding="utf-8", errors="replace")
+        elif hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
@@ -1526,10 +1532,23 @@ class HostApi:
                 pass
 
     def close_window(self):
-        if HAS_TRAY:
+        close_to_tray = self._config.get("close_to_tray", True)
+        if close_to_tray and HAS_TRAY:
             self.minimize_to_tray()
         else:
-            self._exit_application()
+            self._is_quitting = True
+            self.stop_service()
+            if self._tray_icon:
+                try:
+                    self._tray_icon.stop()
+                except Exception:
+                    pass
+            if self._window:
+                try:
+                    self._window.destroy()
+                except Exception:
+                    pass
+            sys.exit(0)
 
     def _save_config(self):
         self._config["lang"] = self._lang
@@ -1742,6 +1761,19 @@ class HostApi:
         state_str = "ON" if (is_on and self._lang == "en") else ("BẬT" if is_on else ("OFF" if self._lang == "en" else "TẮT"))
         self._log(self.t("log_keepawake", state=state_str))
 
+    def toggle_open_on_boot(self, is_on: bool):
+        self._config["open_on_boot"] = bool(is_on)
+        self._config["start_minimized"] = not bool(is_on)
+        self._save_config()
+        state_str = "MỞ CỬA SỔ" if is_on else "THU NHỎ VÀO KHAY"
+        self._log(f"Khởi động cùng Windows: {state_str}")
+
+    def toggle_close_to_tray(self, is_on: bool):
+        self._config["close_to_tray"] = bool(is_on)
+        self._save_config()
+        state_str = "THU NHỎ VÀO KHAY" if is_on else "THOÁT ỨNG DỤNG"
+        self._log(f"Khi bấm nút đóng [X]: {state_str}")
+
     def minimize_to_tray(self):
         if self._window:
             try:
@@ -1820,13 +1852,15 @@ def launch_webview_app(autostart: bool = False):
     def on_loaded():
         threading.Thread(target=api.start_service, daemon=True).start()
         if autostart:
-            if HAS_TRAY:
+            open_on_boot = api._config.get("open_on_boot", False)
+            if not open_on_boot and HAS_TRAY:
                 api.minimize_to_tray()
 
     def on_closing():
         if api._is_quitting:
             return True
-        if HAS_TRAY:
+        close_to_tray = api._config.get("close_to_tray", True)
+        if close_to_tray and HAS_TRAY:
             api.minimize_to_tray()
             return False
         api._is_quitting = True
@@ -1893,13 +1927,9 @@ def launch_webview_app(autostart: bool = False):
         except Exception:
             threading.Thread(target=api._tray_icon.run, daemon=True).start()
 
-    profile_dir = Path.home() / ".titan_remote_webview"
-    profile_dir.mkdir(parents=True, exist_ok=True)
-
     webview.start(
         debug=False,
-        storage_path=str(profile_dir),
-        private_mode=False,
+        private_mode=True,
         icon=icon_str,
     )
 
@@ -1983,5 +2013,17 @@ def main():
         root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    multiprocessing.freeze_support()
+    try:
+        main()
+    except Exception as e:
+        try:
+            import traceback
+            crash_log = Path.home() / ".titan_remote_crash.log"
+            with open(crash_log, "a", encoding="utf-8") as f:
+                f.write(f"\n--- CRASH AT {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+                traceback.print_exc(file=f)
+        except Exception:
+            pass
+        raise
 

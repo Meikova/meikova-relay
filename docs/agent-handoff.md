@@ -1,6 +1,27 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.16)
+### Recent Updates (Version 1.0.17)
+- **Bổ sung 4 thiết lập hệ thống chuẩn cho máy trạm (Workstation Behavior Settings):**
+  - **Khởi động cùng Windows (`autostart`):** Ghi/xóa khóa Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+  - **Mở cửa sổ khi Windows khởi động (`open_on_boot`):** Tùy chọn hiển thị giao diện Desktop khi Windows khởi động thay vì mặc định tự thu nhỏ xuống System Tray.
+  - **Thu nhỏ vào khay khi bấm nút đóng [X] (`close_to_tray`):** Bấm [X] sẽ thu nhỏ vào khay hệ thống (mặc định Bật); nếu Tắt sẽ dừng dịch vụ và thoát hẳn tiến trình.
+  - **Chống tắt màn hình / Sleep (`keep_awake`):** Duy trì hệ thống luôn thức bằng API Windows `SetThreadExecutionState`.
+- **Sửa triệt để lỗi xung đột WebView2 Data Lock (`0x800700AA`):**
+  - Chuyển `launch_webview_app` sang `private_mode=True` tự cấp phát thư mục tạm cô lập cho mỗi phiên chạy, triệt tiêu xung đột lockfile `EBWebView` khi nhiều tiến trình hoặc phiên cũ chưa giải phóng bộ đệm.
+- **Khắc phục lỗi ngắt tiến trình GUI PyInstaller không có console:**
+  - Bổ sung `multiprocessing.freeze_support()` ngay đầu file `host_agent/gui_agent.py` và trong `__main__`.
+  - Tự động chuyển hướng `sys.stdout` và `sys.stderr` sang `os.devnull` (thay vì giá trị `None` mặc định của `console=False`), loại bỏ hoàn toàn ngoại lệ `AttributeError: 'NoneType' object has no attribute 'write'`.
+  - Bổ sung cơ chế tự ghi crash log vào `~/.titan_remote_crash.log`.
+- **Tối ưu script cài đặt `setup.bat` (Loại bỏ lỗi phân giải ngoặc đơn trong CMD):**
+  - Chuyển toàn bộ luồng điều kiện sang kiến trúc nhãn `:LABEL` và `goto`, tránh lỗi cú pháp dấu đóng ngoặc `)` nằm trong chuỗi `echo` làm gãy khối `if (...)` của Windows Command Prompt.
+- **Xác thực kiểm thử:**
+  - Đóng gói PyInstaller thành công: file nhị phân `TitanRemoteHost.exe` 31.1 MB.
+  - Chạy `setup.bat`: Khởi tạo và kết nối thành công phòng `RD-8571`, đăng ký `PHAMDOANKIEM` lên Relay Server `ws://localhost:8080`.
+  - Toàn bộ 69/69 unit tests pass (Exit Code 0).
+
+---
+
+### Previous Updates (Version 1.0.16)
 - **Sửa lỗi dính thông tin Telemetry Overlay (`#ro-tr`) sau khi ngắt kết nối:**
   - **Nguyên nhân:** Khi kết thúc phiên remote điều khiển (`disconnect()`), client chỉ đóng WebSocket và chuyển về Dashboard nhưng không dọn dẹp biến telemetry. Phần tử `#ro-tr` ở góc trên bên phải vẫn giữ nguyên DOM hiển thị `RTT: 1ms _____ // 21 FPS // RES: 1920x1080` kèm đồ thị sparkline canvas.
   - **Khắc phục:**
