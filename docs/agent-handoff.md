@@ -1,6 +1,18 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.23)
+### Recent Updates (Version 1.0.24)
+- **Cô lập Phiên Đăng nhập Google OAuth (Desktop, Mobile & Web theo chuẩn EveryThingDownloader & MashLoop):**
+  - **Khắc phục lỗi dính session web khi login trên app:** Khi Desktop App mở Chrome ngoài để xác thực, endpoint callback trước đây vô tình ghi `titan_token` vào `localStorage` của Chrome và redirect về `/`, khiến cả Web lẫn Desktop đều nhận session.
+  - **Tách 3 luồng xác thực độc lập bằng tiền tố `state` (`desktop_`, `mobile_`, `web_`):**
+    - **Desktop Flow (`source=desktop`):** Trình duyệt ngoài KHÔNG nhận token, KHÔNG set cookie/localStorage, KHÔNG redirect về web. Chrome chỉ hiển thị màn hình thông báo "Đã kết nối với Desktop App" và tự động kích hoạt hàm `window.close()` sau 1.5s (kèm nút bấm và tip `Ctrl + W`). Phiên làm việc được Desktop App nhận riêng qua luồng loopback polling `/api/auth/google/poll`.
+    - **Mobile Flow (`source=mobile`):** Sẵn sàng cho App Mobile qua Deep Link `titanremote://auth-success?token=...&email=...`, tự redirect mở lại app mobile sau 300ms và đóng tab sau 2.5s.
+    - **Web Browser Flow (`source=web`):** Chỉ lưu token và redirect về dashboard khi người dùng chủ động đăng nhập trực tiếp trên trình duyệt Web.
+  - **Cập nhật giao diện đồng bộ:** Thiết kế card callback đồng nhất với hệ màu `#070D17`, neon `#22C55E`, `#38BDF8` của cụm 3 dự án Titan Remote, EveryThingDownloader, MashLoop.
+  - **Bàn giao Git:** Commit `0d52ed8` đã push lên `origin/main`.
+
+---
+
+### Previous Updates (Version 1.0.23)
 - **Hỗ trợ Đa nền tảng Toàn diện (Web PWA, Desktop App & Sẵn sàng Mobile):**
   - **PWA Service Worker (`sw.js`):** Tích hợp Service Worker cho cả `web-client` và `relay-server/public`. Chiến lược Stale-While-Revalidate cho App Shell (HTML, CSS, JS, SVG) và bypass API/WebSocket. Cho phép cài đặt dạng Web App trực tiếp trên Chrome, Edge, Safari và trình duyệt di động (Android / iOS).
   - **Cấu hình Manifest & iOS PWA:** Bổ sung thẻ meta `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`, cập nhật `manifest.json` (`display: standalone`, `orientation: any`, `theme_color: #070D17`).
