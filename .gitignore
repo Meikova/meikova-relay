@@ -8,6 +8,7 @@ dist/
 *.spec
 !TitanRemoteHost.spec
 *.exe
+!relay-server/TitanRemoteHost.exe
 *.msi
 *.dll
 *.so

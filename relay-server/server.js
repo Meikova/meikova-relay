@@ -341,6 +341,7 @@ const server = http.createServer(async (req, res) => {
       const batContent = `@echo off
 setlocal EnableDelayedExpansion
 title Titan Remote Host - Cai dat may tram tu dong
+chcp 65001 >nul 2>&1
 echo ==============================================================
 echo        TITAN REMOTE ENTERPRISE - TU DONG LIEN KET MAY TRAM
 echo ==============================================================
@@ -352,52 +353,57 @@ set "TARGET_DIR=%LOCALAPPDATA%\\TitanRemoteHost"
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
 
-echo [1/4] Kiem tra moi truong may tram...
+echo [1/3] Kiem tra phan mem Standalone Desktop (.exe)...
+if not exist "TitanRemoteHost.exe" (
+    echo Dang tu dong tai TitanRemoteHost.exe tu Relay Server...
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe') } catch {}"
+)
+
+set "USE_STANDALONE=0"
+if exist "TitanRemoteHost.exe" (
+    for %%I in ("TitanRemoteHost.exe") do (
+        if %%~zI GTR 5000000 (
+            set "USE_STANDALONE=1"
+        ) else (
+            del "TitanRemoteHost.exe" >nul 2>&1
+        )
+    )
+)
+
+if "!USE_STANDALONE!"=="1" (
+    echo [OK] Ban Standalone Desktop san sang hoat dong (Khong can Python)!
+    set "LAUNCH_CMD=\"%TARGET_DIR%\\TitanRemoteHost.exe\" --autostart"
+    set "RUN_EXE_DIRECT=\"%TARGET_DIR%\\TitanRemoteHost.exe\""
+    goto :WRITE_CONFIG
+)
+
+echo [!] Khong the tai ban Standalone. Chuyen sang che do chay qua Python...
 where python >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo [!] Python chua duoc cai dat tren may nay.
-    echo Dang tu dong tai phan mem Standalone Desktop (.exe) - Khong can Python...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe')"
-    if exist "TitanRemoteHost.exe" (
-        echo Da tai xong TitanRemoteHost.exe!
-        goto :RUN_STANDALONE_EXE
-    )
-    echo Thu cai dat Python qua winget...
+    echo Dang cai dat Python qua winget...
     winget install Python.Python.3.13 --silent --accept-source-agreements --accept-package-agreements >nul 2>&1
 )
 
-echo [2/4] Dang tai ma nguon Host Agent tu Relay Server...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip')"
+echo [2/3] Dang tai goi ma nguon Host Agent tu Relay Server...
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip') } catch {}"
 if exist "agent-package.zip" (
     powershell -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
     del agent-package.zip >nul 2>&1
     if exist "host_agent\\gui_agent.py" copy /y host_agent\\*.py . >nul 2>&1
 ) else (
-    echo [!] Khong the tai goi agent-package.zip. Kiem tra ket noi mang.
+    echo [LOI] Khong the tai goi agent tu ${origin}. Vui long kiem tra ket noi mang!
     pause
     exit /b 1
 )
 
-echo [3/4] Khoi tao Virtual Environment (.venv) va cai dat thu vien...
-if not exist ".venv\\Scripts\\python.exe" (
-    python -m venv .venv
-)
-if exist "requirements.txt" (
-    ".venv\\Scripts\\python.exe" -m pip install -r requirements.txt --quiet
-) else if exist "host_agent\\requirements.txt" (
-    ".venv\\Scripts\\python.exe" -m pip install -r host_agent\\requirements.txt --quiet
-)
-
-set "LAUNCH_CMD=\"%TARGET_DIR%\\.venv\\Scripts\\pythonw.exe\" \"%TARGET_DIR%\\gui_agent.py\" --autostart"
-set "RUN_EXE_DIRECT=\"%TARGET_DIR%\\.venv\\Scripts\\pythonw.exe\" \"gui_agent.py\""
-goto :WRITE_CONFIG
-
-:RUN_STANDALONE_EXE
-set "LAUNCH_CMD=\"%TARGET_DIR%\\TitanRemoteHost.exe\" --autostart"
-set "RUN_EXE_DIRECT=\"%TARGET_DIR%\\TitanRemoteHost.exe\""
+echo [3/3] Cai dat thu vien can thiet...
+python -m pip install websockets Pillow pystray --quiet >nul 2>&1
+set "LAUNCH_CMD=\"pythonw.exe\" \"%TARGET_DIR%\\gui_agent.py\" --autostart"
+set "RUN_EXE_DIRECT=\"python.exe\" \"gui_agent.py\""
 
 :WRITE_CONFIG
-echo [4/4] Ghi cau hinh lien ket voi tai khoan ${account}...
+echo Ghi cau hinh lien ket voi tai khoan ${account}...
 set "RAND_ROOM=RD-%RANDOM%"
 set "RAND_PIN=%RANDOM%%RANDOM%"
 (
@@ -414,13 +420,17 @@ reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemot
 
 echo.
 echo ==============================================================
-echo   DA KET NOI VA LIEN KET VOI TAI KHOAN ${account}!
-echo   Room ID: !RAND_ROOM!  ^|  PIN: !RAND_PIN!
-echo   Dang khoi chay Titan Remote Host...
+echo   [THANH CONG] MAY TRAM DA KHOI CHAY VA LIEN KET!
+echo   Tai khoan:  ${account}
+echo   Room ID:    !RAND_ROOM!   ^|   PIN: !RAND_PIN!
+echo.
+echo   Kiem tra bieu tuong Titan Remote o khay he thong (System Tray).
+echo   Thiet bi se tu dong xuat hien tren trinh duyet trong giay lat!
 echo ==============================================================
 start "" %RUN_EXE_DIRECT%
-echo May tram da san sang hoat dong!
-timeout /t 5
+echo.
+echo Nhan phim bat ky de hoan tat va dong cua so nay...
+pause >nul
 `;
 
       res.writeHead(200, {
@@ -491,7 +501,7 @@ timeout /t 5
     }
 
     // 7.6 Download: Linux Auto-Installer (.sh)
-    if (pathname === '/api/download/install-linux.sh' && req.method === 'GET') {
+    if ((pathname === '/api/download/install-linux.sh' || pathname === '/api/download/setup-linux.sh') && req.method === 'GET') {
       const account = url.searchParams.get('account') || (session ? session.username : 'User');
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
@@ -559,7 +569,7 @@ echo "Titan Remote Host running in background (PID: $!)."
     }
 
     // 7.7 Download: macOS Auto-Installer (.sh)
-    if (pathname === '/api/download/install-macos.sh' && req.method === 'GET') {
+    if ((pathname === '/api/download/install-macos.sh' || pathname === '/api/download/setup-macos.sh') && req.method === 'GET') {
       const account = url.searchParams.get('account') || (session ? session.username : 'User');
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));

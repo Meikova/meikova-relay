@@ -519,6 +519,36 @@
     applyDeckMode(currentDeckMode);
     const route = getRouteStateFromUrl();
 
+    // 1. Synchronously resolve target view based on URL route and cached token
+    let targetView = 'landing';
+    if (authToken) {
+      if (route.view === 'auth') {
+        targetView = 'dashboard';
+      } else {
+        targetView = route.view || 'dashboard';
+      }
+    } else {
+      if (route.view === 'auth') {
+        targetView = 'auth';
+      } else {
+        targetView = route.view || 'landing';
+      }
+    }
+
+    // Restore deep link state synchronously
+    if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
+      currentRoom = route.room;
+      const savedPin = route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
+      currentPin = savedPin;
+      if (route.browsePath) {
+        remoteCurrentPath = route.browsePath;
+      }
+    }
+
+    // Immediately paint target view with ZERO delay or flash
+    switchView(targetView, false);
+
+    // 2. Asynchronously verify session token
     if (authToken) {
       try {
         const data = await apiFetch('/api/auth/me');
@@ -526,43 +556,41 @@
           currentUser = data.user;
           renderUserBadge();
 
-          // Restore deep link from URL
+          // If auth view was deep linked, update URL to dashboard
           if (route.view === 'auth') {
-            switchView('dashboard', true);
+            syncUrlWithState(true);
             return;
           }
 
-          if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
-            currentRoom = route.room;
-            const savedPin = route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
-            currentPin = savedPin;
-            if (route.browsePath) {
-              remoteCurrentPath = route.browsePath;
-            }
-            switchView(route.view, false);
-            syncUrlWithState(true);
+          // If room was deep linked, start session
+          if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
+            const savedPin = currentPin || route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
             startRemoteSession(defaultWsUrl, route.room, savedPin);
             return;
           }
 
-          switchView(route.view || 'dashboard', false);
-          syncUrlWithState(true);
+          return;
+        } else {
+          // Token expired or invalid
+          authToken = null;
+          currentUser = null;
+          localStorage.removeItem('titan_token');
+          renderUserBadge();
+          if (targetView !== 'landing' && targetView !== 'auth') {
+            switchView('landing', true);
+            showToast('Phiên đăng nhập đã hết hạn', 'info');
+          }
           return;
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Auth check error:', err);
+      }
     }
 
-    // Unauthenticated
-    if (route.view === 'auth') {
-      switchView('auth', false);
-      syncUrlWithState(true);
-      return;
-    }
+    // 3. Unauthenticated pending deep link
     if (route.view !== 'landing' && route.room) {
       sessionStorage.setItem('titan_pending_route', window.location.pathname + window.location.search);
     }
-    switchView(route.view || 'landing', false);
-    syncUrlWithState(true);
   }
 
   function handleAuthSuccess(res) {
@@ -1984,6 +2012,26 @@
   let currentDeviceList = [];
   const btnDownloadExe = document.getElementById('btnDownloadExe');
   const btnDownloadHost = document.getElementById('btnDownloadHost');
+  const btnOpenAddModal = document.getElementById('btnOpenAddModal');
+  const addDeviceModal = document.getElementById('addDeviceModal');
+  const btnCloseAddModal = document.getElementById('btnCloseAddModal');
+  const osTabs = document.getElementById('osTabs');
+  const osPanelWin = document.getElementById('osPanelWin');
+  const osPanelMac = document.getElementById('osPanelMac');
+  const osPanelLinux = document.getElementById('osPanelLinux');
+  const btnDownloadMac = document.getElementById('btnDownloadMac');
+  const btnDownloadLinux = document.getElementById('btnDownloadLinux');
+  const modalBtnDownloadExe = document.getElementById('modalBtnDownloadExe');
+  const modalBtnDownloadBat = document.getElementById('modalBtnDownloadBat');
+  const modalBtnDownloadMacSh = document.getElementById('modalBtnDownloadMacSh');
+  const modalBtnDownloadLinuxSh = document.getElementById('modalBtnDownloadLinuxSh');
+  const cmdWinText = document.getElementById('cmdWinText');
+  const cmdMacText = document.getElementById('cmdMacText');
+  const cmdLinuxText = document.getElementById('cmdLinuxText');
+  const btnCopyWinCmd = document.getElementById('btnCopyWinCmd');
+  const btnCopyMacCmd = document.getElementById('btnCopyMacCmd');
+  const btnCopyLinuxCmd = document.getElementById('btnCopyLinuxCmd');
+
   function downloadDesktopExe() {
     window.location.href = '/api/download/TitanRemoteHost.exe';
   }
@@ -1992,6 +2040,88 @@
     const relayWs = defaultWsUrl;
     window.location.href = `/api/download/setup.bat?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}`;
   }
+  function downloadMacScript() {
+    const accountName = currentUser ? currentUser.username : 'User';
+    window.location.href = `/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(defaultWsUrl)}`;
+  }
+  function downloadLinuxScript() {
+    const accountName = currentUser ? currentUser.username : 'User';
+    window.location.href = `/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(defaultWsUrl)}`;
+  }
+
+  function getInstallCommands() {
+    const accountName = currentUser ? currentUser.username : 'User';
+    const origin = window.location.origin;
+    const relayWs = defaultWsUrl;
+    return {
+      win: `powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}', 'setup.bat'); .\\setup.bat"`,
+      mac: `curl -sSL "${origin}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}" | bash`,
+      linux: `curl -sSL "${origin}/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}" | bash`
+    };
+  }
+
+  function updateInstallModalContent() {
+    const cmds = getInstallCommands();
+    if (cmdWinText) cmdWinText.textContent = cmds.win;
+    if (cmdMacText) cmdMacText.textContent = cmds.mac;
+    if (cmdLinuxText) cmdLinuxText.textContent = cmds.linux;
+  }
+
+  function copyTextToClipboard(text, btn) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.style.color = 'var(--accent)';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.color = '';
+      }, 2000);
+    }).catch(() => {
+      showToast('Sao chép thất bại', 'error');
+    });
+  }
+
+  osTabs?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    osTabs.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    placeIndicator(osTabs);
+    const os = btn.dataset.os;
+    osPanelWin?.classList.toggle('hidden', os !== 'win');
+    osPanelMac?.classList.toggle('hidden', os !== 'mac');
+    osPanelLinux?.classList.toggle('hidden', os !== 'linux');
+  });
+
+  btnOpenAddModal?.addEventListener('click', () => {
+    updateInstallModalContent();
+    addDeviceModal?.classList.remove('hidden');
+    setTimeout(() => placeIndicator(osTabs), 50);
+  });
+  btnCloseAddModal?.addEventListener('click', () => {
+    addDeviceModal?.classList.add('hidden');
+  });
+  btnDownloadMac?.addEventListener('click', () => {
+    updateInstallModalContent();
+    addDeviceModal?.classList.remove('hidden');
+    osTabs?.querySelector('[data-os="mac"]')?.click();
+  });
+  btnDownloadLinux?.addEventListener('click', () => {
+    updateInstallModalContent();
+    addDeviceModal?.classList.remove('hidden');
+    osTabs?.querySelector('[data-os="linux"]')?.click();
+  });
+
+  modalBtnDownloadExe?.addEventListener('click', downloadDesktopExe);
+  modalBtnDownloadBat?.addEventListener('click', downloadHostInstaller);
+  modalBtnDownloadMacSh?.addEventListener('click', downloadMacScript);
+  modalBtnDownloadLinuxSh?.addEventListener('click', downloadLinuxScript);
+
+  btnCopyWinCmd?.addEventListener('click', () => copyTextToClipboard(cmdWinText.textContent, btnCopyWinCmd));
+  btnCopyMacCmd?.addEventListener('click', () => copyTextToClipboard(cmdMacText.textContent, btnCopyMacCmd));
+  btnCopyLinuxCmd?.addEventListener('click', () => copyTextToClipboard(cmdLinuxText.textContent, btnCopyLinuxCmd));
+
   btnDownloadExe?.addEventListener('click', downloadDesktopExe);
   btnDownloadHost?.addEventListener('click', downloadHostInstaller);
 
@@ -2044,23 +2174,22 @@
           <p class="brand-font" data-i18n="dashboard.empty" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">${t('dashboard.empty')}</p>
           <p data-i18n="dashboard.empty_hint" style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">${t('dashboard.empty_hint')}</p>
           <div style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-            <button id="btnEmptyDownloadExe" class="btn-pill" style="border-color: #38BDF8; color: #38BDF8; font-weight: 600;" data-i18n-title="dashboard.btn_download_exe_title" title="${t('dashboard.btn_download_exe_title')}">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg>
-              <span data-i18n="dashboard.btn_download_exe">${t('dashboard.btn_download_exe')}</span>
+            <button id="btnEmptyAddDevice" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;" title="Thêm máy trạm Windows, macOS hoặc Linux">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <span>Thêm máy trạm</span>
             </button>
-            <button id="btnEmptyDownload" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;" data-i18n-title="dashboard.btn_download_host_title" title="${t('dashboard.btn_download_host_title')}">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span data-i18n="dashboard.btn_download_host">${t('dashboard.btn_download_host')}</span>
-            </button>
-            <button id="btnEmptyAdd" class="btn-pill">
+            <button id="btnEmptyAdd" class="btn-pill" title="Kết nối trực tiếp qua Room ID & PIN">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span data-i18n="dashboard.btn_quick_connect">${t('dashboard.btn_quick_connect')}</span>
+              <span>Kết nối Room ID</span>
             </button>
           </div>
         </div>
       `;
-      document.getElementById('btnEmptyDownloadExe')?.addEventListener('click', downloadDesktopExe);
-      document.getElementById('btnEmptyDownload')?.addEventListener('click', downloadHostInstaller);
+      document.getElementById('btnEmptyAddDevice')?.addEventListener('click', () => {
+        updateInstallModalContent();
+        addDeviceModal?.classList.remove('hidden');
+        setTimeout(() => placeIndicator(osTabs), 50);
+      });
       document.getElementById('btnEmptyAdd')?.addEventListener('click', () => quickConnectModal.classList.remove('hidden'));
       return;
     }

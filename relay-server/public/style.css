@@ -1,5 +1,9 @@
 @import url("./tokens.css");
 
+:root {
+  color-scheme: dark;
+}
+
 /* ------------------------------------------------------------------ reset & base */
 *,
 *::before,
@@ -254,6 +258,7 @@ button:active {
   display: inline-flex;
   align-items: center;
   line-height: 1;
+  transform: translateY(1px);
 }
 
 #btnCloseShelf svg,
@@ -289,7 +294,7 @@ button:active {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  height: 34px;
+  height: 36px;
   padding: 0 16px;
   border: 0;
   border-radius: var(--round);
@@ -315,6 +320,7 @@ button:active {
   display: inline-flex;
   align-items: center;
   line-height: 1;
+  transform: translateY(1.5px);
 }
 
 .seg button:hover {
@@ -349,9 +355,6 @@ button:active {
   transition:
     transform var(--dur-slow) var(--ease-spring),
     width var(--dur-slow) var(--ease-spring),
-    opacity var(--dur-fast) var(--ease-out);
-}
-    width var(--dur-slow) var(--ease-out),
     opacity var(--dur-fast) var(--ease-out);
 }
 
@@ -532,10 +535,80 @@ input:-webkit-autofill:active {
   background: var(--line);
 }
 
+.install-card {
+  background: var(--ink-0);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.install-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.install-card-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmd-box {
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--accent);
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: all;
+  margin-bottom: 8px;
+}
+
+.install-card-desc {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.os-panel {
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.os-panel.hidden {
+  display: none !important;
+}
+
 .google-btn-container {
   display: flex;
   justify-content: center;
+  align-items: center;
   margin-bottom: 12px;
+  background: transparent !important;
+  color-scheme: dark !important;
+}
+
+.google-btn-container > div,
+.google-btn-container iframe {
+  border-radius: 9999px !important;
+  overflow: hidden !important;
+  background-color: transparent !important;
+  color-scheme: dark !important;
+  box-shadow: none !important;
 }
 
 /* ------------------------------------------------------------------ VIEW 2: DASHBOARD */
@@ -667,6 +740,13 @@ input:-webkit-autofill:active {
 .btn-connect-device svg {
   flex-shrink: 0;
   transform: none;
+}
+
+.btn-connect-device span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  transform: translateY(1px);
 }
 
 .device-card:hover .btn-connect-device {
@@ -994,6 +1074,7 @@ input:-webkit-autofill:active {
   display: inline-flex;
   align-items: center;
   line-height: 1;
+  transform: translateY(1px);
 }
 
 .deck__btn:hover {
@@ -2329,6 +2410,7 @@ input:-webkit-autofill:active {
   display: inline-flex;
   align-items: center;
   line-height: 1;
+  transform: translateY(1px);
 }
 
 .btn-hero-cta:hover {
