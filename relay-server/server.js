@@ -339,7 +339,7 @@ const server = http.createServer(async (req, res) => {
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
 
       const batContent = `@echo off
-setlocal EnableDelayedExpansion
+setlocal DisableDelayedExpansion
 title Titan Remote Host - Cai dat may tram tu dong
 chcp 65001 >nul 2>&1
 echo ==============================================================
@@ -354,53 +354,51 @@ if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
 
 echo [1/3] Kiem tra phan mem Standalone Desktop (.exe)...
+if exist "TitanRemoteHost.exe" (
+    for %%I in ("TitanRemoteHost.exe") do (
+        if %%~zI LSS 5000000 del /f /q "TitanRemoteHost.exe" >nul 2>&1
+    )
+)
+
 if not exist "TitanRemoteHost.exe" (
-    echo Dang tu dong tai TitanRemoteHost.exe tu Relay Server...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe') } catch {}"
+    echo Dang tai TitanRemoteHost.exe tu Relay Server...
+    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe')"
 )
 
 set "USE_STANDALONE=0"
 if exist "TitanRemoteHost.exe" (
     for %%I in ("TitanRemoteHost.exe") do (
-        if %%~zI GTR 5000000 (
-            set "USE_STANDALONE=1"
-        ) else (
-            del "TitanRemoteHost.exe" >nul 2>&1
-        )
+        if %%~zI GTR 5000000 set "USE_STANDALONE=1"
     )
 )
 
-if "!USE_STANDALONE!"=="1" (
-    echo [OK] Ban Standalone Desktop san sang hoat dong (Khong can Python)!
-    set "LAUNCH_CMD=\"%TARGET_DIR%\\TitanRemoteHost.exe\" --autostart"
-    set "RUN_EXE_DIRECT=\"%TARGET_DIR%\\TitanRemoteHost.exe\""
+if "%USE_STANDALONE%"=="1" (
+    echo [OK] Ban Standalone Desktop san sang hoat dong (Khong can Python)
     goto :WRITE_CONFIG
 )
 
-echo [!] Khong the tai ban Standalone. Chuyen sang che do chay qua Python...
+echo [*] Khong the tai ban Standalone. Chuyen sang che do chay qua Python...
 where python >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo [!] Python chua duoc cai dat tren may nay.
+    echo [*] Python chua duoc cai dat tren may nay.
     echo Dang cai dat Python qua winget...
     winget install Python.Python.3.13 --silent --accept-source-agreements --accept-package-agreements >nul 2>&1
 )
 
 echo [2/3] Dang tai goi ma nguon Host Agent tu Relay Server...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip') } catch {}"
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip')"
 if exist "agent-package.zip" (
-    powershell -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
-    del agent-package.zip >nul 2>&1
+    powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
+    del /f /q agent-package.zip >nul 2>&1
     if exist "host_agent\\gui_agent.py" copy /y host_agent\\*.py . >nul 2>&1
 ) else (
-    echo [LOI] Khong the tai goi agent tu ${origin}. Vui long kiem tra ket noi mang!
+    echo [LOI] Khong the tai goi agent tu ${origin}. Vui long kiem tra ket noi mang.
     pause
     exit /b 1
 )
 
 echo [3/3] Cai dat thu vien can thiet...
 python -m pip install websockets Pillow pystray --quiet >nul 2>&1
-set "LAUNCH_CMD=\"pythonw.exe\" \"%TARGET_DIR%\\gui_agent.py\" --autostart"
-set "RUN_EXE_DIRECT=\"python.exe\" \"gui_agent.py\""
 
 :WRITE_CONFIG
 echo Ghi cau hinh lien ket voi tai khoan ${account}...
@@ -411,23 +409,28 @@ echo {
 echo   "relay": "${relayWs}",
 echo   "account": "${account}",
 echo   "device_name": "%COMPUTERNAME%",
-echo   "room_id": "!RAND_ROOM!",
-echo   "pin": "!RAND_PIN!"
+echo   "room_id": "%RAND_ROOM%",
+echo   "pin": "%RAND_PIN%"
 echo }
 ) > config.json
 
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "%LAUNCH_CMD%" /f >nul 2>&1
+if "%USE_STANDALONE%"=="1" (
+    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "\"%TARGET_DIR%\\TitanRemoteHost.exe\" --autostart" /f >nul 2>&1
+    start "" "%TARGET_DIR%\\TitanRemoteHost.exe" --autostart
+) else (
+    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "pythonw.exe \"%TARGET_DIR%\\gui_agent.py\" --autostart" /f >nul 2>&1
+    start "" pythonw.exe "%TARGET_DIR%\\gui_agent.py" --autostart
+)
 
 echo.
 echo ==============================================================
-echo   [THANH CONG] MAY TRAM DA KHOI CHAY VA LIEN KET!
+echo   [THANH CONG] MAY TRAM DA KHOI CHAY VA LIEN KET
 echo   Tai khoan:  ${account}
-echo   Room ID:    !RAND_ROOM!   ^|   PIN: !RAND_PIN!
+echo   Room ID:    %RAND_ROOM%   ^|   PIN: %RAND_PIN%
 echo.
 echo   Kiem tra bieu tuong Titan Remote o khay he thong (System Tray).
-echo   Thiet bi se tu dong xuat hien tren trinh duyet trong giay lat!
+echo   Thiet bi se tu dong xuat hien tren trinh duyet trong giay lat.
 echo ==============================================================
-start "" %RUN_EXE_DIRECT%
 echo.
 echo Nhan phim bat ky de hoan tat va dong cua so nay...
 pause >nul
