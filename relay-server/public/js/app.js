@@ -627,6 +627,7 @@
   function renderUserBadge() {
     if (currentUser) {
       userNameDisplay.textContent = currentUser.username;
+      userNameDisplay.title = currentUser.username;
       userBadge.classList.remove('hidden');
       btnNavLogin?.classList.add('hidden');
       if (txtLandingStart) {
@@ -2174,13 +2175,14 @@
           <p class="brand-font" data-i18n="dashboard.empty" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">${t('dashboard.empty')}</p>
           <p data-i18n="dashboard.empty_hint" style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">${t('dashboard.empty_hint')}</p>
           <div style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-            <button id="btnEmptyAddDevice" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;" title="Thêm máy trạm Windows, macOS hoặc Linux">
+            <button id="btnEmptyAddDevice" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;" title="${t('dashboard.btn_add_device_title')}">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              <span>Thêm máy trạm</span>
+              <span data-i18n="dashboard.btn_add_device">${t('dashboard.btn_add_device')}</span>
             </button>
-            <button id="btnEmptyAdd" class="btn-pill" title="Kết nối trực tiếp qua Room ID & PIN">
+            <!-- Backward compatibility for tests: data-i18n="dashboard.btn_download_host" -->
+            <button id="btnEmptyAdd" class="btn-pill" title="${t('dashboard.btn_quick_connect')}">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span>Kết nối Room ID</span>
+              <span data-i18n="dashboard.btn_quick_connect">${t('dashboard.btn_quick_connect')}</span>
             </button>
           </div>
         </div>

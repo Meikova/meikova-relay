@@ -1,6 +1,22 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.13)
+### Recent Updates (Version 1.0.14)
+- **Căn giữa tuyệt đối thanh điều hướng phân hệ (`#mainNav`):**
+  - **Nguyên nhân lệch trái:** `.topbar` trước đây dùng Flexbox với `justify-content: space-between`. Cụm bên phải (`.topbar-right`) chứa chuyển ngôn ngữ, badge tài khoản email dài, nút cấu hình phiên và nút kết nối nhanh có độ rộng lớn hơn cụm logo bên trái (`.brand-container`) khoảng ~300px, khiến khoảng trống phân bổ đẩy `#mainNav` lệch sang trái ~150px so với tâm màn hình.
+  - **Giải pháp 3 cột đối xứng (CSS Grid):** Chuyển `.topbar` sang layout CSS Grid `grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)`.
+    - Cột 1 (`.brand-container`): `grid-column: 1; justify-self: start; min-width: 0;`
+    - Cột 2 (`#mainNav`): `grid-column: 2; justify-self: center; margin: 0 auto;`
+    - Cột 3 (`.topbar-right`): `grid-column: 3; justify-self: end; min-width: 0;`
+  - **Cân bằng track 2 bên & Chống tràn:**
+    - Cắt tỉa `#userNameDisplay` bằng `max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;` kèm `title` hiển thị email đầy đủ khi rê chuột.
+    - Media query responsive `@media (max-width: 1480px)`: giảm padding tab `#mainNav`, ẩn chữ của `#btnQuickConnect` và `#btnOpenSessionConfig` (giữ lại icon SVG inline) để đảm bảo 2 cột 1fr luôn cân đối và `#mainNav` luôn ở chính giữa màn hình tới tận 1200px.
+    - Media query `@media (max-width: 1200px)`: chuyển thành cuộn ngang an toàn (`overflow-x: auto`), tránh vỡ giao diện trên màn hình nhỏ.
+  - **Bảo toàn cơ chế trượt (Sliding Pill Indicator):** Hoàn toàn tương thích với engine `placeIndicator(mainNav)` vì toạ độ `offsetLeft` / `offsetWidth` của các button được tính toán cục bộ bên trong `#mainNav`.
+  - Bump phiên bản v1.0.14 trên toàn bộ asset (`index.html`, `package.json`, CSS, JS).
+
+---
+
+### Previous Updates (Version 1.0.13)
 - **Tăng chiều rộng modal #addDeviceModal & Chống rớt chữ:**
   - Tăng `max-width` thẻ modal từ `580px` lên `680px` (`width: 92vw`), tăng 100px không gian hiển thị giúp các dòng lệnh terminal và ghi chú quyền hạn không bị rớt chữ đơn lẻ xuống dòng mới.
   - Tinh chỉnh `.cmd-box` CSS: chuyển `word-break: break-all` sang `word-break: normal; overflow-wrap: anywhere;`, ngăn chặn ngắt đôi từ ngẫu nhiên (như `acc` và `ount`), ngắt dòng tự nhiên theo dấu phân cách tham số (`?`, `&`, khoảng trắng).
