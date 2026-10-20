@@ -1,6 +1,23 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.26)
+### Recent Updates (Version 1.0.27)
+- **Sửa Lỗi WinForms `SetCompatibleTextRenderingDefault` & Đồng Bộ Titlebar Frameless Cho Cả RemoteHost:**
+  - **Khắc phục lỗi khởi động Client Desktop ([desktop_client.py](file:///D:/JOB/DEV/titan-remote/client_desktop/desktop_client.py)):**
+    - **Nguyên nhân:** Khởi tạo WinForms Tray (`NotifyIcon`, `ContextMenuStrip`) trước lệnh `webview.start()` đã sinh ra đối tượng `IWin32Window` sớm, dẫn đến crash `SetCompatibleTextRenderingDefault must be called before the first IWin32Window object is created`.
+    - **Khắc phục:** Chuyển việc khởi tạo tray vào sự kiện `window.events.shown` và `window.events.loaded` (chuẩn kiến trúc `MashLoop`), đảm bảo Application Context của WinForms/pywebview đã sẵn sàng hoàn toàn trước khi nạp khay hệ thống.
+  - **Đồng bộ Titlebar Frameless & Nút Điều Khiển Chuẩn Máy Trạm ([gui_agent.py](file:///D:/JOB/DEV/titan-remote/host_agent/gui_agent.py), [gui_view.html](file:///D:/JOB/DEV/titan-remote/host_agent/gui_view.html)):**
+    - Bổ sung nút Phóng to / Khôi phục (`btn-max` với icon `icon-max` & `icon-restore`) bên cạnh nút Thu nhỏ (`btn-min`) và Đóng xuống khay (`btn-close`).
+    - Cập nhật chuẩn kích thước nút bấm 38x30px, hiệu ứng hover mượt mà, nút tắt đổi nền đỏ `#ef4444`.
+    - Hỗ trợ click đúp thanh tiêu đề để phóng to/thu nhỏ (`handleTitlebarDblClick`).
+    - Bật `WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX` và `shadow=True` cho phép kéo viền và tương thích Windows Aero Snap.
+  - **Đóng gói & Bàn giao Git:**
+    - Biên dịch lại cả 2 file: [TitanRemoteClient.exe](file:///D:/JOB/DEV/titan-remote/dist/TitanRemoteClient.exe) và [TitanRemoteHost.exe](file:///D:/JOB/DEV/titan-remote/dist/TitanRemoteHost.exe).
+    - Đồng bộ [relay-server/TitanRemoteHost.exe](file:///D:/JOB/DEV/titan-remote/relay-server/TitanRemoteHost.exe).
+    - Commit `8ae861b` đã push lên `origin/main`.
+
+---
+
+### Previous Updates (Version 1.0.26)
 - **Ẩn Titlebar Mặc Định & Tùy Biến Cửa Sổ Chuẩn EveryThingDownloader & MashLoop:**
   - **Frameless Window & Custom Controls ([desktop_client.py](file:///D:/JOB/DEV/titan-remote/client_desktop/desktop_client.py)):**
     - Cấu hình `frameless=True, easy_drag=False, shadow=True` ẩn thanh tiêu đề mặc định của Windows/macOS.
