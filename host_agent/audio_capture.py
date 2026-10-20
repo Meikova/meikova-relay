@@ -134,6 +134,10 @@ class AudioCapture:
         pos = ctypes.c_uint64()
         qpc = ctypes.c_uint64()
 
+        last_chunk_time = time.time()
+        chunk_frames = int(self.sample_rate * 0.04)
+        silent_chunk = b'\x00' * (chunk_frames * self.channels * 2)
+
         try:
             while self.running:
                 packet_size = wintypes.UINT()
@@ -161,9 +165,15 @@ class AudioCapture:
 
                         if self.on_chunk and out_bytes:
                             self.on_chunk(out_bytes, self.sample_rate, self.channels)
+                            last_chunk_time = time.time()
 
                         v_call(p_capture, 4, [wintypes.UINT], num_frames.value)
                 else:
+                    now = time.time()
+                    if now - last_chunk_time >= 0.04:
+                        if self.on_chunk:
+                            self.on_chunk(silent_chunk, self.sample_rate, self.channels)
+                        last_chunk_time = now
                     time.sleep(0.015)
         finally:
             v_call(p_client, 11, []) # Stop

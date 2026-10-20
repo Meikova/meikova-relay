@@ -88,6 +88,18 @@
   const ctx = remoteCanvas.getContext('2d');
   const laserCanvas = document.getElementById('laserCanvas');
   const laserCtx = laserCanvas.getContext('2d');
+  const monitorGrid = document.getElementById('monitorGrid');
+  const btnToggleGrid = document.getElementById('btnToggleGrid');
+  const gridControls = document.getElementById('gridControls');
+  const btnGridSideBySide = document.getElementById('btnGridSideBySide');
+  const btnGridInvert = document.getElementById('btnGridInvert');
+  const btnGridStacked = document.getElementById('btnGridStacked');
+
+  let isGridMode = false;
+  let gridLayoutMode = 'side-by-side'; // 'side-by-side' | 'stacked'
+  let hostMonitors = [];
+  let gridMonitorOrder = [];
+  let monitorTileMap = new Map(); // id -> { tile, canvas, ctx, mon }
   const roStatus = document.getElementById('roStatus');
   const metricPing = document.getElementById('metricPing');
   const metricFps = document.getElementById('metricFps');
@@ -159,8 +171,23 @@
   const floatingDeck = document.getElementById('floatingDeck');
   const monitorSelector = document.getElementById('monitorSelector');
   const qualitySelector = document.getElementById('qualitySelector');
+  const btnSyncDisplay = document.getElementById('btnSyncDisplay');
   const btnScaleToggle = document.getElementById('btnScaleToggle');
+  const pixelIndicatorBadge = document.getElementById('pixelIndicatorBadge');
+  const pixelIndicatorText = document.getElementById('pixelIndicatorText');
   const btnFullscreen = document.getElementById('btnFullscreen');
+  const btnDeckDisplayMode = document.getElementById('btnDeckDisplayMode');
+  const deckIconBottom = document.getElementById('deckIconBottom');
+  const deckIconTopPinned = document.getElementById('deckIconTopPinned');
+  const deckIconTopUnpinned = document.getElementById('deckIconTopUnpinned');
+  const btnDeckPinQuick = document.getElementById('btnDeckPinQuick');
+  const deckSvgPinActive = document.getElementById('deckSvgPinActive');
+  const deckSvgPinInactive = document.getElementById('deckSvgPinInactive');
+  const deckTopTrigger = document.getElementById('deckTopTrigger');
+  const deckModeDropdown = document.getElementById('deckModeDropdown');
+  const checkModeBottom = document.getElementById('checkModeBottom');
+  const checkModeTopPinned = document.getElementById('checkModeTopPinned');
+  const checkModeTopUnpinned = document.getElementById('checkModeTopUnpinned');
   const btnToggleLaser = document.getElementById('btnToggleLaser');
   const btnRecord = document.getElementById('btnRecord');
   const btnToggleCam = document.getElementById('btnToggleCam');
@@ -236,12 +263,28 @@
   const chatInputForm = document.getElementById('chatInputForm');
   const chatMessageInput = document.getElementById('chatMessageInput');
 
+  // --- Landing View DOM ---
+  const landingSection = document.getElementById('landingSection');
+  const landingCanvas = document.getElementById('landingCanvas');
+  const btnLandingStart = document.getElementById('btnLandingStart');
+  const txtLandingStart = document.getElementById('txtLandingStart');
+  const btnLandingQuickJump = document.getElementById('btnLandingQuickJump');
+  const btnLandingDownloadJump = document.getElementById('btnLandingDownloadJump');
+  const landingQuickConnectForm = document.getElementById('landingQuickConnectForm');
+  const landingRoomInput = document.getElementById('landingRoomInput');
+  const landingPinInput = document.getElementById('landingPinInput');
+  const btnLandingDlExe = document.getElementById('btnLandingDlExe');
+  const btnLandingDlBat = document.getElementById('btnLandingDlBat');
+  const btnLandingCopyPs1 = document.getElementById('btnLandingCopyPs1');
+  const btnNavLogin = document.getElementById('btnNavLogin');
+  const brandLogo = document.querySelector('.brand-logo');
+
   // --- Application State ---
   let isInputBlocked = false;
   let authToken = localStorage.getItem('titan_token') || null;
   let currentUser = null;
   let authMode = 'login';
-  let currentView = 'dashboard';
+  let currentView = 'landing';
 
   let ws = null;
   let isConnected = false;
@@ -330,7 +373,13 @@
     if (!seg) return;
     const onBtn = seg.querySelector('button.on');
     const ind = seg.querySelector('.seg__ind');
-    if (!onBtn || !ind) return;
+    if (!ind) return;
+    if (!onBtn) {
+      ind.style.setProperty('--ind-w', '0px');
+      ind.style.opacity = '0';
+      return;
+    }
+    ind.style.opacity = '1';
     ind.style.setProperty('--ind-x', `${onBtn.offsetLeft}px`);
     ind.style.setProperty('--ind-w', `${onBtn.offsetWidth}px`);
   }
@@ -338,6 +387,9 @@
   function placeAllIndicators() {
     document.querySelectorAll('.seg').forEach(placeIndicator);
   }
+
+  window.placeIndicator = placeIndicator;
+  window.placeAllIndicators = placeAllIndicators;
 
   window.addEventListener('resize', placeAllIndicators);
   if (document.fonts) document.fonts.ready.then(placeAllIndicators);
@@ -357,14 +409,15 @@
   function getRouteStateFromUrl() {
     const rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
     const params = new URLSearchParams(window.location.search);
-    let view = 'dashboard';
+    let view = 'landing';
     if (rawPath === 'auth' || rawPath === 'login') view = 'auth';
     else if (rawPath === 'remote') view = 'remote';
     else if (rawPath === 'files') view = 'files';
     else if (rawPath === 'terminal') view = 'terminal';
     else if (rawPath === 'tasks') view = 'tasks';
     else if (rawPath === 'audit' || rawPath === 'audit-logs') view = 'audit';
-    else if (rawPath === 'dashboard' || rawPath === '') view = 'dashboard';
+    else if (rawPath === 'dashboard') view = 'dashboard';
+    else if (rawPath === 'home' || rawPath === 'landing' || rawPath === '') view = 'landing';
 
     const langParam = params.get('lang');
     if (langParam && window.TitanI18n) {
@@ -382,6 +435,7 @@
 
   function syncUrlWithState(replace = false) {
     let path = '/' + currentView;
+    if (currentView === 'landing') path = '/';
     if (currentView === 'dashboard') path = '/dashboard';
     if (currentView === 'auth') path = '/auth';
 
@@ -442,8 +496,8 @@
 
   window.addEventListener('popstate', () => {
     const route = getRouteStateFromUrl();
-    if (route.view !== 'auth' && (!authToken || !currentUser)) {
-      switchView('auth', false);
+    if (route.view !== 'auth' && route.view !== 'landing' && (!authToken || !currentUser)) {
+      switchView('landing', false);
       return;
     }
     if (route.room && route.room !== currentRoom) {
@@ -457,11 +511,12 @@
     if (route.browsePath && route.browsePath !== remoteCurrentPath) {
       remoteCurrentPath = route.browsePath;
     }
-    switchView(route.view, false);
+    switchView(route.view || 'landing', false);
   });
 
   // --- INITIALIZATION ---
   async function initApp() {
+    applyDeckMode(currentDeckMode);
     const route = getRouteStateFromUrl();
 
     if (authToken) {
@@ -498,10 +553,15 @@
     }
 
     // Unauthenticated
-    if (route.view !== 'auth' && route.room) {
+    if (route.view === 'auth') {
+      switchView('auth', false);
+      syncUrlWithState(true);
+      return;
+    }
+    if (route.view !== 'landing' && route.room) {
       sessionStorage.setItem('titan_pending_route', window.location.pathname + window.location.search);
     }
-    switchView('auth', false);
+    switchView(route.view || 'landing', false);
     syncUrlWithState(true);
   }
 
@@ -509,6 +569,8 @@
     authToken = res.token;
     localStorage.setItem('titan_token', authToken);
     currentUser = res.user;
+    lastGlobalActivity = Date.now();
+    lastTokenRefreshTime = Date.now();
     renderUserBadge();
 
     const pending = sessionStorage.getItem('titan_pending_route');
@@ -538,8 +600,18 @@
     if (currentUser) {
       userNameDisplay.textContent = currentUser.username;
       userBadge.classList.remove('hidden');
+      btnNavLogin?.classList.add('hidden');
+      if (txtLandingStart) {
+        txtLandingStart.setAttribute('data-i18n', 'landing.btn_dashboard');
+        txtLandingStart.textContent = t('landing.btn_dashboard');
+      }
     } else {
       userBadge.classList.add('hidden');
+      btnNavLogin?.classList.remove('hidden');
+      if (txtLandingStart) {
+        txtLandingStart.setAttribute('data-i18n', 'landing.btn_start');
+        txtLandingStart.textContent = t('landing.btn_start');
+      }
     }
   }
 
@@ -588,9 +660,859 @@
 
   initGoogleSignIn();
 
+  // --- AMBIENT INFINITY TELEMETRY CANVAS 2D VISUALIZER (/ambient-instrument-ui) ---
+  let landingCanvasAnimId = null;
+  let landingCanvasInited = false;
+  const landingPointer = { x: -999, y: -999, active: false };
+
+  function initLandingCanvas() {
+    if (!landingCanvas) return;
+    const ctx = landingCanvas.getContext('2d');
+    if (!ctx) return;
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = landingCanvas.getBoundingClientRect();
+      const w = rect.width || landingCanvas.parentElement?.clientWidth || window.innerWidth;
+      const h = rect.height || landingCanvas.parentElement?.clientHeight || 600;
+      landingCanvas.width = Math.round(w * dpr);
+      landingCanvas.height = Math.round(h * dpr);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+    }
+    resizeCanvas();
+    requestAnimationFrame(resizeCanvas);
+    window.addEventListener('resize', resizeCanvas);
+    if (window.ResizeObserver && landingCanvas.parentElement) {
+      const ro = new ResizeObserver(() => resizeCanvas());
+      ro.observe(landingCanvas.parentElement);
+    }
+
+    // Track mouse on hero arena parent for seamless response
+    const arenaEl = landingCanvas.parentElement || landingCanvas;
+    arenaEl.addEventListener('mousemove', (e) => {
+      const rect = landingCanvas.getBoundingClientRect();
+      landingPointer.x = e.clientX - rect.left;
+      landingPointer.y = e.clientY - rect.top;
+      landingPointer.active = true;
+    });
+    arenaEl.addEventListener('mouseleave', () => {
+      landingPointer.active = false;
+    });
+
+    // Interactive Shockwave Ripples on Click
+    const ripples = [];
+    arenaEl.addEventListener('click', (e) => {
+      const rect = landingCanvas.getBoundingClientRect();
+      ripples.push({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        r: 6,
+        maxR: 320,
+        alpha: 0.85
+      });
+    });
+
+    // Ambient Quantum Stardust Particles (Interconnected Micro-Constellations)
+    const dustCount = 56;
+    const dustParticles = [];
+    for (let i = 0; i < dustCount; i++) {
+      dustParticles.push({
+        x: Math.random() * (window.innerWidth || 1400),
+        y: Math.random() * 800,
+        vx: (Math.random() - 0.5) * 0.22,
+        vy: -0.10 - Math.random() * 0.20,
+        r: 0.7 + Math.random() * 1.5,
+        alpha: 0.15 + Math.random() * 0.45,
+        hue: Math.random() < 0.4 ? 150 : (Math.random() < 0.7 ? 200 : 38)
+      });
+    }
+
+    // Extended Multi-Tier Harmonic Tension Chords (28 Precision Filaments)
+    const chordPairs = [
+      // Left Loop (Host Workstation cluster - Amber / Copper / Emerald / Mint)
+      { t1: Math.PI * 0.62, t2: Math.PI * 1.38, cpOffset: -0.15, color: 'rgba(245, 158, 11, ' },
+      { t1: Math.PI * 0.72, t2: Math.PI * 1.28, cpOffset: -0.25, color: 'rgba(34, 197, 94, ' },
+      { t1: Math.PI * 0.55, t2: Math.PI * 1.45, cpOffset: -0.08, color: 'rgba(245, 158, 11, ' },
+      { t1: Math.PI * 0.85, t2: Math.PI * 1.15, cpOffset: -0.35, color: 'rgba(34, 197, 94, ' },
+      { t1: Math.PI * 0.92, t2: Math.PI * 1.08, cpOffset: -0.42, color: 'rgba(234, 88, 12, ' },
+      { t1: Math.PI * 0.68, t2: Math.PI * 1.32, cpOffset: -0.20, color: 'rgba(16, 185, 129, ' },
+      { t1: Math.PI * 0.78, t2: Math.PI * 1.22, cpOffset: -0.30, color: 'rgba(245, 158, 11, ' },
+      { t1: Math.PI * 0.58, t2: Math.PI * 1.42, cpOffset: -0.10, color: 'rgba(34, 197, 94, ' },
+      { t1: Math.PI * 0.88, t2: Math.PI * 1.12, cpOffset: -0.38, color: 'rgba(234, 88, 12, ' },
+      { t1: Math.PI * 0.95, t2: Math.PI * 1.05, cpOffset: -0.45, color: 'rgba(245, 158, 11, ' },
+
+      // Right Loop (Remote Client cluster - Sky Cyan / Electric Slate / Indigo / Violet)
+      { t1: Math.PI * 0.18, t2: Math.PI * 1.82, cpOffset: 0.25, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.28, t2: Math.PI * 1.72, cpOffset: 0.15, color: 'rgba(96, 165, 250, ' },
+      { t1: Math.PI * 0.08, t2: Math.PI * 1.92, cpOffset: 0.35, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.36, t2: Math.PI * 1.64, cpOffset: 0.08, color: 'rgba(129, 140, 248, ' },
+      { t1: Math.PI * 0.42, t2: Math.PI * 1.58, cpOffset: 0.02, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.22, t2: Math.PI * 1.78, cpOffset: 0.20, color: 'rgba(167, 139, 250, ' },
+      { t1: Math.PI * 0.12, t2: Math.PI * 1.88, cpOffset: 0.30, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.32, t2: Math.PI * 1.68, cpOffset: 0.12, color: 'rgba(96, 165, 250, ' },
+      { t1: Math.PI * 0.04, t2: Math.PI * 1.96, cpOffset: 0.40, color: 'rgba(129, 140, 248, ' },
+      { t1: Math.PI * 0.38, t2: Math.PI * 1.62, cpOffset: 0.05, color: 'rgba(56, 189, 248, ' },
+
+      // Trans-Lobe Nexus Crossing Bridges (Outbound Relay Telemetry)
+      { t1: Math.PI * 0.48, t2: Math.PI * 1.52, cpOffset: 0, color: 'rgba(255, 255, 255, ' },
+      { t1: Math.PI * 0.52, t2: Math.PI * 1.48, cpOffset: 0, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.32, t2: Math.PI * 1.25, cpOffset: 0, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.68, t2: Math.PI * 1.75, cpOffset: 0, color: 'rgba(245, 158, 11, ' },
+      { t1: Math.PI * 0.46, t2: Math.PI * 1.54, cpOffset: 0, color: 'rgba(226, 232, 240, ' },
+      { t1: Math.PI * 0.54, t2: Math.PI * 1.46, cpOffset: 0, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.38, t2: Math.PI * 1.30, cpOffset: 0, color: 'rgba(96, 165, 250, ' },
+      { t1: Math.PI * 0.62, t2: Math.PI * 1.70, cpOffset: 0, color: 'rgba(34, 197, 94, ' }
+    ];
+
+    let lastTime = performance.now();
+    let smoothOffsetX = 0;
+    let smoothOffsetY = 0;
+    const NUM_BLOCKS = 240;
+
+    function render(now) {
+      if (currentView !== 'landing') return;
+      const dt = Math.min((now - lastTime) / 1000, 0.08);
+      lastTime = now;
+
+      const rect = landingCanvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      if (w <= 0 || h <= 0) {
+        landingCanvasAnimId = requestAnimationFrame(render);
+        return;
+      }
+
+      ctx.clearRect(0, 0, w, h);
+
+      // --- 0. Smooth Magnetic Parallax ---
+      if (landingPointer.active) {
+        const tx = (landingPointer.x - w / 2) * 0.035;
+        const ty = (landingPointer.y - h / 2) * 0.035;
+        smoothOffsetX += (tx - smoothOffsetX) * 0.06;
+        smoothOffsetY += (ty - smoothOffsetY) * 0.06;
+      } else {
+        smoothOffsetX += (0 - smoothOffsetX) * 0.04;
+        smoothOffsetY += (0 - smoothOffsetY) * 0.04;
+      }
+
+      // --- 1. Lemniscate Geometry Definition (Horizontal Figure-8 ∞) ---
+      const cx = w * 0.5 + smoothOffsetX;
+      const cy = h * 0.49 + smoothOffsetY;
+      // Proportions: Majestic scale spanning across hero stage, framing content
+      const isMobile = w < 1080;
+      const scaleX = isMobile
+        ? Math.max(340, Math.min(w * 0.46, 520))
+        : Math.max(560, Math.min(w * 0.48, 920));
+      const scaleY = isMobile
+        ? Math.max(280, Math.min(h * 0.42, 480))
+        : Math.max(480, Math.min(h * 0.74, 720));
+
+      function getPoint(t) {
+        const sinT = Math.sin(t);
+        const cosT = Math.cos(t);
+        const denom = 1 + sinT * sinT;
+        return {
+          x: cx + (scaleX * cosT) / denom,
+          y: cy + (scaleY * sinT * cosT) / denom
+        };
+      }
+
+      function getTangentAngle(t) {
+        const delta = 0.002;
+        const pA = getPoint(t - delta);
+        const pB = getPoint(t + delta);
+        return Math.atan2(pB.y - pA.y, pB.x - pA.x);
+      }
+
+      // --- 2. Ambient Deep Atmospheric Nebulas & Caustic Shimmer ---
+      const pulseT = Math.sin(now * 0.0012) * 0.02;
+      // Left Lobe Nebula (Host Station: Emerald-Amber glow)
+      const gLeft = ctx.createRadialGradient(cx - scaleX * 0.55, cy, 0, cx - scaleX * 0.55, cy, scaleX * 0.75);
+      gLeft.addColorStop(0, `rgba(245, 158, 11, ${0.10 + pulseT})`);
+      gLeft.addColorStop(0.38, `rgba(34, 197, 94, ${0.06 + pulseT})`);
+      gLeft.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = gLeft;
+      ctx.beginPath();
+      ctx.arc(cx - scaleX * 0.55, cy, scaleX * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Right Lobe Nebula (Remote Client: Cyan-Indigo glow)
+      const gRight = ctx.createRadialGradient(cx + scaleX * 0.55, cy, 0, cx + scaleX * 0.55, cy, scaleX * 0.75);
+      gRight.addColorStop(0, `rgba(56, 189, 248, ${0.11 + pulseT})`);
+      gRight.addColorStop(0.38, `rgba(129, 140, 248, ${0.06 + pulseT})`);
+      gRight.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = gRight;
+      ctx.beginPath();
+      ctx.arc(cx + scaleX * 0.55, cy, scaleX * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Center Relay Nexus Pulse
+      const gNexus = ctx.createRadialGradient(cx, cy, 0, cx, cy, 180);
+      gNexus.addColorStop(0, `rgba(255, 255, 255, ${0.05 + pulseT * 0.5})`);
+      gNexus.addColorStop(0.45, 'rgba(56, 189, 248, 0.025)');
+      gNexus.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = gNexus;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 180, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Longitudinal Magnetic Conduit Line connecting lobe foci
+      ctx.beginPath();
+      ctx.moveTo(cx - scaleX * 0.55, cy);
+      ctx.lineTo(cx + scaleX * 0.55, cy);
+      ctx.strokeStyle = `rgba(56, 189, 248, ${0.04 + pulseT * 0.5})`;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      // --- 3. Internal Neural Telemetry Chords (MashLoop Arc Web) with Magnetic Pull ---
+      chordPairs.forEach((cp, idx) => {
+        const p1 = getPoint(cp.t1);
+        const p2 = getPoint(cp.t2);
+        const midX = (p1.x + p2.x) * 0.5;
+        const midY = (p1.y + p2.y) * 0.5;
+        let ctrlX = midX + (cx - midX) * 0.4 + cp.cpOffset * (scaleX * 0.16);
+        let ctrlY = midY + (cy - midY) * 0.4 + Math.sin(now * 0.0008 + idx) * 16;
+
+        // Subtle gravitational pull toward cursor on nearby chords
+        if (landingPointer.active) {
+          const dPtr = Math.hypot(ctrlX - landingPointer.x, ctrlY - landingPointer.y);
+          if (dPtr < 160 && dPtr > 0) {
+            const pull = (1 - dPtr / 160) * 18;
+            ctrlX += (landingPointer.x - ctrlX) * (pull / dPtr);
+            ctrlY += (landingPointer.y - ctrlY) * (pull / dPtr);
+          }
+        }
+
+        const chordAlpha = 0.045 + 0.035 * Math.sin(now * 0.001 + idx * 0.7);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.quadraticCurveTo(ctrlX, ctrlY, p2.x, p2.y);
+        ctx.strokeStyle = `${cp.color}${chordAlpha})`;
+        ctx.lineWidth = 0.75;
+        ctx.stroke();
+      });
+
+      // --- 4. Continuous Hairline Guide Rails & Precision Vernier Graduations ---
+      const railSteps = 260;
+      const trackThickness = 12;
+
+      // Outer Rail
+      ctx.beginPath();
+      for (let r = 0; r <= railSteps; r++) {
+        const rt = (r / railSteps) * Math.PI * 2;
+        const rp = getPoint(rt);
+        const rtheta = getTangentAngle(rt);
+        const normX = -Math.sin(rtheta);
+        const normY = Math.cos(rtheta);
+        const rx = rp.x + normX * (trackThickness * 0.5 + 2);
+        const ry = rp.y + normY * (trackThickness * 0.5 + 2);
+        if (r === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+
+      // Inner Rail
+      ctx.beginPath();
+      for (let r = 0; r <= railSteps; r++) {
+        const rt = (r / railSteps) * Math.PI * 2;
+        const rp = getPoint(rt);
+        const rtheta = getTangentAngle(rt);
+        const normX = -Math.sin(rtheta);
+        const normY = Math.cos(rtheta);
+        const rx = rp.x - normX * (trackThickness * 0.5 + 2);
+        const ry = rp.y - normY * (trackThickness * 0.5 + 2);
+        if (r === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+
+      // Precision Vernier Caliper Scale Graduation Ticks on Outer Rail
+      ctx.beginPath();
+      for (let r = 0; r < railSteps; r += 4) {
+        const rt = (r / railSteps) * Math.PI * 2;
+        const rp = getPoint(rt);
+        const rtheta = getTangentAngle(rt);
+        const normX = -Math.sin(rtheta);
+        const normY = Math.cos(rtheta);
+        const isMajor = (r % 20 === 0);
+        const tickLen = isMajor ? 6.5 : 3.2;
+        const baseDist = trackThickness * 0.5 + 2;
+        const x1 = rp.x + normX * baseDist;
+        const y1 = rp.y + normY * baseDist;
+        const x2 = rp.x + normX * (baseDist + tickLen);
+        const y2 = rp.y + normY * (baseDist + tickLen);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+      }
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+
+      // Milestone Numerical Micro-Stamps along the perimeter
+      const milestoneIndices = [
+        { t: 0, label: 'NODE-02 // 0.8ms' },
+        { t: Math.PI * 0.25, label: 'CH-1 // 120FPS' },
+        { t: Math.PI * 0.75, label: 'CH-2 // CTL' },
+        { t: Math.PI, label: 'NODE-01 // HOST' },
+        { t: Math.PI * 1.25, label: 'CH-3 // 4K-RDY' },
+        { t: Math.PI * 1.75, label: 'CH-4 // TLS1.3' }
+      ];
+      ctx.save();
+      ctx.font = '7.5px Consolas, monospace';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+      milestoneIndices.forEach(ms => {
+        const p = getPoint(ms.t);
+        const th = getTangentAngle(ms.t);
+        const normX = -Math.sin(th);
+        const normY = Math.cos(th);
+        const labelX = p.x + normX * 18;
+        const labelY = p.y + normY * 18;
+        ctx.fillText(ms.label, labelX - 22, labelY + 3);
+      });
+      ctx.restore();
+
+      // --- 5. Orbiting Kinetic Energy Streams (Multi-Packet Photons) ---
+      // Primary Comet 1: 120 FPS Video/Audio Downlink Stream
+      const comet1T = (now * 0.00032) % (Math.PI * 2);
+      const comet1Pos = getPoint(comet1T);
+
+      // Primary Comet 2: Real-time Input Control Uplink Stream
+      const comet2T = (now * 0.00028 + Math.PI) % (Math.PI * 2);
+      const comet2Pos = getPoint(comet2T);
+
+      // Multi-Speed High-Frequency Micro Data Blips
+      const microPulses = [
+        { t: (now * 0.00068) % (Math.PI * 2), color: '#38BDF8', size: 1.8 },
+        { t: (now * 0.00062 + Math.PI * 0.5) % (Math.PI * 2), color: '#22C55E', size: 1.8 },
+        { t: (now * 0.00054 + Math.PI * 1.2) % (Math.PI * 2), color: '#F59E0B', size: 1.6 },
+        { t: (now * 0.00078 + Math.PI * 1.7) % (Math.PI * 2), color: '#FFFFFF', size: 2.0 }
+      ];
+      microPulses.forEach(mp => {
+        const p = getPoint(mp.t);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, mp.size, 0, Math.PI * 2);
+        ctx.fillStyle = mp.color;
+        ctx.shadowColor = mp.color;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+      });
+      ctx.shadowBlur = 0;
+
+      // Trailing Sub-Photon Clusters for Comet 1
+      const subOffsets1 = [-0.045, -0.095, -0.15];
+      subOffsets1.forEach((offset, idx) => {
+        const spPos = getPoint((comet1T + offset + Math.PI * 4) % (Math.PI * 2));
+        ctx.beginPath();
+        ctx.arc(spPos.x, spPos.y, 2.2 - idx * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(56, 189, 248, ${0.75 - idx * 0.22})`;
+        ctx.fill();
+      });
+
+      // Trailing Sub-Photon Clusters for Comet 2
+      const subOffsets2 = [-0.045, -0.095, -0.15];
+      subOffsets2.forEach((offset, idx) => {
+        const spPos = getPoint((comet2T + offset + Math.PI * 4) % (Math.PI * 2));
+        ctx.beginPath();
+        ctx.arc(spPos.x, spPos.y, 2.2 - idx * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(34, 197, 94, ${0.75 - idx * 0.22})`;
+        ctx.fill();
+      });
+
+      // --- 6. Discrete Telemetry Blocks / Data Cells along Loop (240 Segments) ---
+      for (let i = 0; i < NUM_BLOCKS; i++) {
+        const bt = (i / NUM_BLOCKS) * Math.PI * 2;
+        const bp = getPoint(bt);
+        const btheta = getTangentAngle(bt);
+
+        let blkW = 7.2;
+        let blkH = 4.6;
+        let blkAlpha = 0.38 + 0.14 * Math.sin(i * 3.7 + now * 0.001);
+
+        // Distance from pointer (magnetic hover expansion)
+        if (landingPointer.active) {
+          const dPtr = Math.hypot(bp.x - landingPointer.x, bp.y - landingPointer.y);
+          if (dPtr < 140) {
+            const boost = (1 - dPtr / 140);
+            blkW += boost * 4.2;
+            blkH += boost * 3.2;
+            blkAlpha = Math.min(1.0, blkAlpha + boost * 0.55);
+          }
+        }
+
+        // Distance from ripples (shockwave excitation)
+        for (let ri = 0; ri < ripples.length; ri++) {
+          const rp = ripples[ri];
+          const dR = Math.hypot(bp.x - rp.x, bp.y - rp.y);
+          if (Math.abs(dR - rp.r) < 32) {
+            const waveBoost = (1 - Math.abs(dR - rp.r) / 32) * (rp.alpha / 0.85);
+            blkW += waveBoost * 4.5;
+            blkH += waveBoost * 3.6;
+            blkAlpha = Math.min(1.0, blkAlpha + waveBoost * 0.65);
+          }
+        }
+
+        // Trail from Comet 1 (Video Stream)
+        const diff1 = (bt - comet1T + Math.PI * 4) % (Math.PI * 2);
+        if (diff1 > (Math.PI * 2 - 0.52) || diff1 < 0.02) {
+          const tailProgress = diff1 < 0.02 ? 1.0 : (1 - (Math.PI * 2 - diff1) / 0.52);
+          blkW += tailProgress * 3.2;
+          blkH += tailProgress * 2.2;
+          blkAlpha = Math.min(1.0, blkAlpha + tailProgress * 0.70);
+        }
+
+        // Trail from Comet 2 (Input Stream)
+        const diff2 = (bt - comet2T + Math.PI * 4) % (Math.PI * 2);
+        if (diff2 > (Math.PI * 2 - 0.52) || diff2 < 0.02) {
+          const tailProgress = diff2 < 0.02 ? 1.0 : (1 - (Math.PI * 2 - diff2) / 0.52);
+          blkW += tailProgress * 3.2;
+          blkH += tailProgress * 2.2;
+          blkAlpha = Math.min(1.0, blkAlpha + tailProgress * 0.70);
+        }
+
+        // Color coding by topological position:
+        const normX = (bp.x - cx) / scaleX;
+        let colorStr = '';
+        if (normX < -0.15) {
+          // Host cluster: Amber (#F59E0B) to Emerald (#22C55E)
+          const mix = (-normX - 0.15) / 0.85;
+          const r = Math.round(245 * (1 - mix * 0.5) + 34 * (mix * 0.5));
+          const g = Math.round(158 * (1 - mix * 0.5) + 197 * (mix * 0.5));
+          const b = Math.round(11 * (1 - mix * 0.5) + 94 * (mix * 0.5));
+          colorStr = `rgba(${r}, ${g}, ${b}, ${blkAlpha})`;
+        } else if (normX > 0.15) {
+          // Client cluster: Sky Cyan (#38BDF8) to Electric Slate/Indigo (#818CF8)
+          const mix = (normX - 0.15) / 0.85;
+          const r = Math.round(56 * (1 - mix) + 129 * mix);
+          const g = Math.round(189 * (1 - mix) + 140 * mix);
+          const b = Math.round(248 * (1 - mix) + 248 * mix);
+          colorStr = `rgba(${r}, ${g}, ${b}, ${blkAlpha})`;
+        } else {
+          // Relay Nexus Core: Luminous Cyan-White
+          colorStr = `rgba(226, 232, 240, ${blkAlpha * 1.15})`;
+        }
+
+        ctx.save();
+        ctx.translate(bp.x, bp.y);
+        ctx.rotate(btheta);
+        ctx.fillStyle = colorStr;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(-blkW / 2, -blkH / 2, blkW, blkH, 1.2);
+        } else {
+          ctx.rect(-blkW / 2, -blkH / 2, blkW, blkH);
+        }
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // --- 7. Draw Comet Heads with Radial Bloom & Optical Flares ---
+      function drawPhotonHead(pos, rColor, glowColor, flareColor) {
+        // Multi-stage radial bloom halo
+        const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 46);
+        g.addColorStop(0, 'rgba(255, 255, 255, 0.98)');
+        g.addColorStop(0.2, glowColor);
+        g.addColorStop(0.55, flareColor);
+        g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 46, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Intense core dot
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 14;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Subtle optical flare crosshair
+        ctx.beginPath();
+        ctx.moveTo(pos.x - 20, pos.y);
+        ctx.lineTo(pos.x + 20, pos.y);
+        ctx.moveTo(pos.x, pos.y - 20);
+        ctx.lineTo(pos.x, pos.y + 20);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
+      }
+
+      // Comet 1: Cyan / Electric Blue (Video Stream 120 FPS)
+      drawPhotonHead(comet1Pos, '#FFFFFF', 'rgba(56, 189, 248, 0.85)', 'rgba(56, 189, 248, 0.22)');
+      // Comet 2: Amber / Emerald (Input Stream)
+      drawPhotonHead(comet2Pos, '#FFFFFF', 'rgba(245, 158, 11, 0.85)', 'rgba(34, 197, 94, 0.22)');
+
+      // --- 8. Center Relay Hub Nexus (Rotating Holographic Gimbal Reticle) ---
+      const dC1 = Math.hypot(comet1Pos.x - cx, comet1Pos.y - cy);
+      const dC2 = Math.hypot(comet2Pos.x - cx, comet2Pos.y - cy);
+      const isNexusActive = (dC1 < 42 || dC2 < 42);
+      const nexusAlpha = isNexusActive ? 0.65 : 0.22;
+
+      // Optical flare pulse when comet crosses singularity
+      if (isNexusActive) {
+        const gBurst = ctx.createRadialGradient(cx, cy, 0, cx, cy, 84);
+        gBurst.addColorStop(0, 'rgba(255, 255, 255, 0.40)');
+        gBurst.addColorStop(0.35, 'rgba(56, 189, 248, 0.22)');
+        gBurst.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gBurst;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 84, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Inner Rotating Ring (Clockwise)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(now * 0.0008);
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(56, 189, 248, ${nexusAlpha * 1.2})`;
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      for (let a = 0; a < 4; a++) {
+        const ang = (a * Math.PI) / 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(ang) * 13, Math.sin(ang) * 13);
+        ctx.lineTo(Math.cos(ang) * 19, Math.sin(ang) * 19);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${nexusAlpha * 0.9})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Outer Rotating Dashed Ring (Counter-Clockwise)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-now * 0.0005);
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.arc(0, 0, 32, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${nexusAlpha * 0.8})`;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // Cardinal Reticle Crosshair Spikes
+      ctx.beginPath();
+      ctx.moveTo(cx - 44, cy); ctx.lineTo(cx - 24, cy);
+      ctx.moveTo(cx + 24, cy); ctx.lineTo(cx + 44, cy);
+      ctx.moveTo(cx, cy - 44); ctx.lineTo(cx, cy - 24);
+      ctx.moveTo(cx, cy + 24); ctx.lineTo(cx, cy + 44);
+      ctx.strokeStyle = `rgba(56, 189, 248, ${nexusAlpha * 0.9})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Center Singularity Core Pip
+      ctx.beginPath();
+      ctx.arc(cx, cy, isNexusActive ? 3.5 : 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = isNexusActive ? '#FFFFFF' : 'rgba(56, 189, 248, 0.9)';
+      if (isNexusActive) {
+        ctx.shadowColor = '#38BDF8';
+        ctx.shadowBlur = 12;
+      }
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Nexus Telemetry Label
+      ctx.font = '7.5px Consolas, monospace';
+      ctx.fillStyle = `rgba(255, 255, 255, ${nexusAlpha * 0.85})`;
+      ctx.fillText('NEXUS // RELAY', cx - 28, cy + 46);
+
+      // --- 9. Node Milestone Brackets at Outer Vertices ---
+      // Left Host Station Milestone (t = π)
+      const pHost = getPoint(Math.PI);
+      ctx.save();
+      ctx.font = '8px Consolas, monospace';
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.45)';
+      ctx.fillText('NODE-01 // HOST WORKSTATION', pHost.x - 128, pHost.y - 12);
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+      ctx.lineWidth = 0.8;
+      const bx = pHost.x - 8, by = pHost.y - 8, bw = 16, bh = 16;
+      ctx.beginPath();
+      ctx.moveTo(bx, by + 4); ctx.lineTo(bx, by); ctx.lineTo(bx + 4, by);
+      ctx.moveTo(bx + bw - 4, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by + 4);
+      ctx.moveTo(bx, by + bh - 4); ctx.lineTo(bx, by + bh); ctx.lineTo(bx + 4, by + bh);
+      ctx.moveTo(bx + bw - 4, by + bh); ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx + bw, by + bh - 4);
+      ctx.stroke();
+      ctx.restore();
+
+      // Right Client Cockpit Milestone (t = 0)
+      const pClient = getPoint(0);
+      ctx.save();
+      ctx.font = '8px Consolas, monospace';
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.fillText('NODE-02 // CLIENT COCKPIT', pClient.x + 16, pClient.y - 12);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+      ctx.lineWidth = 0.8;
+      const rx = pClient.x - 8, ry = pClient.y - 8, rw = 16, rh = 16;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry + 4); ctx.lineTo(rx, ry); ctx.lineTo(rx + 4, ry);
+      ctx.moveTo(rx + rw - 4, ry); ctx.lineTo(rx + rw, ry); ctx.lineTo(rx + rw, ry + 4);
+      ctx.moveTo(rx, ry + rh - 4); ctx.lineTo(rx, ry + rh); ctx.lineTo(rx + 4, ry + rh);
+      ctx.moveTo(rx + rw - 4, ry + rh); ctx.lineTo(rx + rw, ry + rh); ctx.lineTo(rx + rw, ry + rh - 4);
+      ctx.stroke();
+      ctx.restore();
+
+      // --- 10. Interactive Signal Vector Tether to Cursor ---
+      if (landingPointer.active) {
+        let minDistSq = Infinity;
+        let nearestP = null;
+        const testSteps = 60;
+        for (let ts = 0; ts < testSteps; ts++) {
+          const tt = (ts / testSteps) * Math.PI * 2;
+          const tp = getPoint(tt);
+          const dSq = (tp.x - landingPointer.x) ** 2 + (tp.y - landingPointer.y) ** 2;
+          if (dSq < minDistSq) {
+            minDistSq = dSq;
+            nearestP = tp;
+          }
+        }
+        const dist = Math.sqrt(minDistSq);
+        if (dist < 180 && nearestP) {
+          const tetherAlpha = (1 - dist / 180) * 0.35;
+          ctx.beginPath();
+          ctx.moveTo(landingPointer.x, landingPointer.y);
+          ctx.lineTo(nearestP.x, nearestP.y);
+          ctx.strokeStyle = `rgba(56, 189, 248, ${tetherAlpha})`;
+          ctx.lineWidth = 0.75;
+          ctx.setLineDash([2, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.beginPath();
+          ctx.arc(nearestP.x, nearestP.y, 5, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(56, 189, 248, ${tetherAlpha * 1.5})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.font = '7px Consolas, monospace';
+          ctx.fillStyle = `rgba(56, 189, 248, ${tetherAlpha * 1.8})`;
+          ctx.fillText(`LOCK // ${Math.round(dist)}px`, landingPointer.x + 10, landingPointer.y - 10);
+        }
+      }
+
+      // --- 11. Ambient Quantum Dust & Interconnected Constellations ---
+      dustParticles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.y < 0) { p.y = h; p.x = Math.random() * w; }
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        let col = `rgba(56, 189, 248, ${p.alpha})`;
+        if (p.hue === 150) col = `rgba(34, 197, 94, ${p.alpha})`;
+        else if (p.hue === 38) col = `rgba(245, 158, 11, ${p.alpha})`;
+        ctx.fillStyle = col;
+        ctx.fill();
+      });
+
+      // Micro-constellation Webbing between nearby dust
+      for (let di = 0; di < dustParticles.length; di++) {
+        const p1 = dustParticles[di];
+        for (let dj = di + 1; dj < dustParticles.length; dj++) {
+          const p2 = dustParticles[dj];
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const dSq = dx * dx + dy * dy;
+          if (dSq < 4225) { // 65^2
+            const d = Math.sqrt(dSq);
+            const alpha = (1 - d / 65) * 0.12 * Math.min(p1.alpha, p2.alpha);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // --- 12. Dual Chromatic Shockwave Ripples on Click ---
+      for (let ri = ripples.length - 1; ri >= 0; ri--) {
+        const rp = ripples[ri];
+        rp.r += dt * 380;
+        rp.alpha *= 0.93;
+        if (rp.r > rp.maxR || rp.alpha < 0.02) {
+          ripples.splice(ri, 1);
+          continue;
+        }
+        // Primary Ring (Cyan)
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${rp.alpha * 0.75})`;
+        ctx.lineWidth = 1.6;
+        ctx.shadowColor = '#38BDF8';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Secondary Outer Harmonic Ring (Emerald)
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, Math.max(0, rp.r - 8), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(34, 197, 94, ${rp.alpha * 0.45})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+
+      landingCanvasAnimId = requestAnimationFrame(render);
+    }
+
+    landingCanvasInited = true;
+    landingCanvasAnimId = requestAnimationFrame(render);
+
+    initLandingCockpit();
+  }
+
+  // --- LIVE HERO DIRECT CONNECT COCKPIT (100% REAL FUNCTIONS) ---
+  function initLandingCockpit() {
+    const tabInstant = document.getElementById('btnCockpitTabInstant');
+    const tabUnattended = document.getElementById('btnCockpitTabUnattended');
+    const formInstant = document.getElementById('landingQuickConnectForm');
+    const paneUnattended = document.getElementById('heroUnattendedPane');
+    const inputRoom = document.getElementById('landingRoomInput');
+    const inputPin = document.getElementById('landingPinInput');
+    const btnDemo = document.getElementById('btnHeroDemoRoom');
+    const btnTogglePin = document.getElementById('btnToggleHeroPin');
+    const btnLoginJump = document.getElementById('btnHeroLoginJump');
+    const pingReadout = document.getElementById('cockpitPingReadout');
+    const relayStatusText = document.getElementById('heroRelayStatusText');
+
+    // 1. Mode Tab Switching
+    if (tabInstant && tabUnattended && formInstant && paneUnattended) {
+      tabInstant.onclick = () => {
+        tabInstant.classList.add('on');
+        tabUnattended.classList.remove('on');
+        formInstant.classList.remove('hidden');
+        paneUnattended.classList.add('hidden');
+        inputRoom?.focus();
+      };
+
+      tabUnattended.onclick = () => {
+        tabUnattended.classList.add('on');
+        tabInstant.classList.remove('on');
+        paneUnattended.classList.remove('hidden');
+        formInstant.classList.add('hidden');
+      };
+    }
+
+    // 2. Demo Room ID Auto-fill
+    if (btnDemo && inputRoom) {
+      btnDemo.onclick = () => {
+        inputRoom.value = 'RD-8924';
+        inputRoom.dispatchEvent(new Event('input', { bubbles: true }));
+        inputPin?.focus();
+        showToast('Đã điền mã máy mẫu: RD-8924');
+      };
+    }
+
+    // 3. Show/Hide PIN Password Toggle
+    if (btnTogglePin && inputPin) {
+      btnTogglePin.onclick = () => {
+        const eyeSvg = document.getElementById('heroEyeSvg');
+        const txtEye = document.getElementById('txtHeroEye');
+        if (inputPin.type === 'password') {
+          inputPin.type = 'text';
+          if (txtEye) txtEye.textContent = 'Ẩn';
+          else btnTogglePin.textContent = 'Ẩn';
+          if (eyeSvg) {
+            eyeSvg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+          }
+        } else {
+          inputPin.type = 'password';
+          if (txtEye) txtEye.textContent = 'Hiện';
+          else btnTogglePin.textContent = 'Hiện';
+          if (eyeSvg) {
+            eyeSvg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+          }
+        }
+      };
+    }
+
+    // 4. Jump to Login
+    if (btnLoginJump) {
+      btnLoginJump.onclick = () => {
+        document.getElementById('btnLandingStart')?.click();
+      };
+    }
+
+    // 5. Jump Buttons in Hero Left Column
+    const btnQuickJump = document.getElementById('btnLandingQuickJump');
+    if (btnQuickJump && inputRoom) {
+      btnQuickJump.onclick = () => {
+        tabInstant?.click();
+        inputRoom.focus();
+        inputRoom.select();
+      };
+    }
+
+    const btnDlJump = document.getElementById('btnLandingDownloadJump');
+    if (btnDlJump) {
+      btnDlJump.onclick = () => {
+        const dl = document.getElementById('landingDownloads');
+        if (dl) dl.scrollIntoView({ behavior: 'smooth' });
+      };
+    }
+
+    // 6. REAL Live Relay Health & Latency Probe
+    async function probeRelayLatency() {
+      if (currentView !== 'landing') return;
+      try {
+        const t0 = performance.now();
+        const res = await fetch('/api/health', { cache: 'no-store' });
+        const t1 = performance.now();
+        if (res.ok) {
+          const rtt = Math.max(0.8, (t1 - t0)).toFixed(1);
+          if (pingReadout) {
+            pingReadout.textContent = `RTT: ${rtt}ms`;
+          }
+          if (relayStatusText) {
+            relayStatusText.textContent = `Relay Tunnel: Sẵn sàng (${rtt}ms)`;
+          }
+        }
+      } catch {
+        if (pingReadout) pingReadout.textContent = 'RTT: --';
+      }
+    }
+
+    // Initial probe and recurring probe every 3s
+    probeRelayLatency();
+    setInterval(probeRelayLatency, 3000);
+  }
+
+  function startLandingCanvas() {
+    if (!landingCanvasInited) {
+      initLandingCanvas();
+    } else if (!landingCanvasAnimId) {
+      landingCanvasAnimId = requestAnimationFrame(() => {
+        if (currentView === 'landing' && landingCanvas) {
+          initLandingCanvas();
+        }
+      });
+    }
+  }
+
+  function stopLandingCanvas() {
+    if (landingCanvasAnimId) {
+      cancelAnimationFrame(landingCanvasAnimId);
+      landingCanvasAnimId = null;
+      landingCanvasInited = false;
+    }
+  }
+
   function updateRoStatus() {
     if (!roStatus) return;
-    if (currentView === 'auth') {
+    if (currentView === 'landing') {
+      roStatus.textContent = t('ro.landing');
+    } else if (currentView === 'auth') {
       roStatus.textContent = t('ro.auth');
     } else if (currentView === 'dashboard') {
       roStatus.textContent = t('ro.dashboard');
@@ -611,6 +1533,7 @@
 
   function switchView(view, updateUrl = true) {
     currentView = view;
+    landingSection?.classList.add('hidden');
     authSection.classList.add('hidden');
     dashboardSection.classList.add('hidden');
     remoteSection.classList.add('hidden');
@@ -626,27 +1549,34 @@
     });
     placeIndicator(mainNav);
 
-    if (view === 'auth') {
-      authSection.classList.remove('hidden');
-    } else if (view === 'dashboard') {
-      dashboardSection.classList.remove('hidden');
-      loadDeviceFleet();
-    } else if (view === 'remote') {
-      remoteSection.classList.remove('hidden');
-      resetDeckIdle();
-    } else if (view === 'files') {
-      filesSection.classList.remove('hidden');
-      if (isConnected) requestBrowsePath(remoteCurrentPath || '');
-    } else if (view === 'terminal') {
-      terminalSection.classList.remove('hidden');
-      updateTerminalStatusBadge();
-      setTimeout(() => terminalCmdInput?.focus(), 50);
-    } else if (view === 'tasks') {
-      tasksSection.classList.remove('hidden');
-      if (isConnected) requestTelemetryAndTasks();
-    } else if (view === 'audit') {
-      auditSection.classList.remove('hidden');
-      loadAuditLogs();
+    if (view === 'landing') {
+      landingSection?.classList.remove('hidden');
+      startLandingCanvas();
+    } else {
+      stopLandingCanvas();
+      if (view === 'auth') {
+        authSection.classList.remove('hidden');
+        setTimeout(() => placeIndicator(authTabs), 30);
+      } else if (view === 'dashboard') {
+        dashboardSection.classList.remove('hidden');
+        loadDeviceFleet();
+      } else if (view === 'remote') {
+        remoteSection.classList.remove('hidden');
+        resetDeckIdle();
+      } else if (view === 'files') {
+        filesSection.classList.remove('hidden');
+        if (isConnected) requestBrowsePath(remoteCurrentPath || '');
+      } else if (view === 'terminal') {
+        terminalSection.classList.remove('hidden');
+        updateTerminalStatusBadge();
+        setTimeout(() => terminalCmdInput?.focus(), 50);
+      } else if (view === 'tasks') {
+        tasksSection.classList.remove('hidden');
+        if (isConnected) requestTelemetryAndTasks();
+      } else if (view === 'audit') {
+        auditSection.classList.remove('hidden');
+        loadAuditLogs();
+      }
     }
 
     updateRoStatus();
@@ -661,11 +1591,189 @@
     const btn = e.target.closest('button');
     if (!btn) return;
     const view = btn.dataset.view;
+    if (view === 'landing') {
+      switchView('landing', true);
+      return;
+    }
     if (view !== 'auth' && (!authToken || !currentUser)) {
+      sessionStorage.setItem('titan_pending_route', view);
       switchView('auth', true);
       return;
     }
     switchView(view, true);
+  });
+
+  // --- LANDING INTERACTIONS ---
+  btnLandingStart?.addEventListener('click', () => {
+    if (authToken && currentUser) {
+      switchView('dashboard', true);
+    } else {
+      switchView('auth', true);
+    }
+  });
+
+  btnNavLogin?.addEventListener('click', () => {
+    switchView('auth', true);
+  });
+
+  brandLogo?.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchView('landing', true);
+  });
+
+  btnLandingQuickJump?.addEventListener('click', () => {
+    const qcSec = document.getElementById('landingQuickConnectSection');
+    if (qcSec) {
+      qcSec.scrollIntoView({ behavior: 'smooth' });
+      landingRoomInput?.focus();
+    } else {
+      quickConnectModal?.classList.remove('hidden');
+    }
+  });
+
+  btnLandingDownloadJump?.addEventListener('click', () => {
+    const dlSec = document.getElementById('landingDownloads');
+    dlSec?.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  landingQuickConnectForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const room = landingRoomInput?.value.trim();
+    const pin = landingPinInput?.value.trim() || '';
+    if (!room) return;
+    currentRoom = room;
+    currentPin = pin;
+    if (pin) sessionStorage.setItem('titan_pin_' + room, pin);
+    startRemoteSession(defaultWsUrl, room, pin);
+  });
+
+  btnLandingDlExe?.addEventListener('click', downloadDesktopExe);
+  btnLandingDlBat?.addEventListener('click', downloadHostInstaller);
+
+  // Update PowerShell snippet with live origin
+  const ps1CodeSnippet = document.getElementById('ps1CodeSnippet');
+  if (ps1CodeSnippet) {
+    const origin = window.location.origin;
+    ps1CodeSnippet.textContent = `iwr -useb ${origin}/api/download/TitanRemoteHost.exe -OutFile "$env:TEMP\\TitanRemoteHost.exe"; Start-Process "$env:TEMP\\TitanRemoteHost.exe"`;
+  }
+
+  btnLandingCopyPs1?.addEventListener('click', async () => {
+    const code = document.getElementById('ps1CodeSnippet')?.textContent || '';
+    if (code) {
+      try {
+        await navigator.clipboard.writeText(code);
+        showToast(typeof t === 'function' ? t('landing.toast_copied') : 'Đã sao chép lệnh PowerShell vào clipboard!');
+        btnLandingCopyPs1.classList.add('copied');
+        const copyBtnText = document.getElementById('copyBtnText');
+        const copySvgIcon = document.getElementById('copySvgIcon');
+        if (copyBtnText) copyBtnText.textContent = typeof t === 'function' ? t('landing.dl_ps1_copied') : 'Đã chép!';
+        if (copySvgIcon) copySvgIcon.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
+        setTimeout(() => {
+          btnLandingCopyPs1.classList.remove('copied');
+          if (copyBtnText) copyBtnText.textContent = typeof t === 'function' ? t('landing.dl_ps1_copy') : 'Sao chép';
+          if (copySvgIcon) copySvgIcon.innerHTML = '<rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>';
+        }, 2000);
+      } catch {
+        showToast('Sao chép thất bại');
+      }
+    }
+  });
+
+  // Download Hub Platform Filter Switcher
+  const dlPlatformSeg = document.getElementById('dlPlatformSeg');
+  const dlPanes = {
+    windows: document.getElementById('dlPaneWindows'),
+    linux: document.getElementById('dlPaneLinux'),
+    macos: document.getElementById('dlPaneMacos'),
+    web: document.getElementById('dlPaneWeb')
+  };
+
+  dlPlatformSeg?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-dl-tab]');
+    if (!btn) return;
+    const tab = btn.dataset.dlTab;
+    dlPlatformSeg.querySelectorAll('button').forEach(b => {
+      const isTarget = b === btn;
+      b.classList.toggle('on', isTarget);
+      b.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+    });
+    placeIndicator(dlPlatformSeg);
+
+    Object.entries(dlPanes).forEach(([k, pane]) => {
+      if (pane) pane.classList.toggle('hidden', k !== tab);
+    });
+  });
+
+  // Linux & macOS Snippets Origin Setup
+  const linuxCodeSnippet = document.getElementById('linuxCodeSnippet');
+  if (linuxCodeSnippet) {
+    linuxCodeSnippet.textContent = `curl -sSL ${window.location.origin}/api/download/install-linux.sh | bash`;
+  }
+  const macosCodeSnippet = document.getElementById('macosCodeSnippet');
+  if (macosCodeSnippet) {
+    macosCodeSnippet.textContent = `curl -sSL ${window.location.origin}/api/download/install-macos.sh | bash`;
+  }
+
+  // Linux Copy Button
+  const btnLandingCopyLinux = document.getElementById('btnLandingCopyLinux');
+  btnLandingCopyLinux?.addEventListener('click', async () => {
+    const code = linuxCodeSnippet?.textContent || '';
+    if (code) {
+      try {
+        await navigator.clipboard.writeText(code);
+        showToast(typeof t === 'function' ? t('landing.toast_copied') : 'Đã sao chép lệnh cài đặt Linux!');
+        btnLandingCopyLinux.classList.add('copied');
+        const copyLinuxBtnText = document.getElementById('copyLinuxBtnText');
+        if (copyLinuxBtnText) copyLinuxBtnText.textContent = typeof t === 'function' ? t('landing.dl_ps1_copied') : 'Đã chép!';
+        setTimeout(() => {
+          btnLandingCopyLinux.classList.remove('copied');
+          if (copyLinuxBtnText) copyLinuxBtnText.textContent = typeof t === 'function' ? t('landing.dl_linux_sh_copy') : 'Sao chép lệnh Linux';
+        }, 2000);
+      } catch {
+        showToast('Sao chép thất bại');
+      }
+    }
+  });
+
+  // macOS Copy Button
+  const btnLandingCopyMacos = document.getElementById('btnLandingCopyMacos');
+  btnLandingCopyMacos?.addEventListener('click', async () => {
+    const code = macosCodeSnippet?.textContent || '';
+    if (code) {
+      try {
+        await navigator.clipboard.writeText(code);
+        showToast(typeof t === 'function' ? t('landing.toast_copied') : 'Đã sao chép lệnh cài đặt macOS!');
+        btnLandingCopyMacos.classList.add('copied');
+        const copyMacosBtnText = document.getElementById('copyMacosBtnText');
+        if (copyMacosBtnText) copyMacosBtnText.textContent = typeof t === 'function' ? t('landing.dl_ps1_copied') : 'Đã chép!';
+        setTimeout(() => {
+          btnLandingCopyMacos.classList.remove('copied');
+          if (copyMacosBtnText) copyMacosBtnText.textContent = typeof t === 'function' ? t('landing.dl_macos_sh_copy') : 'Sao chép lệnh macOS';
+        }, 2000);
+      } catch {
+        showToast('Sao chép thất bại');
+      }
+    }
+  });
+
+  // Direct Package Download Handlers
+  document.getElementById('btnLandingDlLinuxDeb')?.addEventListener('click', () => {
+    window.location.href = '/api/download/titan-remote-host_amd64.deb';
+  });
+  document.getElementById('btnLandingDlLinuxTar')?.addEventListener('click', () => {
+    window.location.href = '/api/download/titan-remote-host-linux-x64.tar.gz';
+  });
+  document.getElementById('btnLandingDlMacosTar')?.addEventListener('click', () => {
+    window.location.href = '/api/download/titan-remote-host-macos.tar.gz';
+  });
+  document.getElementById('btnLandingDlLinuxUnit')?.addEventListener('click', () => {
+    window.location.href = '/api/download/titan-remote.service';
+  });
+  document.getElementById('btnLandingDlZip')?.addEventListener('click', () => {
+    window.location.href = '/api/download/agent-package.zip';
+  });
+  document.getElementById('btnLandingDlMacosPlist')?.addEventListener('click', () => {
+    window.location.href = '/api/download/com.titan.remote.plist';
   });
 
   // --- AUTHENTICATION ---
@@ -704,23 +1812,187 @@
     }
   });
 
-  btnLogout.addEventListener('click', () => {
+  // --- SESSION ACTIVITY & INACTIVITY TIMEOUT ENGINE (SLIDING SESSION) ---
+  let timeoutRemoteMin = parseInt(localStorage.getItem('titan_timeout_remote_min') || '15', 10);
+  if (isNaN(timeoutRemoteMin) || timeoutRemoteMin < 1) timeoutRemoteMin = 15;
+
+  let timeoutGlobalMin = parseInt(localStorage.getItem('titan_timeout_global_min') || '30', 10);
+  if (isNaN(timeoutGlobalMin) || timeoutGlobalMin < 2) timeoutGlobalMin = 30;
+
+  let lastRemoteActivity = Date.now();
+  let lastGlobalActivity = Date.now();
+  let lastTokenRefreshTime = Date.now();
+  let isRefreshingToken = false;
+
+  // 1. Sliding Token Refresh (Keep session alive during active usage)
+  async function refreshAuthToken() {
+    if (!authToken || isRefreshingToken) return;
+    isRefreshingToken = true;
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.token) {
+          authToken = data.token;
+          localStorage.setItem('titan_token', authToken);
+          lastTokenRefreshTime = Date.now();
+        }
+      } else if (res.status === 401) {
+        handleAutoLogout(window.t ? t('session.toast_global_logout', { min: timeoutGlobalMin }) : 'Phiên đăng nhập đã hết hạn');
+      }
+    } catch (err) {
+      console.warn('Sliding token refresh warning:', err);
+    } finally {
+      isRefreshingToken = false;
+    }
+  }
+
+  // 2. Global Activity Tracker
+  function recordUserActivity() {
+    const now = Date.now();
+    lastGlobalActivity = now;
+    if (isConnected) {
+      lastRemoteActivity = now;
+    }
+    // Proactive sliding refresh: if user is active and it has been > 4 minutes since last refresh
+    if (authToken && now - lastTokenRefreshTime > 4 * 60 * 1000) {
+      refreshAuthToken();
+    }
+  }
+
+  ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'pointerdown'].forEach(evt => {
+    window.addEventListener(evt, recordUserActivity, { passive: true });
+  });
+
+  // 3. Automated Inactivity Watcher (Every 5 seconds)
+  function checkSessionTimeouts() {
+    const now = Date.now();
+
+    // Condition A: Remote Session Idle (X minutes)
+    // "nếu đang kết nối dùng thì không sao, nhưng nếu không thao tác quá X phút thì sẽ tự thoát session"
+    if (isConnected) {
+      const elapsedRemoteMin = (now - lastRemoteActivity) / 60000;
+      if (elapsedRemoteMin >= timeoutRemoteMin) {
+        disconnect();
+        switchView(authToken ? 'dashboard' : 'landing', true);
+        showToast(
+          (window.t ? t('session.toast_remote_disconnected', { min: timeoutRemoteMin }) : null) ||
+          `Đã tự động ngắt kết nối máy trạm do không có thao tác trong ${timeoutRemoteMin} phút.`,
+          'warning'
+        );
+      }
+    }
+
+    // Condition B: Global Inactivity Logout (Y minutes)
+    // "còn Y phút nếu không có kết nối hay thao tác gì sẽ tự logout"
+    if (authToken && !isConnected) {
+      const elapsedGlobalMin = (now - lastGlobalActivity) / 60000;
+      if (elapsedGlobalMin >= timeoutGlobalMin) {
+        handleAutoLogout(
+          (window.t ? t('session.toast_global_logout', { min: timeoutGlobalMin }) : null) ||
+          `Đã tự động đăng xuất tài khoản do không hoạt động trong ${timeoutGlobalMin} phút.`
+        );
+      }
+    }
+  }
+  setInterval(checkSessionTimeouts, 5000);
+
+  // 4. Auto Logout Handler
+  function handleAutoLogout(reasonMsg) {
+    if (authToken) {
+      try {
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        }).catch(() => {});
+      } catch {}
+    }
     disconnect();
     authToken = null;
     currentUser = null;
     localStorage.removeItem('titan_token');
     renderUserBadge();
     switchView('auth', true);
+    if (reasonMsg) {
+      showToast(reasonMsg, 'info');
+    }
+  }
+
+  // 5. Logout Button
+  btnLogout.addEventListener('click', () => {
+    handleAutoLogout();
+    switchView('landing', true);
   });
+
+  // 6. Session Configuration Modal Controls
+  const btnOpenSessionConfig = document.getElementById('btnOpenSessionConfig');
+  const sessionConfigModal = document.getElementById('sessionConfigModal');
+  const sessionConfigForm = document.getElementById('sessionConfigForm');
+  const btnCancelSessionCfg = document.getElementById('btnCancelSessionCfg');
+  const cfgTimeoutRemote = document.getElementById('cfgTimeoutRemote');
+  const cfgTimeoutGlobal = document.getElementById('cfgTimeoutGlobal');
+
+  if (btnOpenSessionConfig && sessionConfigModal && cfgTimeoutRemote && cfgTimeoutGlobal) {
+    btnOpenSessionConfig.addEventListener('click', () => {
+      cfgTimeoutRemote.value = timeoutRemoteMin;
+      cfgTimeoutGlobal.value = timeoutGlobalMin;
+      sessionConfigModal.classList.remove('hidden');
+    });
+
+    btnCancelSessionCfg?.addEventListener('click', () => {
+      sessionConfigModal.classList.add('hidden');
+    });
+
+    sessionConfigModal.addEventListener('click', (e) => {
+      if (e.target === sessionConfigModal) {
+        sessionConfigModal.classList.add('hidden');
+      }
+    });
+
+    sessionConfigForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const x = parseInt(cfgTimeoutRemote.value, 10);
+      const y = parseInt(cfgTimeoutGlobal.value, 10);
+      if (isNaN(x) || x < 1) {
+        showToast('Thời gian X phải từ 1 phút trở lên', 'warning');
+        return;
+      }
+      if (isNaN(y) || y < 2) {
+        showToast('Thời gian Y phải từ 2 phút trở lên', 'warning');
+        return;
+      }
+      timeoutRemoteMin = x;
+      timeoutGlobalMin = y;
+      localStorage.setItem('titan_timeout_remote_min', String(x));
+      localStorage.setItem('titan_timeout_global_min', String(y));
+      sessionConfigModal.classList.add('hidden');
+      showToast(
+        (window.t ? t('session.toast_saved', { x, y }) : null) ||
+        `Đã lưu cấu hình phiên: X=${x} phút, Y=${y} phút`,
+        'success'
+      );
+    });
+  }
 
   // --- DASHBOARD FLEET ---
   let currentDeviceList = [];
+  const btnDownloadExe = document.getElementById('btnDownloadExe');
   const btnDownloadHost = document.getElementById('btnDownloadHost');
+  function downloadDesktopExe() {
+    window.location.href = '/api/download/TitanRemoteHost.exe';
+  }
   function downloadHostInstaller() {
     const accountName = currentUser ? currentUser.username : 'User';
     const relayWs = defaultWsUrl;
     window.location.href = `/api/download/setup.bat?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}`;
   }
+  btnDownloadExe?.addEventListener('click', downloadDesktopExe);
   btnDownloadHost?.addEventListener('click', downloadHostInstaller);
 
   async function loadDeviceFleet(silent = false) {
@@ -772,6 +2044,10 @@
           <p class="brand-font" data-i18n="dashboard.empty" style="font-size: 1.15rem; color: var(--text); margin-bottom: 8px;">${t('dashboard.empty')}</p>
           <p data-i18n="dashboard.empty_hint" style="font-size: var(--step--1); color: var(--text-muted); margin-bottom: 20px;">${t('dashboard.empty_hint')}</p>
           <div style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+            <button id="btnEmptyDownloadExe" class="btn-pill" style="border-color: #38BDF8; color: #38BDF8; font-weight: 600;" data-i18n-title="dashboard.btn_download_exe_title" title="${t('dashboard.btn_download_exe_title')}">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg>
+              <span data-i18n="dashboard.btn_download_exe">${t('dashboard.btn_download_exe')}</span>
+            </button>
             <button id="btnEmptyDownload" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;" data-i18n-title="dashboard.btn_download_host_title" title="${t('dashboard.btn_download_host_title')}">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <span data-i18n="dashboard.btn_download_host">${t('dashboard.btn_download_host')}</span>
@@ -783,6 +2059,7 @@
           </div>
         </div>
       `;
+      document.getElementById('btnEmptyDownloadExe')?.addEventListener('click', downloadDesktopExe);
       document.getElementById('btnEmptyDownload')?.addEventListener('click', downloadHostInstaller);
       document.getElementById('btnEmptyAdd')?.addEventListener('click', () => quickConnectModal.classList.remove('hidden'));
       return;
@@ -896,6 +2173,8 @@
 
         if (msg.status === 'ok' && msg.role === 'client') {
           isConnected = true;
+          lastRemoteActivity = Date.now();
+          lastGlobalActivity = Date.now();
           if (isAwaitingRemoteRestart) {
             stopRestartReconnectPolling();
             showToast('Máy trạm đã khởi động lại và kết nối thành công!', 'success');
@@ -917,6 +2196,9 @@
         } else if (msg.type === 'host_ready') {
           updateHostResolution(msg.width, msg.height);
           if (msg.monitors) populateMonitors(msg.monitors, msg.active_id);
+          syncDisplayProfileWithHost(true);
+        } else if (msg.type === 'display_profile_matched') {
+          handleDisplayProfileMatched(msg);
         } else if (msg.type === 'monitors_list') {
           populateMonitors(msg.monitors, msg.active_id);
         } else if (msg.type === 'clipboard_sync') {
@@ -1134,6 +2416,102 @@
     laserCanvas.width = w;
     laserCanvas.height = h;
     metricRes.textContent = `${w}x${h}`;
+
+    if (pixelIndicatorText && !isFitMode) {
+      pixelIndicatorText.textContent = `1:1 PIXEL-PERFECT (${w}x${h})`;
+    }
+  }
+
+  function setDisplayScaleMode(fit) {
+    isFitMode = fit;
+    remoteSection.classList.toggle('fit-mode', isFitMode);
+    document.getElementById('scaleSvgFit')?.classList.toggle('hidden', !isFitMode);
+    document.getElementById('scaleSvg1to1')?.classList.toggle('hidden', isFitMode);
+    scale = 1.0;
+    panX = 0;
+    panY = 0;
+    applyCanvasTransform();
+
+    if (pixelIndicatorBadge && pixelIndicatorText) {
+      if (!isFitMode) {
+        pixelIndicatorText.textContent = `1:1 PIXEL-PERFECT (${hostResolution.width}x${hostResolution.height})`;
+        pixelIndicatorBadge.classList.remove('hidden');
+      } else {
+        pixelIndicatorBadge.classList.add('hidden');
+      }
+    }
+  }
+
+  function detectClientDisplayCapabilities() {
+    return new Promise((resolve) => {
+      const dpr = window.devicePixelRatio || 1;
+      const screenW = Math.round(window.screen.width * dpr);
+      const screenH = Math.round(window.screen.height * dpr);
+      const viewW = Math.round(window.innerWidth * dpr);
+      const viewH = Math.round(window.innerHeight * dpr);
+
+      let frames = 0;
+      let start = performance.now();
+      function check(ts) {
+        frames++;
+        if (ts - start >= 150) {
+          const fps = Math.round((frames * 1000) / (ts - start));
+          let estHz = 60;
+          if (fps >= 130) estHz = 144;
+          else if (fps >= 105) estHz = 120;
+          else if (fps >= 80) estHz = 90;
+          else if (fps >= 68) estHz = 75;
+          else estHz = 60;
+          resolve({ screenW, screenH, viewW, viewH, dpr, estHz });
+        } else {
+          requestAnimationFrame(check);
+        }
+      }
+      requestAnimationFrame(check);
+    });
+  }
+
+  async function syncDisplayProfileWithHost(silent = false) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!silent) showToast('Chưa kết nối máy trạm', 'info');
+      return;
+    }
+    const cap = await detectClientDisplayCapabilities();
+    if (!silent) {
+      showToast(`Đang phân tích màn hình: ${cap.screenW}x${cap.screenH} @ ${cap.estHz}Hz...`, 'info');
+    }
+    ws.send(JSON.stringify({
+      type: 'sync_display_profile',
+      client_w: cap.screenW,
+      client_h: cap.screenH,
+      client_dpr: cap.dpr,
+      client_fps: cap.estHz,
+      viewport_w: cap.viewW,
+      viewport_h: cap.viewH
+    }));
+  }
+
+  function handleDisplayProfileMatched(msg) {
+    const recommended = msg.recommended_preset || 'speed_60';
+    if (qualitySelector) qualitySelector.value = recommended;
+
+    if (msg.suggested_scale === '1to1' || recommended === 'native_1to1') {
+      setDisplayScaleMode(false);
+    } else {
+      setDisplayScaleMode(true);
+    }
+
+    const labelMap = {
+      'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
+      'ultra_120': '120 FPS Siêu mượt',
+      'crisp_2k_4k': '2K/4K Cực nét',
+      'speed_60': '60 FPS Mượt mà',
+      'crisp_hd': 'HD Nét',
+      'balanced': '30 FPS Cân bằng',
+      'grayscale': 'Tiết kiệm băng thông'
+    };
+    const label = labelMap[recommended] || recommended;
+    showToast(`Đã đồng bộ tối ưu: Trạm ${msg.host_res[0]}x${msg.host_res[1]} ↔ Điều khiển ${msg.client_res[0]}x${msg.client_res[1]} @ ${msg.client_fps}Hz -> Cấu hình cao nhất: ${label}`, 'success');
   }
 
   async function handleIncomingFrame(blob) {
@@ -1147,17 +2525,40 @@
 
     try {
       const bitmap = await createImageBitmap(blob);
-      if (remoteCanvas.width !== bitmap.width || remoteCanvas.height !== bitmap.height) {
-        updateHostResolution(bitmap.width, bitmap.height);
+      if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
+        // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
+        const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
+        const vy = Math.min(...hostMonitors.map(m => m.rect[1]));
+
+        hostMonitors.forEach(m => {
+          const tileItem = monitorTileMap.get(m.id);
+          if (tileItem) {
+            const sx = Math.max(0, m.rect[0] - vx);
+            const sy = Math.max(0, m.rect[1] - vy);
+            const sw = Math.max(1, m.rect[2] - m.rect[0]);
+            const sh = Math.max(1, m.rect[3] - m.rect[1]);
+
+            if (tileItem.canvas.width !== sw || tileItem.canvas.height !== sh) {
+              tileItem.canvas.width = sw;
+              tileItem.canvas.height = sh;
+            }
+            tileItem.ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+          }
+        });
+      } else {
+        if (remoteCanvas.width !== bitmap.width || remoteCanvas.height !== bitmap.height) {
+          updateHostResolution(bitmap.width, bitmap.height);
+        }
+        ctx.drawImage(bitmap, 0, 0);
       }
-      ctx.drawImage(bitmap, 0, 0);
       bitmap.close();
     } catch {}
   }
 
-  // --- MULTI-MONITOR SELECTION ---
+  // --- MULTI-MONITOR SELECTION & INTERACTIVE GRID ---
   function populateMonitors(monitors, activeId = 0) {
     if (!monitors || monitors.length === 0) return;
+    hostMonitors = monitors;
     const countStr = monitors.length > 1 ? ` (${monitors.length} màn)` : '';
     let html = `<option value="0" ${activeId === 0 ? 'selected' : ''}>Tất cả màn hình${countStr}</option>`;
     html += monitors.map(m => `
@@ -1165,36 +2566,310 @@
     `).join('');
 
     monitorSelector.innerHTML = html;
+
+    // Show/hide Grid button on floating deck
+    if (monitors.length > 1) {
+      btnToggleGrid?.classList.remove('hidden');
+      initMonitorGrid();
+    } else {
+      btnToggleGrid?.classList.add('hidden');
+      gridControls?.classList.add('hidden');
+      setGridMode(false);
+    }
   }
+
+  function initMonitorGrid() {
+    if (!monitorGrid || hostMonitors.length < 2) return;
+    
+    // Load saved order or default to monitors' IDs
+    const savedOrder = localStorage.getItem('titan_grid_order');
+    let order = [];
+    if (savedOrder) {
+      try {
+        order = JSON.parse(savedOrder);
+      } catch {}
+    }
+    const currentIds = hostMonitors.map(m => m.id);
+    if (!Array.isArray(order) || order.length !== currentIds.length || !order.every(id => currentIds.includes(id))) {
+      order = [...currentIds];
+    }
+    gridMonitorOrder = order;
+
+    renderGridTiles();
+  }
+
+  function renderGridTiles() {
+    if (!monitorGrid) return;
+    monitorGrid.innerHTML = '';
+    monitorTileMap.clear();
+
+    gridMonitorOrder.forEach(monId => {
+      const mon = hostMonitors.find(m => m.id === monId);
+      if (!mon) return;
+
+      const tile = document.createElement('div');
+      tile.className = 'monitor-tile';
+      tile.draggable = true;
+      tile.dataset.monId = String(mon.id);
+
+      tile.innerHTML = `
+        <div class="tile-header">
+          <div class="tile-grip-wrap">
+            <span class="tile-grip" title="Kéo thả để sắp xếp">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1.5" fill="currentColor"/><circle cx="15" cy="6" r="1.5" fill="currentColor"/><circle cx="9" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/><circle cx="9" cy="18" r="1.5" fill="currentColor"/><circle cx="15" cy="18" r="1.5" fill="currentColor"/></svg>
+            </span>
+            <span class="tile-title">${escapeHtml(mon.name)}</span>
+            <span class="tile-res-badge">${mon.width}x${mon.height}</span>
+          </div>
+          <div class="tile-actions">
+            <button type="button" class="tile-btn-action btn-tile-focus" title="Xem riêng màn này">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="tile-canvas-wrap">
+          <canvas class="monitor-canvas" width="${mon.width}" height="${mon.height}" tabindex="0"></canvas>
+        </div>
+      `;
+
+      const canvas = tile.querySelector('canvas');
+      const tileCtx = canvas.getContext('2d');
+      monitorTileMap.set(mon.id, { tile, canvas, ctx: tileCtx, mon });
+
+      // Focus button: switch to single monitor view
+      tile.querySelector('.btn-tile-focus').addEventListener('click', (e) => {
+        e.stopPropagation();
+        setGridMode(false);
+        monitorSelector.value = String(mon.id);
+        ws.send(JSON.stringify({ type: 'switch_monitor', monitor_id: mon.id }));
+      });
+
+      // Mouse & touch events forwarding for this monitor
+      setupTileCanvasInput(canvas, mon);
+
+      // HTML5 Drag and Drop handlers
+      setupTileDragAndDrop(tile);
+
+      monitorGrid.appendChild(tile);
+    });
+
+    applyGridLayoutClass();
+  }
+
+  function applyGridLayoutClass() {
+    if (!monitorGrid) return;
+    monitorGrid.classList.remove('layout-side-by-side', 'layout-stacked');
+    if (gridLayoutMode === 'stacked') {
+      monitorGrid.classList.add('layout-stacked');
+    } else {
+      monitorGrid.classList.add('layout-side-by-side');
+    }
+  }
+
+  let draggedTile = null;
+
+  function setupTileDragAndDrop(tile) {
+    tile.addEventListener('dragstart', (e) => {
+      draggedTile = tile;
+      tile.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', tile.dataset.monId);
+    });
+
+    tile.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (draggedTile && draggedTile !== tile) {
+        tile.classList.add('drag-over');
+      }
+    });
+
+    tile.addEventListener('dragleave', () => {
+      tile.classList.remove('drag-over');
+    });
+
+    tile.addEventListener('drop', (e) => {
+      e.preventDefault();
+      tile.classList.remove('drag-over');
+      if (!draggedTile || draggedTile === tile) return;
+
+      const fromId = parseInt(draggedTile.dataset.monId, 10);
+      const toId = parseInt(tile.dataset.monId, 10);
+
+      const fromIdx = gridMonitorOrder.indexOf(fromId);
+      const toIdx = gridMonitorOrder.indexOf(toId);
+
+      if (fromIdx !== -1 && toIdx !== -1) {
+        gridMonitorOrder.splice(fromIdx, 1);
+        gridMonitorOrder.splice(toIdx, 0, fromId);
+        localStorage.setItem('titan_grid_order', JSON.stringify(gridMonitorOrder));
+        renderGridTiles();
+      }
+    });
+
+    tile.addEventListener('dragend', () => {
+      tile.classList.remove('dragging');
+      document.querySelectorAll('.monitor-tile').forEach(t => t.classList.remove('drag-over'));
+      draggedTile = null;
+    });
+  }
+
+  function setupTileCanvasInput(canvas, mon) {
+    function getTileCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const normX = Math.max(0.0, Math.min(1.0, (e.clientX - rect.left) / rect.width));
+      const normY = Math.max(0.0, Math.min(1.0, (e.clientY - rect.top) / rect.height));
+      return { x: normX, y: normY };
+    }
+
+    let lastTileMove = 0;
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isConnected) return;
+      const now = performance.now();
+      if (now - lastTileMove < 25) return;
+      lastTileMove = now;
+      const c = getTileCoords(e);
+      ws.send(JSON.stringify({
+        type: 'mouse_move',
+        x: c.x,
+        y: c.y,
+        monitor_id: mon.id
+      }));
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (!isConnected) return;
+      canvas.focus();
+      const c = getTileCoords(e);
+      ws.send(JSON.stringify({
+        type: 'mouse_down',
+        button: e.button,
+        x: c.x,
+        y: c.y,
+        monitor_id: mon.id
+      }));
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      if (!isConnected) return;
+      const c = getTileCoords(e);
+      ws.send(JSON.stringify({
+        type: 'mouse_up',
+        button: e.button,
+        x: c.x,
+        y: c.y,
+        monitor_id: mon.id
+      }));
+    });
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    canvas.addEventListener('wheel', (e) => {
+      if (!isConnected) return;
+      e.preventDefault();
+      const c = getTileCoords(e);
+      ws.send(JSON.stringify({
+        type: 'mouse_wheel',
+        delta_y: e.deltaY,
+        x: c.x,
+        y: c.y,
+        monitor_id: mon.id
+      }));
+    }, { passive: false });
+  }
+
+  function setGridMode(enable) {
+    isGridMode = enable;
+    if (isGridMode) {
+      viewportBox?.classList.add('hidden');
+      monitorGrid?.classList.remove('hidden');
+      gridControls?.classList.remove('hidden');
+      btnToggleGrid?.classList.add('active');
+      renderGridTiles();
+      // Ensure host streams all monitors so sub-rectangles can be extracted
+      if (monitorSelector.value !== "0") {
+        monitorSelector.value = "0";
+        ws.send(JSON.stringify({ type: 'switch_monitor', monitor_id: 0 }));
+      }
+    } else {
+      monitorGrid?.classList.add('hidden');
+      viewportBox?.classList.remove('hidden');
+      gridControls?.classList.add('hidden');
+      btnToggleGrid?.classList.remove('active');
+    }
+  }
+
+  btnToggleGrid?.addEventListener('click', () => {
+    setGridMode(!isGridMode);
+  });
+
+  btnGridSideBySide?.addEventListener('click', () => {
+    gridLayoutMode = 'side-by-side';
+    btnGridSideBySide.classList.add('active');
+    btnGridStacked?.classList.remove('active');
+    applyGridLayoutClass();
+  });
+
+  btnGridInvert?.addEventListener('click', () => {
+    gridMonitorOrder.reverse();
+    localStorage.setItem('titan_grid_order', JSON.stringify(gridMonitorOrder));
+    renderGridTiles();
+  });
+
+  btnGridStacked?.addEventListener('click', () => {
+    gridLayoutMode = 'stacked';
+    btnGridStacked.classList.add('active');
+    btnGridSideBySide?.classList.remove('active');
+    applyGridLayoutClass();
+  });
 
   monitorSelector.addEventListener('change', () => {
     if (!isConnected) return;
     const monId = parseInt(monitorSelector.value, 10);
+    if (monId !== 0 && isGridMode) {
+      setGridMode(false);
+    }
     ws.send(JSON.stringify({
       type: 'switch_monitor',
       monitor_id: monId
     }));
   });
 
-  // --- QUALITY PRESET ---
+  // --- QUALITY & RESOLUTION PRESET ---
   qualitySelector.addEventListener('change', () => {
     if (!isConnected) return;
+    const preset = qualitySelector.value;
+    if (preset === 'auto_sync') {
+      syncDisplayProfileWithHost(false);
+      return;
+    }
+
     ws.send(JSON.stringify({
       type: 'set_quality_preset',
-      preset: qualitySelector.value
+      preset: preset
     }));
+
+    if (preset === 'native_1to1') {
+      setDisplayScaleMode(false);
+      showToast('Chế độ 1:1 Chuẩn gốc: Hiển thị nguyên bản từng điểm ảnh (Pixel-Perfect)', 'success');
+    } else if (preset === 'ultra_120') {
+      showToast('Đã kích hoạt 120 FPS Siêu mượt (Độ trễ tối thiểu)', 'info');
+    } else if (preset === 'crisp_2k_4k') {
+      showToast('Đã kích hoạt chế độ 2K / 4K Cực nét (Chất lượng 95%)', 'info');
+    } else {
+      showToast(`Đã chuyển cấu hình: ${preset.toUpperCase()}`, 'info');
+    }
+  });
+
+  // --- 1-CLICK DISPLAY AUTO-SYNC ---
+  btnSyncDisplay?.addEventListener('click', () => {
+    syncDisplayProfileWithHost(false);
   });
 
   // --- SCALE & FULLSCREEN ---
   btnScaleToggle.addEventListener('click', () => {
-    isFitMode = !isFitMode;
-    remoteSection.classList.toggle('fit-mode', isFitMode);
-    document.getElementById('scaleSvgFit')?.classList.toggle('hidden', !isFitMode);
-    document.getElementById('scaleSvg1to1')?.classList.toggle('hidden', isFitMode);
-    scale = 1.0;
-    panX = 0;
-    panY = 0;
-    applyCanvasTransform();
+    setDisplayScaleMode(!isFitMode);
+    showToast(isFitMode ? 'Chế độ: Co giãn vừa khung hình' : 'Chế độ: 1:1 Pixel-Perfect Nguyên bản', 'info');
   });
 
   btnFullscreen.addEventListener('click', async () => {
@@ -1232,7 +2907,7 @@
     clearTimeout(idleTimer);
     if (currentView === 'remote' && isConnected) {
       idleTimer = setTimeout(() => {
-        if (!floatingDeck.matches(':hover') && !powerMenuDropdown.matches(':hover')) {
+        if (!floatingDeck.matches(':hover') && !powerMenuDropdown.matches(':hover') && !(deckModeDropdown && deckModeDropdown.matches(':hover'))) {
           floatingDeck.classList.add('dimmed');
         }
       }, 3500);
@@ -1280,8 +2955,12 @@
   }
 
   let lastMove = 0;
+  let isCanvasPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+
   remoteCanvas.addEventListener('mousemove', (e) => {
-    if (!isConnected) return;
+    if (!isConnected || isCanvasPanning) return;
     const coords = getNormalizedCoords(e);
 
     if (isLaserActive) {
@@ -1302,12 +2981,37 @@
 
   remoteCanvas.addEventListener('mousedown', (e) => {
     if (!isConnected) return;
+    if (e.button === 1 || (e.altKey && e.button === 0)) {
+      isCanvasPanning = true;
+      panStartX = e.clientX - panX;
+      panStartY = e.clientY - panY;
+      remoteCanvas.style.cursor = 'grabbing';
+      e.preventDefault();
+      return;
+    }
     e.preventDefault();
     remoteCanvas.focus();
     ws.send(JSON.stringify({
       type: 'mouse_down',
       button: e.button
     }));
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (isCanvasPanning) {
+      panX = e.clientX - panStartX;
+      panY = e.clientY - panStartY;
+      applyCanvasTransform();
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (isCanvasPanning && (e.button === 1 || e.button === 0)) {
+      isCanvasPanning = false;
+      remoteCanvas.style.cursor = 'default';
+      e.preventDefault();
+    }
   });
 
   remoteCanvas.addEventListener('mouseup', (e) => {
@@ -1903,15 +3607,176 @@
     }, 100);
   }
 
+  // --- DECK DISPLAY MODES (BOTTOM FLOAT / TOP PINNED / TOP UNPINNED) ---
+  let currentDeckMode = localStorage.getItem('titan_deck_mode') || 'bottom-float';
+  let deckPeekTimer = null;
+
+  function applyDeckMode(mode) {
+    if (!['bottom-float', 'top-pinned', 'top-unpinned'].includes(mode)) {
+      mode = 'bottom-float';
+    }
+    currentDeckMode = mode;
+    localStorage.setItem('titan_deck_mode', mode);
+
+    // Reset modifier classes
+    floatingDeck.classList.remove('deck--bottom', 'deck--top-pinned', 'deck--top-unpinned', 'deck--peek');
+    remoteSection.classList.remove('deck-at-top');
+
+    // Update menu items
+    if (checkModeBottom) checkModeBottom.classList.toggle('hidden', mode !== 'bottom-float');
+    if (checkModeTopPinned) checkModeTopPinned.classList.toggle('hidden', mode !== 'top-pinned');
+    if (checkModeTopUnpinned) checkModeTopUnpinned.classList.toggle('hidden', mode !== 'top-unpinned');
+
+    document.querySelectorAll('.deck-mode-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.deckMode === mode);
+    });
+
+    if (mode === 'bottom-float') {
+      floatingDeck.classList.add('deck--bottom');
+      if (deckIconBottom) deckIconBottom.classList.remove('hidden');
+      if (deckIconTopPinned) deckIconTopPinned.classList.add('hidden');
+      if (deckIconTopUnpinned) deckIconTopUnpinned.classList.add('hidden');
+      if (btnDeckPinQuick) btnDeckPinQuick.classList.add('hidden');
+      if (deckTopTrigger) deckTopTrigger.classList.add('hidden');
+    } else if (mode === 'top-pinned') {
+      floatingDeck.classList.add('deck--top-pinned');
+      remoteSection.classList.add('deck-at-top');
+      if (deckIconBottom) deckIconBottom.classList.add('hidden');
+      if (deckIconTopPinned) deckIconTopPinned.classList.remove('hidden');
+      if (deckIconTopUnpinned) deckIconTopUnpinned.classList.add('hidden');
+      if (btnDeckPinQuick) {
+        btnDeckPinQuick.classList.remove('hidden');
+        deckSvgPinActive.classList.remove('hidden');
+        deckSvgPinInactive.classList.add('hidden');
+        btnDeckPinQuick.title = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('deck.pin_tooltip_unpin') : 'Đang ghim mép trên. Bấm để Tự động ẩn';
+      }
+      if (deckTopTrigger) deckTopTrigger.classList.add('hidden');
+    } else if (mode === 'top-unpinned') {
+      floatingDeck.classList.add('deck--top-unpinned');
+      remoteSection.classList.add('deck-at-top');
+      if (deckIconBottom) deckIconBottom.classList.add('hidden');
+      if (deckIconTopPinned) deckIconTopPinned.classList.add('hidden');
+      if (deckIconTopUnpinned) deckIconTopUnpinned.classList.remove('hidden');
+      if (btnDeckPinQuick) {
+        btnDeckPinQuick.classList.remove('hidden');
+        deckSvgPinActive.classList.add('hidden');
+        deckSvgPinInactive.classList.remove('hidden');
+        btnDeckPinQuick.title = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('deck.pin_tooltip_pin') : 'Đang tự động ẩn. Bấm để Ghim cố định';
+      }
+      if (deckTopTrigger) deckTopTrigger.classList.remove('hidden');
+    }
+  }
+
+  // Toggle Deck Mode Popover
+  if (btnDeckDisplayMode) {
+    btnDeckDisplayMode.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (deckModeDropdown) {
+        deckModeDropdown.classList.toggle('hidden');
+      }
+      if (powerMenuDropdown) {
+        powerMenuDropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  // Quick Pin/Unpin Toggle Shortcut Button
+  if (btnDeckPinQuick) {
+    btnDeckPinQuick.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (currentDeckMode === 'top-pinned') {
+        applyDeckMode('top-unpinned');
+        showToast((typeof i18n !== 'undefined' && i18n.t) ? i18n.t('deck.mode_top_unpinned') : 'Mép trên: Tự động ẩn khi rời chuột', 'info');
+      } else {
+        applyDeckMode('top-pinned');
+        showToast((typeof i18n !== 'undefined' && i18n.t) ? i18n.t('deck.mode_top_pinned') : 'Mép trên: Ghim cố định', 'info');
+      }
+    });
+  }
+
+  // Mode Selection in Dropdown
+  document.querySelectorAll('[data-deck-mode]').forEach(item => {
+    item.addEventListener('click', () => {
+      const mode = item.dataset.deckMode;
+      applyDeckMode(mode);
+      if (deckModeDropdown) {
+        deckModeDropdown.classList.add('hidden');
+      }
+      const label = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t(`deck.mode_${mode.replace('-', '_')}`) : mode;
+      showToast(label, 'info');
+    });
+  });
+
+  // Top Edge Reveal (Hover Peek) for Unpinned Mode
+  function triggerDeckPeek() {
+    if (currentDeckMode !== 'top-unpinned') return;
+    clearTimeout(deckPeekTimer);
+    floatingDeck.classList.add('deck--peek');
+  }
+
+  function releaseDeckPeek() {
+    if (currentDeckMode !== 'top-unpinned') return;
+    clearTimeout(deckPeekTimer);
+    deckPeekTimer = setTimeout(() => {
+      if (!floatingDeck.matches(':hover') && !(deckModeDropdown && !deckModeDropdown.classList.contains('hidden')) && !(powerMenuDropdown && !powerMenuDropdown.classList.contains('hidden'))) {
+        floatingDeck.classList.remove('deck--peek');
+      }
+    }, 450);
+  }
+
+  if (deckTopTrigger) {
+    deckTopTrigger.addEventListener('mouseenter', triggerDeckPeek);
+    deckTopTrigger.addEventListener('mouseleave', releaseDeckPeek);
+    deckTopTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (floatingDeck.classList.contains('deck--peek')) {
+        floatingDeck.classList.remove('deck--peek');
+      } else {
+        triggerDeckPeek();
+      }
+    });
+    // Touch support for iPad / iOS / Mobile
+    deckTopTrigger.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      floatingDeck.classList.toggle('deck--peek');
+    }, { passive: true });
+  }
+
+  // Reveal deck when cursor hovers near top 14px of viewport
+  remoteSection.addEventListener('mousemove', (e) => {
+    if (currentDeckMode === 'top-unpinned' && isConnected && currentView === 'remote') {
+      if (e.clientY <= 14) {
+        triggerDeckPeek();
+      }
+    }
+  });
+
+  floatingDeck.addEventListener('mouseenter', () => {
+    if (currentDeckMode === 'top-unpinned') {
+      clearTimeout(deckPeekTimer);
+      floatingDeck.classList.add('deck--peek');
+    }
+  });
+
+  floatingDeck.addEventListener('mouseleave', () => {
+    if (currentDeckMode === 'top-unpinned') {
+      releaseDeckPeek();
+    }
+  });
+
   // --- POWER ACTIONS MENU ---
   btnPowerMenu.addEventListener('click', (e) => {
     e.stopPropagation();
     powerMenuDropdown.classList.toggle('hidden');
+    if (deckModeDropdown) deckModeDropdown.classList.add('hidden');
   });
 
   document.addEventListener('click', (e) => {
-    if (!powerMenuDropdown.contains(e.target) && e.target !== btnPowerMenu) {
+    if (powerMenuDropdown && !powerMenuDropdown.contains(e.target) && e.target !== btnPowerMenu) {
       powerMenuDropdown.classList.add('hidden');
+    }
+    if (deckModeDropdown && !deckModeDropdown.contains(e.target) && e.target !== btnDeckDisplayMode && (!btnDeckDisplayMode || !btnDeckDisplayMode.contains(e.target))) {
+      deckModeDropdown.classList.add('hidden');
     }
   });
 

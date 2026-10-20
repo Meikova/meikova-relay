@@ -116,6 +116,24 @@ const DB = {
     return stmt.get(token) || null;
   },
 
+  deleteSession(token) {
+    if (!token) return false;
+    const stmt = db.prepare('DELETE FROM sessions WHERE token = ?');
+    stmt.run(token);
+    return true;
+  },
+
+  refreshSession(oldToken) {
+    if (!oldToken) return null;
+    const user = this.validateSession(oldToken);
+    if (!user) return null;
+    const newToken = crypto.randomBytes(32).toString('hex');
+    const now = Date.now();
+    const updateStmt = db.prepare('UPDATE sessions SET token = ?, created_at = ? WHERE token = ?');
+    updateStmt.run(newToken, now, oldToken);
+    return { token: newToken, user };
+  },
+
   getUserByUsername(username) {
     if (!username) return null;
     const trimmedUser = String(username).trim().toLowerCase();

@@ -73,6 +73,11 @@ class HostService:
         # Audio Playback (Client Mic -> Host Speakers)
         self.audio_playback = AudioPlayback()
 
+        # GUI & Integration Callbacks
+        self.on_client_connect = None
+        self.on_client_disconnect = None
+        self.on_status_change = None
+
         # Clipboard Sync
         self.clipboard = ClipboardManager(on_clipboard_change=self._on_local_clipboard_change)
         self.clipboard.start_listener()
@@ -128,6 +133,81 @@ class HostService:
                 self.loop
             )
 
+    def apply_quality_preset(self, preset: str) -> str:
+        """Applies streaming frame rate, quality, and compression parameters."""
+        # ponytail: deterministic preset mapping, single source of truth
+        if preset == "native_1to1":
+            self.capture.quality = 95
+            self.capture.max_width = None
+            self.frame_interval = 1.0 / 60.0
+        elif preset == "ultra_120":
+            self.capture.quality = 55
+            self.capture.max_width = None
+            self.frame_interval = 1.0 / 120.0
+        elif preset == "crisp_2k_4k":
+            self.capture.quality = 92
+            self.capture.max_width = None
+            self.frame_interval = 1.0 / 30.0
+        elif preset == "speed_60":
+            self.capture.quality = 50
+            self.capture.max_width = None
+            self.frame_interval = 1.0 / 60.0
+        elif preset == "crisp_hd":
+            self.capture.quality = 85
+            self.capture.max_width = None
+            self.frame_interval = 1.0 / 30.0
+        elif preset == "grayscale":
+            self.capture.quality = 35
+            self.capture.max_width = 1280
+            self.frame_interval = 1.0 / 25.0
+        else: # balanced default
+            preset = "balanced"
+            self.capture.quality = 65
+            self.capture.max_width = None
+            self.frame_interval = 1.0 / 30.0
+        return preset
+
+    def negotiate_optimal_display_profile(self, client_w: int, client_h: int, client_fps: int = 60) -> dict:
+        """
+        Negotiates highest optimal resolution & frame profile between host monitor and controller client.
+        // ponytail: deterministic capability matching without heuristic overhead
+        """
+        host_w, host_h = self.capture.resolution
+        
+        # High refresh rate priority (120 FPS)
+        if client_fps >= 120:
+            recommended = "ultra_120"
+            suggested_scale = "fit" if (client_w < host_w or client_h < host_h) else "1to1"
+        # Ultra HD (2K / 4K) fidelity priority
+        elif host_w >= 2560 or host_h >= 1440 or client_w >= 2560:
+            recommended = "crisp_2k_4k"
+            suggested_scale = "1to1" if (client_w >= host_w and client_h >= host_h) else "fit"
+        # Native 1:1 Pixel-Perfect priority if controller can display host resolution unscaled
+        elif client_w >= host_w and client_h >= host_h:
+            recommended = "native_1to1"
+            suggested_scale = "1to1"
+        # 60 FPS smooth default for standard displays
+        elif client_fps >= 60:
+            recommended = "speed_60"
+            suggested_scale = "fit"
+        else:
+            recommended = "balanced"
+            suggested_scale = "fit"
+
+        applied = self.apply_quality_preset(recommended)
+        return {
+            "type": "display_profile_matched",
+            "host_res": [host_w, host_h],
+            "client_res": [client_w, client_h],
+            "client_fps": client_fps,
+            "recommended_preset": applied,
+            "applied_fps": int(round(1.0 / self.frame_interval)),
+            "applied_quality": self.capture.quality,
+            "suggested_scale": suggested_scale,
+            "monitors": self.capture.monitors,
+            "message": f"Đồng bộ tối ưu: Trạm {host_w}x{host_h} ↔ Điều khiển {client_w}x{client_h} @ {client_fps}Hz -> {applied}"
+        }
+
     async def _send_frames_loop(self, ws: websockets.WebSocketClientProtocol):
         logger.info(f"Frame streamer started targeting {self.fps} FPS")
         last_heartbeat = time.time()
@@ -150,7 +230,7 @@ class HostService:
                     break
 
             elapsed = time.perf_counter() - start_time
-            sleep_time = max(0.005, self.frame_interval - elapsed)
+            sleep_time = max(0.001, self.frame_interval - elapsed)
             await asyncio.sleep(sleep_time)
 
     async def _send_audio_loop(self, ws: websockets.WebSocketClientProtocol):
@@ -184,6 +264,11 @@ class HostService:
                 if ev_type == "client_connected":
                     logger.info("[+] Client connected! Streaming live.")
                     self.has_active_client = True
+                    if self.on_client_connect:
+                        try:
+                            self.on_client_connect(event)
+                        except Exception:
+                            pass
                     initial_frame = self.capture.capture_frame(force=True)
                     if initial_frame:
                         await ws.send(initial_frame)
@@ -218,6 +303,12 @@ class HostService:
                     self.audio_enabled = False
                     self.audio_capture.stop()
                     self.audio_playback.stop()
+                    if self.on_client_disconnect:
+                        try:
+                            self.on_client_disconnect()
+                        except Exception:
+                            pass
+                    continue
                     continue
 
                 # Audio Stream Control (Host Speakers -> Client Browser)
@@ -284,19 +375,21 @@ class HostService:
                 # Quality / FPS Preset
                 elif ev_type == "set_quality_preset":
                     preset = event.get("preset", "balanced")
-                    if preset == "speed_60":
-                        self.capture.quality = 45
-                        self.frame_interval = 1.0 / 60.0
-                    elif preset == "crisp_hd":
-                        self.capture.quality = 85
-                        self.frame_interval = 1.0 / 20.0
-                    elif preset == "grayscale":
-                        self.capture.quality = 35
-                        self.frame_interval = 1.0 / 25.0
-                    else: # balanced
-                        self.capture.quality = 65
-                        self.frame_interval = 1.0 / 30.0
-                    logger.info(f"Applied Quality Preset: {preset} (Quality: {self.capture.quality})")
+                    applied = self.apply_quality_preset(preset)
+                    logger.info(f"Applied Quality Preset: {applied} (Quality: {self.capture.quality}, Interval: {self.frame_interval})")
+                    continue
+
+                # Auto-Negotiate & Sync Optimal Resolution
+                elif ev_type == "sync_display_profile":
+                    c_w = int(event.get("client_w", 1920))
+                    c_h = int(event.get("client_h", 1080))
+                    c_fps = int(event.get("client_fps", 60))
+                    res_payload = self.negotiate_optimal_display_profile(c_w, c_h, c_fps)
+                    await ws.send(json.dumps(res_payload))
+                    initial_frame = self.capture.capture_frame(force=True)
+                    if initial_frame:
+                        await ws.send(initial_frame)
+                    logger.info(f"Negotiated Display Profile: {res_payload['message']}")
                     continue
 
                 # Terminal Input
@@ -487,10 +580,37 @@ class HostService:
 
                 # Mouse & Keyboard Input
                 elif ev_type == "mouse_move":
-                    InputInjector.mouse_move(event["x"], event["y"], monitor_rect=self.capture.active_monitor_rect)
+                    mon_rect = None
+                    mon_id = event.get("monitor_id")
+                    if mon_id is not None:
+                        for m in self.capture.monitors:
+                            if m.get("id") == mon_id:
+                                mon_rect = m.get("rect")
+                                break
+                    if not mon_rect:
+                        mon_rect = self.capture.active_monitor_rect
+                    InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
                 elif ev_type == "mouse_down":
+                    mon_id = event.get("monitor_id")
+                    if mon_id is not None and "x" in event and "y" in event:
+                        mon_rect = None
+                        for m in self.capture.monitors:
+                            if m.get("id") == mon_id:
+                                mon_rect = m.get("rect")
+                                break
+                        if mon_rect:
+                            InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
                     InputInjector.mouse_down(event["button"])
                 elif ev_type == "mouse_up":
+                    mon_id = event.get("monitor_id")
+                    if mon_id is not None and "x" in event and "y" in event:
+                        mon_rect = None
+                        for m in self.capture.monitors:
+                            if m.get("id") == mon_id:
+                                mon_rect = m.get("rect")
+                                break
+                        if mon_rect:
+                            InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
                     InputInjector.mouse_up(event["button"])
                 elif ev_type == "mouse_wheel":
                     InputInjector.mouse_wheel(event["delta_y"])
@@ -552,6 +672,11 @@ class HostService:
                             continue
 
                         logger.info(f"Host Registered Successfully! Room: {self.room_id}")
+                        if self.on_status_change:
+                            try:
+                                self.on_status_change("ready")
+                            except Exception:
+                                pass
 
                         self.audio_queue = asyncio.Queue(maxsize=50)
                         send_task = asyncio.create_task(self._send_frames_loop(ws))
@@ -569,6 +694,11 @@ class HostService:
 
                 except (websockets.ConnectionClosed, ConnectionRefusedError, OSError) as e:
                     logger.warning(f"Connection lost ({e}). Reconnecting in 3s...")
+                    if self.on_status_change:
+                        try:
+                            self.on_status_change("reconnecting")
+                        except Exception:
+                            pass
                     await asyncio.sleep(3)
                 except Exception as e:
                     logger.error(f"Unexpected error: {e}. Reconnecting in 5s...")

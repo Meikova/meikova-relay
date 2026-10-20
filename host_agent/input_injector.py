@@ -66,13 +66,23 @@ class INPUT(ctypes.Structure):
         ('u', _INPUT_UNION),
     ]
 
-user32 = ctypes.windll.user32
-SendInput = user32.SendInput
-SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
-SendInput.restype = wintypes.UINT
+user32 = getattr(ctypes, 'windll', None).user32 if hasattr(ctypes, 'windll') else None
+SendInput = user32.SendInput if user32 else None
+if SendInput:
+    SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
+    SendInput.restype = wintypes.UINT
 
 class InputInjector:
-    """Injects mouse and keyboard events into Windows via native SendInput."""
+    """Injects mouse and keyboard events into Windows via native SendInput with cross-platform fallback."""
+
+    @staticmethod
+    def _send(inp: INPUT) -> bool:
+        if SendInput is None:
+            return False
+        try:
+            return SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT)) == 1
+        except Exception:
+            return False
 
     @classmethod
     def mouse_move(cls, norm_x: float, norm_y: float, monitor_rect: Optional[Tuple[int, int, int, int]] = None) -> bool:
@@ -103,8 +113,7 @@ class InputInjector:
         inp.u.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK
         inp.u.mi.time = 0
         inp.u.mi.dwExtraInfo = 0
-        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-        return res == 1
+        return cls._send(inp)
 
     @staticmethod
     def mouse_down(button: int) -> bool:
@@ -117,8 +126,7 @@ class InputInjector:
         inp = INPUT()
         inp.type = INPUT_MOUSE
         inp.u.mi.dwFlags = flag
-        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-        return res == 1
+        return InputInjector._send(inp)
 
     @staticmethod
     def mouse_up(button: int) -> bool:
@@ -131,8 +139,7 @@ class InputInjector:
         inp = INPUT()
         inp.type = INPUT_MOUSE
         inp.u.mi.dwFlags = flag
-        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-        return res == 1
+        return InputInjector._send(inp)
 
     @staticmethod
     def mouse_wheel(delta_y: int) -> bool:
@@ -143,8 +150,7 @@ class InputInjector:
         # Standard browser wheelDelta is roughly 100 per notch
         w_delta = int(delta_y * 1.2)
         inp.u.mi.mouseData = w_delta
-        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-        return res == 1
+        return InputInjector._send(inp)
 
     @staticmethod
     def key_down(vk_code: int, is_extended: bool = False) -> bool:
@@ -161,8 +167,7 @@ class InputInjector:
         inp.u.ki.dwFlags = flags
         inp.u.ki.time = 0
         inp.u.ki.dwExtraInfo = 0
-        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-        return res == 1
+        return InputInjector._send(inp)
 
     @staticmethod
     def key_up(vk_code: int, is_extended: bool = False) -> bool:
@@ -179,8 +184,7 @@ class InputInjector:
         inp.u.ki.dwFlags = flags
         inp.u.ki.time = 0
         inp.u.ki.dwExtraInfo = 0
-        res = SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-        return res == 1
+        return InputInjector._send(inp)
 
     @staticmethod
     def type_unicode(text: str) -> None:
@@ -205,7 +209,7 @@ class InputInjector:
             inp_down.u.ki.wVk = 0
             inp_down.u.ki.wScan = ord(char)
             inp_down.u.ki.dwFlags = KEYEVENTF_UNICODE
-            SendInput(1, ctypes.byref(inp_down), ctypes.sizeof(INPUT))
+            InputInjector._send(inp_down)
 
             # Key up
             inp_up = INPUT()
@@ -213,13 +217,15 @@ class InputInjector:
             inp_up.u.ki.wVk = 0
             inp_up.u.ki.wScan = ord(char)
             inp_up.u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
-            SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
+            InputInjector._send(inp_up)
 
     @staticmethod
     def set_block_input(blocked: bool) -> bool:
         """Blocks or unblocks physical input on the host machine (MeshCentral/RustDesk feature)."""
+        if not user32 or not hasattr(user32, 'BlockInput'):
+            return False
         try:
-            return bool(ctypes.windll.user32.BlockInput(ctypes.c_bool(blocked)))
+            return bool(user32.BlockInput(ctypes.c_bool(blocked)))
         except Exception:
             return False
 

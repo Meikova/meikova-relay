@@ -18,12 +18,19 @@ class TerminalManager:
             return
 
         self._running = True
-        init_cmd = (
-            "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); "
-            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
-            "$OutputEncoding = [System.Text.UTF8Encoding]::new($false)"
-        )
-        shell_cmd = ["powershell.exe", "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", init_cmd]
+        if sys.platform == "win32":
+            init_cmd = (
+                "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); "
+                "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+                "$OutputEncoding = [System.Text.UTF8Encoding]::new($false)"
+            )
+            shell_cmd = ["powershell.exe", "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", init_cmd]
+            ready_msg = "=== TITAN REMOTE POWERSHELL (UTF-8) SẴN SÀNG ===\n"
+        else:
+            shell_bin = "/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh"
+            shell_cmd = [shell_bin, "-i"]
+            ready_msg = f"=== TITAN REMOTE TERMINAL ({os.path.basename(shell_bin).upper()}) SẴN SÀNG ===\n"
+
         try:
             self.process = subprocess.Popen(
                 shell_cmd,
@@ -38,9 +45,9 @@ class TerminalManager:
             )
             self._reader_thread = threading.Thread(target=self._read_output_loop, daemon=True)
             self._reader_thread.start()
-            self.on_output("=== TITAN REMOTE POWERSHELL (UTF-8) SẴN SÀNG ===\n")
+            self.on_output(ready_msg)
         except Exception as e:
-            self.on_output(f"Failed to start PowerShell: {e}\n")
+            self.on_output(f"Failed to start terminal: {e}\n")
 
     def _read_output_loop(self):
         while self._running and self.process and self.process.stdout:

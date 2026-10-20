@@ -95,6 +95,16 @@ const server = http.createServer(async (req, res) => {
 
   // --- REST API ROUTES ---
   if (pathname.startsWith('/api/')) {
+    // 0. Public Health Check & Live Latency Probe
+    if (pathname === '/api/health' && req.method === 'GET') {
+      return jsonResponse(res, 200, {
+        status: 'ok',
+        relay: 'online',
+        timestamp: Date.now(),
+        activeRooms: rooms.size
+      });
+    }
+
     // 1. Auth: Register
     if (pathname === '/api/auth/register' && req.method === 'POST') {
       const { username, password } = await parseBody(req);
@@ -197,6 +207,35 @@ const server = http.createServer(async (req, res) => {
         return jsonResponse(res, 401, { success: false, message: 'Chưa đăng nhập' });
       }
       return jsonResponse(res, 200, { success: true, user: session });
+    }
+
+    // 3.1 Auth: Refresh Token on User Activity (Sliding Session)
+    if (pathname === '/api/auth/refresh' && req.method === 'POST') {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'Phiên đăng nhập đã hết hạn' });
+      }
+      const refreshed = DB.refreshSession(token);
+      if (!refreshed) {
+        return jsonResponse(res, 401, { success: false, message: 'Không thể làm mới phiên' });
+      }
+      return jsonResponse(res, 200, { success: true, token: refreshed.token, user: refreshed.user });
+    }
+
+    // 3.2 Auth: Logout
+    if (pathname === '/api/auth/logout' && req.method === 'POST') {
+      if (token) {
+        DB.deleteSession(token);
+        if (session) {
+          DB.logAudit({
+            action: 'AUTH_LOGOUT',
+            userId: session.id,
+            username: session.username,
+            clientIp: getClientIp(req),
+            clientDevice: parseClientDevice(req.headers['user-agent'])
+          });
+        }
+      }
+      return jsonResponse(res, 200, { success: true });
     }
 
     // 4. Devices: List for logged-in user
@@ -311,14 +350,21 @@ set "TARGET_DIR=%LOCALAPPDATA%\\TitanRemoteHost"
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
 
-echo [1/5] Kiem tra moi truong Python...
+echo [1/4] Kiem tra moi truong may tram...
 where python >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo Python chua duoc cai dat. Dang thu cai dat Python qua winget...
+    echo [!] Python chua duoc cai dat tren may nay.
+    echo Dang tu dong tai phan mem Standalone Desktop (.exe) - Khong can Python...
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe')"
+    if exist "TitanRemoteHost.exe" (
+        echo Da tai xong TitanRemoteHost.exe!
+        goto :RUN_STANDALONE_EXE
+    )
+    echo Thu cai dat Python qua winget...
     winget install Python.Python.3.13 --silent --accept-source-agreements --accept-package-agreements >nul 2>&1
 )
 
-echo [2/5] Dang tai ma nguon Host Agent tu Relay Server...
+echo [2/4] Dang tai ma nguon Host Agent tu Relay Server...
 powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip')"
 if exist "agent-package.zip" (
     powershell -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
@@ -330,7 +376,7 @@ if exist "agent-package.zip" (
     exit /b 1
 )
 
-echo [3/5] Khoi tao Virtual Environment (.venv) va cai dat thu vien...
+echo [3/4] Khoi tao Virtual Environment (.venv) va cai dat thu vien...
 if not exist ".venv\\Scripts\\python.exe" (
     python -m venv .venv
 )
@@ -340,7 +386,16 @@ if exist "requirements.txt" (
     ".venv\\Scripts\\python.exe" -m pip install -r host_agent\\requirements.txt --quiet
 )
 
-echo [4/5] Ghi cau hinh lien ket voi tai khoan ${account}...
+set "LAUNCH_CMD=\"%TARGET_DIR%\\.venv\\Scripts\\pythonw.exe\" \"%TARGET_DIR%\\gui_agent.py\" --autostart"
+set "RUN_EXE_DIRECT=\"%TARGET_DIR%\\.venv\\Scripts\\pythonw.exe\" \"gui_agent.py\""
+goto :WRITE_CONFIG
+
+:RUN_STANDALONE_EXE
+set "LAUNCH_CMD=\"%TARGET_DIR%\\TitanRemoteHost.exe\" --autostart"
+set "RUN_EXE_DIRECT=\"%TARGET_DIR%\\TitanRemoteHost.exe\""
+
+:WRITE_CONFIG
+echo [4/4] Ghi cau hinh lien ket voi tai khoan ${account}...
 set "RAND_ROOM=RD-%RANDOM%"
 set "RAND_PIN=%RANDOM%%RANDOM%"
 (
@@ -353,17 +408,16 @@ echo   "pin": "!RAND_PIN!"
 echo }
 ) > config.json
 
-echo [5/5] Dang ky tu dong khoi dong cung Windows (Auto-start on Boot / Restart)...
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "\"%TARGET_DIR%\\.venv\\Scripts\\pythonw.exe\" \"%TARGET_DIR%\\gui_agent.py\" --autostart" /f >nul 2>&1
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "%LAUNCH_CMD%" /f >nul 2>&1
 
 echo.
 echo ==============================================================
 echo   DA KET NOI VA LIEN KET VOI TAI KHOAN ${account}!
 echo   Room ID: !RAND_ROOM!  ^|  PIN: !RAND_PIN!
-echo   Dang khoi chay Host Agent trong che do ngam...
+echo   Dang khoi chay Titan Remote Host...
 echo ==============================================================
-start "" ".venv\\Scripts\\pythonw.exe" "gui_agent.py" --autostart
-echo May tram dang hoat dong ngam. Vao Dashboard tren Web de ket noi 1-click!
+start "" %RUN_EXE_DIRECT%
+echo May tram da san sang hoat dong!
 timeout /t 5
 `;
 
@@ -377,18 +431,234 @@ timeout /t 5
     }
 
     // 7. Download: Agent Package Zip
-    if (pathname === '/api/download/agent-package.zip' && req.method === 'GET') {
+    if (pathname === '/api/download/agent-package.zip' && (req.method === 'GET' || req.method === 'HEAD')) {
       const zipPath = path.join(__dirname, 'agent-package.zip');
       if (fs.existsSync(zipPath)) {
+        const stat = fs.statSync(zipPath);
         res.writeHead(200, {
           'Content-Type': 'application/zip',
+          'Content-Length': stat.size,
           'Content-Disposition': 'attachment; filename="agent-package.zip"',
           'Cache-Control': 'no-cache'
         });
+        if (req.method === 'HEAD') {
+          return res.end();
+        }
         fs.createReadStream(zipPath).pipe(res);
         return;
       }
       return jsonResponse(res, 404, { error: 'Agent package zip not found' });
+    }
+
+    // 7.5 Download: Multi-Platform Workstation Artifacts (Windows, Linux, macOS)
+    const artifactMap = {
+      '/api/download/TitanRemoteHost.exe': { name: 'TitanRemoteHost.exe', type: 'application/vnd.microsoft.portable-executable' },
+      '/api/download/titan-remote-host.exe': { name: 'TitanRemoteHost.exe', type: 'application/vnd.microsoft.portable-executable' },
+      '/api/download/TitanRemoteHost-windows-x64.zip': { name: 'TitanRemoteHost-windows-x64.zip', type: 'application/zip' },
+      '/api/download/titan-remote-windows.zip': { name: 'TitanRemoteHost-windows-x64.zip', type: 'application/zip' },
+      '/api/download/titan-remote-host_amd64.deb': { name: 'titan-remote-host_amd64.deb', type: 'application/vnd.debian.binary-package' },
+      '/api/download/titan-remote.deb': { name: 'titan-remote-host_amd64.deb', type: 'application/vnd.debian.binary-package' },
+      '/api/download/titan-remote-host-linux-x64.tar.gz': { name: 'titan-remote-host-linux-x64.tar.gz', type: 'application/gzip' },
+      '/api/download/titan-remote-linux.tar.gz': { name: 'titan-remote-host-linux-x64.tar.gz', type: 'application/gzip' },
+      '/api/download/titan-remote-host-macos.tar.gz': { name: 'titan-remote-host-macos.tar.gz', type: 'application/gzip' },
+      '/api/download/titan-remote-macos.tar.gz': { name: 'titan-remote-host-macos.tar.gz', type: 'application/gzip' },
+      '/api/download/TitanRemoteHost-macos.dmg': { name: 'TitanRemoteHost-macos.dmg', type: 'application/x-apple-diskimage' },
+      '/api/download/titan-remote.dmg': { name: 'TitanRemoteHost-macos.dmg', type: 'application/x-apple-diskimage' }
+    };
+
+    if (artifactMap[pathname] && (req.method === 'GET' || req.method === 'HEAD')) {
+      const art = artifactMap[pathname];
+      const candidates = [
+        path.join(__dirname, art.name),
+        path.join(__dirname, '..', 'dist', art.name)
+      ];
+      let foundPath = candidates.find(p => fs.existsSync(p));
+      if (foundPath) {
+        const stat = fs.statSync(foundPath);
+        res.writeHead(200, {
+          'Content-Type': art.type,
+          'Content-Length': stat.size,
+          'Content-Disposition': `attachment; filename="${art.name}"`,
+          'Cache-Control': 'no-cache'
+        });
+        if (req.method === 'HEAD') return res.end();
+        fs.createReadStream(foundPath).pipe(res);
+        return;
+      }
+      return jsonResponse(res, 404, { error: `${art.name} not found on server` });
+    }
+
+    // 7.6 Download: Linux Auto-Installer (.sh)
+    if (pathname === '/api/download/install-linux.sh' && req.method === 'GET') {
+      const account = url.searchParams.get('account') || (session ? session.username : 'User');
+      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
+      const shContent = `#!/usr/bin/env bash
+# Titan Remote Host Agent - Linux Auto-Installer
+set -e
+ORIGIN="${origin}"
+RELAY_WS="${relayWs}"
+ACCOUNT="${account}"
+TARGET_DIR="$HOME/.titan-remote"
+
+echo "=== TITAN REMOTE HOST AGENT - LINUX INSTALLER ==="
+mkdir -p "$TARGET_DIR"
+cd "$TARGET_DIR"
+
+echo "[1/3] Downloading agent package..."
+curl -sSL "$ORIGIN/api/download/agent-package.zip" -o agent-package.zip
+if command -v unzip &> /dev/null; then
+    unzip -q -o agent-package.zip
+else
+    python3 -c "import zipfile; zipfile.ZipFile('agent-package.zip').extractall('.')"
+fi
+rm -f agent-package.zip
+
+echo "[2/3] Setting up Python virtual environment..."
+if ! command -v python3 &> /dev/null; then
+    echo "[!] python3 is required. Please install: sudo apt install -y python3 python3-pip python3-venv"
+    exit 1
+fi
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -q --upgrade pip
+if [ -f "requirements.txt" ]; then
+    pip install -q -r requirements.txt
+elif [ -f "host_agent/requirements.txt" ]; then
+    pip install -q -r host_agent/requirements.txt
+fi
+
+echo "[3/3] Configuring agent for account: $ACCOUNT..."
+RAND_ROOM="RD-$((1000 + RANDOM % 9000))"
+RAND_PIN="$((100000 + RANDOM % 900000))"
+cat << EOF > config.json
+{
+  "relay": "$RELAY_WS",
+  "account": "$ACCOUNT",
+  "device_name": "$(hostname)",
+  "room_id": "$RAND_ROOM",
+  "pin": "$RAND_PIN"
+}
+EOF
+
+echo "=============================================================="
+echo "  TITAN REMOTE HOST (LINUX) READY!"
+echo "  Account: $ACCOUNT | Room ID: $RAND_ROOM | PIN: $RAND_PIN"
+echo "=============================================================="
+nohup python3 host_service.py > titan-agent.log 2>&1 &
+echo "Titan Remote Host running in background (PID: $!)."
+`;
+      res.writeHead(200, {
+        'Content-Type': 'application/x-sh; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="install-linux.sh"',
+        'Cache-Control': 'no-cache'
+      });
+      return res.end(shContent);
+    }
+
+    // 7.7 Download: macOS Auto-Installer (.sh)
+    if (pathname === '/api/download/install-macos.sh' && req.method === 'GET') {
+      const account = url.searchParams.get('account') || (session ? session.username : 'User');
+      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
+      const shContent = `#!/usr/bin/env bash
+# Titan Remote Host Agent - macOS Auto-Installer
+set -e
+ORIGIN="${origin}"
+RELAY_WS="${relayWs}"
+ACCOUNT="${account}"
+TARGET_DIR="$HOME/.titan-remote"
+
+echo "=== TITAN REMOTE HOST AGENT - macOS INSTALLER ==="
+echo "[NOTE] macOS requires Screen Recording & Accessibility permissions:"
+echo "  System Settings -> Privacy & Security -> Screen Recording / Accessibility"
+
+mkdir -p "$TARGET_DIR"
+cd "$TARGET_DIR"
+
+echo "[1/3] Downloading agent package..."
+curl -sSL "$ORIGIN/api/download/agent-package.zip" -o agent-package.zip
+if command -v unzip &> /dev/null; then
+    unzip -q -o agent-package.zip
+else
+    python3 -c "import zipfile; zipfile.ZipFile('agent-package.zip').extractall('.')"
+fi
+rm -f agent-package.zip
+
+echo "[2/3] Setting up Python virtual environment..."
+if ! command -v python3 &> /dev/null; then
+    echo "[!] python3 is required. Please install via brew: brew install python3"
+    exit 1
+fi
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -q --upgrade pip
+if [ -f "requirements.txt" ]; then
+    pip install -q -r requirements.txt
+elif [ -f "host_agent/requirements.txt" ]; then
+    pip install -q -r host_agent/requirements.txt
+fi
+
+echo "[3/3] Configuring agent for account: $ACCOUNT..."
+RAND_ROOM="RD-$((1000 + RANDOM % 9000))"
+RAND_PIN="$((100000 + RANDOM % 900000))"
+cat << EOF > config.json
+{
+  "relay": "$RELAY_WS",
+  "account": "$ACCOUNT",
+  "device_name": "$(hostname -s)",
+  "room_id": "$RAND_ROOM",
+  "pin": "$RAND_PIN"
+}
+EOF
+
+echo "=============================================================="
+echo "  TITAN REMOTE HOST (macOS) READY!"
+echo "  Account: $ACCOUNT | Room ID: $RAND_ROOM | PIN: $RAND_PIN"
+echo "=============================================================="
+nohup python3 host_service.py > titan-agent.log 2>&1 &
+echo "Titan Remote Host running in background (PID: $!)."
+`;
+      res.writeHead(200, {
+        'Content-Type': 'application/x-sh; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="install-macos.sh"',
+        'Cache-Control': 'no-cache'
+      });
+      return res.end(shContent);
+    }
+
+    // 7.8 Download: Linux Systemd Unit
+    if (pathname === '/api/download/titan-remote.service' && (req.method === 'GET' || req.method === 'HEAD')) {
+      const unitPath = path.join(__dirname, '..', 'host_agent', 'titan-remote.service');
+      if (fs.existsSync(unitPath)) {
+        const stat = fs.statSync(unitPath);
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Length': stat.size,
+          'Content-Disposition': 'attachment; filename="titan-remote.service"',
+          'Cache-Control': 'no-cache'
+        });
+        if (req.method === 'HEAD') return res.end();
+        fs.createReadStream(unitPath).pipe(res);
+        return;
+      }
+    }
+
+    // 7.9 Download: macOS Launchd Plist
+    if (pathname === '/api/download/com.titan.remote.plist' && (req.method === 'GET' || req.method === 'HEAD')) {
+      const plistPath = path.join(__dirname, '..', 'host_agent', 'com.titan.remote.plist');
+      if (fs.existsSync(plistPath)) {
+        const stat = fs.statSync(plistPath);
+        res.writeHead(200, {
+          'Content-Type': 'application/xml; charset=utf-8',
+          'Content-Length': stat.size,
+          'Content-Disposition': 'attachment; filename="com.titan.remote.plist"',
+          'Cache-Control': 'no-cache'
+        });
+        if (req.method === 'HEAD') return res.end();
+        fs.createReadStream(plistPath).pipe(res);
+        return;
+      }
     }
 
     return jsonResponse(res, 404, { error: 'API endpoint not found' });

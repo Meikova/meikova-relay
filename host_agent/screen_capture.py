@@ -1,11 +1,12 @@
 import io
 import time
+import sys
 import ctypes
-from ctypes import wintypes
 from typing import Tuple, Optional, List, Dict, Any
 from PIL import Image, ImageGrab
 
-user32 = ctypes.windll.user32
+# Win32 user32 guard for cross-platform support
+user32 = getattr(ctypes, 'windll', None).user32 if hasattr(ctypes, 'windll') else None
 
 # Win32 System Metrics Constants
 SM_CXSCREEN = 0
@@ -28,6 +29,8 @@ class ScreenCapture:
 
     def _attach_window_station(self) -> bool:
         """Attaches current thread to winsta0\\default to ensure desktop capture works in all sessions."""
+        if not user32:
+            return True
         try:
             hwinsta = user32.OpenWindowStationW('winsta0', False, 0x000F037F)
             if hwinsta:
@@ -40,43 +43,51 @@ class ScreenCapture:
             return False
 
     def detect_monitors(self) -> List[Dict[str, Any]]:
-        """Enumerates physical and virtual displays using native Win32 EnumDisplayMonitors."""
+        """Enumerates physical and virtual displays using native Win32 EnumDisplayMonitors or cross-platform fallback."""
         results = []
-        try:
-            mon_rects = []
+        if user32:
+            try:
+                from ctypes import wintypes
+                mon_rects = []
 
-            def _callback(hmonitor, hdc, lprect, lparam):
-                rect = lprect.contents
-                mon_rects.append((rect.left, rect.top, rect.right, rect.bottom))
-                return 1
+                def _callback(hmonitor, hdc, lprect, lparam):
+                    rect = lprect.contents
+                    mon_rects.append((rect.left, rect.top, rect.right, rect.bottom))
+                    return 1
 
-            MonitorEnumProc = ctypes.WINFUNCTYPE(
-                ctypes.c_int,
-                wintypes.HMONITOR,
-                wintypes.HDC,
-                ctypes.POINTER(wintypes.RECT),
-                wintypes.LPARAM
-            )
-            cb = MonitorEnumProc(_callback)
-            user32.EnumDisplayMonitors(0, 0, cb, 0)
+                MonitorEnumProc = ctypes.WINFUNCTYPE(
+                    ctypes.c_int,
+                    wintypes.HMONITOR,
+                    wintypes.HDC,
+                    ctypes.POINTER(wintypes.RECT),
+                    wintypes.LPARAM
+                )
+                cb = MonitorEnumProc(_callback)
+                user32.EnumDisplayMonitors(0, 0, cb, 0)
 
-            for i, rect in enumerate(mon_rects):
-                left, top, right, bottom = rect
-                w = right - left
-                h = bottom - top
-                results.append({
-                    "id": i + 1,
-                    "name": f"Màn {i + 1}",
-                    "rect": (left, top, right, bottom),
-                    "width": w,
-                    "height": h
-                })
-        except Exception:
-            pass
+                for i, rect in enumerate(mon_rects):
+                    left, top, right, bottom = rect
+                    w = right - left
+                    h = bottom - top
+                    results.append({
+                        "id": i + 1,
+                        "name": f"Màn {i + 1}",
+                        "rect": (left, top, right, bottom),
+                        "width": w,
+                        "height": h
+                    })
+            except Exception:
+                pass
 
         if not results:
-            w = user32.GetSystemMetrics(SM_CXSCREEN)
-            h = user32.GetSystemMetrics(SM_CYSCREEN)
+            w = user32.GetSystemMetrics(SM_CXSCREEN) if user32 else None
+            h = user32.GetSystemMetrics(SM_CYSCREEN) if user32 else None
+            if not w or not h:
+                try:
+                    img = ImageGrab.grab()
+                    w, h = img.size
+                except Exception:
+                    w, h = 1920, 1080
             results.append({
                 "id": 1,
                 "name": "Màn 1",
@@ -105,10 +116,11 @@ class ScreenCapture:
     def resolution(self) -> Tuple[int, int]:
         if self.active_monitor_id == 0:
             # Virtual desktop (all monitors combined)
-            w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
-            h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
-            if w > 0 and h > 0:
-                return (w, h)
+            if user32:
+                w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+                h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+                if w > 0 and h > 0:
+                    return (w, h)
             total_w = sum(m["width"] for m in self.monitors)
             max_h = max(m["height"] for m in self.monitors) if self.monitors else 1080
             return (total_w or 1920, max_h or 1080)

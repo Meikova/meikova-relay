@@ -1,0 +1,17 @@
+[Unit]
+Description=Titan Remote Workstation Host 24/7 Service
+After=network.target display-manager.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/titan-remote/host_agent
+ExecStart=/opt/titan-remote/host_agent/.venv/bin/python3 host_service.py --service
+Restart=always
+RestartSec=5s
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/root/.Xauthority
+
+[Install]
+WantedBy=multi-user.target
