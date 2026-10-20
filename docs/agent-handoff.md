@@ -1,6 +1,24 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.14)
+### Recent Updates (Version 1.0.15)
+- **Sửa triệt để lỗi treo GUI ("TitanRemoteHost.exe is not responding") và liên kết máy trạm vào Dashboard:**
+  - **Nguyên nhân 1 (PyWebView Reflection Deadlock):** Lớp `HostApi` trước đây khai báo các thuộc tính công khai như `self.window`, `self.host_service`, `self.service_thread`, `self.tray_icon`. Cơ chế JS Bridge của PyWebView tự động dùng reflection duyệt qua toàn bộ thuộc tính không có dấu `_`. Khi duyệt vào đối tượng native Windows Forms (`window.native`) và WebView2 controller từ background thread, hệ thống ném hàng ngàn ngoại lệ `CoreWebView2Controller members can only be accessed from the UI thread`, làm kẹt hoàn toàn Windows message loop khiến cửa sổ bị treo cứng và hiện thông báo "is not responding".
+    - *Khắc phục:* Chuyển toàn bộ biến trạng thái nội bộ sang private có tiền tố `_` (`self._window`, `self._host_service`, `self._service_thread`, `self._tray_icon`, `self._is_quitting`). Loại bỏ thao tác Win32 icon chéo luồng trong `on_shown`.
+  - **Nguyên nhân 2 (Lệch đường dẫn cấu hình & không liên kết tài khoản):** Script `setup.bat` lưu file cấu hình tại `%LOCALAPPDATA%\TitanRemoteHost\config.json`. Nhưng khi chạy file `.bat` từ PowerShell hay thư mục khác, `TitanRemoteHost.exe` chỉ tìm kiếm tại `cwd` (`C:\Users\kiemp`) rồi fallback sang `~/.titan_remote_config.json` cũ vốn có `account: ""`. Vì thế Relay Server đăng ký host với `user_id = null`, làm máy trạm không bao giờ xuất hiện trên Dashboard của tài khoản.
+    - *Khắc phục:* Viết hàm `resolve_config_path()` trong `host_agent/gui_agent.py` quét theo thứ tự ưu tiên: thư mục chứa file `.exe` (`sys.executable.parent`), `%LOCALAPPDATA%\TitanRemoteHost\config.json`, `~/.titan-remote/config.json`, `cwd`, script dir, và `~/.titan_remote_config.json`. Đồng thời cập nhật `setup.bat` để đồng bộ cấu hình vào `%USERPROFILE%\.titan_remote_config.json` và khởi chạy với cờ thư mục làm việc `/D "%TARGET_DIR%"`.
+  - **Nguyên nhân 3 (Thiếu asset khi đóng gói PyInstaller):** Kịch bản `scripts/build.py` thiếu tham số `--add-data` cho `gui_view.html` và icon, gây lỗi `FileNotFoundError` khi chạy từ file nhị phân đóng gói một file.
+    - *Khắc phục:* Bổ sung `--add-data` cho `gui_view.html`, `icon.ico`, `icon.png` vào cấu hình PyInstaller và `.spec`.
+- **Kết quả kiểm thử & xác thực (Exit Code 0):**
+  - Đã biên dịch lại bản `TitanRemoteHost.exe` 23.9MB chuẩn bằng Python 3.12 + PyInstaller 6.21.0.
+  - Toàn bộ 69 bài unit tests trong test suite đều pass (Exit Code 0).
+  - Khởi chạy tiến trình `TitanRemoteHost.exe --autostart`: `Responding = True` (73.52 MB RAM), giao diện mượt mà không còn treo.
+  - Relay Server nhận diện `[Host Online] Room: RD-23973 | Device: PHAMDOANKIEM`.
+  - REST API `GET /api/devices` trả về `is_online: 1` gắn chính xác với `user_id: 25b4f409-f9a4-49fc-b727-1cb9940e16f9` (`kiempham1256@gmail.com`).
+  - Web Dashboard hiển thị máy trạm `PHAMDOANKIEM` trạng thái `TRỰC TUYẾN`.
+
+---
+
+### Previous Updates (Version 1.0.14)
 - **Căn giữa tuyệt đối thanh điều hướng phân hệ (`#mainNav`):**
   - **Nguyên nhân lệch trái:** `.topbar` trước đây dùng Flexbox với `justify-content: space-between`. Cụm bên phải (`.topbar-right`) chứa chuyển ngôn ngữ, badge tài khoản email dài, nút cấu hình phiên và nút kết nối nhanh có độ rộng lớn hơn cụm logo bên trái (`.brand-container`) khoảng ~300px, khiến khoảng trống phân bổ đẩy `#mainNav` lệch sang trái ~150px so với tâm màn hình.
   - **Giải pháp 3 cột đối xứng (CSS Grid):** Chuyển `.topbar` sang layout CSS Grid `grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)`.

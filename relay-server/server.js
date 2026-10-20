@@ -414,12 +414,15 @@ echo   "pin": "%RAND_PIN%"
 echo }
 ) > config.json
 
+REM Dong bo cau hinh vao thu muc nguoi dung de tranh ghi de hoac thieu tai khoan
+copy /y config.json "%USERPROFILE%\\.titan_remote_config.json" >nul 2>&1
+
 if "%USE_STANDALONE%"=="1" (
     reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "\"%TARGET_DIR%\\TitanRemoteHost.exe\" --autostart" /f >nul 2>&1
-    start "" "%TARGET_DIR%\\TitanRemoteHost.exe" --autostart
+    start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\TitanRemoteHost.exe" --autostart
 ) else (
     reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "pythonw.exe \"%TARGET_DIR%\\gui_agent.py\" --autostart" /f >nul 2>&1
-    start "" pythonw.exe "%TARGET_DIR%\\gui_agent.py" --autostart
+    start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py" --autostart
 )
 
 echo.

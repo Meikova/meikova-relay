@@ -2,23 +2,11 @@
 
 
 a = Analysis(
-    ['host_agent/gui_agent.py'],
+    ['D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_agent.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('host_agent', 'host_agent'),
-        ('host_agent/icon.ico', '.'),
-        ('host_agent/icon.png', '.'),
-        ('host_agent/gui_view.html', 'host_agent'),
-        ('host_agent/gui_view.html', '.'),
-    ],
-    hiddenimports=[
-        'clr',
-        'webview',
-        'webview.platforms.winforms',
-        'pystray',
-        'PIL',
-    ],
+    datas=[('D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_view.html', 'host_agent'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\gui_view.html', '.'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico', 'host_agent'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.ico', '.'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.png', 'host_agent'), ('D:\\JOB\\DEV\\titan-remote\\host_agent\\icon.png', '.')],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -47,5 +35,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='host_agent/icon.ico',
 )

@@ -243,6 +243,41 @@ TRANSLATIONS = {
     }
 }
 
+def resolve_config_path() -> Path:
+    candidates = []
+    # 1. Executable directory (for installed standalone .exe)
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        candidates.append(exe_dir / "config.json")
+
+    # 2. LocalAppData on Windows, ~/.titan-remote on Unix
+    if sys.platform == "win32":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            candidates.append(Path(local_app_data) / "TitanRemoteHost" / "config.json")
+    else:
+        candidates.append(Path.home() / ".titan-remote" / "config.json")
+
+    # 3. Current Working Directory
+    candidates.append(Path.cwd() / "config.json")
+
+    # 4. Script directory (for python gui_agent.py)
+    candidates.append(Path(__file__).resolve().parent / "config.json")
+
+    # 5. User profile fallback
+    candidates.append(Path.home() / ".titan_remote_config.json")
+
+    for c in candidates:
+        if c.exists() and c.is_file():
+            return c
+
+    # Default location for writing if none exists
+    if sys.platform == "win32" and os.environ.get("LOCALAPPDATA"):
+        target = Path(os.environ["LOCALAPPDATA"]) / "TitanRemoteHost" / "config.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        return target
+    return Path.home() / ".titan_remote_config.json"
+
 class TitanHostGUI:
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -321,13 +356,7 @@ class TitanHostGUI:
         self._log(f"Switched language to {'Tiếng Việt' if lang == 'vi' else 'English'}")
 
     def _get_config_path(self):
-        local_cfg = Path("config.json")
-        if local_cfg.exists():
-            return local_cfg
-        script_dir_cfg = Path(__file__).resolve().parent / "config.json"
-        if script_dir_cfg.exists():
-            return script_dir_cfg
-        return Path.home() / ".titan_remote_config.json"
+        return resolve_config_path()
 
     def _load_config(self):
         default_comp = os.environ.get("COMPUTERNAME", socket.gethostname())
@@ -1399,13 +1428,7 @@ def set_window_icon(hwnd, icon_path: Path):
         pass
 
 def _get_default_config_path() -> Path:
-    local_cfg = Path("config.json")
-    if local_cfg.exists():
-        return local_cfg
-    script_dir_cfg = Path(__file__).resolve().parent / "config.json"
-    if script_dir_cfg.exists():
-        return script_dir_cfg
-    return Path.home() / ".titan_remote_config.json"
+    return resolve_config_path()
 
 def _load_initial_config(cfg_file: Path) -> dict:
     default_comp = os.environ.get("COMPUTERNAME", socket.gethostname())
@@ -1431,33 +1454,33 @@ def _load_initial_config(cfg_file: Path) -> dict:
 
 class HostApi:
     def __init__(self, config: dict, config_path: Path):
-        self.config = config
-        self.config_path = config_path
-        self.lang = config.get("lang", "vi")
-        self.window = None
-        self.host_service: Optional[HostService] = None
-        self.service_thread: Optional[threading.Thread] = None
-        self.is_running = False
-        self.connected_client_info: Optional[str] = None
-        self.tray_icon = None
-        self.is_quitting = False
+        self._config = config
+        self._config_path = config_path
+        self._lang = config.get("lang", "vi")
+        self._window = None
+        self._host_service: Optional[HostService] = None
+        self._service_thread: Optional[threading.Thread] = None
+        self._is_running = False
+        self._connected_client_info: Optional[str] = None
+        self._tray_icon = None
+        self._is_quitting = False
 
     def set_window(self, window):
-        self.window = window
+        self._window = window
 
     def t(self, key: str, **kwargs) -> str:
-        lang_dict = TRANSLATIONS.get(self.lang, TRANSLATIONS["vi"])
+        lang_dict = TRANSLATIONS.get(self._lang, TRANSLATIONS["vi"])
         tmpl = lang_dict.get(key, TRANSLATIONS["vi"].get(key, key))
         if kwargs:
             return tmpl.format(**kwargs)
         return tmpl
 
     def _eval_js(self, js: str):
-        if not self.window or self.is_quitting:
+        if not self._window or self._is_quitting:
             return
         def _worker():
             try:
-                self.window.evaluate_js(js)
+                self._window.evaluate_js(js)
             except Exception:
                 pass
         threading.Thread(target=_worker, daemon=True).start()
@@ -1472,30 +1495,33 @@ class HostApi:
         self._eval_js(f"window.__onLog && window.__onLog({safe_msg});")
 
     def get_initial_data(self) -> dict:
-        cfg_copy = dict(self.config)
+        cfg_copy = dict(self._config)
         cfg_copy["relay_url"] = cfg_copy.get("relay") or "wss://titan-remote.onrender.com"
         return {
             "config": cfg_copy,
             "autostart": is_autostart_enabled(),
             "service_installed": is_windows_service_installed(),
             "deployment": get_deployment_status(),
-            "is_running": self.is_running
+            "is_running": self._is_running
         }
 
     def drag_window(self):
-        if sys.platform == "win32" and self.window:
+        if sys.platform == "win32" and self._window:
             try:
                 import ctypes
-                hwnd = int(self.window.native.Handle)
-                ctypes.windll.user32.ReleaseCapture()
-                ctypes.windll.user32.SendMessageW(hwnd, 0x00A1, 2, 0)
+                hwnd = None
+                if hasattr(self._window, "native") and hasattr(self._window.native, "Handle"):
+                    hwnd = int(self._window.native.Handle)
+                if hwnd:
+                    ctypes.windll.user32.ReleaseCapture()
+                    ctypes.windll.user32.SendMessageW(hwnd, 0x00A1, 2, 0)
             except Exception:
                 pass
 
     def minimize_window(self):
-        if self.window:
+        if self._window:
             try:
-                self.window.minimize()
+                self._window.minimize()
             except Exception:
                 pass
 
@@ -1506,47 +1532,47 @@ class HostApi:
             self._exit_application()
 
     def _save_config(self):
-        self.config["lang"] = self.lang
+        self._config["lang"] = self._lang
         try:
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                json.dump(self.config, f, indent=2)
+            with open(self._config_path, "w", encoding="utf-8") as f:
+                json.dump(self._config, f, indent=2)
         except Exception:
             pass
 
     def start_service(self):
-        if self.is_running:
+        if self._is_running:
             return
 
-        relay_url = self.config.get("relay") or self.config.get("relay_url") or "wss://titan-remote.onrender.com"
-        room_id = self.config.get("room_id") or "RD-8888"
-        pin = self.config.get("pin") or "123456"
-        account = self.config.get("account") or ""
-        device_name = self.config.get("device_name") or os.environ.get("COMPUTERNAME", "Workstation")
-        perm_pin = self.config.get("perm_pin") or ""
+        relay_url = self._config.get("relay") or self._config.get("relay_url") or "wss://titan-remote.onrender.com"
+        room_id = self._config.get("room_id") or "RD-8888"
+        pin = self._config.get("pin") or "123456"
+        account = self._config.get("account") or ""
+        device_name = self._config.get("device_name") or os.environ.get("COMPUTERNAME", "Workstation")
+        perm_pin = self._config.get("perm_pin") or ""
 
-        self.config["relay"] = relay_url
-        self.config["room_id"] = room_id
-        self.config["pin"] = pin
-        self.config["account"] = account
-        self.config["device_name"] = device_name
-        self.config["perm_pin"] = perm_pin
+        self._config["relay"] = relay_url
+        self._config["room_id"] = room_id
+        self._config["pin"] = pin
+        self._config["account"] = account
+        self._config["device_name"] = device_name
+        self._config["perm_pin"] = perm_pin
         self._save_config()
 
-        if self.config.get("keep_awake"):
+        if self._config.get("keep_awake"):
             PowerManager.prevent_sleep(True)
 
         try:
-            self.host_service = HostService(
+            self._host_service = HostService(
                 relay_url=relay_url,
                 room_id=room_id,
                 pin=pin,
                 device_name=device_name,
                 account=account
             )
-            self.host_service.on_status_change = self._on_service_status
-            self.host_service.on_client_connect = self._on_client_connected
-            self.host_service.on_client_disconnect = self._on_client_disconnected
-            self.host_service.on_chat_message = lambda sender, text: self._log(f"[CHAT] [{sender}]: {text}")
+            self._host_service.on_status_change = self._on_service_status
+            self._host_service.on_client_connect = self._on_client_connected
+            self._host_service.on_client_disconnect = self._on_client_disconnected
+            self._host_service.on_chat_message = lambda sender, text: self._log(f"[CHAT] [{sender}]: {text}")
         except Exception as e:
             self._log(f"Service Init Error: {e}")
             return
@@ -1555,29 +1581,29 @@ class HostApi:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                loop.run_until_complete(self.host_service.start())
+                loop.run_until_complete(self._host_service.start())
             except Exception as e:
                 self._log(f"Service Error: {e}")
 
-        self.service_thread = threading.Thread(target=runner, daemon=True)
-        self.service_thread.start()
-        self.is_running = True
+        self._service_thread = threading.Thread(target=runner, daemon=True)
+        self._service_thread.start()
+        self._is_running = True
 
         self._eval_js("window.__onServiceStatus && window.__onServiceStatus('ready');")
         self._log(self.t("log_service_started", room_id=room_id))
 
     def stop_service(self):
-        if self.host_service:
-            self.host_service.running = False
-            if self.host_service.ws and self.host_service.loop:
+        if self._host_service:
+            self._host_service.running = False
+            if self._host_service.ws and self._host_service.loop:
                 try:
-                    asyncio.run_coroutine_threadsafe(self.host_service.ws.close(), self.host_service.loop)
+                    asyncio.run_coroutine_threadsafe(self._host_service.ws.close(), self._host_service.loop)
                 except Exception:
                     pass
 
         PowerManager.prevent_sleep(False)
-        self.is_running = False
-        self.connected_client_info = None
+        self._is_running = False
+        self._connected_client_info = None
         self._eval_js("window.__onServiceStatus && window.__onServiceStatus('stopped');")
         self._log(self.t("log_service_stopped"))
 
@@ -1585,36 +1611,36 @@ class HostApi:
         safe_st = json.dumps(status)
         self._eval_js(f"window.__onServiceStatus && window.__onServiceStatus({safe_st});")
         if status == "ready":
-            self._log(self.t("log_room_registered", room_id=self.config.get("room_id", "")))
+            self._log(self.t("log_room_registered", room_id=self._config.get("room_id", "")))
         elif status == "reconnecting":
             self._log(self.t("log_reconnecting"))
 
     def _on_client_connected(self, event: dict):
-        client_user = event.get("clientUser") or event.get("username") or ("Người điều khiển từ xa" if self.lang == "vi" else "Remote Operator")
+        client_user = event.get("clientUser") or event.get("username") or ("Người điều khiển từ xa" if self._lang == "vi" else "Remote Operator")
         client_ip = event.get("clientIp") or "N/A"
-        self.connected_client_info = f"{client_user} ({client_ip})"
-        safe_client = json.dumps(self.connected_client_info)
+        self._connected_client_info = f"{client_user} ({client_ip})"
+        safe_client = json.dumps(self._connected_client_info)
         self._eval_js(f"window.__onClientConnected && window.__onClientConnected({safe_client});")
-        self._log(self.t("log_new_connection", client=self.connected_client_info))
+        self._log(self.t("log_new_connection", client=self._connected_client_info))
 
     def _on_client_disconnected(self):
-        self.connected_client_info = None
+        self._connected_client_info = None
         self._eval_js("window.__onClientDisconnected && window.__onClientDisconnected();")
-        if self.is_running:
+        if self._is_running:
             self._log(self.t("log_disconnected"))
 
     def renew_room(self) -> str:
         rand_id = f"RD-{random.randint(1000, 9999)}"
-        self.config["room_id"] = rand_id
+        self._config["room_id"] = rand_id
         self._save_config()
         self._log(self.t("log_new_room", room_id=rand_id))
-        if self.is_running:
+        if self._is_running:
             self._log(self.t("log_restart_req"))
         return rand_id
 
     def renew_pin(self) -> str:
         rand_pin = f"{random.randint(100000, 999999)}"
-        self.config["pin"] = rand_pin
+        self._config["pin"] = rand_pin
         self._save_config()
         self._log(self.t("log_new_pin", pin=rand_pin))
         return rand_pin
@@ -1624,9 +1650,9 @@ class HostApi:
         self._log(self.t("log_copied", name=name, text=text))
 
     def copy_share_info(self):
-        room = self.config.get("room_id", "")
-        pin = self.config.get("pin", "")
-        relay = self.config.get("relay") or self.config.get("relay_url") or "wss://titan-remote.onrender.com"
+        room = self._config.get("room_id", "")
+        pin = self._config.get("pin", "")
+        relay = self._config.get("relay") or self._config.get("relay_url") or "wss://titan-remote.onrender.com"
         http_url = relay.replace("wss://", "https://").replace("ws://", "http://")
         info = (
             f"{self.t('share_header')}\n"
@@ -1639,28 +1665,25 @@ class HostApi:
         self._log(self.t("log_copied_all"))
 
     def disconnect_client(self):
-        if self.host_service and self.host_service.ws and self.host_service.loop:
+        if self._host_service and self._host_service.ws and self._host_service.loop:
             self._log(self.t("log_emergency_disconnect"))
             try:
                 asyncio.run_coroutine_threadsafe(
-                    self.host_service.ws.send(json.dumps({"type": "client_disconnected"})),
-                    self.host_service.loop
+                    self._host_service.ws.send(json.dumps({"type": "client_disconnected"})),
+                    self._host_service.loop
                 )
             except Exception:
                 pass
-            self.host_service.has_active_client = False
+            self._host_service.has_active_client = False
             self._on_client_disconnected()
 
     def toggle_autostart(self, is_on: bool):
         try:
-            # 1. Dual-layer: Task Scheduler with Highest Privileges (UAC Bypass + Permanent Deployment)
             setup_task_scheduler_autostart(is_on)
-
-            # 2. Dual-layer: HKCU Run registry
             if winreg:
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
                 if is_on:
-                    perm_exe = ensure_permanent_deployment(self.config_path)
+                    perm_exe = ensure_permanent_deployment(self._config_path)
                     if getattr(sys, "frozen", False):
                         cmd = f'"{perm_exe}" --autostart'
                     else:
@@ -1680,7 +1703,7 @@ class HostApi:
             self._log(f"Autostart Error: {e}")
 
     def install_user_tier(self) -> dict:
-        ok, msg = install_user_tier(self.config_path)
+        ok, msg = install_user_tier(self._config_path)
         self._log(msg)
         return {"success": ok, "message": msg, "deployment": get_deployment_status()}
 
@@ -1690,7 +1713,7 @@ class HostApi:
         return {"success": ok, "message": msg, "deployment": get_deployment_status()}
 
     def install_admin_tier(self) -> dict:
-        ok, msg = install_admin_tier(self.config_path)
+        ok, msg = install_admin_tier(self._config_path)
         self._log(msg)
         return {"success": ok, "message": msg, "deployment": get_deployment_status()}
 
@@ -1713,16 +1736,16 @@ class HostApi:
         return {"installed": is_windows_service_installed()}
 
     def toggle_keepawake(self, is_on: bool):
-        self.config["keep_awake"] = bool(is_on)
+        self._config["keep_awake"] = bool(is_on)
         self._save_config()
         PowerManager.prevent_sleep(bool(is_on))
-        state_str = "ON" if (is_on and self.lang == "en") else ("BẬT" if is_on else ("OFF" if self.lang == "en" else "TẮT"))
+        state_str = "ON" if (is_on and self._lang == "en") else ("BẬT" if is_on else ("OFF" if self._lang == "en" else "TẮT"))
         self._log(self.t("log_keepawake", state=state_str))
 
     def minimize_to_tray(self):
-        if self.window:
+        if self._window:
             try:
-                self.window.hide()
+                self._window.hide()
                 self._log(self.t("log_minimized"))
             except Exception:
                 pass
@@ -1732,9 +1755,9 @@ class HostApi:
             data = json.loads(json_str)
             if isinstance(data, dict):
                 for k, v in data.items():
-                    self.config[k] = v
+                    self._config[k] = v
                 if "relay_url" in data:
-                    self.config["relay"] = data["relay_url"]
+                    self._config["relay"] = data["relay_url"]
                 self._save_config()
                 self._log(self.t("log_saved_relay"))
         except Exception as e:
@@ -1742,8 +1765,8 @@ class HostApi:
 
     def set_language(self, lang: str):
         if lang in ("vi", "en"):
-            self.lang = lang
-            self.config["lang"] = lang
+            self._lang = lang
+            self._config["lang"] = lang
             self._save_config()
             self._log(f"Switched language to {'Tiếng Việt' if lang == 'vi' else 'English'}")
 
@@ -1787,16 +1810,10 @@ def launch_webview_app(autostart: bool = False):
 
     def on_shown():
         try:
-            hwnd = int(window.native.Handle)
-            if ico_path and ico_path.is_file():
-                set_window_icon(hwnd, ico_path)
-                try:
-                    import clr
-                    clr.AddReference("System.Drawing")
-                    from System.Drawing import Icon
-                    window.native.Icon = Icon(icon_str)
-                except Exception:
-                    pass
+            if hasattr(window, "native") and hasattr(window.native, "Handle"):
+                hwnd = int(window.native.Handle)
+                if ico_path and ico_path.is_file():
+                    set_window_icon(hwnd, ico_path)
         except Exception:
             pass
 
@@ -1807,12 +1824,12 @@ def launch_webview_app(autostart: bool = False):
                 api.minimize_to_tray()
 
     def on_closing():
-        if api.is_quitting:
+        if api._is_quitting:
             return True
         if HAS_TRAY:
             api.minimize_to_tray()
             return False
-        api.is_quitting = True
+        api._is_quitting = True
         api.stop_service()
         return True
 
@@ -1845,11 +1862,11 @@ def launch_webview_app(autostart: bool = False):
             api.copy_share_info()
 
         def tray_exit(icon=None, item=None):
-            api.is_quitting = True
+            api._is_quitting = True
             api.stop_service()
-            if api.tray_icon:
+            if api._tray_icon:
                 try:
-                    api.tray_icon.stop()
+                    api._tray_icon.stop()
                 except Exception:
                     pass
             if window:
@@ -1864,8 +1881,8 @@ def launch_webview_app(autostart: bool = False):
             pystray.MenuItem(api.t("tray_copy"), tray_copy),
             pystray.MenuItem(api.t("tray_exit"), tray_exit),
         )
-        api.tray_icon = pystray.Icon("TitanRemoteHost", get_tray_img(), "Titan Remote Host", tray_menu)
-        threading.Thread(target=api.tray_icon.run, daemon=True).start()
+        api._tray_icon = pystray.Icon("TitanRemoteHost", get_tray_img(), "Titan Remote Host", tray_menu)
+        threading.Thread(target=api._tray_icon.run, daemon=True).start()
 
     profile_dir = Path.home() / ".titan_remote_webview"
     profile_dir.mkdir(parents=True, exist_ok=True)
@@ -1934,11 +1951,11 @@ def main():
         root = tk.Tk()
         app = TitanHostGUI(root)
         if autostart:
-            app._start_service()
+            root.after(100, app._start_service)
             if HAS_TRAY:
-                app._minimize_to_tray()
+                root.after(200, app._minimize_to_tray)
             else:
-                root.withdraw()
+                root.after(200, root.withdraw)
         root.mainloop()
         return
 
@@ -1949,11 +1966,11 @@ def main():
         root = tk.Tk()
         app = TitanHostGUI(root)
         if autostart:
-            app._start_service()
+            root.after(100, app._start_service)
             if HAS_TRAY:
-                app._minimize_to_tray()
+                root.after(200, app._minimize_to_tray)
             else:
-                root.withdraw()
+                root.after(200, root.withdraw)
         root.mainloop()
 
 if __name__ == "__main__":

@@ -263,6 +263,15 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
     """Invokes PyInstaller to compile gui_agent.py for current OS."""
     dist_dir.mkdir(parents=True, exist_ok=True)
     entry_point = REPO_ROOT / "host_agent" / "gui_agent.py"
+    sep = ";" if sys.platform == "win32" else ":"
+    data_args = [
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'gui_view.html'}{sep}host_agent",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'gui_view.html'}{sep}.",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'icon.ico'}{sep}host_agent",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'icon.ico'}{sep}.",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'icon.png'}{sep}host_agent",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'icon.png'}{sep}.",
+    ]
 
     if target_os == "windows":
         name = "TitanRemoteHost"
@@ -273,6 +282,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
             "--distpath", str(dist_dir),
             "--workpath", str(REPO_ROOT / "build"),
             "--clean",
+            *data_args,
             str(entry_point)
         ]
         out_bin = dist_dir / f"{name}.exe"
@@ -285,6 +295,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
             "--distpath", str(dist_dir),
             "--workpath", str(REPO_ROOT / "build"),
             "--clean",
+            *data_args,
             str(entry_point)
         ]
         out_bin = dist_dir / name
@@ -297,6 +308,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
             "--distpath", str(dist_dir),
             "--workpath", str(REPO_ROOT / "build"),
             "--clean",
+            *data_args,
             str(entry_point)
         ]
         out_bin = dist_dir / name

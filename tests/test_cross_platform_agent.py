@@ -75,5 +75,27 @@ class TestCrossPlatformAgent(unittest.TestCase):
             self.assertIsInstance(dir_path, Path)
             self.assertTrue(dir_path.name in ("TitanRemoteHost", ".titan_remote_host"))
 
+    def test_resolve_config_path_prefers_localappdata(self):
+        """Verifies resolve_config_path correctly prioritizes LOCALAPPDATA when present."""
+        from host_agent.gui_agent import resolve_config_path
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            fake_appdata = Path(tmp_dir)
+            target_cfg = fake_appdata / "TitanRemoteHost" / "config.json"
+            target_cfg.parent.mkdir(parents=True, exist_ok=True)
+            target_cfg.write_text('{"account": "test@domain.com"}', encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(fake_appdata)}):
+                found_path = resolve_config_path()
+                self.assertEqual(found_path.resolve(), target_cfg.resolve())
+
+    def test_host_api_private_state_hygiene(self):
+        """HostApi must not expose internal native/COM objects without leading underscore."""
+        from host_agent.gui_agent import HostApi
+        api = HostApi({}, Path("config.json"))
+        exposed = [m for m in dir(api) if not m.startswith("_")]
+        forbidden = ["window", "host_service", "service_thread", "tray_icon"]
+        for f in forbidden:
+            self.assertNotIn(f, exposed, f"Attribute '{f}' must be private to prevent pywebview deadlock")
+
 if __name__ == '__main__':
     unittest.main()
