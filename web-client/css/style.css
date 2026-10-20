@@ -174,6 +174,71 @@ button:active {
   min-width: 0;
 }
 
+/* Custom Frameless Desktop Window Controls (EveryThingDownloader & MashLoop Avionics style) */
+.desktop-wincontrols {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  margin-left: var(--space-2);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--line);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.is-desktop-app .desktop-wincontrols {
+  display: inline-flex;
+}
+
+body.is-desktop-app .topbar {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+.desktop-wincontrols .wc-btn {
+  width: 38px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  border-radius: var(--round-xs, 4px);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.desktop-wincontrols .wc-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.desktop-wincontrols .wc-btn:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.desktop-wincontrols .wc-btn--close:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.desktop-wincontrols .wc-btn--close:active {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.desktop-wincontrols .wc-btn svg {
+  width: 11px;
+  height: 11px;
+  pointer-events: none;
+}
+
 .lang-switch-seg {
   position: relative;
   padding: 2px;

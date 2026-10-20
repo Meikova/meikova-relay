@@ -94,6 +94,20 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
         <span data-i18n="topbar.quick_connect">Kết nối nhanh</span>
       </button>
+
+      <!-- Custom Desktop Window Controls (EveryThingDownloader & MashLoop Avionics style) -->
+      <div id="desktopWinControls" class="desktop-wincontrols" aria-label="Điều khiển cửa sổ">
+        <button type="button" class="wc-btn wc-btn--min" id="btnWinMin" title="Thu nhỏ">
+          <svg viewBox="0 0 11 11"><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="wc-btn wc-btn--max" id="btnWinMax" title="Phóng to / Khôi phục">
+          <svg viewBox="0 0 11 11" class="icon-max"><rect x="1.5" y="1.5" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+          <svg viewBox="0 0 11 11" class="icon-restore" style="display:none;"><path d="M3.5 3.5V1.5h6v6h-2M1.5 3.5h6v6h-6z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        </button>
+        <button type="button" class="wc-btn wc-btn--close" id="btnWinClose" title="Đóng (Ẩn xuống khay)">
+          <svg viewBox="0 0 11 11"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
     </div>
   </header>
 

@@ -12,6 +12,7 @@ datas = [
     (str(ROOT / "host_agent" / "icon.ico"), "host_agent"),
     (str(ROOT / "host_agent" / "icon.png"), "host_agent"),
     (str(ROOT / "host_agent" / "tray_icon.png"), "host_agent"),
+    (str(SPEC_DIR / "tray_icons"), "client_desktop/tray_icons"),
 ]
 
 hiddenimports = [

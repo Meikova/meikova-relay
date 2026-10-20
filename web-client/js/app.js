@@ -527,7 +527,91 @@
   });
 
   // --- INITIALIZATION ---
+  function initDesktopIntegration() {
+    function setupControls() {
+      const isDesktop = typeof window !== 'undefined' && Boolean(window.pywebview && window.pywebview.api);
+      if (!isDesktop) return;
+
+      document.body.classList.add('is-desktop-app');
+      const winControls = document.getElementById('desktopWinControls');
+      if (winControls) {
+        winControls.style.display = 'inline-flex';
+      }
+
+      const topbar = document.querySelector('.topbar');
+      if (topbar && !topbar.dataset.dragBound) {
+        topbar.dataset.dragBound = 'true';
+        topbar.addEventListener('mousedown', (e) => {
+          if (e.target.closest('button, a, input, select, textarea, .seg, .user-badge, .wc-btn')) {
+            return;
+          }
+          if (e.button === 0 && window.pywebview?.api?.start_drag) {
+            window.pywebview.api.start_drag();
+          }
+        });
+
+        topbar.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button, a, input, select, textarea, .seg, .user-badge, .wc-btn')) {
+            return;
+          }
+          toggleDesktopMaximize();
+        });
+      }
+
+      const btnMin = document.getElementById('btnWinMin');
+      const btnMax = document.getElementById('btnWinMax');
+      const btnClose = document.getElementById('btnWinClose');
+
+      if (btnMin && !btnMin.dataset.bound) {
+        btnMin.dataset.bound = 'true';
+        btnMin.addEventListener('click', () => {
+          window.pywebview?.api?.minimize_window?.();
+        });
+      }
+
+      async function toggleDesktopMaximize() {
+        try {
+          if (window.pywebview?.api?.toggle_maximize) {
+            const isMax = await window.pywebview.api.toggle_maximize();
+            updateMaximizeIcon(isMax);
+          }
+        } catch (e) {
+          console.debug('toggle_maximize err', e);
+        }
+      }
+
+      function updateMaximizeIcon(isMax) {
+        if (!btnMax) return;
+        const iconMax = btnMax.querySelector('.icon-max');
+        const iconRestore = btnMax.querySelector('.icon-restore');
+        if (iconMax && iconRestore) {
+          iconMax.style.display = isMax ? 'none' : 'block';
+          iconRestore.style.display = isMax ? 'block' : 'none';
+        }
+      }
+
+      if (btnMax && !btnMax.dataset.bound) {
+        btnMax.dataset.bound = 'true';
+        btnMax.addEventListener('click', toggleDesktopMaximize);
+      }
+
+      if (btnClose && !btnClose.dataset.bound) {
+        btnClose.dataset.bound = 'true';
+        btnClose.addEventListener('click', () => {
+          window.pywebview?.api?.close_window?.();
+        });
+      }
+    }
+
+    if (window.pywebview && window.pywebview.api) {
+      setupControls();
+    } else {
+      window.addEventListener('pywebviewready', setupControls);
+    }
+  }
+
   async function initApp() {
+    initDesktopIntegration();
     applyDeckMode(currentDeckMode);
     const route = getRouteStateFromUrl();
 
