@@ -129,7 +129,7 @@ button:active {
   width: 32px;
   height: 16px;
   overflow: visible;
-  transform: translateY(-1.5px);
+  transform: none;
 }
 
 .brand-inf-path {
@@ -230,20 +230,30 @@ button:active {
 .btn-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 16px;
   border-radius: var(--round);
   background: var(--ink-2);
   border: 1px solid var(--line);
   font-size: var(--step--1);
   font-weight: 500;
+  line-height: 1;
   color: var(--text);
+  box-sizing: border-box;
 }
 
 .btn-pill svg {
   display: block;
   flex-shrink: 0;
-  transform: translateY(-2px);
+  transform: none;
+}
+
+.btn-pill span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 #btnCloseShelf svg,
@@ -262,11 +272,14 @@ button:active {
   display: inline-grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
+  align-items: center;
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: var(--round);
   background: oklch(0.195 var(--gc) var(--gh) / 0.65);
   isolation: isolate;
+  height: 42px;
+  box-sizing: border-box;
 }
 
 .seg button {
@@ -276,7 +289,7 @@ button:active {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 34px;
+  height: 34px;
   padding: 0 16px;
   border: 0;
   border-radius: var(--round);
@@ -284,7 +297,9 @@ button:active {
   color: var(--text-muted);
   font-weight: 500;
   font-size: var(--step--1);
+  line-height: 1;
   white-space: nowrap;
+  box-sizing: border-box;
   transition: color var(--dur-fast) var(--ease-out);
 }
 
@@ -293,12 +308,13 @@ button:active {
   flex-shrink: 0;
   width: 14px;
   height: 14px;
-  transform: translateY(-2px);
+  transform: none !important;
 }
 
 .seg button span {
-  display: inline-block;
-  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .seg button:hover {
@@ -332,6 +348,9 @@ button:active {
   opacity: 1;
   transition:
     transform var(--dur-slow) var(--ease-spring),
+    width var(--dur-slow) var(--ease-spring),
+    opacity var(--dur-fast) var(--ease-out);
+}
     width var(--dur-slow) var(--ease-out),
     opacity var(--dur-fast) var(--ease-out);
 }
@@ -624,27 +643,30 @@ input:-webkit-autofill:active {
 .spec-chip svg,
 .device-specs svg {
   flex-shrink: 0;
-  transform: translateY(-1.5px);
+  transform: none;
 }
 
 .btn-connect-device {
   width: 100%;
-  padding: 10px;
+  height: 38px;
+  padding: 0 14px;
   border-radius: var(--round);
   background: var(--ink-2);
   border: 1px solid var(--line);
   color: var(--text);
   font-size: var(--step--1);
   font-weight: 600;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  box-sizing: border-box;
 }
 
 .btn-connect-device svg {
   flex-shrink: 0;
-  transform: translateY(-2px);
+  transform: none;
 }
 
 .device-card:hover .btn-connect-device {
@@ -937,8 +959,9 @@ input:-webkit-autofill:active {
 .deck__btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  min-height: 36px;
+  height: 36px;
   padding: 0 12px;
   border: 1px solid var(--line-soft);
   border-radius: var(--round);
@@ -947,6 +970,8 @@ input:-webkit-autofill:active {
   font-size: var(--step--1);
   font-family: var(--font-mono);
   font-weight: 500;
+  line-height: 1;
+  box-sizing: border-box;
   transition:
     color var(--dur-fast) var(--ease-out),
     background-color var(--dur-fast) var(--ease-out),
@@ -962,6 +987,13 @@ input:-webkit-autofill:active {
   stroke-linecap: round;
   stroke-linejoin: round;
   flex-shrink: 0;
+  transform: none !important;
+}
+
+.deck__btn span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .deck__btn:hover {
@@ -1205,7 +1237,7 @@ input:-webkit-autofill:active {
 
 .power-menu-item svg {
   flex-shrink: 0;
-  transform: translateY(-2px);
+  transform: none;
 }
 
 .power-menu-item:hover {
@@ -1634,7 +1666,7 @@ input:-webkit-autofill:active {
 
 .folder-item svg {
   flex-shrink: 0;
-  transform: translateY(-2px);
+  transform: none;
 }
 
 .folder-item:hover {
@@ -1687,7 +1719,7 @@ input:-webkit-autofill:active {
 
 .toast svg {
   flex-shrink: 0;
-  transform: translateY(-1.5px);
+  transform: none;
 }
 
 .toast.toast--success {
@@ -2273,15 +2305,30 @@ input:-webkit-autofill:active {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
+  height: 44px;
+  padding: 0 24px;
   border-radius: var(--round);
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 600;
   font-size: 0.95rem;
+  line-height: 1;
   box-shadow: var(--glow);
   transition: all var(--dur-fast) var(--ease-out);
   cursor: pointer;
+  box-sizing: border-box;
+}
+
+.btn-hero-cta svg {
+  display: block;
+  flex-shrink: 0;
+  transform: none !important;
+}
+
+.btn-hero-cta span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .btn-hero-cta:hover {
