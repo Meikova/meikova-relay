@@ -69,14 +69,14 @@ try:
     import pystray
     from PIL import Image, ImageDraw
     HAS_TRAY = True
-except ImportError:
+except Exception:
     HAS_TRAY = False
 
 # Optional Microsoft Edge WebView2 GUI Support via pywebview
 try:
     import webview
     HAS_WEBVIEW = True
-except ImportError:
+except Exception:
     HAS_WEBVIEW = False
 
 REG_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"

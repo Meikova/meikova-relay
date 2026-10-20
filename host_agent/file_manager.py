@@ -77,22 +77,60 @@ class FileManager:
     def get_drives() -> List[Dict[str, Any]]:
         import shutil
         drives = []
-        for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
-            drive = f"{letter}:\\"
-            if os.path.exists(drive):
-                try:
-                    total, used, free = shutil.disk_usage(drive)
-                except Exception:
-                    total, used, free = 0, 0, 0
-                drives.append({
-                    "name": drive,
-                    "path": drive,
-                    "is_dir": True,
-                    "total": total,
-                    "used": used,
-                    "free": free,
-                    "percent": int((used / max(1, total)) * 100) if total > 0 else 0
-                })
+        if os.name == 'nt':
+            for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+                drive = f"{letter}:\\"
+                if os.path.exists(drive):
+                    try:
+                        total, used, free = shutil.disk_usage(drive)
+                    except Exception:
+                        total, used, free = 0, 0, 0
+                    drives.append({
+                        "name": drive,
+                        "path": drive,
+                        "is_dir": True,
+                        "total": total,
+                        "used": used,
+                        "free": free,
+                        "percent": int((used / max(1, total)) * 100) if total > 0 else 0
+                    })
+        else:
+            # POSIX root filesystem
+            root = "/"
+            try:
+                total, used, free = shutil.disk_usage(root)
+            except Exception:
+                total, used, free = 0, 0, 0
+            drives.append({
+                "name": "Root (/)",
+                "path": root,
+                "is_dir": True,
+                "total": total,
+                "used": used,
+                "free": free,
+                "percent": int((used / max(1, total)) * 100) if total > 0 else 0
+            })
+            # Check macOS /Volumes or Linux /media, /mnt
+            for mount_parent in ["/Volumes", "/media", "/mnt"]:
+                if os.path.isdir(mount_parent):
+                    try:
+                        for entry in os.scandir(mount_parent):
+                            if entry.is_dir():
+                                try:
+                                    t, u, f = shutil.disk_usage(entry.path)
+                                except Exception:
+                                    t, u, f = 0, 0, 0
+                                drives.append({
+                                    "name": entry.name,
+                                    "path": entry.path,
+                                    "is_dir": True,
+                                    "total": t,
+                                    "used": u,
+                                    "free": f,
+                                    "percent": int((u / max(1, t)) * 100) if t > 0 else 0
+                                })
+                    except Exception:
+                        pass
         return drives
 
     def browse_path(self, req_path: str = "") -> Dict[str, Any]:
