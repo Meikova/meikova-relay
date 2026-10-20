@@ -1,6 +1,32 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.20)
+### Recent Updates (Version 1.0.21)
+- **Thống nhất toàn diện Nhận diện Thương hiệu (Nền đen + Vô cực xanh + Chấm trắng):**
+  - **Đồng bộ 100% hình thái:** Tất cả favicon, logo, tray icon, app icon đều theo chuẩn duy nhất:
+    - Nền đen bo góc (`#070D17`, squircle rx=7/32).
+    - Đường cong vô cực màu xanh neon (`#22C55E`, stroke 2.8).
+    - Chấm trắng viễn trắc (`#FFFFFF`, bán kính r=2.1 tại tọa độ 23.2, 12.4).
+  - **Áp dụng đồng bộ tại:**
+    - `host_agent/tray_icon.png` (32x32) & `host_agent/icon.png` (512x512) & `host_agent/icon.ico`.
+    - `web-client/favicon.svg` & `relay-server/public/favicon.svg`.
+    - `host_agent/gui_view.html` (titlebar logo) & `web-client/index.html` (brand logo).
+    - `host_agent/gui_agent.py` (`get_tray_icon_image` runtime fallback).
+- **Cơ chế Cấu hình Khay Hệ Thống & Quản lý Máy Trạm Chạy Ngầm (Single-Instance IPC):**
+  - **Tùy chọn Khay hệ thống (`show_tray_icon`):**
+    - Thêm switch "Hiện biểu tượng ở khay hệ thống (Tray Icon)" trong Cấu hình hệ thống của UI.
+    - Hỗ trợ cờ dòng lệnh `--no-tray` (chạy ngầm hoàn toàn không khay) và `--tray` (bắt buộc hiện khay).
+  - **Single-Instance IPC qua Local Port (48123):**
+    - Khi máy trạm đang chạy ngầm (kể cả không có tray icon), người dùng chỉ cần click lại shortcut hoặc chạy `TitanRemoteHost.exe`, tiến trình mới sẽ gửi tín hiệu `SHOW` qua loopback TCP để tiến trình ngầm tự kích hoạt và hiển thị cửa sổ điều khiển, không bao giờ sinh tiến trình trùng lặp.
+    - Hỗ trợ lệnh CLI quản trị: `TitanRemoteHost.exe --status` (kiểm tra trạng thái), `TitanRemoteHost.exe --stop` (dừng dịch vụ ngầm sạch sẽ).
+    - Hỗ trợ `AttachConsole(-1)` để hiển thị output trực tiếp trên console khi gọi từ CLI.
+- **Biên dịch & Kiểm thử:**
+  - 69/69 tests pass (Exit Code 0).
+  - Biên dịch PyInstaller thành công, cập nhật bản build vào `relay-server/` và `%LOCALAPPDATA%\TitanRemoteHost\`.
+  - Tiến trình đang chạy ngầm trực tuyến và phản hồi lệnh IPC tức thì.
+
+---
+
+### Previous Updates (Version 1.0.20)
 - **Tái thiết kế toàn diện Icon Khay Hệ Thống và Nhận diện Thương hiệu (Theo chuẩn MashLoop & EveryThingDownloader):**
   - **Phân tích vấn đề:** Icon khay cũ vẽ hình tròn tối màu `#070D17` viền xanh và 2 elip crude trong `create_tray_badge`. Khi Windows 11 thu nhỏ xuống kích thước khay 16x16 / 24x24 pixel, hình tròn đen bị nhòe thành đốm đen mờ đục với 2 chấm mắt méo mó ("icon không ổn").
   - **Áp dụng chuẩn thiết kế MashLoop & EveryThingDownloader:**

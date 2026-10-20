@@ -554,10 +554,11 @@
   <!-- Custom Ambient Titlebar (Frameless Drag Region) -->
   <header class="titlebar pywebview-drag-region" onmousedown="handleTitlebarMouseDown(event)">
     <div class="titlebar-brand">
-      <svg class="titlebar-logo" viewBox="0 0 512 512" fill="none">
-        <path d="M256 256 C 312 168, 432 168, 432 256 C 432 344, 312 344, 256 256 C 200 168, 80 168, 80 256 C 80 344, 200 344, 256 256 Z"
-              stroke="#22C55E" stroke-width="44.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="256" cy="256" r="33.6" fill="#FFFFFF"/>
+      <svg class="titlebar-logo" viewBox="0 0 32 32" style="border-radius: 4px;">
+        <rect width="32" height="32" rx="7" fill="#070D17"/>
+        <path d="M16 16 C 19.5 10.5, 27 10.5, 27 16 C 27 21.5, 19.5 21.5, 16 16 C 12.5 10.5, 5 10.5, 5 16 C 5 21.5, 12.5 21.5, 16 16 Z"
+              fill="none" stroke="#22C55E" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="23.2" cy="12.4" r="2.1" fill="#FFFFFF"/>
       </svg>
       <span class="titlebar-title">TITAN REMOTE HOST</span>
     </div>
@@ -720,6 +721,11 @@
         <div id="swKeepawake" class="toggle-switch"><div class="toggle-thumb"></div></div>
       </div>
 
+      <div class="toggle-row" onclick="toggleSwitch('show_tray')">
+        <span class="toggle-lbl" id="lblShowTray">Hiện biểu tượng ở khay hệ thống (Tray Icon)</span>
+        <div id="swShowTray" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
       <button class="btn-deck-wide" onclick="minimizeToTray()" style="margin-top: 4px;" id="btnMinimizeTray">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
         <span id="txtMinimizeTray">THU NHỎ VÀO KHAY HỆ THỐNG</span>
@@ -791,6 +797,7 @@
         lbl_open_on_boot: "Mở cửa sổ khi Windows khởi động (Hiển thị giao diện)",
         lbl_close_to_tray: "Thu nhỏ vào khay khi bấm đóng [X]",
         lbl_keepawake: "Chống tắt màn hình / Sleep (Anti-Sleep)",
+        lbl_show_tray: "Hiện biểu tượng ở khay hệ thống (Tray Icon)",
         lbl_service: "Dịch vụ hệ thống 24/7 (Trước màn hình khóa Lock Screen)",
         lbl_install_tiers: "PHƯƠNG THỨC CÀI ĐẶT MÁY TRẠM:",
         tag_tier_user: "CÀI ĐẶT NGƯỜI DÙNG // USER LEVEL",
@@ -841,6 +848,7 @@
         lbl_open_on_boot: "Open window on Windows boot (Show UI)",
         lbl_close_to_tray: "Minimize to tray when clicking close [X]",
         lbl_keepawake: "Prevent sleep & screen shutoff (Anti-Sleep)",
+        lbl_show_tray: "Show System Tray Icon",
         lbl_service: "24/7 Windows Service (Pre-login & Lock Screen)",
         lbl_install_tiers: "WORKSTATION DEPLOYMENT METHOD:",
         tag_tier_user: "USER-LEVEL INSTALLATION",
@@ -928,6 +936,7 @@
       if (document.getElementById('lblOpenOnBoot')) document.getElementById('lblOpenOnBoot').innerText = t('lbl_open_on_boot');
       if (document.getElementById('lblCloseToTray')) document.getElementById('lblCloseToTray').innerText = t('lbl_close_to_tray');
       if (document.getElementById('lblKeepawake')) document.getElementById('lblKeepawake').innerText = t('lbl_keepawake');
+      if (document.getElementById('lblShowTray')) document.getElementById('lblShowTray').innerText = t('lbl_show_tray');
       document.getElementById('txtMinimizeTray').innerText = t('btn_minimize_tray');
       document.getElementById('txtSettingsTitle').innerText = t('settings_title');
       document.getElementById('txtSettingsDesc').innerText = t('settings_desc');
@@ -1090,6 +1099,7 @@
       else if (name === 'close_to_tray') swId = 'swCloseToTray';
       else if (name === 'service') swId = 'swService';
       else if (name === 'keepawake') swId = 'swKeepawake';
+      else if (name === 'show_tray') swId = 'swShowTray';
       const sw = document.getElementById(swId);
       if (!sw) return;
       const isOn = sw.classList.toggle('on');
@@ -1098,6 +1108,7 @@
         else if (name === 'open_on_boot') window.pywebview.api.toggle_open_on_boot(isOn);
         else if (name === 'close_to_tray') window.pywebview.api.toggle_close_to_tray(isOn);
         else if (name === 'keepawake') window.pywebview.api.toggle_keepawake(isOn);
+        else if (name === 'show_tray') window.pywebview.api.toggle_show_tray(isOn);
         else if (name === 'service') {
           window.pywebview.api.toggle_service(isOn).then(res => {
             if (!res || !res.success) {
@@ -1150,6 +1161,7 @@
       if (cfg.close_to_tray !== false && document.getElementById('swCloseToTray')) document.getElementById('swCloseToTray').classList.add('on');
       if (serviceOn && document.getElementById('swService')) document.getElementById('swService').classList.add('on');
       if (cfg.keep_awake && document.getElementById('swKeepawake')) document.getElementById('swKeepawake').classList.add('on');
+      if (cfg.show_tray_icon !== false && document.getElementById('swShowTray')) document.getElementById('swShowTray').classList.add('on');
       
       if (dep) updateDeploymentUI(dep);
       

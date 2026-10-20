@@ -11,7 +11,7 @@ def bezier_point(p0, p1, p2, p3, u):
     )
 
 def generate_curve_points(s, steps=400):
-    """Generates precision points along MashLoop / EveryThingDownloader cubic bezier infinity loop."""
+    """Cubic Bezier curve matching MashLoop & EveryThingDownloader."""
     segs = [
         ((16*s, 16*s), (19.5*s, 10.5*s), (27*s, 10.5*s), (27*s, 16*s)),
         ((27*s, 16*s), (27*s, 21.5*s), (19.5*s, 21.5*s), (16*s, 16*s)),
@@ -24,105 +24,38 @@ def generate_curve_points(s, steps=400):
             points.append(bezier_point(p0, p1, p2, p3, i / float(steps)))
     return points
 
-def create_tray_icon():
-    """Creates pixel-perfect, transparent-background tray icon matching EveryThingDownloader & MashLoop."""
-    size = 256
-    s = size / 32.0  # scale = 8.0
+def render_unified_icon(size=512):
+    """
+    Renders unified brand icon:
+    1. Nền đen sâu (Dark squircle #070D17, rx=7 on 32 scale)
+    2. Vô cực màu xanh (#22C55E, stroke 2.8 on 32 scale)
+    3. Chấm trắng (#FFFFFF, cx=23.2, cy=12.4, r=2.1 on 32 scale)
+    """
+    s = size / 32.0
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
+
+    # 1. Nền đen squircle
+    rx = int(7 * s)
+    d.rounded_rectangle((0, 0, size, size), radius=rx, fill="#070D17")
+
+    # 2. Vô cực xanh
     points = generate_curve_points(s)
-
-    # 1. Dark emerald contour (ensures razor-sharp contrast on light taskbars)
+    w = int(2.8 * s)
     for i in range(len(points)):
         p1 = points[i]
         p2 = points[(i + 1) % len(points)]
-        d.line([p1, p2], fill=(4, 120, 87, 190), width=int(3.6 * s))
+        d.line([p1, p2], fill="#22C55E", width=w)
 
-    # 2. Main vibrant emerald neon stroke
-    for i in range(len(points)):
-        p1 = points[i]
-        p2 = points[(i + 1) % len(points)]
-        d.line([p1, p2], fill=(34, 197, 94, 255), width=int(2.8 * s))
+    r_cap = w / 2.0
+    for x, y in points[::10]:
+        d.ellipse([x - r_cap, y - r_cap, x + r_cap, y + r_cap], fill="#22C55E")
 
-    # 3. Bright core highlight line
-    for i in range(len(points)):
-        p1 = points[i]
-        p2 = points[(i + 1) % len(points)]
-        d.line([p1, p2], fill=(220, 252, 231, 255), width=int(0.9 * s))
-
-    # 4. Signature orbiting pulse beacon dot at cx=23.2, cy=12.4
+    # 3. Chấm trắng tại (23.2, 12.4)
     cx, cy = 23.2 * s, 12.4 * s
-    r = 2.1 * s
-    d.ellipse([cx - r * 1.35, cy - r * 1.35, cx + r * 1.35, cy + r * 1.35], fill=(4, 120, 87, 210))
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 255, 255, 255))
+    cr = 2.1 * s
+    d.ellipse([cx - cr, cy - cr, cx + cr, cy + cr], fill="#FFFFFF")
 
-    res32 = img.resize((32, 32), Image.Resampling.LANCZOS)
-    return res32
-
-def create_app_icon():
-    """Creates high-resolution squircle app icon for desktop window and installer."""
-    size = 512
-    s = size / 32.0  # scale = 16.0
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-
-    # Rounded squircle background
-    radius = int(8 * s)
-    draw.rounded_rectangle((0, 0, size, size), radius=radius, fill="#070D17")
-
-    # Subtle radial inner ambient chamber glow
-    glow_img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    ImageDraw.Draw(glow_img).ellipse(
-        (int(size * 0.1), int(size * 0.1), int(size * 0.9), int(size * 0.9)),
-        fill=(16, 27, 46, 140)
-    )
-    glow_img = glow_img.filter(ImageFilter.GaussianBlur(int(40)))
-    img.alpha_composite(glow_img)
-
-    # Re-clip to squircle mask
-    mask = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size, size), radius=radius, fill=255)
-    img.putalpha(mask)
-
-    d = ImageDraw.Draw(img)
-    points = generate_curve_points(s)
-
-    # Outer neon green aura
-    aura_img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    ad = ImageDraw.Draw(aura_img)
-    for i in range(len(points)):
-        p1 = points[i]
-        p2 = points[(i + 1) % len(points)]
-        ad.line([p1, p2], fill=(34, 197, 94, 110), width=int(5.2 * s))
-    aura_img = aura_img.filter(ImageFilter.GaussianBlur(int(6 * (s / 8.0))))
-    img.alpha_composite(aura_img)
-
-    # Main stroke
-    for i in range(len(points)):
-        p1 = points[i]
-        p2 = points[(i + 1) % len(points)]
-        d.line([p1, p2], fill=(34, 197, 94, 255), width=int(2.8 * s))
-
-    # Inner core highlight
-    for i in range(len(points)):
-        p1 = points[i]
-        p2 = points[(i + 1) % len(points)]
-        d.line([p1, p2], fill=(220, 252, 231, 255), width=int(0.8 * s))
-
-    # Beacon dot at cx=23.2, cy=12.4
-    cx, cy = 23.2 * s, 12.4 * s
-    r = 2.1 * s
-    # Beacon aura
-    b_aura = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    ImageDraw.Draw(b_aura).ellipse(
-        (cx - r * 2.5, cy - r * 2.5, cx + r * 2.5, cy + r * 2.5),
-        fill=(34, 197, 94, 160)
-    )
-    b_aura = b_aura.filter(ImageFilter.GaussianBlur(8))
-    img.alpha_composite(b_aura)
-
-    # Core white dot
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 255, 255, 255))
     return img
 
 def main():
@@ -130,19 +63,20 @@ def main():
     out_dir = root
     os.makedirs(out_dir, exist_ok=True)
 
-    # 1. Tray Icon (32x32 transparent)
-    tray_img = create_tray_icon()
+    master = render_unified_icon(512)
+
+    # 1. App Icon PNG
+    master.save(out_dir / "icon.png", format="PNG")
+    print(f"Generated {out_dir / 'icon.png'}")
+
+    # 2. Tray Icon PNG (32x32 Lanczos)
+    tray_img = master.resize((32, 32), Image.Resampling.LANCZOS)
     tray_img.save(out_dir / "tray_icon.png", format="PNG")
     print(f"Generated {out_dir / 'tray_icon.png'}")
 
-    # 2. App Icon (512x512)
-    app_img = create_app_icon()
-    app_img.save(out_dir / "icon.png", format="PNG")
-    print(f"Generated {out_dir / 'icon.png'}")
-
-    # 3. Multi-resolution ICO
+    # 3. Multi-resolution ICO for Windows PE and titlebar
     sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
-    app_img.save(out_dir / "icon.ico", format="ICO", sizes=sizes)
+    master.save(out_dir / "icon.ico", format="ICO", sizes=sizes)
     print(f"Generated {out_dir / 'icon.ico'}")
 
 if __name__ == "__main__":

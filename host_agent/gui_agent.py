@@ -142,8 +142,8 @@ except Exception:
     HAS_WEBVIEW = False
 
 def get_tray_icon_image():
-    """Returns crisp vector-drawn infinity tray icon with transparent background,
-    matching EveryThingDownloader and MashLoop design standards.
+    """Returns unified brand icon:
+    Black squircle (#070D17), green infinity (#22C55E), and white dot (#FFFFFF).
     """
     if not HAS_TRAY:
         return None
@@ -167,6 +167,10 @@ def get_tray_icon_image():
         img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         d = ImageDraw.Draw(img)
 
+        # 1. Nền đen squircle (#070D17, rx=7 on 32 scale)
+        rx = int(7 * s)
+        d.rounded_rectangle((0, 0, size, size), radius=rx, fill="#070D17")
+
         def bpt(p0, p1, p2, p3, u):
             u1 = 1.0 - u
             return (
@@ -185,35 +189,28 @@ def get_tray_icon_image():
             for i in range(240):
                 points.append(bpt(p0, p1, p2, p3, i / 240.0))
 
-        # 1. Dark emerald contour (ensures high contrast on light taskbars)
+        # 2. Vô cực màu xanh
+        w = int(2.8 * s)
         for i in range(len(points)):
             p1 = points[i]
             p2 = points[(i + 1) % len(points)]
-            d.line([p1, p2], fill=(4, 120, 87, 190), width=int(3.6 * s))
+            d.line([p1, p2], fill="#22C55E", width=w)
 
-        # 2. Main emerald neon stroke
-        for i in range(len(points)):
-            p1 = points[i]
-            p2 = points[(i + 1) % len(points)]
-            d.line([p1, p2], fill=(34, 197, 94, 255), width=int(2.8 * s))
+        r_cap = w / 2.0
+        for x, y in points[::10]:
+            d.ellipse([x - r_cap, y - r_cap, x + r_cap, y + r_cap], fill="#22C55E")
 
-        # 3. Bright core highlight line
-        for i in range(len(points)):
-            p1 = points[i]
-            p2 = points[(i + 1) % len(points)]
-            d.line([p1, p2], fill=(220, 252, 231, 255), width=int(0.9 * s))
-
-        # 4. Signature orbiting pulse beacon dot at cx=23.2, cy=12.4
+        # 3. Chấm trắng tại (23.2, 12.4)
         cx, cy = 23.2 * s, 12.4 * s
-        r = 2.1 * s
-        d.ellipse([cx - r * 1.35, cy - r * 1.35, cx + r * 1.35, cy + r * 1.35], fill=(4, 120, 87, 210))
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 255, 255, 255))
+        cr = 2.1 * s
+        d.ellipse([cx - cr, cy - cr, cx + cr, cy + cr], fill="#FFFFFF")
 
         return img.resize((32, 32), Image.Resampling.LANCZOS)
     except Exception:
-        fallback = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+        fallback = Image.new("RGBA", (32, 32), (7, 13, 23, 255))
         d = ImageDraw.Draw(fallback)
         d.ellipse([4, 4, 28, 28], outline="#22C55E", width=3)
+        d.ellipse([21, 10, 25, 14], fill="#FFFFFF")
         return fallback
 
 REG_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -1406,10 +1403,16 @@ class TitanHostGUI:
         )
         self.tray_icon = pystray.Icon("TitanRemoteHost", get_tray_icon_image(), "Titan Remote Host", menu)
 
+        show_tray = self.config.get("show_tray_icon", True)
+        if "--no-tray" in sys.argv:
+            show_tray = False
+        elif "--tray" in sys.argv:
+            show_tray = True
+
         def setup_tray(icon):
             ensure_interactive_desktop()
             promote_tray_icon()
-            icon.visible = True
+            icon.visible = bool(show_tray)
 
         def tray_worker():
             ensure_interactive_desktop()
@@ -1897,6 +1900,26 @@ class HostApi:
         state_str = "THU NHỎ VÀO KHAY" if is_on else "THOÁT ỨNG DỤNG"
         self._log(f"Khi bấm nút đóng [X]: {state_str}")
 
+    def toggle_show_tray(self, is_on: bool):
+        self._config["show_tray_icon"] = bool(is_on)
+        self._save_config()
+        if self._tray_icon:
+            try:
+                self._tray_icon.visible = bool(is_on)
+            except Exception:
+                pass
+        state_str = "HIỂN THỊ" if is_on else "ẨN (CHẠY NGẦM HOÀN TOÀN)"
+        self._log(f"Khay hệ thống: {state_str}")
+
+    def show_window(self):
+        """Brings the GUI window to the foreground."""
+        if self._window:
+            try:
+                self._window.show()
+                self._window.restore()
+            except Exception:
+                pass
+
     def minimize_to_tray(self):
         if self._window:
             try:
@@ -1924,6 +1947,42 @@ class HostApi:
             self._config["lang"] = lang
             self._save_config()
             self._log(f"Switched language to {'Tiếng Việt' if lang == 'vi' else 'English'}")
+
+IPC_PORT = 48123
+
+def send_ipc_command(cmd: str) -> Optional[str]:
+    """Sends command to existing running instance on loopback port."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(1.5)
+            s.connect(("127.0.0.1", IPC_PORT))
+            s.sendall(cmd.encode("utf-8") + b"\n")
+            return s.recv(4096).decode("utf-8").strip()
+    except Exception:
+        return None
+
+def start_ipc_server(on_command_callback):
+    """Starts background TCP listener on 127.0.0.1:IPC_PORT for single-instance control."""
+    def _worker():
+        try:
+            srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            srv.bind(("127.0.0.1", IPC_PORT))
+            srv.listen(5)
+            while True:
+                conn, _ = srv.accept()
+                try:
+                    conn.settimeout(2.0)
+                    line = conn.recv(1024).decode("utf-8").strip()
+                    res = on_command_callback(line)
+                    conn.sendall(str(res).encode("utf-8") + b"\n")
+                except Exception:
+                    pass
+                finally:
+                    conn.close()
+        except Exception:
+            pass
+    threading.Thread(target=_worker, daemon=True).start()
 
 def launch_webview_app(autostart: bool = False):
     if not HAS_WEBVIEW:
@@ -2028,10 +2087,16 @@ def launch_webview_app(autostart: bool = False):
         )
         api._tray_icon = pystray.Icon("TitanRemoteHost", get_tray_icon_image(), "Titan Remote Host", tray_menu)
 
+        show_tray = config.get("show_tray_icon", True)
+        if "--no-tray" in sys.argv:
+            show_tray = False
+        elif "--tray" in sys.argv:
+            show_tray = True
+
         def setup_tray(icon):
             ensure_interactive_desktop()
             promote_tray_icon()
-            icon.visible = True
+            icon.visible = bool(show_tray)
 
         def tray_worker():
             ensure_interactive_desktop()
@@ -2041,6 +2106,34 @@ def launch_webview_app(autostart: bool = False):
                 pass
 
         threading.Thread(target=tray_worker, daemon=True).start()
+
+    def handle_ipc(cmd: str) -> str:
+        c = cmd.strip().upper()
+        if c == "SHOW":
+            api.show_window()
+            return "OK:SHOWN"
+        elif c == "STOP":
+            api._is_quitting = True
+            api.stop_service()
+            if api._tray_icon:
+                try:
+                    api._tray_icon.stop()
+                except Exception:
+                    pass
+            if window:
+                try:
+                    window.destroy()
+                except Exception:
+                    pass
+            sys.exit(0)
+            return "OK:STOPPING"
+        elif c == "STATUS":
+            status = "RUNNING" if api._is_running else "STOPPED"
+            room = api._config.get("room_id", "N/A")
+            return f"OK:STATUS={status};ROOM={room}"
+        return "ERR:UNKNOWN_COMMAND"
+
+    start_ipc_server(handle_ipc)
 
     webview.start(
         debug=False,
@@ -2077,9 +2170,44 @@ def run_service_headless():
 
 def main():
     ensure_interactive_desktop()
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            if ctypes.windll.kernel32.AttachConsole(-1):
+                if sys.stdout is None or not hasattr(sys.stdout, "write"):
+                    sys.stdout = open("CONOUT$", "w", encoding="utf-8")
+                if sys.stderr is None or not hasattr(sys.stderr, "write"):
+                    sys.stderr = open("CONOUT$", "w", encoding="utf-8")
+        except Exception:
+            pass
+
     if "--service" in sys.argv:
         run_service_headless()
         return
+
+    if "--stop" in sys.argv or "--quit" in sys.argv:
+        resp = send_ipc_command("STOP")
+        if resp:
+            print(f"[OK] Đã gửi lệnh dừng tiến trình: {resp}")
+            sys.exit(0)
+        else:
+            print("[INFO] Không có tiến trình máy trạm nào đang chạy.")
+            sys.exit(0)
+
+    if "--status" in sys.argv:
+        resp = send_ipc_command("STATUS")
+        if resp:
+            print(f"[OK] Trạng thái máy trạm: {resp}")
+            sys.exit(0)
+        else:
+            print("[INFO] Máy trạm đang dừng (offline).")
+            sys.exit(0)
+
+    # Single-instance check: if another instance is already running, activate its window
+    resp = send_ipc_command("SHOW")
+    if resp:
+        print("[INFO] Titan Remote Host đã đang chạy. Đã kích hoạt mở cửa sổ quản lý.")
+        sys.exit(0)
 
     if "--install-user" in sys.argv:
         ok, msg = install_user_tier()
@@ -2105,6 +2233,20 @@ def main():
     if "--legacy-tk" in sys.argv or not HAS_WEBVIEW:
         root = tk.Tk()
         app = TitanHostGUI(root)
+        def handle_tk_ipc(cmd: str) -> str:
+            c = cmd.strip().upper()
+            if c == "SHOW":
+                root.after(0, app._show_window)
+                return "OK:SHOWN"
+            elif c == "STOP":
+                root.after(0, app._exit_application)
+                return "OK:STOPPING"
+            elif c == "STATUS":
+                status = "RUNNING" if app.is_running else "STOPPED"
+                room = app.config.get("room_id", "N/A")
+                return f"OK:STATUS={status};ROOM={room}"
+            return "ERR:UNKNOWN_COMMAND"
+        start_ipc_server(handle_tk_ipc)
         root.after(100, app._start_service)
         if autostart:
             if HAS_TRAY:
@@ -2120,6 +2262,20 @@ def main():
         print(f"[WARN] WebView2 launch failed ({e}), falling back to Tkinter GUI.")
         root = tk.Tk()
         app = TitanHostGUI(root)
+        def handle_tk_fallback_ipc(cmd: str) -> str:
+            c = cmd.strip().upper()
+            if c == "SHOW":
+                root.after(0, app._show_window)
+                return "OK:SHOWN"
+            elif c == "STOP":
+                root.after(0, app._exit_application)
+                return "OK:STOPPING"
+            elif c == "STATUS":
+                status = "RUNNING" if app.is_running else "STOPPED"
+                room = app.config.get("room_id", "N/A")
+                return f"OK:STATUS={status};ROOM={room}"
+            return "ERR:UNKNOWN_COMMAND"
+        start_ipc_server(handle_tk_fallback_ipc)
         root.after(100, app._start_service)
         if autostart:
             if HAS_TRAY:

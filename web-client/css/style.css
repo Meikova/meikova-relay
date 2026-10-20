@@ -133,10 +133,11 @@ button:active {
 }
 
 .brand-inf-svg {
-  width: 32px;
-  height: 16px;
-  overflow: visible;
-  transform: none;
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+  border-radius: 5px;
+  flex-shrink: 0;
 }
 
 .brand-inf-path {
