@@ -1,6 +1,18 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.11)
+### Recent Updates (Version 1.0.12)
+- **Sửa triệt để lỗi thực thi script cài đặt Windows (`Setup-TitanHost.bat`):**
+  - **Nguyên nhân cốt lõi gây lỗi:** Lệnh `setlocal EnableDelayedExpansion` trong `server.js` khiến CMD hiểu dấu chấm than `!` trong các câu lệnh `echo [!]...` và `echo ...!` là biến nội suy chưa đóng, gây lỗi cú pháp lập tức: `! was unexpected at this time.` và dừng chương trình trước khi tải bất kỳ file nào.
+  - **Khắc phục cú pháp:** Chuyển sang `setlocal DisableDelayedExpansion`, loại bỏ toàn bộ dấu `!` trong các chuỗi thông báo, dùng biến chuẩn `%RAND_ROOM%` và `%RAND_PIN%`.
+  - **Xử lý tệp tải dở dang:** Tự động kiểm tra nếu `TitanRemoteHost.exe` tồn tại nhưng dung lượng < 5MB (lỗi mạng tải chưa xong) thì tự động xóa và tải lại bản đầy đủ 24MB từ Relay Server.
+  - **Tự động kích hoạt Host Service:** Thêm cờ `--autostart` khi gọi `TitanRemoteHost.exe`, đảm bảo dịch vụ tự động kết nối và máy trạm lập tức hiển thị trạng thái `Trực tuyến` trên Dashboard mà không cần click tay.
+- **Xác thực kiểm thử & Triển khai:**
+  - Chạy thử nghiệm thực tế script `setup.bat` sinh ra từ Relay Server trên CMD: Exit Code 0, tải trọn vẹn 23.96MB nhị phân, ghi `config.json` hợp lệ và kích hoạt tiến trình Host Agent.
+  - Đã đẩy commit `355354f` lên `origin/main`. Render đã hoàn tất build và deploy live version `1.0.12`.
+
+---
+
+### Previous Updates (Version 1.0.11)
 - **Zero-Flash Route Hydration on Reload:**
   - Triệt tiêu hoàn toàn hiện tượng nhấp nháy/nhảy về dashboard hoặc landing khi reload trang ở bất kỳ URL phân hệ nào (`/audit`, `/files`, `/terminal`, `/tasks`, `/remote`, `/dashboard`).
   - `initApp()` trong `web-client/js/app.js` được tái cấu trúc thực thi đồng bộ: Phân giải `targetView` từ URL và token lưu tại `localStorage` rồi lập tức kích hoạt `switchView(targetView, false)` ngay frame đầu tiên, trước khi bắt đầu network fetch xác thực `/api/auth/me`.
