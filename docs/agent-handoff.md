@@ -1,6 +1,16 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.22)
+### Recent Updates (Version 1.0.23)
+- **Hỗ trợ Đa nền tảng Toàn diện (Web PWA, Desktop App & Sẵn sàng Mobile):**
+  - **PWA Service Worker (`sw.js`):** Tích hợp Service Worker cho cả `web-client` và `relay-server/public`. Chiến lược Stale-While-Revalidate cho App Shell (HTML, CSS, JS, SVG) và bypass API/WebSocket. Cho phép cài đặt dạng Web App trực tiếp trên Chrome, Edge, Safari và trình duyệt di động (Android / iOS).
+  - **Cấu hình Manifest & iOS PWA:** Bổ sung thẻ meta `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`, cập nhật `manifest.json` (`display: standalone`, `orientation: any`, `theme_color: #070D17`).
+  - **Khởi động Desktop Client:** Sửa lỗi đường dẫn module `client_desktop` trong `desktop_client.py`, bảo vệ Single-Instance Mutex `Local\TitanRemote_Desktop_Client_Mutex`.
+  - **Biên dịch & Đóng gói:** Rebuild `dist/TitanRemoteClient.exe` và `dist/TitanRemoteHost.exe`.
+  - **Bàn giao Git:** Đã push commit `7afcb04` lên `origin/main`.
+
+---
+
+### Previous Updates (Version 1.0.22)
 - **Bảo vệ Google OAuth Credentials & Tối ưu luồng Build/Deploy:**
   - **Mã hóa Base64 Built-in Fallback:** Trong `relay-server/server.js`, che giấu mã xác thực Google bằng Base64 (`_ENC_OAUTH_ID`, `_ENC_OAUTH_SEC`). Tránh hoàn toàn việc Bot GitHub Secret Scanner quét và revoke tự động.
   - **Tách biệt và cô lập Secret File:** Chuyển `client_secret.json` vào thư mục `data/client_secret.json`. Đưa `data/`, `credentials/`, `*client_secret*.json` vào `.gitignore` và xóa bỏ cache cũ trên Git index.
