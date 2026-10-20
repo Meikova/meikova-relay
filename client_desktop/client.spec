@@ -9,6 +9,9 @@ ROOT = SPEC_DIR.parent
 
 datas = [
     (str(ROOT / "web-client"), "web-client"),
+    (str(ROOT / "host_agent" / "icon.ico"), "host_agent"),
+    (str(ROOT / "host_agent" / "icon.png"), "host_agent"),
+    (str(ROOT / "host_agent" / "tray_icon.png"), "host_agent"),
 ]
 
 hiddenimports = [
@@ -67,5 +70,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(ROOT / "icon.ico") if (ROOT / "icon.ico").exists() else None,
+    icon=str(ROOT / "host_agent" / "icon.ico"),
 )

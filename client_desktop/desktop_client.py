@@ -284,12 +284,14 @@ def main(argv=None):
             mutex_name = "Local\\TitanRemote_Desktop_Client_Mutex"
             _h_mutex = kernel32.CreateMutexW(None, False, mutex_name)
             if kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
-                logger.info("Titan Remote Client is already running. Restoring window.")
                 hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
                 if hwnd:
+                    logger.info("Titan Remote Client is already running. Restoring window.")
                     ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
                     ctypes.windll.user32.SetForegroundWindow(hwnd)
-                sys.exit(0)
+                    sys.exit(0)
+                else:
+                    logger.info("Mutex exists but no window found. Continuing launch.")
         except Exception as e:
             logger.debug("Mutex check failed: %s", e)
 
