@@ -2,7 +2,10 @@ import os
 import sys
 import time
 import json
-import winreg
+try:
+    import winreg
+except ImportError:
+    winreg = None
 import threading
 import asyncio
 import socket
@@ -1180,6 +1183,9 @@ class TitanHostGUI:
     # AUTO-START & SYSTEM TRAY
     # -------------------------------------------------------------
     def _check_autostart_status(self):
+        if not winreg:
+            self.autostart_var.set(False)
+            return
         try:
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_READ)
             val, _ = winreg.QueryValueEx(key, APP_REG_NAME)
@@ -1190,6 +1196,8 @@ class TitanHostGUI:
             self.autostart_var.set(False)
 
     def _on_autostart_toggle(self):
+        if not winreg:
+            return
         enable = self.autostart_var.get()
         try:
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
@@ -1345,6 +1353,8 @@ def set_clipboard_text(text: str) -> bool:
     return False
 
 def is_autostart_enabled() -> bool:
+    if not winreg:
+        return False
     try:
         if is_task_scheduler_autostart_enabled():
             return True
@@ -1647,24 +1657,25 @@ class HostApi:
             setup_task_scheduler_autostart(is_on)
 
             # 2. Dual-layer: HKCU Run registry
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
-            if is_on:
-                perm_exe = ensure_permanent_deployment(self.config_path)
-                if getattr(sys, "frozen", False):
-                    cmd = f'"{perm_exe}" --autostart'
+            if winreg:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
+                if is_on:
+                    perm_exe = ensure_permanent_deployment(self.config_path)
+                    if getattr(sys, "frozen", False):
+                        cmd = f'"{perm_exe}" --autostart'
+                    else:
+                        script_path = str(Path(__file__).resolve())
+                        pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
+                        cmd = f'"{pythonw_exe}" "{script_path}" --autostart'
+                    winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
+                    self._log(self.t("log_autostart_on") + " (Task Scheduler /rl highest + %LOCALAPPDATA%)")
                 else:
-                    script_path = str(Path(__file__).resolve())
-                    pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
-                    cmd = f'"{pythonw_exe}" "{script_path}" --autostart'
-                winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
-                self._log(self.t("log_autostart_on") + " (Task Scheduler /rl highest + %LOCALAPPDATA%)")
-            else:
-                try:
-                    winreg.DeleteValue(key, APP_REG_NAME)
-                    self._log(self.t("log_autostart_off"))
-                except FileNotFoundError:
-                    pass
-            winreg.CloseKey(key)
+                    try:
+                        winreg.DeleteValue(key, APP_REG_NAME)
+                        self._log(self.t("log_autostart_off"))
+                    except FileNotFoundError:
+                        pass
+                winreg.CloseKey(key)
         except Exception as e:
             self._log(f"Autostart Error: {e}")
 

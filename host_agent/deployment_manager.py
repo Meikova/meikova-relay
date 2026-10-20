@@ -74,12 +74,15 @@ def get_user_install_dir() -> Path:
 
 
 def get_admin_install_dir() -> Path:
-    """Returns %ProgramData%\\TitanRemoteHost (machine-wide permanent directory)."""
-    prog_data = os.environ.get("ProgramData")
-    if prog_data:
-        target = Path(prog_data) / "TitanRemoteHost"
+    """Returns /opt/titan-remote-host or %ProgramData%\\TitanRemoteHost."""
+    if sys.platform != "win32":
+        target = Path("/opt/titan-remote-host")
     else:
-        target = Path("C:/ProgramData/TitanRemoteHost")
+        prog_data = os.environ.get("ProgramData")
+        if prog_data:
+            target = Path(prog_data) / "TitanRemoteHost"
+        else:
+            target = Path("C:/ProgramData/TitanRemoteHost")
     try:
         target.mkdir(parents=True, exist_ok=True)
     except Exception:
@@ -93,8 +96,14 @@ def get_permanent_dir() -> Path:
 
 
 def get_permanent_exe_path() -> Path:
-    """Returns canonical path for TitanRemoteHost.exe in user directory."""
-    return get_user_install_dir() / "TitanRemoteHost.exe"
+    """Returns canonical path for executable in user directory."""
+    if sys.platform == "win32":
+        name = "TitanRemoteHost.exe"
+    elif sys.platform == "darwin":
+        name = "TitanRemoteHost"
+    else:
+        name = "titan-remote-host"
+    return get_user_install_dir() / name
 
 
 def is_running_from_permanent_dir() -> bool:

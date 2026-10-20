@@ -23,16 +23,21 @@ class TestDeploymentManager(unittest.TestCase):
         p = get_user_install_dir()
         self.assertIsInstance(p, Path)
         self.assertTrue(p.exists())
-        self.assertIn("TitanRemoteHost", str(p))
+        self.assertTrue("titanremotehost" in str(p).lower() or "titan_remote_host" in str(p).lower())
 
     def test_admin_install_dir(self):
         p = get_admin_install_dir()
         self.assertIsInstance(p, Path)
-        self.assertIn("TitanRemoteHost", str(p))
+        self.assertTrue("titanremotehost" in str(p).lower() or "titan-remote-host" in str(p).lower())
 
     def test_permanent_exe_path(self):
         exe = get_permanent_exe_path()
-        self.assertEqual(exe.name, "TitanRemoteHost.exe")
+        if sys.platform == "win32":
+            self.assertEqual(exe.name, "TitanRemoteHost.exe")
+        elif sys.platform == "darwin":
+            self.assertEqual(exe.name, "TitanRemoteHost")
+        else:
+            self.assertEqual(exe.name, "titan-remote-host")
         self.assertEqual(exe.parent, get_user_install_dir())
 
     def test_deployment_status_dictionary(self):
