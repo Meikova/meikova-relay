@@ -209,12 +209,51 @@ class DesktopBridge:
     def notify(self, title: str, message: str):
         logger.info("[NOTIFICATION] %s: %s", title, message)
 
+    def minimize_to_tray(self):
+        if self._window:
+            try:
+                self._window.hide()
+            except Exception as e:
+                logger.debug("Failed to hide window: %s", e)
+
 
 class ClientTray:
     """Native Tray Manager for Titan Remote Client."""
     def __init__(self, window):
         self.window = window
         self._tray = None
+        self.is_quitting = False
+
+    def show_window(self):
+        if not self.window:
+            return
+        try:
+            self.window.show()
+            self.window.restore()
+        except Exception as e:
+            logger.debug("Window show/restore error: %s", e)
+
+        if sys.platform == "win32":
+            try:
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
+                if hwnd:
+                    ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                    ctypes.windll.user32.ShowWindow(hwnd, 5)  # SW_SHOW
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+            except Exception:
+                pass
+        elif sys.platform == "darwin":
+            try:
+                import subprocess
+                subprocess.run(["osascript", "-e", 'tell application "Titan Remote Client" to activate'], check=False)
+            except Exception:
+                pass
+        elif sys.platform.startswith("linux"):
+            try:
+                import subprocess
+                subprocess.run(["wmctrl", "-a", "Titan Remote — Avionics Console"], check=False)
+            except Exception:
+                pass
 
     def start(self):
         try:
@@ -222,19 +261,25 @@ class ClientTray:
             from host_agent.make_icon import render_unified_icon
             icon_img = render_unified_icon(64)
 
-            def on_show(icon, item):
-                if self.window:
-                    self.window.restore()
-                    self.window.show()
+            def on_show(icon=None, item=None):
+                self.show_window()
 
-            def on_fullscreen(icon, item):
+            def on_fullscreen(icon=None, item=None):
                 if self.window:
                     self.window.toggle_fullscreen()
 
-            def on_quit(icon, item):
-                icon.stop()
+            def on_quit(icon=None, item=None):
+                self.is_quitting = True
+                if self._tray:
+                    try:
+                        self._tray.stop()
+                    except Exception:
+                        pass
                 if self.window:
-                    self.window.destroy()
+                    try:
+                        self.window.destroy()
+                    except Exception:
+                        pass
                 os._exit(0)
 
             menu = pystray.Menu(
@@ -305,11 +350,15 @@ def main(argv=None):
         except Exception:
             pass
 
-    # Find icon
-    ico_path = _root_dir / "client_desktop" / "icon.ico"
-    if not ico_path.exists():
-        ico_path = _root_dir / "host_agent" / "icon.ico"
-    icon_str = str(ico_path) if ico_path.exists() else None
+    # Find icon cross-platform (ico for Windows, png for macOS/Linux)
+    if sys.platform == "win32":
+        ico_path = _root_dir / "client_desktop" / "icon.ico"
+        if not ico_path.exists():
+            ico_path = _root_dir / "host_agent" / "icon.ico"
+        icon_str = str(ico_path) if ico_path.exists() else None
+    else:
+        png_path = _root_dir / "host_agent" / "icon.png"
+        icon_str = str(png_path) if png_path.exists() else None
 
     # Initialize webview window with ambient dark styling
     window = webview.create_window(
@@ -341,6 +390,17 @@ def main(argv=None):
             threading.Thread(target=_apply_theme, daemon=True).start()
 
     window.events.loaded += on_loaded
+
+    def on_closing():
+        if tray.is_quitting:
+            return True
+        try:
+            window.hide()
+        except Exception as e:
+            logger.debug("Failed to hide window on close: %s", e)
+        return False
+
+    window.events.closing += on_closing
 
     # Start Edge WebView2
     try:

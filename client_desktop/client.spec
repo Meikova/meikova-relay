@@ -70,5 +70,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(ROOT / "host_agent" / "icon.ico"),
+    icon=str(ROOT / "host_agent" / ("icon.ico" if sys.platform == "win32" else "icon.png")),
 )
