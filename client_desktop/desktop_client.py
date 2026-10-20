@@ -22,6 +22,13 @@ import time
 import urllib.request
 from pathlib import Path
 
+# Bootstrap sys.path for local module imports
+_current_dir = Path(__file__).resolve().parent
+_root_dir = _current_dir.parent
+for _p in [str(_root_dir), str(_current_dir)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -32,7 +39,10 @@ logger = logging.getLogger("titan.desktop_client")
 import webview
 
 # Local cache DB
-from client_desktop.local_db import ClientLocalDB, get_client_data_dir
+try:
+    from client_desktop.local_db import ClientLocalDB, get_client_data_dir
+except ImportError:
+    from local_db import ClientLocalDB, get_client_data_dir
 
 # Enable file logging in local data dir
 try:

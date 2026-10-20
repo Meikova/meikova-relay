@@ -3,13 +3,15 @@
   "short_name": "Titan Remote",
   "description": "High-performance ambient instrument remote desktop platform",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#090D16",
-  "theme_color": "#22C55E",
+  "orientation": "any",
+  "background_color": "#070D17",
+  "theme_color": "#070D17",
   "icons": [
     {
       "src": "/favicon.svg",
-      "sizes": "any",
+      "sizes": "32x32 48x48 72x72 96x96 128x128 144x144 192x192 256x256 512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
