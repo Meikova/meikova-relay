@@ -1842,7 +1842,13 @@ def launch_webview_app(autostart: bool = False):
             png_path = find_resource("icon.png")
             if png_path and png_path.is_file():
                 try:
-                    return Image.open(str(png_path)).resize((64, 64), Image.Resampling.LANCZOS)
+                    base = Image.open(str(png_path)).convert("RGBA").resize((64, 64), Image.Resampling.LANCZOS)
+                    mask = Image.new("L", (64, 64), 0)
+                    ImageDraw.Draw(mask).ellipse((0, 0, 63, 63), fill=255)
+                    out = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+                    out.paste(base, (0, 0), mask=mask)
+                    ImageDraw.Draw(out).ellipse((1, 1, 62, 62), outline="#22C55E", width=3)
+                    return out
                 except Exception:
                     pass
             img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
@@ -1882,7 +1888,10 @@ def launch_webview_app(autostart: bool = False):
             pystray.MenuItem(api.t("tray_exit"), tray_exit),
         )
         api._tray_icon = pystray.Icon("TitanRemoteHost", get_tray_img(), "Titan Remote Host", tray_menu)
-        threading.Thread(target=api._tray_icon.run, daemon=True).start()
+        try:
+            api._tray_icon.run_detached()
+        except Exception:
+            threading.Thread(target=api._tray_icon.run, daemon=True).start()
 
     profile_dir = Path.home() / ".titan_remote_webview"
     profile_dir.mkdir(parents=True, exist_ok=True)
