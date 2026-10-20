@@ -616,7 +616,7 @@
   }
 
   // --- GOOGLE SIGN-IN (GIS) ---
-  const GOOGLE_CLIENT_ID = '252846031545-sjt92eekdgq26vvlehmvji4o9sqs0er8.apps.googleusercontent.com';
+  const GOOGLE_CLIENT_ID = '515668723869-qorjmkoo84h2ac3h2u0vc9arpqqsk083.apps.googleusercontent.com';
 
   function initGoogleSignIn() {
     if (typeof google === 'undefined' || !google.accounts) {
