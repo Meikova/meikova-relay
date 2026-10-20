@@ -20,20 +20,20 @@ class ClipboardManager:
         self._thread: Optional[threading.Thread] = None
 
     def get_clipboard_text(self) -> Optional[str]:
-        if HAS_WIN32:
-            try:
-                win32clipboard.OpenClipboard()
-                if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_UNICODETEXT):
-                    return win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
-                return None
-            except Exception:
-                return None
-            finally:
-                try: win32clipboard.CloseClipboard()
-                except Exception: pass
-
-        # Native Windows ctypes fallback (Zero external dependencies)
         if sys.platform == "win32":
+            if HAS_WIN32:
+                try:
+                    win32clipboard.OpenClipboard()
+                    if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_UNICODETEXT):
+                        return win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
+                    return None
+                except Exception:
+                    return None
+                finally:
+                    try: win32clipboard.CloseClipboard()
+                    except Exception: pass
+
+            # Native Windows ctypes fallback (Zero external dependencies)
             try:
                 user32 = ctypes.windll.user32
                 kernel32 = ctypes.windll.kernel32
@@ -74,21 +74,21 @@ class ClipboardManager:
             return None
 
     def set_clipboard_text(self, text: str) -> bool:
-        if HAS_WIN32:
-            try:
-                win32clipboard.OpenClipboard()
-                win32clipboard.EmptyClipboard()
-                win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, text)
-                self.last_text = text
-                return True
-            except Exception:
-                return False
-            finally:
-                try: win32clipboard.CloseClipboard()
-                except Exception: pass
-
-        # Native Windows ctypes fallback
         if sys.platform == "win32":
+            if HAS_WIN32:
+                try:
+                    win32clipboard.OpenClipboard()
+                    win32clipboard.EmptyClipboard()
+                    win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, text)
+                    self.last_text = text
+                    return True
+                except Exception:
+                    return False
+                finally:
+                    try: win32clipboard.CloseClipboard()
+                    except Exception: pass
+
+            # Native Windows ctypes fallback
             try:
                 user32 = ctypes.windll.user32
                 kernel32 = ctypes.windll.kernel32

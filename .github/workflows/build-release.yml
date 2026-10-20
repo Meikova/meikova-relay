@@ -35,6 +35,16 @@ jobs:
           pip install -r host_agent/requirements.txt
           pip install pyinstaller
 
+      - name: Set up Node.js for Relay Tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Relay Server Dependencies
+        run: |
+          cd relay-server
+          npm install
+
       - name: Run Test Suite
         run: |
           python -m unittest discover tests
@@ -91,6 +101,16 @@ jobs:
           pip install -r host_agent/requirements.txt
           pip install pyinstaller
 
+      - name: Set up Node.js for Relay Tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Relay Server Dependencies
+        run: |
+          cd relay-server
+          npm install
+
       - name: Run Test Suite
         run: |
           python -m unittest discover tests
@@ -138,6 +158,16 @@ jobs:
           pip install -r host_agent/requirements.txt
           pip install pyinstaller
 
+      - name: Set up Node.js for Relay Tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Relay Server Dependencies
+        run: |
+          cd relay-server
+          npm install
+
       - name: Run Test Suite
         run: |
           python -m unittest discover tests
@@ -156,6 +186,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TitanRemoteHost-macOS
+          if-no-files-found: ignore
           path: |
             dist/TitanRemoteHost
             dist/titan-remote-host-macos.tar.gz

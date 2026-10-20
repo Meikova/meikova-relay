@@ -15,7 +15,10 @@ import os
 import sys
 import shutil
 import subprocess
-import winreg
+try:
+    import winreg
+except ImportError:
+    winreg = None
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 
@@ -162,9 +165,10 @@ def install_user_tier(source_config_path: Optional[Path] = None) -> Tuple[bool, 
             cmd = f'"{pyw_exe}" "{script_path}" --autostart'
 
         # 1. Register in HKCU\Run (100% works without admin)
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
-        winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
-        winreg.CloseKey(key)
+        if winreg:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
+            winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
+            winreg.CloseKey(key)
 
         # 2. Register in Task Scheduler (tries /rl highest if possible, otherwise standard)
         setup_task_scheduler_autostart(enable=True)
@@ -180,14 +184,13 @@ def uninstall_user_tier() -> Tuple[bool, str]:
         return False, "Chỉ hỗ trợ hệ điều hành Windows"
     try:
         # Delete from HKCU\Run
-        try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
-            winreg.DeleteValue(key, APP_REG_NAME)
-            winreg.CloseKey(key)
-        except FileNotFoundError:
-            pass
-        except Exception:
-            pass
+        if winreg:
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
+                winreg.DeleteValue(key, APP_REG_NAME)
+                winreg.CloseKey(key)
+            except Exception:
+                pass
 
         # Delete from Task Scheduler
         setup_task_scheduler_autostart(enable=False)
@@ -318,7 +321,7 @@ def is_task_scheduler_autostart_enabled() -> bool:
 
 
 def is_hkcu_run_enabled() -> bool:
-    if sys.platform != "win32":
+    if sys.platform != "win32" or not winreg:
         return False
     try:
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_READ)

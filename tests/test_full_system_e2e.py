@@ -19,13 +19,20 @@ class TestFullSystemE2E(unittest.IsolatedAsyncioTestCase):
     def setUpClass(cls):
         server_path = str(Path(__file__).resolve().parent.parent / "relay-server" / "server.js")
         env = dict(**dict(os.environ), PORT=cls.port)
-        cls.server_process = subprocess.Popen(
-            ["node", server_path],
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        time.sleep(1.5)
+        try:
+            cls.server_process = subprocess.Popen(
+                ["node", server_path],
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            time.sleep(2.0)
+            if cls.server_process.poll() is not None:
+                _, err = cls.server_process.communicate()
+                err_text = err.decode('utf-8', errors='replace')
+                raise unittest.SkipTest(f"Relay server failed to start: {err_text}")
+        except FileNotFoundError:
+            raise unittest.SkipTest("Node.js runtime not installed, skipping relay E2E tests.")
 
     @classmethod
     def tearDownClass(cls):

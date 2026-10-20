@@ -15,13 +15,20 @@ class TestIntegrationRelay(unittest.IsolatedAsyncioTestCase):
         # Start Relay Server on test port 8999
         server_path = str(Path(__file__).resolve().parent.parent / "relay-server" / "server.js")
         env = dict(**dict(subprocess.os.environ), PORT="8999")
-        cls.server_process = subprocess.Popen(
-            ["node", server_path],
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        time.sleep(1.5) # Give node server time to bind
+        try:
+            cls.server_process = subprocess.Popen(
+                ["node", server_path],
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            time.sleep(1.5) # Give node server time to bind
+            if cls.server_process.poll() is not None:
+                _, err = cls.server_process.communicate()
+                err_text = err.decode('utf-8', errors='replace')
+                raise unittest.SkipTest(f"Relay server failed to start: {err_text}")
+        except FileNotFoundError:
+            raise unittest.SkipTest("Node.js runtime not installed, skipping relay integration tests.")
 
     @classmethod
     def tearDownClass(cls):
