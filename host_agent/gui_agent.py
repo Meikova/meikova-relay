@@ -32,6 +32,50 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+def ensure_interactive_desktop() -> bool:
+    """Attaches process and thread to winsta0\\default so windows & tray icon appear on the active user desktop."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            u = ctypes.windll.user32
+            hw = u.OpenWindowStationW('winsta0', False, 0x000F037F)
+            if hw:
+                u.SetProcessWindowStation(hw)
+            hd = u.OpenDesktopW('default', 0, False, 0x000F01FF)
+            if hd:
+                u.SetThreadDesktop(hd)
+            return True
+        except Exception:
+            pass
+    return False
+
+def promote_tray_icon():
+    """Promotes TitanRemoteHost tray icon to be permanently pinned to the Windows taskbar."""
+    if sys.platform == "win32" and winreg:
+        try:
+            root_key = winreg.HKEY_CURRENT_USER
+            sub_key = r"Control Panel\NotifyIconSettings"
+            with winreg.OpenKey(root_key, sub_key) as k:
+                i = 0
+                while True:
+                    try:
+                        child = winreg.EnumKey(k, i)
+                        i += 1
+                        with winreg.OpenKey(k, child, 0, winreg.KEY_READ | winreg.KEY_WRITE) as ck:
+                            try:
+                                exe_path, _ = winreg.QueryValueEx(ck, "ExecutablePath")
+                                if "titanremotehost" in exe_path.lower():
+                                    winreg.SetValueEx(ck, "IsPromoted", 0, winreg.REG_DWORD, 1)
+                            except Exception:
+                                pass
+                    except OSError:
+                        break
+        except Exception:
+            pass
+
+ensure_interactive_desktop()
+promote_tray_icon()
+
 # Ensure package is resolvable
 current_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(current_dir))
@@ -75,8 +119,20 @@ try:
     import pystray
     from PIL import Image, ImageDraw
     HAS_TRAY = True
-except Exception:
+    try:
+        with open(Path.home() / ".titan_tray.log", "w", encoding="utf-8") as f:
+            f.write(f"HAS_TRAY SUCCESS: {pystray}\n")
+    except Exception:
+        pass
+except Exception as e:
     HAS_TRAY = False
+    try:
+        with open(Path.home() / ".titan_tray.log", "w", encoding="utf-8") as f:
+            import traceback
+            f.write(f"HAS_TRAY FAILED: {e}\n")
+            traceback.print_exc(file=f)
+    except Exception:
+        pass
 
 # Optional Microsoft Edge WebView2 GUI Support via pywebview
 try:
@@ -1269,25 +1325,21 @@ class TitanHostGUI:
             return
 
         def get_tray_image():
-            base_dirs = [
-                current_dir,
-                Path(__file__).resolve().parent,
-                Path(getattr(sys, "_MEIPASS", current_dir)),
-                Path(getattr(sys, "_MEIPASS", current_dir)) / "host_agent"
-            ]
-            for d in base_dirs:
-                p = d / "icon.png"
-                if p.exists():
-                    try:
-                        return Image.open(str(p)).resize((64, 64), Image.Resampling.LANCZOS)
-                    except Exception:
-                        pass
-            img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(img)
-            draw.ellipse((4, 4, 60, 60), fill=COLORS["bg_main"], outline=COLORS["accent_green"], width=4)
-            draw.rectangle((26, 16, 38, 48), fill="#FFFFFF")
-            draw.rectangle((18, 16, 46, 25), fill="#FFFFFF")
-            return img
+            try:
+                size = 64
+                img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(img)
+                draw.ellipse((2, 2, 61, 61), fill='#10B981', outline='#047857', width=2)
+                draw.ellipse((7, 7, 56, 56), fill='#070D17')
+                draw.ellipse((14, 22, 34, 42), outline='#22C55E', width=4)
+                draw.ellipse((30, 22, 50, 42), outline='#22C55E', width=4)
+                draw.ellipse((28, 28, 36, 36), fill='#FFFFFF')
+                return img
+            except Exception:
+                img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(img)
+                draw.ellipse((4, 4, 60, 60), fill="#10B981", outline="#047857", width=4)
+                return img
 
         menu = pystray.Menu(
             pystray.MenuItem(self.t("tray_open"), self._restore_from_tray, default=True),
@@ -1295,7 +1347,20 @@ class TitanHostGUI:
             pystray.MenuItem(self.t("tray_exit"), self._exit_application)
         )
         self.tray_icon = pystray.Icon("TitanRemoteHost", get_tray_image(), "Titan Remote Host", menu)
-        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+
+        def setup_tray(icon):
+            ensure_interactive_desktop()
+            promote_tray_icon()
+            icon.visible = True
+
+        def tray_worker():
+            ensure_interactive_desktop()
+            try:
+                self.tray_icon.run(setup=setup_tray)
+            except Exception:
+                pass
+
+        threading.Thread(target=tray_worker, daemon=True).start()
 
     def _minimize_to_tray(self):
         self.root.withdraw()
@@ -1873,22 +1938,25 @@ def launch_webview_app(autostart: bool = False):
 
     if HAS_TRAY:
         def get_tray_img():
-            png_path = find_resource("icon.png")
-            if png_path and png_path.is_file():
-                try:
-                    base = Image.open(str(png_path)).convert("RGBA").resize((64, 64), Image.Resampling.LANCZOS)
-                    mask = Image.new("L", (64, 64), 0)
-                    ImageDraw.Draw(mask).ellipse((0, 0, 63, 63), fill=255)
-                    out = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-                    out.paste(base, (0, 0), mask=mask)
-                    ImageDraw.Draw(out).ellipse((1, 1, 62, 62), outline="#22C55E", width=3)
-                    return out
-                except Exception:
-                    pass
-            img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(img)
-            draw.ellipse((4, 4, 60, 60), fill="#070D17", outline="#22C55E", width=4)
-            return img
+            try:
+                size = 64
+                img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(img)
+                # Vibrant Emerald Green Circle (stands out on both light & dark taskbars)
+                draw.ellipse((2, 2, 61, 61), fill='#10B981', outline='#047857', width=2)
+                # Inner dark cockpit
+                draw.ellipse((7, 7, 56, 56), fill='#070D17')
+                # Bold neon green infinity loops
+                draw.ellipse((14, 22, 34, 42), outline='#22C55E', width=4)
+                draw.ellipse((30, 22, 50, 42), outline='#22C55E', width=4)
+                # Center white phosphor core
+                draw.ellipse((28, 28, 36, 36), fill='#FFFFFF')
+                return img
+            except Exception:
+                img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(img)
+                draw.ellipse((4, 4, 60, 60), fill="#10B981", outline="#047857", width=4)
+                return img
 
         def tray_restore(icon=None, item=None):
             if window:
@@ -1922,10 +1990,20 @@ def launch_webview_app(autostart: bool = False):
             pystray.MenuItem(api.t("tray_exit"), tray_exit),
         )
         api._tray_icon = pystray.Icon("TitanRemoteHost", get_tray_img(), "Titan Remote Host", tray_menu)
-        try:
-            api._tray_icon.run_detached()
-        except Exception:
-            threading.Thread(target=api._tray_icon.run, daemon=True).start()
+
+        def setup_tray(icon):
+            ensure_interactive_desktop()
+            promote_tray_icon()
+            icon.visible = True
+
+        def tray_worker():
+            ensure_interactive_desktop()
+            try:
+                api._tray_icon.run(setup=setup_tray)
+            except Exception as e:
+                pass
+
+        threading.Thread(target=tray_worker, daemon=True).start()
 
     webview.start(
         debug=False,
@@ -1961,6 +2039,7 @@ def run_service_headless():
         print(f"[ERROR] Service run error: {e}")
 
 def main():
+    ensure_interactive_desktop()
     if "--service" in sys.argv:
         run_service_headless()
         return

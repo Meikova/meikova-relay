@@ -1,6 +1,20 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.18)
+### Recent Updates (Version 1.0.19)
+- **Sửa tận gốc nguyên nhân System Tray Icon không hiển thị / bị tàng hình:**
+  - **Nguyên nhân 1 (Lệch WindowStation/Desktop per-thread):** `SetThreadDesktop` trong Win32 là thuộc tính riêng của từng luồng (per-thread). Khi `pystray.Icon.run()` khởi tạo luồng nội bộ `setup_thread`, luồng này không tự kế thừa desktop handle `winsta0\default` của luồng cha, khiến hàm gọi `Shell_NotifyIconW(NIM_ADD)` bị Windows trả về mã lỗi `0x80004005 (E_FAIL)` do không tìm thấy `Shell_TrayWnd` (Taskbar).
+    - *Khắc phục:* Truyền callback `setup=setup_tray` vào `Icon.run(setup=setup_tray)`, gọi `ensure_interactive_desktop()` ngay trong luồng `setup_thread` trước khi gán `icon.visible = True`.
+  - **Nguyên nhân 2 (Icon bị chìm/tàng hình trên Windows 11 Light Theme):** Mã icon cũ vẽ 2 hình chữ nhật trắng `#FFFFFF` trên nền trong suốt, khi đặt vào menu khay hệ thống màu trắng xám (`#F2F2F2`) của Windows 11 sẽ bị hòa tan thành 2 đường viền mờ tàng hình (chính là ô hàng 2 cột 1 trong ảnh chụp).
+    - *Khắc phục:* Thiết kế lại huy hiệu khay hệ thống `create_tray_badge` với viền xanh ngọc bích nổi bật (`#10B981` / `#047857`), bên trong là buồng điều khiển tối `#070D17` cùng biểu tượng vô cực neon `#22C55E` và điểm tâm trắng `#FFFFFF`, đảm bảo tương phản tuyệt đối trên cả theme Sáng và Tối của Windows 11.
+  - **Nguyên nhân 3 (Tự động ghim icon lên thanh Taskbar - `IsPromoted = 1`):** Tự động cập nhật khóa Registry `HKCU\Control Panel\NotifyIconSettings` với giá trị `IsPromoted = 1`, đưa biểu tượng Titan Remote ra ngoài thanh taskbar chính (cạnh đồng hồ/wifi/âm lượng) thay vì bị Windows mặc định giấu vào menu mũi tên `^`.
+- **Xác thực kiểm thử:**
+  - `SystemTrayIcon` window `TitanRemoteHost...SystemTrayIcon` đã xuất hiện hợp lệ trong `winsta0\default`.
+  - Khóa `IsPromoted` của toàn bộ các file thực thi Titan Remote đã được đặt thành `1`.
+  - Test suite: 69/69 tests pass (Exit Code 0).
+
+---
+
+### Previous Updates (Version 1.0.18)
 - **Ghi đè và khử trùng lặp máy trạm (Device Deduplication & Upsert):**
   - **Vấn đề:** Mỗi lần chạy `setup.bat` sinh `room_id` ngẫu nhiên mới khiến cơ sở dữ liệu ghi thêm bản ghi riêng biệt cho cùng một thiết bị (`PHAMDOANKIEM`), dẫn đến danh sách hiển thị 4-5 card trùng tên máy.
   - **Khắc phục:** 
