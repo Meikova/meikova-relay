@@ -16,8 +16,8 @@
   <meta name="theme-color" content="#22C55E">
   <meta name="color-scheme" content="dark">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.0.14">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.14">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.0.16">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.16">
 </head>
 <body>
 
@@ -25,9 +25,11 @@
   <header class="topbar">
     <div class="brand-container">
       <a class="brand-logo brand-font" href="/" aria-label="Titan Remote">
-        <svg class="brand-inf-svg" viewBox="0 0 48 24" aria-hidden="true">
-          <path class="brand-inf-path" d="M24 12 C 30 4, 42 4, 42 12 C 42 20, 30 20, 24 12 C 18 4, 6 4, 6 12 C 6 20, 18 20, 24 12 Z"/>
-          <circle class="brand-inf-dot" r="2.2" cx="24" cy="12"/>
+        <svg class="brand-inf-svg" viewBox="0 0 32 32" aria-hidden="true" style="width: 24px; height: 24px; border-radius: 5px;">
+          <rect width="32" height="32" rx="7" fill="#070D17"/>
+          <path d="M16 16 C 19.5 10.5, 27 10.5, 27 16 C 27 21.5, 19.5 21.5, 16 16 C 12.5 10.5, 5 10.5, 5 16 C 5 21.5, 12.5 21.5, 16 16 Z"
+                fill="none" stroke="#22C55E" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="23.2" cy="12.4" r="2.1" fill="#FFFFFF"/>
         </svg>
         <span>TITAN REMOTE</span>
       </a>
@@ -95,7 +97,7 @@
   <p class="readout readout--tl" id="ro-tl">
     TITAN ∞ REMOTE // <strong id="roStatus" data-i18n="ro.landing">TRANG CHỦ // GIỚI THIỆU</strong>
   </p>
-  <p class="readout readout--tr" id="ro-tr">
+  <p class="readout readout--tr" id="ro-tr" style="display: none;">
     RTT: <strong id="metricPing">--</strong>ms <canvas id="sparklineCanvas" width="48" height="12" style="vertical-align:middle;display:inline-block;margin:0 4px;"></canvas> // <strong id="metricFps">--</strong> FPS // RES: <strong id="metricRes">--</strong>
   </p>
 
@@ -1800,7 +1802,8 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.14"></script>
-  <script src="/js/app.js?v=1.0.14"></script>
+  <script src="/js/i18n.js?v=1.0.17"></script>
+  <script src="/js/sync_engine.js?v=1.0.17"></script>
+  <script src="/js/app.js?v=1.0.17"></script>
 </body>
 </html>

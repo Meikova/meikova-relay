@@ -102,19 +102,20 @@ button:active {
   height: var(--topbar-h);
   background: var(--ink-1);
   border-bottom: 1px solid var(--line);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   padding: 0 var(--space-5);
   position: relative;
   z-index: 100;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  box-sizing: border-box;
 }
 
 .brand-container {
-  grid-column: 1;
-  justify-self: start;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -155,9 +156,9 @@ button:active {
 }
 
 #mainNav {
-  grid-column: 2;
-  justify-self: center;
+  flex: 0 1 auto;
   margin: 0 auto;
+  min-width: 0;
 }
 
 #mainNav button {
@@ -166,11 +167,10 @@ button:active {
 }
 
 .topbar-right {
-  grid-column: 3;
-  justify-self: end;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -298,7 +298,7 @@ button:active {
   color: #ffffff;
 }
 
-@media (max-width: 1480px) {
+@media (max-width: 1440px) {
   .topbar {
     padding: 0 var(--space-4);
   }
@@ -308,7 +308,7 @@ button:active {
     font-size: 0.8rem;
   }
   #userNameDisplay {
-    max-width: 100px;
+    max-width: 90px;
   }
   #btnQuickConnect span,
   #btnOpenSessionConfig span {
@@ -320,17 +320,193 @@ button:active {
   }
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1200px) and (min-width: 768px) {
   .topbar {
-    display: flex;
-    justify-content: space-between;
-    overflow-x: auto;
-    overflow-y: hidden;
+    padding: 0 var(--space-3);
   }
-  .brand-container,
-  #mainNav,
-  .topbar-right {
+  #mainNav button span {
+    display: none; /* Icon-only compact mode */
+  }
+  #mainNav button {
+    padding: 0 10px;
+    width: 38px;
+    justify-content: center;
+  }
+  #userNameDisplay {
+    max-width: 75px;
+  }
+  #btnNavLogin span {
+    display: none;
+  }
+  #btnNavLogin {
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --topbar-h: 54px;
+    --bottom-nav-h: 58px;
+  }
+
+  .topbar {
+    padding: 0 12px;
+    height: var(--topbar-h);
+  }
+
+  .brand-logo span {
+    display: none; /* Show only infinity icon on phones */
+  }
+
+  #mainNav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--bottom-nav-h);
+    margin: 0;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+    background: rgba(7, 13, 23, 0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: none;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.7);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  #mainNav::-webkit-scrollbar {
+    display: none;
+  }
+
+  #mainNav button {
+    flex: 1 1 0;
+    min-width: 44px;
+    max-width: 60px;
+    height: 48px;
+    padding: 4px 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 8.5px;
+    font-weight: 500;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  #mainNav button svg {
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
+  }
+
+  #mainNav button span {
+    display: block !important;
+    font-size: 8.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    line-height: 1.1;
+  }
+
+  #mainNav button.on {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  #mainNav .seg__ind {
+    display: none;
+  }
+
+  .readout--tl,
+  .readout--tr {
+    display: none;
+  }
+
+  .stage {
+    height: calc(100dvh - var(--topbar-h) - var(--bottom-nav-h) - env(safe-area-inset-bottom, 0px));
+    padding-bottom: 8px;
+  }
+
+  .dashboard-container {
+    padding: 16px 14px 40px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .dashboard-header > div:last-child {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .dashboard-header > div:last-child button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .device-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .auth-card,
+  .instrument-card,
+  .modal-card {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 10px auto !important;
+    padding: 18px 14px !important;
+    border-radius: 12px !important;
+    box-sizing: border-box;
+  }
+
+  .landing-hero-arena {
+    padding: 20px 14px 28px;
+    min-height: auto;
+  }
+
+  .landing-action-deck {
+    justify-content: center;
+  }
+
+  .cicd-banner-strip {
+    padding: 16px 14px;
+  }
+
+  .landing-footer {
+    padding: 20px 14px 70px;
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .explorer-topbar {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  .terminal-container {
+    padding: 10px;
+  }
+
+  .tasks-container {
+    padding: 12px;
   }
 }
 

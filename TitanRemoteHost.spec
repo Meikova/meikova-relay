@@ -15,7 +15,7 @@ a = Analysis(
         ('D:\\JOB\\DEV\\titan-remote\\host_agent\\tray_icon.png', 'host_agent'),
         ('D:\\JOB\\DEV\\titan-remote\\host_agent\\tray_icon.png', '.')
     ],
-    hiddenimports=['pystray', 'pystray._win32', 'pystray._util.win32', 'six', 'six.moves', 'six.moves.queue', 'PIL', 'PIL.Image', 'PIL.ImageDraw', 'webview', 'clr'],
+    hiddenimports=['host_agent', 'host_agent.tray_menu', 'pystray', 'pystray._win32', 'pystray._util.win32', 'six', 'six.moves', 'six.moves.queue', 'PIL', 'PIL.Image', 'PIL.ImageDraw', 'webview', 'clr'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

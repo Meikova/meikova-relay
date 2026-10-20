@@ -518,5 +518,29 @@
 - CSS Braces Balance: 419 open / 419 close (Depth 0).
 - Relay Server: Active on port 8080 (endpoints `/api/health`, `/api/download/install-linux.sh`, `/api/download/install-macos.sh` verified with 200 OK).
 
+    32. **Unified Cluster Design Parity, Offline-First Sync Architecture & Native Desktop Remote Client:**
+    - **Đồng nhất Hệ Thống Thiết Kế Cụm 3 Phần Mềm (MashLoop, EveryThingDownloader, Titan Remote):**
+      - Thống nhất bảng màu Ambient Dark: `#070D17` (ink-0), `#0F172A` (ink-1), `#1E293B` (ink-2), neon emerald `#22C55E`, cyan `#38BDF8`, white `#FFFFFF`.
+      - Bộ ba Typography chuẩn quốc tế & tiếng Việt không vỡ dấu: `Unbounded` (Brand/Display), `Be Vietnam Pro` (UI/Buttons/Tabs), `JetBrains Mono` (Telemetry/Data).
+      - Triết lý "Less Text, More Signal", 100% Inline Vector SVG không dùng icon font hay emoji.
+    - **Tối ưu Responsive 100% Đa Thiết Bị:**
+      - **Laptop & Tablet (1024px – 1440px):** Chuyển `.topbar` sang flexbox chống đè các nút điều hướng `#mainNav` và cụm điều khiển `.topbar-right`. Truncate email người dùng, tự động chuyển `#mainNav` sang Icon-Only mode trên màn hình hẹp kèm tooltip.
+      - **Điện thoại di động (< 768px):** Tự động chuyển `#mainNav` thành **Mobile Bottom Navigation Bar** cố định sát đáy màn hình (`position: fixed; bottom: 0`), hỗ trợ vùng an toàn iOS Home indicator (`env(safe-area-inset-bottom)`), 7 tab xúc giác trực quan (Trang chủ, Máy trạm, Màn hình, Tệp, Terminal, Tiến trình, Nhật ký). Diện tích chạm >= 44x44px.
+      - Tối ưu hóa `.dashboard-container`, `.device-grid`, các modal popup và stage hiển thị 100% fluid từ 360px trở lên.
+    - **Kiến trúc Đồng bộ Ngoại tuyến (Offline-First Sync Engine):**
+      - **Dữ liệu nhẹ đồng bộ Cloud:** Preferences (ngôn ngữ, theme, fps, fit-mode), danh sách thiết bị yêu thích (`device_bookmarks`), lịch sử kết nối nhanh (`quick_history`), tên gợi nhớ máy trạm (`custom_labels`). Bảng SQLite `user_sync_store` tại Relay Server.
+      - **Dữ liệu nặng lưu trữ Local:** Screen buffer, Audio PCM chunks, file transfers, private keys, raw clipboard buffers được giữ an toàn tại local cache.
+      - **Hàng đợi Local Sync Queue:** Khi mất kết nối hoặc server unreachable, mọi thao tác người dùng lưu tức thời vào Local Storage / SQLite. Ngay khi có mạng trở lại, sync engine tự động xả hàng đợi qua `/api/sync/push` và kéo cập nhật mới qua `/api/sync/pull` (Last-Write-Wins timestamps).
+      - Thư viện `web-client/js/sync_engine.js` dùng chung cho Web Client và Desktop Client.
+    - **Ứng dụng Desktop Remote Client độc lập (`TitanRemoteClient`):**
+      - Xây dựng bằng `pywebview` (Microsoft Edge WebView2) tương thích kiến trúc của `MashLoop/loopbox/desktop.py`.
+      - Cửa sổ native 1366x840, Per-Monitor High-DPI Awareness, Win32 DWM Immersive Dark Titlebar (`#070D17`).
+      - Cơ chế **Global Hotkey Capture** khi toàn màn hình: bắt và chuyển tiếp các phím đặc biệt (Windows key, Alt+Tab, Ctrl+Alt+Del) sang máy trạm mà không bị trình duyệt web chặn.
+      - Cơ sở dữ liệu SQLite cục bộ `client_desktop/local_db.py` tại `%LOCALAPPDATA%\TitanRemoteClient\client_cache.db`.
+      - Tích hợp khay hệ thống Dark Mode Systray, script khởi chạy `run-desktop-client.bat` và file cấu hình đóng gói PyInstaller `client_desktop/client.spec`.
+    - **Kết quả Kiểm Thử:**
+      - Toàn bộ 80/80 unit tests chạy thành công (`Ran 80 tests in 28.860s - OK`, Exit Code 0).
+
+
 
 

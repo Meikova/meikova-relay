@@ -49,32 +49,78 @@ def ensure_interactive_desktop() -> bool:
             pass
     return False
 
-def promote_tray_icon():
-    """Promotes TitanRemoteHost tray icon to be permanently pinned to the Windows taskbar."""
-    if sys.platform == "win32" and winreg:
+def force_window_foreground(window, cached_hwnd: Optional[int] = None):
+    """Restores, unhides, and raises GUI window to foreground cross-platform."""
+    if not window:
+        return
+
+    # 1. Native pywebview show and restore
+    try:
+        window.show()
+    except Exception:
+        pass
+    try:
+        window.restore()
+    except Exception:
+        pass
+
+    # 2. OS-specific foreground activation
+    if sys.platform == "win32":
         try:
-            root_key = winreg.HKEY_CURRENT_USER
-            sub_key = r"Control Panel\NotifyIconSettings"
-            with winreg.OpenKey(root_key, sub_key) as k:
-                i = 0
-                while True:
-                    try:
-                        child = winreg.EnumKey(k, i)
-                        i += 1
-                        with winreg.OpenKey(k, child, 0, winreg.KEY_READ | winreg.KEY_WRITE) as ck:
-                            try:
-                                exe_path, _ = winreg.QueryValueEx(ck, "ExecutablePath")
-                                if "titanremotehost" in exe_path.lower():
-                                    winreg.SetValueEx(ck, "IsPromoted", 0, winreg.REG_DWORD, 1)
-                            except Exception:
-                                pass
-                    except OSError:
-                        break
+            import ctypes
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+
+            hwnd = cached_hwnd
+            if not hwnd and hasattr(window, "native") and window.native:
+                try:
+                    if hasattr(window.native, "Handle"):
+                        h_val = window.native.Handle
+                        hwnd = int(h_val.ToInt64()) if hasattr(h_val, "ToInt64") else int(str(h_val))
+                except Exception:
+                    pass
+
+            if not hwnd:
+                hwnd = user32.FindWindowW(None, "Titan Remote Host")
+
+            if hwnd:
+                SW_RESTORE = 9
+                SW_SHOW = 5
+                user32.ShowWindow(hwnd, SW_RESTORE)
+                user32.ShowWindow(hwnd, SW_SHOW)
+
+                # AttachThreadInput trick to steal foreground lock from current foreground app/taskbar
+                fore_hwnd = user32.GetForegroundWindow()
+                fore_thread = user32.GetWindowThreadProcessId(fore_hwnd, None)
+                app_thread = kernel32.GetCurrentThreadId()
+
+                if fore_thread and fore_thread != app_thread:
+                    user32.AttachThreadInput(app_thread, fore_thread, True)
+                    user32.BringWindowToTop(hwnd)
+                    user32.SetForegroundWindow(hwnd)
+                    user32.AttachThreadInput(app_thread, fore_thread, False)
+                else:
+                    user32.BringWindowToTop(hwnd)
+                    user32.SetForegroundWindow(hwnd)
+
+                # HWND_TOP (0), SWP_NOSIZE (1) | SWP_NOMOVE (2) | SWP_SHOWWINDOW (0x40)
+                user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040)
+        except Exception:
+            pass
+    elif sys.platform == "darwin":
+        try:
+            import subprocess
+            subprocess.run(["osascript", "-e", 'tell application "Titan Remote Host" to activate'], check=False)
+        except Exception:
+            pass
+    elif sys.platform.startswith("linux"):
+        try:
+            import subprocess
+            subprocess.run(["wmctrl", "-a", "Titan Remote Host"], check=False)
         except Exception:
             pass
 
 ensure_interactive_desktop()
-promote_tray_icon()
 
 # Ensure package is resolvable
 current_dir = Path(__file__).resolve().parent
@@ -133,6 +179,14 @@ except Exception as e:
             traceback.print_exc(file=f)
     except Exception:
         pass
+
+try:
+    from host_agent.tray_menu import build_tray_menu
+except ModuleNotFoundError:
+    try:
+        from tray_menu import build_tray_menu
+    except Exception:
+        build_tray_menu = None
 
 # Optional Microsoft Edge WebView2 GUI Support via pywebview
 try:
@@ -1396,11 +1450,14 @@ class TitanHostGUI:
         if not HAS_TRAY:
             return
 
-        menu = pystray.Menu(
-            pystray.MenuItem(self.t("tray_open"), self._restore_from_tray, default=True),
-            pystray.MenuItem(self.t("tray_copy"), self._copy_share_info),
-            pystray.MenuItem(self.t("tray_exit"), self._exit_application)
-        )
+        if build_tray_menu:
+            menu = build_tray_menu(self, self._restore_from_tray, self._exit_application)
+        else:
+            menu = pystray.Menu(
+                pystray.MenuItem(self.t("tray_open"), self._restore_from_tray, default=True),
+                pystray.MenuItem(self.t("tray_copy"), self._copy_share_info),
+                pystray.MenuItem(self.t("tray_exit"), self._exit_application)
+            )
         self.tray_icon = pystray.Icon("TitanRemoteHost", get_tray_icon_image(), "Titan Remote Host", menu)
 
         show_tray = self.config.get("show_tray_icon", True)
@@ -1411,7 +1468,6 @@ class TitanHostGUI:
 
         def setup_tray(icon):
             ensure_interactive_desktop()
-            promote_tray_icon()
             icon.visible = bool(show_tray)
 
         def tray_worker():
@@ -1431,9 +1487,34 @@ class TitanHostGUI:
         self.root.after(0, self._show_window)
 
     def _show_window(self):
-        self.root.deiconify()
-        self.root.lift()
-        self.root.focus_force()
+        try:
+            self.root.deiconify()
+            self.root.lift()
+            self.root.focus_force()
+        except Exception:
+            pass
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                hwnd = self.root.winfo_id()
+                parent = ctypes.windll.user32.GetParent(hwnd)
+                target = parent if parent else hwnd
+                ctypes.windll.user32.ShowWindow(target, 9)
+                ctypes.windll.user32.SetForegroundWindow(target)
+            except Exception:
+                pass
+        elif sys.platform == "darwin":
+            try:
+                import subprocess
+                subprocess.run(["osascript", "-e", 'tell application "Titan Remote Host" to activate'], check=False)
+            except Exception:
+                pass
+        elif sys.platform.startswith("linux"):
+            try:
+                import subprocess
+                subprocess.run(["wmctrl", "-a", "Titan Remote Host"], check=False)
+            except Exception:
+                pass
 
     def _on_window_close(self):
         if HAS_TRAY:
@@ -1514,17 +1595,25 @@ def set_clipboard_text(text: str) -> bool:
     return False
 
 def is_autostart_enabled() -> bool:
-    if not winreg:
-        return False
-    try:
+    if sys.platform == "win32":
         if is_task_scheduler_autostart_enabled():
             return True
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_READ)
-        val, _ = winreg.QueryValueEx(key, APP_REG_NAME)
-        winreg.CloseKey(key)
-        return bool(val)
-    except Exception:
+        if winreg:
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_READ)
+                val, _ = winreg.QueryValueEx(key, APP_REG_NAME)
+                winreg.CloseKey(key)
+                return bool(val)
+            except Exception:
+                pass
         return False
+    elif sys.platform == "darwin":
+        plist = Path.home() / "Library/LaunchAgents/com.titanremote.host.plist"
+        return plist.exists()
+    else:
+        # Linux
+        desktop = Path.home() / ".config/autostart/titanremotehost.desktop"
+        return desktop.exists()
 
 def apply_dark_titlebar(hwnd):
     """Apply native dark theme to the Windows titlebar to match ambient dark style."""
@@ -1590,6 +1679,7 @@ class HostApi:
         self._config_path = config_path
         self._lang = config.get("lang", "vi")
         self._window = None
+        self._hwnd = None
         self._host_service: Optional[HostService] = None
         self._service_thread: Optional[threading.Thread] = None
         self._is_running = False
@@ -1599,6 +1689,26 @@ class HostApi:
 
     def set_window(self, window):
         self._window = window
+        self._resolve_hwnd()
+
+    def _resolve_hwnd(self) -> Optional[int]:
+        if self._hwnd:
+            return self._hwnd
+        if sys.platform == "win32" and self._window:
+            try:
+                if hasattr(self._window, "native") and self._window.native:
+                    if hasattr(self._window.native, "Handle"):
+                        h_val = self._window.native.Handle
+                        self._hwnd = int(h_val.ToInt64()) if hasattr(h_val, "ToInt64") else int(str(h_val))
+            except Exception:
+                pass
+            if not self._hwnd:
+                try:
+                    import ctypes
+                    self._hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote Host")
+                except Exception:
+                    pass
+        return self._hwnd
 
     def t(self, key: str, **kwargs) -> str:
         lang_dict = TRANSLATIONS.get(self._lang, TRANSLATIONS["vi"])
@@ -1641,9 +1751,7 @@ class HostApi:
         if sys.platform == "win32" and self._window:
             try:
                 import ctypes
-                hwnd = None
-                if hasattr(self._window, "native") and hasattr(self._window.native, "Handle"):
-                    hwnd = int(self._window.native.Handle)
+                hwnd = self._resolve_hwnd()
                 if hwnd:
                     ctypes.windll.user32.ReleaseCapture()
                     ctypes.windll.user32.SendMessageW(hwnd, 0x00A1, 2, 0)
@@ -1824,26 +1932,76 @@ class HostApi:
 
     def toggle_autostart(self, is_on: bool):
         try:
-            setup_task_scheduler_autostart(is_on)
-            if winreg:
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
-                if is_on:
-                    perm_exe = ensure_permanent_deployment(self._config_path)
-                    if getattr(sys, "frozen", False):
-                        cmd = f'"{perm_exe}" --autostart'
+            if sys.platform == "win32":
+                setup_task_scheduler_autostart(is_on)
+                if winreg:
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
+                    if is_on:
+                        perm_exe = ensure_permanent_deployment(self._config_path)
+                        if getattr(sys, "frozen", False):
+                            cmd = f'"{perm_exe}" --autostart'
+                        else:
+                            script_path = str(Path(__file__).resolve())
+                            pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
+                            cmd = f'"{pythonw_exe}" "{script_path}" --autostart'
+                        winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
+                        self._log(self.t("log_autostart_on") + " (Task Scheduler /rl highest + %LOCALAPPDATA%)")
                     else:
-                        script_path = str(Path(__file__).resolve())
-                        pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
-                        cmd = f'"{pythonw_exe}" "{script_path}" --autostart'
-                    winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
-                    self._log(self.t("log_autostart_on") + " (Task Scheduler /rl highest + %LOCALAPPDATA%)")
+                        try:
+                            winreg.DeleteValue(key, APP_REG_NAME)
+                            self._log(self.t("log_autostart_off"))
+                        except FileNotFoundError:
+                            pass
+                    winreg.CloseKey(key)
+            elif sys.platform == "darwin":
+                plist_dir = Path.home() / "Library/LaunchAgents"
+                plist_path = plist_dir / "com.titanremote.host.plist"
+                if is_on:
+                    plist_dir.mkdir(parents=True, exist_ok=True)
+                    perm_exe = ensure_permanent_deployment(self._config_path)
+                    content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.titanremote.host</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{perm_exe}</string>
+        <string>--autostart</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>"""
+                    plist_path.write_text(content, encoding="utf-8")
+                    self._log(self.t("log_autostart_on") + " (macOS LaunchAgents)")
                 else:
-                    try:
-                        winreg.DeleteValue(key, APP_REG_NAME)
-                        self._log(self.t("log_autostart_off"))
-                    except FileNotFoundError:
-                        pass
-                winreg.CloseKey(key)
+                    if plist_path.exists():
+                        plist_path.unlink()
+                    self._log(self.t("log_autostart_off"))
+            else:
+                autostart_dir = Path.home() / ".config/autostart"
+                desktop_path = autostart_dir / "titanremotehost.desktop"
+                if is_on:
+                    autostart_dir.mkdir(parents=True, exist_ok=True)
+                    perm_exe = ensure_permanent_deployment(self._config_path)
+                    content = f"""[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Titan Remote Host
+Comment=Titan Remote Workstation Host Service
+Exec="{perm_exe}" --autostart
+Icon=titanremotehost
+Terminal=false
+Categories=Network;RemoteAccess;
+"""
+                    desktop_path.write_text(content, encoding="utf-8")
+                    self._log(self.t("log_autostart_on") + " (XDG Autostart)")
+                else:
+                    if desktop_path.exists():
+                        desktop_path.unlink()
+                    self._log(self.t("log_autostart_off"))
         except Exception as e:
             self._log(f"Autostart Error: {e}")
 
@@ -1912,13 +2070,9 @@ class HostApi:
         self._log(f"Khay hệ thống: {state_str}")
 
     def show_window(self):
-        """Brings the GUI window to the foreground."""
-        if self._window:
-            try:
-                self._window.show()
-                self._window.restore()
-            except Exception:
-                pass
+        """Brings the GUI window to the foreground cross-platform."""
+        self._resolve_hwnd()
+        force_window_foreground(self._window, self._hwnd)
 
     def minimize_to_tray(self):
         if self._window:
@@ -2024,10 +2178,9 @@ def launch_webview_app(autostart: bool = False):
 
     def on_shown():
         try:
-            if hasattr(window, "native") and hasattr(window.native, "Handle"):
-                hwnd = int(window.native.Handle)
-                if ico_path and ico_path.is_file():
-                    set_window_icon(hwnd, ico_path)
+            hwnd = api._resolve_hwnd()
+            if hwnd and ico_path and ico_path.is_file():
+                set_window_icon(hwnd, ico_path)
         except Exception:
             pass
 
@@ -2056,11 +2209,8 @@ def launch_webview_app(autostart: bool = False):
     if HAS_TRAY:
         def tray_restore(icon=None, item=None):
             if window:
-                try:
-                    window.show()
-                    window.restore()
-                except Exception:
-                    pass
+                api._resolve_hwnd()
+                force_window_foreground(window, getattr(api, "_hwnd", None))
 
         def tray_copy(icon=None, item=None):
             api.copy_share_info()
@@ -2078,13 +2228,16 @@ def launch_webview_app(autostart: bool = False):
                     window.destroy()
                 except Exception:
                     pass
-            sys.exit(0)
+            os._exit(0)
 
-        tray_menu = pystray.Menu(
-            pystray.MenuItem(api.t("tray_open"), tray_restore, default=True),
-            pystray.MenuItem(api.t("tray_copy"), tray_copy),
-            pystray.MenuItem(api.t("tray_exit"), tray_exit),
-        )
+        if build_tray_menu:
+            tray_menu = build_tray_menu(api, tray_restore, tray_exit)
+        else:
+            tray_menu = pystray.Menu(
+                pystray.MenuItem(api.t("tray_open"), tray_restore, default=True),
+                pystray.MenuItem(api.t("tray_copy"), tray_copy),
+                pystray.MenuItem(api.t("tray_exit"), tray_exit),
+            )
         api._tray_icon = pystray.Icon("TitanRemoteHost", get_tray_icon_image(), "Titan Remote Host", tray_menu)
 
         show_tray = config.get("show_tray_icon", True)
@@ -2095,7 +2248,6 @@ def launch_webview_app(autostart: bool = False):
 
         def setup_tray(icon):
             ensure_interactive_desktop()
-            promote_tray_icon()
             icon.visible = bool(show_tray)
 
         def tray_worker():

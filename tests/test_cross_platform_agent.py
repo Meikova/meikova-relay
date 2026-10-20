@@ -93,9 +93,64 @@ class TestCrossPlatformAgent(unittest.TestCase):
         from host_agent.gui_agent import HostApi
         api = HostApi({}, Path("config.json"))
         exposed = [m for m in dir(api) if not m.startswith("_")]
-        forbidden = ["window", "host_service", "service_thread", "tray_icon"]
+        forbidden = ["window", "hwnd", "host_service", "service_thread", "tray_icon"]
         for f in forbidden:
             self.assertNotIn(f, exposed, f"Attribute '{f}' must be private to prevent pywebview deadlock")
+
+    def test_force_window_foreground_cross_platform(self):
+        from host_agent.gui_agent import force_window_foreground
+        mock_win = MagicMock()
+        mock_win.show = MagicMock()
+        mock_win.restore = MagicMock()
+
+        # Test Linux execution
+        with patch('sys.platform', 'linux'):
+            with patch('subprocess.run') as mock_run:
+                force_window_foreground(mock_win)
+                mock_win.show.assert_called()
+                mock_win.restore.assert_called()
+                mock_run.assert_called_with(["wmctrl", "-a", "Titan Remote Host"], check=False)
+
+        # Test Darwin execution
+        with patch('sys.platform', 'darwin'):
+            with patch('subprocess.run') as mock_run:
+                force_window_foreground(mock_win)
+                mock_run.assert_called_with(["osascript", "-e", 'tell application "Titan Remote Host" to activate'], check=False)
+
+        # Test Win32 execution with no hwnd (graceful fallback)
+        with patch('sys.platform', 'win32'):
+            force_window_foreground(mock_win)
+
+    def test_cross_platform_user_tier_install(self):
+        import tempfile
+        from host_agent.deployment_manager import install_user_tier, uninstall_user_tier
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            fake_home = Path(tmp_dir)
+            with patch.object(Path, "home", return_value=fake_home):
+                # Linux user tier
+                with patch('sys.platform', 'linux'):
+                    ok, msg = install_user_tier()
+                    self.assertTrue(ok)
+                    desktop_file = fake_home / ".config/autostart/titanremotehost.desktop"
+                    self.assertTrue(desktop_file.exists())
+                    self.assertIn("Titan Remote Host", desktop_file.read_text(encoding="utf-8"))
+
+                    un_ok, _ = uninstall_user_tier()
+                    self.assertTrue(un_ok)
+                    self.assertFalse(desktop_file.exists())
+
+                # Darwin user tier
+                with patch('sys.platform', 'darwin'):
+                    ok, msg = install_user_tier()
+                    self.assertTrue(ok)
+                    plist_file = fake_home / "Library/LaunchAgents/com.titanremote.host.plist"
+                    self.assertTrue(plist_file.exists())
+                    self.assertIn("com.titanremote.host", plist_file.read_text(encoding="utf-8"))
+
+                    un_ok, _ = uninstall_user_tier()
+                    self.assertTrue(un_ok)
+                    self.assertFalse(plist_file.exists())
 
 if __name__ == '__main__':
     unittest.main()

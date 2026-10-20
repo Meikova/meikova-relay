@@ -101,6 +101,7 @@
   let gridMonitorOrder = [];
   let monitorTileMap = new Map(); // id -> { tile, canvas, ctx, mon }
   const roStatus = document.getElementById('roStatus');
+  const roTr = document.getElementById('ro-tr');
   const metricPing = document.getElementById('metricPing');
   const metricFps = document.getElementById('metricFps');
   const metricRes = document.getElementById('metricRes');
@@ -108,6 +109,16 @@
   const sparkCtx = sparklineCanvas ? sparklineCanvas.getContext('2d') : null;
   const pingSamples = [];
   const toastContainer = document.getElementById('toastContainer');
+
+  function resetSessionMetrics() {
+    if (metricPing) metricPing.textContent = '--';
+    if (metricFps) metricFps.textContent = '--';
+    if (metricRes) metricRes.textContent = '--';
+    pingSamples.length = 0;
+    if (sparkCtx && sparklineCanvas) {
+      sparkCtx.clearRect(0, 0, sparklineCanvas.width, sparklineCanvas.height);
+    }
+  }
 
   function showToast(message, type = 'info', duration = 3500) {
     if (!toastContainer) return;
@@ -374,6 +385,7 @@
     const onBtn = seg.querySelector('button.on');
     const ind = seg.querySelector('.seg__ind');
     if (!ind) return;
+    if (window.innerWidth < 768 && seg.id === 'mainNav') return;
     if (!onBtn) {
       ind.style.setProperty('--ind-w', '0px');
       ind.style.opacity = '0';
@@ -596,6 +608,7 @@
   function handleAuthSuccess(res) {
     authToken = res.token;
     localStorage.setItem('titan_token', authToken);
+    if (window.titanSync) window.titanSync.setAuthToken(authToken);
     currentUser = res.user;
     lastGlobalActivity = Date.now();
     lastTokenRefreshTime = Date.now();
@@ -1558,6 +1571,11 @@
     } else if (currentView === 'audit') {
       roStatus.textContent = isConnected ? `${currentRoom} // ${t('nav.audit').toUpperCase()}` : t('nav.audit').toUpperCase();
     }
+
+    if (roTr) {
+      const showTr = isConnected && (currentView === 'remote' || currentView === 'terminal' || currentView === 'files' || currentView === 'tasks');
+      roTr.style.display = showTr ? '' : 'none';
+    }
   }
 
   function switchView(view, updateUrl = true) {
@@ -1944,6 +1962,7 @@
     }
     disconnect();
     authToken = null;
+    if (window.titanSync) window.titanSync.setAuthToken(null);
     currentUser = null;
     localStorage.removeItem('titan_token');
     renderUserBadge();
@@ -2215,10 +2234,15 @@
             <span class="spec-chip">${resSvg} <span>${escapeHtml(d.resolution || '1920x1080')}</span></span>
             <span class="spec-chip">${roomSvg} <span>${escapeHtml(d.room_id)}</span></span>
           </div>
-          <button class="btn-connect-device" data-room="${d.room_id}" data-pin="${d.pin}">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            <span data-i18n="dashboard.btn_connect">${connectLabel}</span>
-          </button>
+          <div class="device-card-actions" style="display:flex;gap:8px;align-items:center;margin-top:auto;">
+            <button class="btn-connect-device" data-room="${d.room_id}" data-pin="${d.pin}" style="flex:1;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span data-i18n="dashboard.btn_connect">${connectLabel}</span>
+            </button>
+            <button class="btn-delete-device" data-id="${d.id}" data-name="${escapeHtml(d.device_name)}" title="${t('dashboard.btn_delete')}" aria-label="${t('dashboard.btn_delete')}" style="height:38px;padding:0 12px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:var(--radius);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s ease;" onmouseenter="this.style.color='#EF4444';this.style.borderColor='rgba(239,68,68,0.4)';this.style.background='rgba(239,68,68,0.08)';" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--line)';this.style.background='rgba(255,255,255,0.03)';">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+            </button>
+          </div>
         </div>
       `;
     }).join('');
@@ -2228,6 +2252,27 @@
         const room = btn.dataset.room;
         const pin = btn.dataset.pin;
         startRemoteSession(defaultWsUrl, room, pin);
+      });
+    });
+
+    deviceGrid.querySelectorAll('.btn-delete-device').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        const confirmMsg = t('dashboard.delete_confirm') || `Bạn có chắc muốn xóa máy trạm "${name}" khỏi danh sách?`;
+        if (confirm(confirmMsg)) {
+          try {
+            const res = await apiFetch(`/api/devices/${id}`, 'DELETE');
+            if (res && res.success) {
+              await fetchDevices();
+            } else {
+              alert(res?.message || 'Lỗi khi xóa máy trạm');
+            }
+          } catch (err) {
+            console.error('Delete device error:', err);
+          }
+        }
       });
     });
   }
@@ -2254,6 +2299,7 @@
 
   // --- REMOTE DESKTOP SESSION ---
   function startRemoteSession(relayUrl, roomId, pin) {
+    resetSessionMetrics();
     currentRoom = roomId;
     currentPin = pin || '';
     if (pin) {
@@ -2311,6 +2357,7 @@
             showToast('Máy trạm đã khởi động lại và kết nối thành công!', 'success');
           }
           roStatus.textContent = `${roomId} // ${t('ro.connected')}`;
+          updateRoStatus();
           updateTerminalStatusBadge();
           if (msg.hostMeta) {
             updateHostResolution(msg.hostMeta.width, msg.hostMeta.height);
@@ -2509,6 +2556,7 @@
   function disconnect() {
     stopRestartReconnectPolling();
     isConnected = false;
+    resetSessionMetrics();
     updateTerminalStatusBadge();
     currentRoom = null;
     currentPin = '';
@@ -2524,6 +2572,7 @@
     }
     stopRecording();
     stopWebcam();
+    updateRoStatus();
     switchView('dashboard', true);
   }
 

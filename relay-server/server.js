@@ -240,6 +240,43 @@ const server = http.createServer(async (req, res) => {
       return jsonResponse(res, 200, { success: true });
     }
 
+    // --- OFFLINE-FIRST SYNC ENDPOINTS ---
+    // 3.1 Sync: Status check
+    if (pathname === '/api/sync/status' && req.method === 'GET') {
+      return jsonResponse(res, 200, {
+        status: 'online',
+        timestamp: Date.now(),
+        is_authenticated: Boolean(session),
+        user: session || null
+      });
+    }
+
+    // 3.2 Sync: Pull latest cloud user configs & bookmarks
+    if (pathname === '/api/sync/pull' && req.method === 'GET') {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
+      }
+      const syncData = DB.getUserSync(session.id);
+      return jsonResponse(res, 200, {
+        status: 'success',
+        data: syncData
+      });
+    }
+
+    // 3.3 Sync: Push pending local changes to cloud
+    if (pathname === '/api/sync/push' && req.method === 'POST') {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
+      }
+      const body = await parseBody(req);
+      const result = DB.saveUserSync(session.id, body || {});
+      return jsonResponse(res, 200, {
+        status: 'success',
+        updated_at: result ? result.updated_at : Date.now(),
+        data: result
+      });
+    }
+
     // 4. Devices: List for logged-in user
     if (pathname === '/api/devices' && req.method === 'GET') {
       if (!session) {

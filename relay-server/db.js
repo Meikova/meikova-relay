@@ -49,9 +49,20 @@ db.exec(`
     details TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS user_sync_store (
+    user_id TEXT PRIMARY KEY,
+    preferences TEXT DEFAULT '{}',
+    device_bookmarks TEXT DEFAULT '[]',
+    quick_history TEXT DEFAULT '[]',
+    custom_labels TEXT DEFAULT '{}',
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_logs(timestamp DESC);
   CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
   CREATE INDEX IF NOT EXISTS idx_audit_room ON audit_logs(room_id);
+  CREATE INDEX IF NOT EXISTS idx_sync_user ON user_sync_store(user_id);
 `);
 
 function hashPassword(password, salt) {
@@ -307,6 +318,78 @@ const DB = {
     const logs = queryStmt.all(...params, Math.min(Number(limit) || 50, 500), Math.max(Number(offset) || 0, 0));
 
     return { logs, total };
+  },
+
+  // --- Offline-First User Config & Bookmark Sync ---
+  getUserSync(userId) {
+    if (!userId) return null;
+    const stmt = db.prepare('SELECT preferences, device_bookmarks, quick_history, custom_labels, updated_at FROM user_sync_store WHERE user_id = ?');
+    const row = stmt.get(userId);
+    if (!row) {
+      return {
+        preferences: {},
+        device_bookmarks: [],
+        quick_history: [],
+        custom_labels: {},
+        updated_at: 0
+      };
+    }
+    try {
+      return {
+        preferences: JSON.parse(row.preferences || '{}'),
+        device_bookmarks: JSON.parse(row.device_bookmarks || '[]'),
+        quick_history: JSON.parse(row.quick_history || '[]'),
+        custom_labels: JSON.parse(row.custom_labels || '{}'),
+        updated_at: row.updated_at || 0
+      };
+    } catch (err) {
+      return {
+        preferences: {},
+        device_bookmarks: [],
+        quick_history: [],
+        custom_labels: {},
+        updated_at: row.updated_at || 0
+      };
+    }
+  },
+
+  saveUserSync(userId, data = {}) {
+    if (!userId) return null;
+    const current = this.getUserSync(userId);
+    const now = Date.now();
+
+    const mergedPrefs = data.preferences !== undefined ? { ...current.preferences, ...data.preferences } : current.preferences;
+    const mergedBookmarks = data.device_bookmarks !== undefined ? data.device_bookmarks : current.device_bookmarks;
+    const mergedHistory = data.quick_history !== undefined ? data.quick_history : current.quick_history;
+    const mergedLabels = data.custom_labels !== undefined ? { ...current.custom_labels, ...data.custom_labels } : current.custom_labels;
+
+    const stmt = db.prepare(`
+      INSERT INTO user_sync_store (user_id, preferences, device_bookmarks, quick_history, custom_labels, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET
+        preferences = excluded.preferences,
+        device_bookmarks = excluded.device_bookmarks,
+        quick_history = excluded.quick_history,
+        custom_labels = excluded.custom_labels,
+        updated_at = excluded.updated_at
+    `);
+
+    stmt.run(
+      userId,
+      JSON.stringify(mergedPrefs),
+      JSON.stringify(mergedBookmarks),
+      JSON.stringify(mergedHistory),
+      JSON.stringify(mergedLabels),
+      now
+    );
+
+    return {
+      preferences: mergedPrefs,
+      device_bookmarks: mergedBookmarks,
+      quick_history: mergedHistory,
+      custom_labels: mergedLabels,
+      updated_at: now
+    };
   }
 };
 

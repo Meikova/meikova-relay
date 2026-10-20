@@ -27,6 +27,7 @@ SERVICE_NAME = "TitanRemoteService"
 SERVICE_DISPLAY_NAME = "Titan Remote Host 24/7 Service"
 REG_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 APP_REG_NAME = "TitanRemoteHost"
+WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
 
 
 def is_current_user_admin() -> bool:
@@ -119,7 +120,7 @@ def is_running_from_permanent_dir() -> bool:
 
 def copy_exe_to_dir(target_dir: Path, source_config_path: Optional[Path] = None) -> Path:
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_exe = target_dir / "TitanRemoteHost.exe"
+    target_exe = target_dir / get_permanent_exe_path().name
 
     if getattr(sys, "frozen", False):
         current_exe = Path(sys.executable).resolve()
@@ -137,6 +138,12 @@ def copy_exe_to_dir(target_dir: Path, source_config_path: Optional[Path] = None)
             except Exception:
                 pass
 
+    if sys.platform != "win32" and target_exe.exists():
+        try:
+            target_exe.chmod(target_exe.stat().st_mode | 0o755)
+        except Exception:
+            pass
+
     perm_config = target_dir / "config.json"
     if source_config_path and source_config_path.exists() and source_config_path != perm_config:
         try:
@@ -153,56 +160,101 @@ def ensure_permanent_deployment(source_config_path: Optional[Path] = None) -> Pa
 
 
 # ---------------------------------------------------------------------------
-# TIER 1: USER-LEVEL INSTALLATION (NO ADMIN RIGHTS NEEDED)
+# TIER 1: USER-LEVEL INSTALLATION (NO ADMIN RIGHTS NEEDED, CROSS-PLATFORM)
 # ---------------------------------------------------------------------------
 def install_user_tier(source_config_path: Optional[Path] = None) -> Tuple[bool, str]:
     """
-    Installs Titan Remote Host in User Space (%LOCALAPPDATA%\\TitanRemoteHost).
-    Registers HKCU\\Run and Task Scheduler (standard user level).
+    Installs Titan Remote Host in User Space cross-platform.
+    Windows: %LOCALAPPDATA%\\TitanRemoteHost, Task Scheduler / HKCU\\Run.
+    macOS: ~/Library/Application Support/TitanRemoteHost, ~/Library/LaunchAgents.
+    Linux: ~/.titan_remote_host, ~/.config/autostart.
     NO ADMINISTRATOR PRIVILEGES REQUIRED.
     """
-    if sys.platform != "win32":
-        return False, "Chỉ hỗ trợ hệ điều hành Windows"
-
     try:
-        exe_path = copy_exe_to_dir(get_user_install_dir(), source_config_path)
-        if getattr(sys, "frozen", False):
-            cmd = f'"{exe_path}" --autostart'
+        user_dir = get_user_install_dir()
+        exe_path = copy_exe_to_dir(user_dir, source_config_path)
+
+        if sys.platform == "win32":
+            if getattr(sys, "frozen", False):
+                cmd = f'"{exe_path}" --autostart'
+            else:
+                pyw_exe = sys.executable.replace("python.exe", "pythonw.exe")
+                script_path = str(Path(__file__).resolve().parent / "gui_agent.py")
+                cmd = f'"{pyw_exe}" "{script_path}" --autostart'
+
+            # 1. Register in HKCU\\Run (100% works without admin)
+            if winreg:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
+                winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
+                winreg.CloseKey(key)
+
+            # 2. Register in Task Scheduler (tries /rl highest if possible, otherwise standard)
+            setup_task_scheduler_autostart(enable=True)
+            return True, f"Cài đặt Người dùng thành công ({user_dir}). Tự chạy khi đăng nhập Windows."
+
+        elif sys.platform == "darwin":
+            plist_dir = Path.home() / "Library/LaunchAgents"
+            plist_path = plist_dir / "com.titanremote.host.plist"
+            plist_dir.mkdir(parents=True, exist_ok=True)
+            content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.titanremote.host</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{exe_path}</string>
+        <string>--autostart</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>"""
+            plist_path.write_text(content, encoding="utf-8")
+            return True, f"Cài đặt Người dùng thành công ({user_dir}). Tự khởi động cùng macOS."
+
         else:
-            pyw_exe = sys.executable.replace("python.exe", "pythonw.exe")
-            script_path = str(Path(__file__).resolve().parent / "gui_agent.py")
-            cmd = f'"{pyw_exe}" "{script_path}" --autostart'
-
-        # 1. Register in HKCU\Run (100% works without admin)
-        if winreg:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
-            winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
-            winreg.CloseKey(key)
-
-        # 2. Register in Task Scheduler (tries /rl highest if possible, otherwise standard)
-        setup_task_scheduler_autostart(enable=True)
-
-        return True, "Cài đặt Người dùng thành công (%LOCALAPPDATA%). Tự chạy khi đăng nhập, không cần quyền Admin."
+            # Linux
+            autostart_dir = Path.home() / ".config/autostart"
+            desktop_path = autostart_dir / "titanremotehost.desktop"
+            autostart_dir.mkdir(parents=True, exist_ok=True)
+            content = f"""[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Titan Remote Host
+Comment=Titan Remote Workstation Host Service
+Exec="{exe_path}" --autostart
+Icon=titanremotehost
+Terminal=false
+Categories=Network;RemoteAccess;
+"""
+            desktop_path.write_text(content, encoding="utf-8")
+            return True, f"Cài đặt Người dùng thành công ({user_dir}). Tự khởi động cùng Linux."
     except Exception as e:
         return False, f"Lỗi cài đặt Người dùng: {e}"
 
 
 def uninstall_user_tier() -> Tuple[bool, str]:
-    """Removes user-level autostart entries."""
-    if sys.platform != "win32":
-        return False, "Chỉ hỗ trợ hệ điều hành Windows"
+    """Removes user-level autostart entries cross-platform."""
     try:
-        # Delete from HKCU\Run
-        if winreg:
-            try:
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
-                winreg.DeleteValue(key, APP_REG_NAME)
-                winreg.CloseKey(key)
-            except Exception:
-                pass
-
-        # Delete from Task Scheduler
-        setup_task_scheduler_autostart(enable=False)
+        if sys.platform == "win32":
+            if winreg:
+                try:
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
+                    winreg.DeleteValue(key, APP_REG_NAME)
+                    winreg.CloseKey(key)
+                except Exception:
+                    pass
+            setup_task_scheduler_autostart(enable=False)
+        elif sys.platform == "darwin":
+            plist_path = Path.home() / "Library/LaunchAgents/com.titanremote.host.plist"
+            if plist_path.exists():
+                plist_path.unlink()
+        else:
+            desktop_path = Path.home() / ".config/autostart/titanremotehost.desktop"
+            if desktop_path.exists():
+                desktop_path.unlink()
 
         return True, "Đã gỡ cài đặt cấp độ Người dùng."
     except Exception as e:
@@ -287,7 +339,7 @@ def setup_task_scheduler_autostart(enable: bool = True) -> Tuple[bool, str]:
             "/f"
         ]
         try:
-            res = subprocess.run(args_highest, capture_output=True, text=True, check=False)
+            res = subprocess.run(args_highest, capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
             if res.returncode == 0:
                 return True, "Task Scheduler autostart enabled with Highest Privileges"
             else:
@@ -299,7 +351,7 @@ def setup_task_scheduler_autostart(enable: bool = True) -> Tuple[bool, str]:
                     "/sc", "onlogon",
                     "/f"
                 ]
-                res_std = subprocess.run(args_standard, capture_output=True, text=True, check=False)
+                res_std = subprocess.run(args_standard, capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
                 if res_std.returncode == 0:
                     return True, "Task Scheduler autostart enabled (Standard User)"
                 return False, res.stderr.strip() or res.stdout.strip()
@@ -308,7 +360,7 @@ def setup_task_scheduler_autostart(enable: bool = True) -> Tuple[bool, str]:
     else:
         args = ["schtasks.exe", "/delete", "/tn", TASK_NAME, "/f"]
         try:
-            res = subprocess.run(args, capture_output=True, text=True, check=False)
+            res = subprocess.run(args, capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
             return True, "Task Scheduler autostart disabled"
         except Exception as e:
             return False, str(e)
@@ -322,7 +374,8 @@ def is_task_scheduler_autostart_enabled() -> bool:
             ["schtasks.exe", "/query", "/tn", TASK_NAME],
             capture_output=True,
             text=True,
-            check=False
+            check=False,
+            creationflags=WIN_NO_WINDOW
         )
         return res.returncode == 0
     except Exception:
@@ -349,7 +402,8 @@ def is_windows_service_installed() -> bool:
             ["sc.exe", "query", SERVICE_NAME],
             capture_output=True,
             text=True,
-            check=False
+            check=False,
+            creationflags=WIN_NO_WINDOW
         )
         return res.returncode == 0
     except Exception:
@@ -374,12 +428,13 @@ def manage_windows_service(action: str = "install") -> Tuple[bool, str]:
             "start= auto"
         ]
         try:
-            res = subprocess.run(args, capture_output=True, text=True, check=False)
+            res = subprocess.run(args, capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
             if res.returncode == 0:
                 subprocess.run(
                     ["sc.exe", "description", SERVICE_NAME, "Titan Remote Unattended Access Service"],
                     capture_output=True,
-                    check=False
+                    check=False,
+                    creationflags=WIN_NO_WINDOW
                 )
                 return True, "Windows Service installed successfully (start=auto)"
             return False, res.stderr.strip() or res.stdout.strip()
@@ -388,8 +443,8 @@ def manage_windows_service(action: str = "install") -> Tuple[bool, str]:
 
     elif action == "uninstall":
         try:
-            subprocess.run(["sc.exe", "stop", SERVICE_NAME], capture_output=True, check=False)
-            res = subprocess.run(["sc.exe", "delete", SERVICE_NAME], capture_output=True, text=True, check=False)
+            subprocess.run(["sc.exe", "stop", SERVICE_NAME], capture_output=True, check=False, creationflags=WIN_NO_WINDOW)
+            res = subprocess.run(["sc.exe", "delete", SERVICE_NAME], capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
             if res.returncode == 0:
                 return True, "Windows Service uninstalled"
             return False, res.stderr.strip() or res.stdout.strip()
@@ -397,11 +452,11 @@ def manage_windows_service(action: str = "install") -> Tuple[bool, str]:
             return False, str(e)
 
     elif action == "start":
-        res = subprocess.run(["sc.exe", "start", SERVICE_NAME], capture_output=True, text=True, check=False)
+        res = subprocess.run(["sc.exe", "start", SERVICE_NAME], capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
         return res.returncode == 0, res.stdout.strip()
 
     elif action == "stop":
-        res = subprocess.run(["sc.exe", "stop", SERVICE_NAME], capture_output=True, text=True, check=False)
+        res = subprocess.run(["sc.exe", "stop", SERVICE_NAME], capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
         return res.returncode == 0, res.stdout.strip()
 
     return False, f"Unknown action: {action}"

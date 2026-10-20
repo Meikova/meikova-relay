@@ -385,6 +385,7 @@
     const onBtn = seg.querySelector('button.on');
     const ind = seg.querySelector('.seg__ind');
     if (!ind) return;
+    if (window.innerWidth < 768 && seg.id === 'mainNav') return;
     if (!onBtn) {
       ind.style.setProperty('--ind-w', '0px');
       ind.style.opacity = '0';
@@ -607,6 +608,7 @@
   function handleAuthSuccess(res) {
     authToken = res.token;
     localStorage.setItem('titan_token', authToken);
+    if (window.titanSync) window.titanSync.setAuthToken(authToken);
     currentUser = res.user;
     lastGlobalActivity = Date.now();
     lastTokenRefreshTime = Date.now();
@@ -1960,6 +1962,7 @@
     }
     disconnect();
     authToken = null;
+    if (window.titanSync) window.titanSync.setAuthToken(null);
     currentUser = null;
     localStorage.removeItem('titan_token');
     renderUserBadge();
