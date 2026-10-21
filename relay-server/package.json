@@ -1,7 +1,7 @@
 {
-  "name": "titan-rd-relay",
+  "name": "meikova-relay-server",
   "version": "1.0.22",
-  "description": "High-performance WebSocket Relay Server and Static File Host for Titan Remote Desktop",
+  "description": "High-performance WebSocket Relay Server and Static File Host for Meikova Relay",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -1,6 +1,6 @@
 {
-  "name": "Titan Remote Enterprise",
-  "short_name": "Titan Remote",
+  "name": "Meikova Relay",
+  "short_name": "Meikova Relay",
   "description": "High-performance ambient instrument remote desktop platform",
   "start_url": "/",
   "scope": "/",

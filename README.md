@@ -1,16 +1,16 @@
-# TITAN REMOTE DESKTOP
+# MEIKOVA RELAY
 
 <div align="center">
 
-![CI/CD Pipeline](https://github.com/m3iK18dp/titan-remote/actions/workflows/build-release.yml/badge.svg)
-![Latest Release](https://img.shields.io/github/v/release/m3iK18dp/titan-remote?color=emerald)
+![CI/CD Pipeline](https://github.com/m3iK18dp/meikova-relay/actions/workflows/build-release.yml/badge.svg)
+![Latest Release](https://img.shields.io/github/v/release/m3iK18dp/meikova-relay?color=emerald)
 ![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Web-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Outbound--Only%20WSS-purple)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 **Hệ thống điều khiển máy tính từ xa thế hệ mới: Độ trễ siêu thấp, chuẩn màu 1:1 Pixel-Perfect, truyền tải âm thanh trực tiếp và vượt qua 100% Tường lửa Doanh nghiệp.**
 
-[Dùng Thử Web Client](https://titan-remote.onrender.com) • [Tải Gói Máy Trạm](https://github.com/m3iK18dp/titan-remote/releases) • [Tài Liệu Triển Khai](docs/DEPLOYMENT_GUIDE.md)
+[Dùng Thử Web Client](https://meikova-relay.onrender.com) • [Tải Gói Máy Trạm](https://github.com/m3iK18dp/meikova-relay/releases) • [Tài Liệu Triển Khai](docs/DEPLOYMENT_GUIDE.md)
 
 </div>
 
@@ -18,7 +18,7 @@
 
 ## 1. TỔNG QUAN HỆ THỐNG (OVERVIEW)
 
-**Titan Remote** là giải pháp Remote Desktop toàn diện, độc lập, được nghiên cứu và thiết kế tối ưu cho:
+**Meikova Relay** là giải pháp Remote Desktop toàn diện, độc lập, được nghiên cứu và thiết kế tối ưu cho:
 - **Môi trường mạng công ty khắt khe**: Chặn toàn bộ giao thức UDP (khiến WebRTC/TeamViewer/AnyDesk mất kết nối hoặc lag giật), không có địa chỉ IPv6 công cộng và không có quyền can thiệp mở cổng (Port Forwarding) trên Router.
 - **Bảo mật Outbound-Only**: Máy trạm (Host Agent) chỉ mở kết nối một chiều từ trong ra ngoài (Outbound) tới Relay Server qua cổng tiêu chuẩn **443 (HTTPS/WSS)**.
 - **Client Zero-Install**: Người điều khiển chỉ cần mở trình duyệt web hiện đại (Chrome, Edge, Safari, Firefox trên PC, Mac, iPad, iPhone, Android) để điều khiển máy trạm mà không cần cài thêm bất kỳ tiện ích hay plugin nào.
@@ -37,7 +37,7 @@
                                     \                   /
                                      v                 v
                     +----------------------------------------------------+
-                    |         TITAN RELAY SERVER (Node.js Engine)        |
+                    |         MEIKOVA RELAY SERVER (Node.js Engine)        |
                     |  - Bộ định tuyến WebSocket Room ID / PIN an toàn   |
                     |  - Google OAuth 2.0 (GIS) & JWT Session Manager    |
                     |  - Nhật ký kiểm toán bảo mật (Audit Log Trail)     |
@@ -90,27 +90,27 @@ Toàn bộ gói cài đặt được biên dịch và đóng gói tự động q
 
 | Hệ Điều Hành | Tệp Cài Đặt Phát Hành | Định Dạng | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **Windows** | [`TitanRemoteHost.exe`](https://github.com/m3iK18dp/titan-remote/releases/latest) | Portable Exe | Chạy trực tiếp ngay lập tức không cần quyền Admin |
-| **Windows** | [`TitanRemoteHost-windows-x64.zip`](https://github.com/m3iK18dp/titan-remote/releases/latest) | Zip Archive | Bộ cài đặt đầy đủ kèm hướng dẫn chạy dịch vụ nền |
-| **Linux** | [`titan-remote-host_amd64.deb`](https://github.com/m3iK18dp/titan-remote/releases/latest) | Debian / Ubuntu | Gói cài đặt 1-click có App Icon & Systemd service |
-| **Linux** | [`titan-remote-host-linux-x64.tar.gz`](https://github.com/m3iK18dp/titan-remote/releases/latest) | Tarball | Dành cho các bản phân phối Linux khác (Fedora, Arch, RHEL) |
-| **Linux** | [`titan-remote-host`](https://github.com/m3iK18dp/titan-remote/releases/latest) | Standalone ELF | Tệp thực thi nhị phân cho Server / CLI |
-| **macOS** | [`titan-remote-host-macos.tar.gz`](https://github.com/m3iK18dp/titan-remote/releases/latest) | Tarball | Gói cài đặt macOS kèm LaunchAgent khởi động cùng máy |
-| **macOS** | [`TitanRemoteHost`](https://github.com/m3iK18dp/titan-remote/releases/latest) | Mach-O Binary | Tệp thực thi chạy trực tiếp từ Terminal trên Mac |
-| **Đối Soát** | [`SHA256SUMS.txt`](https://github.com/m3iK18dp/titan-remote/releases/latest) | Text | Bảng mã băm SHA-256 đối chiếu tính toàn vẹn của tệp |
+| **Windows** | [`MeikovaRelayHost.exe`](https://github.com/m3iK18dp/meikova-relay/releases/latest) | Portable Exe | Chạy trực tiếp ngay lập tức không cần quyền Admin |
+| **Windows** | [`MeikovaRelayHost-windows-x64.zip`](https://github.com/m3iK18dp/meikova-relay/releases/latest) | Zip Archive | Bộ cài đặt đầy đủ kèm hướng dẫn chạy dịch vụ nền |
+| **Linux** | [`meikova-relay-host_amd64.deb`](https://github.com/m3iK18dp/meikova-relay/releases/latest) | Debian / Ubuntu | Gói cài đặt 1-click có App Icon & Systemd service |
+| **Linux** | [`meikova-relay-host-linux-x64.tar.gz`](https://github.com/m3iK18dp/meikova-relay/releases/latest) | Tarball | Dành cho các bản phân phối Linux khác (Fedora, Arch, RHEL) |
+| **Linux** | [`meikova-relay-host`](https://github.com/m3iK18dp/meikova-relay/releases/latest) | Standalone ELF | Tệp thực thi nhị phân cho Server / CLI |
+| **macOS** | [`meikova-relay-host-macos.tar.gz`](https://github.com/m3iK18dp/meikova-relay/releases/latest) | Tarball | Gói cài đặt macOS kèm LaunchAgent khởi động cùng máy |
+| **macOS** | [`MeikovaRelayHost`](https://github.com/m3iK18dp/meikova-relay/releases/latest) | Mach-O Binary | Tệp thực thi chạy trực tiếp từ Terminal trên Mac |
+| **Đối Soát** | [`SHA256SUMS.txt`](https://github.com/m3iK18dp/meikova-relay/releases/latest) | Text | Bảng mã băm SHA-256 đối chiếu tính toàn vẹn của tệp |
 
 ---
 
 ## 4. HƯỚNG DẪN BẮT ĐẦU NHANH (QUICK START)
 
 ### Bước 1: Khởi động Máy Trạm (Host Agent)
-1. Tải bản phù hợp từ [GitHub Releases](https://github.com/m3iK18dp/titan-remote/releases/latest).
-2. Mở ứng dụng `TitanRemoteHost`:
+1. Tải bản phù hợp từ [GitHub Releases](https://github.com/m3iK18dp/meikova-relay/releases/latest).
+2. Mở ứng dụng `MeikovaRelayHost`:
    - Giao diện sẽ hiển thị **ID Máy Trạm** (Room ID) và **Mã PIN Kết Nối**.
    - Tùy chọn: Chọn **Cài đặt cấp Người dùng (User)** để tự động chạy khi khởi động mà không cần quyền Admin, hoặc **Cài đặt Dịch vụ Hệ thống (Admin Service)** để chạy ngầm 24/7.
 
 ### Bước 2: Điều Khiển Từ Xa (Web Client)
-1. Truy cập vào cổng Web Hub: **[https://titan-remote.onrender.com](https://titan-remote.onrender.com)**.
+1. Truy cập vào cổng Web Hub: **[https://meikova-relay.onrender.com](https://meikova-relay.onrender.com)**.
 2. Đăng nhập bằng tài khoản hoặc nhấn **Đăng nhập bằng Google**.
 3. Chọn thiết bị trong danh bạ máy trạm hoặc bấm **Kết nối nhanh**, nhập Room ID và PIN.
 4. Màn hình máy tính hiển thị ngay lập tức với đầy đủ thao tác chuột và phím.
@@ -123,8 +123,8 @@ Xem hướng dẫn chi tiết tại: **[Tài liệu Triển Khai Hệ Thống (D
 
 Tóm tắt lệnh chạy máy chủ với Node.js:
 ```bash
-git clone https://github.com/m3iK18dp/titan-remote.git
-cd titan-remote/relay-server
+git clone https://github.com/m3iK18dp/meikova-relay.git
+cd meikova-relay/relay-server
 npm install
 npm start
 ```

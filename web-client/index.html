@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Titan Remote — Ambient Instrument Platform</title>
+  <title>Meikova Relay — Zero-Distance Control</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Titan Remote">
+  <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/favicon.svg">
   
   <link rel="stylesheet" href="/css/tokens.css?v=1.0.16">
@@ -28,14 +28,13 @@
   <!-- Top Bar (64px Avionics Console) -->
   <header class="topbar">
     <div class="brand-container">
-      <a class="brand-logo brand-font" href="/" aria-label="Titan Remote">
-        <svg class="brand-inf-svg" viewBox="0 0 32 32" aria-hidden="true" style="width: 24px; height: 24px; border-radius: 5px;">
-          <rect width="32" height="32" rx="7" fill="#070D17"/>
-          <path d="M16 16 C 19.5 10.5, 27 10.5, 27 16 C 27 21.5, 19.5 21.5, 16 16 C 12.5 10.5, 5 10.5, 5 16 C 5 21.5, 12.5 21.5, 16 16 Z"
-                fill="none" stroke="#22C55E" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="23.2" cy="12.4" r="2.1" fill="#FFFFFF"/>
+      <a class="brand-logo brand-font" href="/" aria-label="Meikova Relay">
+        <svg class="brand-inf-svg" viewBox="0 0 100 100" aria-hidden="true" style="width: 24px; height: 24px; border-radius: 5px;" fill="#83E8AC">
+          <rect width="100" height="100" rx="20" fill="#070D17"/>
+          <path fill-rule="evenodd" d="M12 29H45L57 41L45 53H30V41H40L43 38H24V62H40V74H12Z"/>
+          <path fill-rule="evenodd" d="M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z"/>
         </svg>
-        <span>TITAN REMOTE</span>
+        <span>MEIKOVA RELAY</span>
       </a>
     </div>
 
@@ -113,7 +112,7 @@
 
   <!-- Corner Telemetry Readouts -->
   <p class="readout readout--tl" id="ro-tl">
-    TITAN ∞ REMOTE // <strong id="roStatus" data-i18n="ro.landing">TRANG CHỦ // GIỚI THIỆU</strong>
+    MEIKOVA ∞ RELAY // <strong id="roStatus" data-i18n="ro.landing">TRANG CHỦ // GIỚI THIỆU</strong>
   </p>
   <p class="readout readout--tr" id="ro-tr" style="display: none;">
     RTT: <strong id="metricPing">--</strong>ms <canvas id="sparklineCanvas" width="48" height="12" style="vertical-align:middle;display:inline-block;margin:0 4px;"></canvas> // <strong id="metricFps">--</strong> FPS // RES: <strong id="metricRes">--</strong>
@@ -127,7 +126,7 @@
       
       <!-- HERO ARENA & CANVAS 2D VISUALIZER -->
       <div class="landing-hero-arena">
-        <canvas id="landingCanvas" class="landing-canvas" aria-label="Titan Relay Data Telemetry Canvas"></canvas>
+        <canvas id="landingCanvas" class="landing-canvas" aria-label="Meikova Relay Data Telemetry Canvas"></canvas>
 
         <div class="landing-hero-container">
           <!-- Left Column: Signal, Headline & Action -->
@@ -222,7 +221,7 @@
                 </div>
                 <div class="cockpit-title mono-font">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 12 8"></polygon></svg>
-                  <span>TITAN WORKSTATION GATEWAY</span>
+                  <span>MEIKOVA WORKSTATION GATEWAY</span>
                 </div>
                 <div class="cockpit-live-badge mono-font">
                   <span class="status-dot online"></span>
@@ -231,7 +230,7 @@
               </div>
 
               <!-- Live Connection Topology Pipeline HUD -->
-              <div class="cockpit-topology-hud" aria-label="Titan Live Connection Topology">
+              <div class="cockpit-topology-hud" aria-label="Meikova Relay Connection Topology">
                 <!-- Node 1: Local Client -->
                 <div class="topo-node topo-client">
                   <div class="topo-beacon-wrap">
@@ -260,7 +259,7 @@
                     <span class="topo-beacon-dot relay-dot"></span>
                   </div>
                   <div class="topo-info">
-                    <span class="topo-name" data-i18n="landing.topo_relay">TITAN RELAY</span>
+                    <span class="topo-name" data-i18n="landing.topo_relay">MEIKOVA RELAY</span>
                     <span class="topo-meta" data-i18n="landing.topo_relay_meta">E2E TLS 1.3</span>
                   </div>
                 </div>
@@ -307,7 +306,7 @@
                       <span class="cockpit-input-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
                       </span>
-                      <input type="text" id="landingRoomInput" name="titan_room_token" class="cockpit-input mono-font" placeholder="Nhập Room ID (VD: RD-8924)" required autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                      <input type="text" id="landingRoomInput" name="relay_room_token" class="cockpit-input mono-font" placeholder="Nhập Room ID (VD: RD-8924)" required autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
                       <button type="button" id="btnHeroDemoRoom" class="btn-cockpit-pill" title="Tự động điền mã máy mẫu để thử">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                         <span>Mẫu: RD-8924</span>
@@ -323,7 +322,7 @@
                       <span class="cockpit-input-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                       </span>
-                      <input type="password" id="landingPinInput" name="titan_pin_token" class="cockpit-input mono-font" placeholder="6 chữ số PIN bảo mật" maxlength="6" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                      <input type="password" id="landingPinInput" name="relay_pin_token" class="cockpit-input mono-font" placeholder="6 chữ số PIN bảo mật" maxlength="6" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
                       <button type="button" id="btnToggleHeroPin" class="btn-cockpit-pill btn-cockpit-pill-ghost" title="Ẩn/hiện mã PIN">
                         <svg id="heroEyeSvg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                         <span id="txtHeroEye">Hiện</span>
@@ -556,7 +555,7 @@
             <button type="button" id="btnLandingDlExe" class="btn-cta btn-dl-two-line dl-action-btn">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex-shrink:0;"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title" data-i18n="landing.dl_exe_btn_title">Tải TitanRemoteHost.exe</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_exe_btn_title">Tải MeikovaRelayHost.exe</span>
                 <span class="btn-dl-size mono-font" data-i18n="landing.dl_exe_btn_size">(19.8 MB)</span>
               </div>
             </button>
@@ -586,7 +585,7 @@
             <button type="button" id="btnLandingDlBat" class="btn-pill btn-dl-two-line dl-action-btn" style="border-color: var(--accent); color: var(--accent);">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title" data-i18n="landing.dl_bat_btn">Tải Setup-TitanHost.bat</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_bat_btn">Tải Setup-MeikovaRelayHost.bat</span>
                 <span class="btn-dl-size mono-font" data-i18n="landing.dl_bat_size">(Tự động nhận diện)</span>
               </div>
             </button>
@@ -607,7 +606,7 @@
                   <span class="mono-font" style="font-size: 10px; color: var(--text-faint);">ONE-LINER</span>
                 </div>
                 <div class="ps1-code-viewport">
-                  <code id="ps1CodeSnippet" class="mono-font">iwr -useb http://localhost:8080/api/download/TitanRemoteHost.exe -OutFile "$env:TEMP\TitanRemoteHost.exe"; Start-Process "$env:TEMP\TitanRemoteHost.exe"</code>
+                  <code id="ps1CodeSnippet" class="mono-font">iwr -useb http://localhost:8080/api/download/MeikovaRelayHost.exe -OutFile "$env:TEMP\MeikovaRelayHost.exe"; Start-Process "$env:TEMP\MeikovaRelayHost.exe"</code>
                 </div>
               </div>
             </div>
@@ -675,7 +674,7 @@
             <button type="button" id="btnLandingDlLinuxDeb" class="btn-pill btn-dl-two-line dl-action-btn" style="border-color: var(--accent); color: var(--accent);">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title" data-i18n="landing.dl_linux_deb_btn">Tải titan-remote.deb</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_linux_deb_btn">Tải meikova-relay.deb</span>
                 <span class="btn-dl-size mono-font">(Debian / Ubuntu 64-bit)</span>
               </div>
             </button>
@@ -705,7 +704,7 @@
             <button type="button" id="btnLandingDlLinuxTar" class="btn-pill btn-dl-two-line dl-action-btn" style="border-color: #A855F7; color: #E9D5FF; background: rgba(168, 85, 247, 0.12);">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title" data-i18n="landing.dl_linux_tar_btn">Tải titan-remote-linux.tar.gz</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_linux_tar_btn">Tải meikova-relay-linux.tar.gz</span>
                 <span class="btn-dl-size mono-font">(Standalone Linux 64-bit)</span>
               </div>
             </button>
@@ -766,7 +765,7 @@
             <button type="button" id="btnLandingDlMacosTar" class="btn-pill btn-dl-two-line dl-action-btn" style="border-color: var(--accent); color: var(--accent);">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title" data-i18n="landing.dl_macos_tar_btn">Tải titan-remote-macos.tar.gz</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_macos_tar_btn">Tải meikova-relay-macos.tar.gz</span>
                 <span class="btn-dl-size mono-font">(Apple Silicon &amp; Intel)</span>
               </div>
             </button>
@@ -780,7 +779,7 @@
             <div>
               <div class="dl-badge mono-font" style="color:#A855F7;">LAUNCHD // AUTO-RUN</div>
               <h3 class="brand-font dl-card-title" data-i18n="landing.dl_macos_launchd_title">Dịch vụ Khởi động (Launchd 24/7)</h3>
-              <p class="dl-card-desc" data-i18n="landing.dl_macos_launchd_desc">Đăng ký LaunchAgent com.titan.remote.plist để tự động chạy ngầm mỗi khi người dùng đăng nhập vào macOS.</p>
+              <p class="dl-card-desc" data-i18n="landing.dl_macos_launchd_desc">Đăng ký LaunchAgent com.meikova.relay.plist để tự động chạy ngầm mỗi khi người dùng đăng nhập vào macOS.</p>
               <div class="dl-spec-chamber" style="border-color: rgba(168, 85, 247, 0.25); background: rgba(168, 85, 247, 0.04);">
                 <div class="dl-spec-item">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#A855F7;"><polyline points="20 6 9 17 4 12"/></svg>
@@ -799,7 +798,7 @@
             <button type="button" id="btnLandingDlMacosPlist" class="btn-pill btn-dl-two-line dl-action-btn" style="border-color: #A855F7; color: #E9D5FF; background: rgba(168, 85, 247, 0.12);">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title">Tải com.titan.remote.plist</span>
+                <span class="btn-dl-title">Tải com.meikova.relay.plist</span>
                 <span class="btn-dl-size mono-font">(Launchd Config)</span>
               </div>
             </button>
