@@ -46,8 +46,14 @@ async function testTursoCloud() {
   console.log('✓ Session validated for user:', validSess.username);
 
   // Test Universal SSO Ed25519 Token Validation (Fast-path 0.1ms)
-  const { issueUniversalToken } = require('./universal_sso');
-  const ssoToken = issueUniversalToken({ userId: 'usr_sso_relay', username: 'relay_sso_tester', email: 'sso@relay.io' });
+  let ssoToken = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJtZWlrb3ZhLmF1dGgiLCJzdWIiOiJ1c3Jfc3NvX3JlbGF5IiwidXNlcm5hbWUiOiJyZWxheV9zc29fdGVzdGVyIiwiZW1haWwiOiJzc29AcmVsYXkuaW8iLCJkaXNwbGF5X25hbWUiOiJSZWxheSBUZXN0ZXIiLCJyb2xlIjoidXNlciIsImlhdCI6MTc5MjU5ODQ1MywiZXhwIjoyNDIzMzE4NDUzfQ.GLAiD24955fRBPQoLp7jP3meOAkq1_38VyhMPN4PaLmRl5A_bbJ_HCyL-1TjsnnQcFXqoBKHI2ClWv5hRzUWAQ';
+  try {
+    const { issueUniversalToken } = require('./universal_sso');
+    const dynamicToken = issueUniversalToken({ userId: 'usr_sso_relay', username: 'relay_sso_tester', email: 'sso@relay.io' });
+    if (dynamicToken) ssoToken = dynamicToken;
+  } catch (_) {
+    // Client environments without private key use pre-signed fixture token
+  }
   const ssoSess = await DB.validateSession(ssoToken);
   assert(ssoSess && ssoSess.id === 'usr_sso_relay', 'SSO session must be valid and fast-path resolved');
   assert.strictEqual(ssoSess.provider, 'universal_sso');

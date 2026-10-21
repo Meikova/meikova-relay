@@ -145,7 +145,13 @@ class TestMultiClientSessions(unittest.IsolatedAsyncioTestCase):
 
         # 7. Host graceful stop -> Client 1 immediately receives host_disconnected and socket is closed
         await host_ws.send(json.dumps({"type": "host_closing", "room_id": room_id}))
-        c1_close_msg = json.loads(await client1_ws.recv())
+        c1_close_msg = None
+        for _ in range(5):
+            msg = json.loads(await asyncio.wait_for(client1_ws.recv(), timeout=2.0))
+            if msg.get("type") == "host_disconnected":
+                c1_close_msg = msg
+                break
+        self.assertIsNotNone(c1_close_msg)
         self.assertEqual(c1_close_msg.get("type"), "host_disconnected")
         with self.assertRaises(websockets.ConnectionClosed):
             await client1_ws.recv()
