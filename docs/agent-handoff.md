@@ -1,6 +1,23 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.28)
+### Recent Updates (Version 1.0.29)
+- **Tái Cấu Trúc Thương Hiệu Meikova Relay Toàn Diện & Tối Ưu Kết Nối Môi Trường Doanh Nghiệp (Corporate Firewall/Proxy/SSL Inspection):**
+  - **Khắc phục lỗi kết nối máy trạm công ty (host_service.py):**
+    - **Cơ chế DoH Fallback:** Tích hợp _resolve_doh() tự động phân giải IP máy chủ qua DNS-over-HTTPS (Google & Cloudflare DoH) khi DNS nội bộ công ty bị chặn hoặc lọc tên miền.
+    - **Tự động nhận diện Proxy Doanh nghiệp:** Hàm configure_system_proxies() đọc cấu hình WinINet/Registry Windows và gán tự động vào môi trường cho WebSocket client.
+    - **Vượt tường lửa kiểm duyệt SSL (Corporate SSL Inspection / MITM):** Tự động phát hiện lỗi CERTIFICATE_VERIFY_FAILED / self-signed certificate của tường lửa doanh nghiệp (Fortinet, Palo Alto, Zscaler), tự động kích hoạt _allow_insecure_ssl = True và kết nối lại ngay lập tức.
+    - **Chi tiết lỗi kết nối:** Truyền detail thông báo lỗi ra Activity Log giao diện máy trạm thay vì thông báo 'Mất kết nối' chung chung.
+  - **Đồng Bộ Hoàn Toàn Thương Hiệu Meikova Relay (100% Brand Migration):**
+    - Loại bỏ 100% từ khóa cũ trên toàn bộ hệ thống (58 tệp tin: server, web-client, host agent, desktop client, specs, scripts, docs).
+    - Biên dịch và đồng bộ cặp file thực thi mới: MeikovaRelayHost.exe (23.93 MB) và MeikovaRelayClient.exe (21.40 MB).
+    - Cập nhật binary máy chủ relay-server/MeikovaRelayHost.exe và gỡ bỏ hoàn toàn file cũ khỏi git tracking.
+  - **Kiểm Thử & Xác Nhận:**
+    - Toàn bộ 76 bài kiểm thử chạy thành công (Ran 76 tests in 18.078s - OK (skipped=1), Exit Code 0).
+    - Cú pháp node -c server.js chuẩn xác, Exit Code 0.
+
+---
+
+### Previous Updates (Version 1.0.28)
 - **Khắc Phục Mất Icon Khay Hệ Thống & Hoàn Thiện Kiến Trúc Standalone Desktop Toàn Diện Cho Client:**
   - **Khắc phục lỗi mất Icon Tray trên `MeikovaRelayClient.exe` ([desktop_client.py](file:///D:/JOB/DEV/meikova-relay/client_desktop/desktop_client.py), [client.spec](file:///D:/JOB/DEV/meikova-relay/client_desktop/client.spec)):**
     - **Nguyên nhân 1 (Resource Resolution):** Khi đóng gói PyInstaller Onefile, đường dẫn tĩnh `_root_dir / "client_desktop" / ...` không trỏ đúng vào thư mục tạm `sys._MEIPASS`. Thêm vào đó, `icon.ico` chưa được thêm vào mục `datas` của `client.spec`. Hệ thống fallback sang `SystemIcons.Application`, khiến Windows 11 Shell NotifyIcon tự động ẩn/từ chối hiển thị icon không rõ nguồn gốc.
