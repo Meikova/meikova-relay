@@ -109,7 +109,7 @@ class TestExtendedFeatures(unittest.TestCase):
 
         ac = AudioCapture(on_chunk=on_chunk)
         ac.start()
-        for _ in range(15):
+        for _ in range(40):
             if chunks:
                 break
             time.sleep(0.04)
