@@ -788,24 +788,28 @@ if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
 
 echo [1/3] Kiem tra va cap nhat ban Standalone Desktop (.exe)...
-powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', 'MeikovaRelayHost.exe.new') } catch {}"
-if exist "MeikovaRelayHost.exe.new" (
-    for %%I in ("MeikovaRelayHost.exe.new") do if %%~zI GTR 5000000 (
+taskkill /f /im MeikovaRelayHost.exe >nul 2>&1
+timeout /t 1 /nobreak >nul 2>&1
+
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', '%TARGET_DIR%\\MeikovaRelayHost.exe.new') } catch {}"
+if exist "%TARGET_DIR%\\MeikovaRelayHost.exe.new" (
+    for %%I in ("%TARGET_DIR%\\MeikovaRelayHost.exe.new") do if %%~zI GTR 5000000 (
         taskkill /f /im MeikovaRelayHost.exe >nul 2>&1
-        move /y "MeikovaRelayHost.exe.new" "MeikovaRelayHost.exe" >nul 2>&1
+        timeout /t 1 /nobreak >nul 2>&1
+        move /y "%TARGET_DIR%\\MeikovaRelayHost.exe.new" "%TARGET_DIR%\\MeikovaRelayHost.exe" >nul 2>&1
     )
-    if exist "MeikovaRelayHost.exe.new" del /f /q "MeikovaRelayHost.exe.new" >nul 2>&1
+    if exist "%TARGET_DIR%\\MeikovaRelayHost.exe.new" del /f /q "%TARGET_DIR%\\MeikovaRelayHost.exe.new" >nul 2>&1
 )
 
-if not exist "MeikovaRelayHost.exe" (
+if not exist "%TARGET_DIR%\\MeikovaRelayHost.exe" (
     echo Dang tai MeikovaRelayHost.exe tu Relay Server...
-    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', 'MeikovaRelayHost.exe')"
+    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', '%TARGET_DIR%\\MeikovaRelayHost.exe') } catch {}"
 )
 
 :CHECK_STANDALONE
 set "USE_STANDALONE=0"
-if exist "MeikovaRelayHost.exe" (
-    for %%I in ("MeikovaRelayHost.exe") do if %%~zI GTR 5000000 set "USE_STANDALONE=1"
+if exist "%TARGET_DIR%\\MeikovaRelayHost.exe" (
+    for %%I in ("%TARGET_DIR%\\MeikovaRelayHost.exe") do if %%~zI GTR 5000000 set "USE_STANDALONE=1"
 )
 
 if "%USE_STANDALONE%"=="1" (
@@ -822,11 +826,11 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo [2/3] Dang tai goi ma nguon Host Agent tu Relay Server...
-powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', 'agent-package.zip')"
-if not exist "agent-package.zip" goto :DOWNLOAD_FAIL
-powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path 'agent-package.zip' -DestinationPath '.' -Force"
-del /f /q agent-package.zip >nul 2>&1
-if exist "host_agent\\gui_agent.py" copy /y host_agent\\*.py . >nul 2>&1
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', '%TARGET_DIR%\\agent-package.zip') } catch {}"
+if not exist "%TARGET_DIR%\\agent-package.zip" goto :DOWNLOAD_FAIL
+powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path '%TARGET_DIR%\\agent-package.zip' -DestinationPath '%TARGET_DIR%' -Force"
+del /f /q "%TARGET_DIR%\\agent-package.zip" >nul 2>&1
+if exist "%TARGET_DIR%\\host_agent\\gui_agent.py" copy /y "%TARGET_DIR%\\host_agent\\*.*" "%TARGET_DIR%" >nul 2>&1
 goto :INSTALL_DEPS
 
 :DOWNLOAD_FAIL
@@ -836,7 +840,7 @@ exit /b 1
 
 :INSTALL_DEPS
 echo [3/3] Cai dat thu vien can thiet...
-python -m pip install websockets Pillow pystray --quiet >nul 2>&1
+python -m pip install websockets Pillow pystray pywebview --quiet >nul 2>&1
 
 :WRITE_CONFIG
 echo Ghi cau hinh lien ket voi tai khoan ${account}...

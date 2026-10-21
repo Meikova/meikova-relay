@@ -243,6 +243,24 @@ def create_windows_zip(exe_path: Path, output_zip_path: Path) -> Path:
 
     return output_zip_path
 
+def build_agent_package_zip(root_dir: Path) -> Path:
+    """Packages all host_agent files into relay-server/agent-package.zip and dist/agent-package.zip."""
+    import shutil
+    host_agent_dir = root_dir / "host_agent"
+    relay_zip = root_dir / "relay-server" / "agent-package.zip"
+    dist_zip = root_dir / "dist" / "agent-package.zip"
+
+    relay_zip.parent.mkdir(parents=True, exist_ok=True)
+    dist_zip.parent.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(relay_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in sorted(host_agent_dir.iterdir()):
+            if f.is_file() and not f.name.endswith(".pyc") and f.name != "__pycache__":
+                zf.write(f, arcname=f.name)
+
+    shutil.copy2(relay_zip, dist_zip)
+    return relay_zip
+
 def generate_checksums(dist_dir: Path) -> Path:
     """Generates SHA256 checksums file for all built artifacts."""
     checksums_file = dist_dir / "SHA256SUMS.txt"
@@ -344,7 +362,10 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
             exe_path = run_pyinstaller("windows", dist_dir)
         zip_path = dist_dir / "MeikovaRelayHost-windows-x64.zip"
         create_windows_zip(exe_path, zip_path)
-        print(f"[+] Windows artifacts: {exe_path.name}, {zip_path.name}")
+        relay_exe = REPO_ROOT / "relay-server" / "MeikovaRelayHost.exe"
+        if exe_path.exists(): shutil.copy2(exe_path, relay_exe)
+        build_agent_package_zip(REPO_ROOT)
+        print(f"[+] Windows artifacts: {exe_path.name}, {zip_path.name}, agent-package.zip")
 
     elif target == "linux":
         bin_path = dist_dir / "meikova-relay-host"

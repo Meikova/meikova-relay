@@ -1,5 +1,26 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.41)
+- **Khắc Phục Lỗi "Access is denied" và Tự Động Hóa Đóng Gói Host GUI Mới Nhất Trên Máy Trạm (`setup.bat` & `agent-package.zip`):**
+  - **1. Phân tích nguyên nhân gốc rễ (Root Cause Analysis):**
+    - Script `setup.bat` được sinh động bởi `relay-server/server.js` sử dụng đường dẫn tương đối khi gọi PowerShell `(New-Object Net.WebClient).DownloadFile(...)`. Trong một số môi trường, `[Environment]::CurrentDirectory` của .NET trỏ vào thư mục hệ thống `C:\Windows\system32` dẫn tới lỗi `System.UnauthorizedAccessException: Access is denied.` khi tải `MeikovaRelayHost.exe`.
+    - Do tải bản `.exe` thất bại, script kích hoạt nhánh dự phòng [2/3] tải gói mã nguồn Python `agent-package.zip`.
+    - Tuy nhiên, `agent-package.zip` trên máy chủ lưu trữ là bản cũ chưa được đóng gói lại, thiếu các mô-đun mới (`chat_window.py`, `cursor_manager.py`, `gui_view.html` mới).
+    - Đồng thời, nhánh dự phòng Python chỉ cài đặt `websockets Pillow pystray` mà thiếu `pywebview`, khiến `gui_agent.py` nhận diện `HAS_WEBVIEW == False` và kích hoạt giao diện Tkinter cũ thay vì giao diện chuẩn WebView2 Ambient Dark.
+  - **2. Giải pháp khắc phục:**
+    - [relay-server/server.js](file:///D:/JOB/DEV/meikova/meikova-relay/relay-server/server.js):
+      - Cập nhật toàn bộ các lệnh PowerShell tải và giải nén sang đường dẫn tuyệt đối `%TARGET_DIR%\MeikovaRelayHost.exe` và `%TARGET_DIR%\agent-package.zip`.
+      - Bổ sung lệnh kết liễu tiến trình cũ `taskkill /f /im MeikovaRelayHost.exe` kèm `timeout /t 1` tránh xung đột file lock khi cập nhật.
+      - Thay đổi lệnh sao chép mã nguồn từ `*.py` thành `*.*` để bao gồm cả `gui_view.html`.
+      - Bổ sung `pywebview` vào lệnh `pip install` ở bước dự phòng.
+    - [host_agent/requirements.txt](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/requirements.txt): Bổ sung `pywebview>=5.0.0`.
+    - [scripts/build.py](file:///D:/JOB/DEV/meikova/meikova-relay/scripts/build.py): Bổ sung hàm `build_agent_package_zip(root_dir)` tự động nén `host_agent/` thành `relay-server/agent-package.zip` và `dist/agent-package.zip`, đồng thời tự động sao chép `MeikovaRelayHost.exe` sang `relay-server/` mỗi khi build target Windows.
+  - **3. Kiểm thử & Đóng gói:**
+    - Toàn bộ 90/90 bài kiểm thử vượt qua (`Ran 90 tests in 18.854s - OK (skipped=1)`, Exit Code 0).
+    - Đóng gói đầy đủ `MeikovaRelayHost.exe`, `agent-package.zip`, cập nhật checksums `SHA256SUMS.txt`.
+
+---
+
 ### Recent Updates (Version 1.0.40)
 - **Chuẩn Hóa Nút Đăng Nhập Google Chuẩn Phong Cách Meikova Loop / Meikova Harvest (Ambient Capsule Google Sign-In):**
   - **1. Vấn đề nhận dạng:**
