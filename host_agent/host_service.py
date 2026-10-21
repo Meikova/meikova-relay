@@ -89,6 +89,7 @@ try:
     from host_agent.screen_capture import ScreenCapture
     from host_agent.input_injector import InputInjector
     from host_agent.clipboard_manager import ClipboardManager
+    from host_agent.cursor_manager import CursorManager
     from host_agent.file_manager import FileManager
     from host_agent.terminal_manager import TerminalManager
     from host_agent.system_manager import SystemManager
@@ -100,6 +101,7 @@ except ModuleNotFoundError:
     from screen_capture import ScreenCapture
     from input_injector import InputInjector
     from clipboard_manager import ClipboardManager
+    from cursor_manager import CursorManager
     from file_manager import FileManager
     from terminal_manager import TerminalManager
     from system_manager import SystemManager
@@ -151,6 +153,10 @@ class HostService:
         self.clipboard = ClipboardManager(on_clipboard_change=self._on_local_clipboard_change)
         self.clipboard.start_listener()
 
+        # Cursor Shape Sync
+        self.cursor_manager = CursorManager(on_cursor_change=self._on_local_cursor_change)
+        self.cursor_manager.start_listener()
+
         # Terminal Session
         self.terminal = TerminalManager(on_output=self._on_terminal_output)
         self.terminal.start()
@@ -167,6 +173,7 @@ class HostService:
         try:
             self.audio_capture.stop()
             self.audio_playback.stop()
+            self.cursor_manager.stop_listener()
         except Exception:
             pass
 
@@ -220,6 +227,16 @@ class HostService:
                 self.ws.send(json.dumps({
                     "type": "clipboard_sync",
                     "text": text
+                })),
+                self.loop
+            )
+
+    def _on_local_cursor_change(self, cursor: str):
+        if self.ws and self.has_active_client and self.loop and self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(
+                self.ws.send(json.dumps({
+                    "type": "cursor_update",
+                    "cursor": cursor
                 })),
                 self.loop
             )
@@ -409,6 +426,11 @@ class HostService:
                             "type": "clipboard_sync",
                             "text": clip_text
                         }))
+                    cur_shape = self.cursor_manager.get_cursor()
+                    await ws.send(json.dumps({
+                        "type": "cursor_update",
+                        "cursor": cur_shape
+                    }))
                     # Send initial terminal prompt & working directory
                     cwd = os.getcwd()
                     await ws.send(json.dumps({
@@ -744,6 +766,9 @@ class HostService:
                     if not mon_rect:
                         mon_rect = self.capture.active_monitor_rect
                     InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
+                    cur = self.cursor_manager.check_immediate()
+                    if cur:
+                        await ws.send(json.dumps({"type": "cursor_update", "cursor": cur}))
                 elif ev_type == "mouse_down":
                     mon_id = event.get("monitor_id")
                     if mon_id is not None and "x" in event and "y" in event:
@@ -755,6 +780,9 @@ class HostService:
                         if mon_rect:
                             InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
                     InputInjector.mouse_down(event["button"])
+                    cur = self.cursor_manager.check_immediate()
+                    if cur:
+                        await ws.send(json.dumps({"type": "cursor_update", "cursor": cur}))
                 elif ev_type == "mouse_up":
                     mon_id = event.get("monitor_id")
                     if mon_id is not None and "x" in event and "y" in event:
@@ -766,6 +794,9 @@ class HostService:
                         if mon_rect:
                             InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
                     InputInjector.mouse_up(event["button"])
+                    cur = self.cursor_manager.check_immediate()
+                    if cur:
+                        await ws.send(json.dumps({"type": "cursor_update", "cursor": cur}))
                 elif ev_type == "mouse_wheel":
                     InputInjector.mouse_wheel(event["delta_y"])
                 elif ev_type == "key_down":

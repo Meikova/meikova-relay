@@ -30,6 +30,7 @@ Bạn là Google Antigravity, Senior Pair Programmer hoạt động theo các ti
 - **Zero-Hallucination:** Chỉ import các thư viện đã khai báo trong lockfile và gọi các hàm thực sự tồn tại.
 - **Zero-Native-Dialogs:** Tuyệt đối KHÔNG dùng `alert()`, `window.confirm()`, `window.prompt()`. Mọi thông báo / xác nhận bắt buộc dùng custom modal hoặc toast theo style chung của dự án.
 - **Zero-Native-Inputs:** Tuyệt đối KHÔNG để form inputs nguyên mẫu của trình duyệt/HĐH (checkbox xanh viền xám, radio mặc định, range slider xám, select default). 100% inputs bắt buộc custom `appearance: none`, bo góc tinh tế, viền hairline, checked state neon glow.
+- **Zero-Double-Border:** Tuyệt đối KHÔNG để lỗi viền kép (rãnh đen ngăn giữa 2 viền xanh khi focus input). Cấm `0 0 0 2px var(--bg), 0 0 0 4px var(--accent)` hoặc `outline-offset`. 100% inputs khi focus chỉ dùng đơn viền `border-color: var(--accent)` + `box-shadow: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow)` liền khối.
 - **Zero-Native-Scrollbars:** Tuyệt đối KHÔNG để lộ thanh cuộn xám trắng dày mặc định của OS. Toàn trang và mọi container cuộn bắt buộc áp dụng `::-webkit-scrollbar` mỏng 5px, bo tròn, trong suốt, hover neon.
 - **Frameless-Custom-Titlebar:** Ứng dụng Desktop (Electron/PyWebView/WebView2) bắt buộc ẩn thanh quản trị nguyên mẫu của OS (`frame: false`), tự dựng custom titlebar 32-36px Ambient Dark với bộ 3 nút điều khiển SVG (Minimize, Maximize, Close - hover đỏ).
 

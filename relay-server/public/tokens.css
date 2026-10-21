@@ -33,7 +33,7 @@
   --glow-mult: 1;
   --glow: 0 0 0 1px oklch(var(--acc) / calc(0.55 * var(--glow-mult))),
           0 0 calc(28px * var(--glow-mult)) -6px oklch(var(--acc) / calc(0.75 * var(--glow-mult)));
-  --focus: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--accent), 0 0 18px oklch(var(--acc) / 0.45);
+  --focus: 0 0 0 1px var(--accent), 0 0 14px -2px oklch(var(--acc) / 0.5);
 
   /* Status Colors */
   --status-online: oklch(0.78 0.18 145);

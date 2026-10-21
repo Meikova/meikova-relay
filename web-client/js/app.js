@@ -3103,6 +3103,8 @@
           handleDisplayProfileMatched(msg);
         } else if (msg.type === 'monitors_list') {
           populateMonitors(msg.monitors, msg.active_id);
+        } else if (msg.type === 'cursor_update') {
+          applyHostCursor(msg.cursor);
         } else if (msg.type === 'clipboard_sync') {
           lastSyncedClientClipboard = msg.text || '';
           clipboardViewer.value = msg.text || '';
@@ -3881,6 +3883,19 @@
     }
   }, { passive: false });
 
+  // --- CURSOR SYNCHRONIZATION ---
+  let currentHostCursor = 'default';
+
+  function applyHostCursor(cursorName) {
+    currentHostCursor = cursorName || 'default';
+    if (remoteCanvas && !isCanvasPanning) {
+      remoteCanvas.style.cursor = currentHostCursor;
+    }
+    document.querySelectorAll('.monitor-tile canvas').forEach(c => {
+      c.style.cursor = currentHostCursor;
+    });
+  }
+
   // --- MOUSE TRACKING & COORDINATE CONVERSION ---
   function getNormalizedCoords(e) {
     const rect = remoteCanvas.getBoundingClientRect();
@@ -3919,6 +3934,12 @@
     }));
   });
 
+  remoteCanvas.addEventListener('mouseenter', () => {
+    if (!isCanvasPanning) {
+      remoteCanvas.style.cursor = currentHostCursor;
+    }
+  });
+
   remoteCanvas.addEventListener('mousedown', (e) => {
     if (!isConnected) return;
     if (e.button === 1 || (e.altKey && e.button === 0)) {
@@ -3949,7 +3970,7 @@
   window.addEventListener('mouseup', (e) => {
     if (isCanvasPanning && (e.button === 1 || e.button === 0)) {
       isCanvasPanning = false;
-      remoteCanvas.style.cursor = 'default';
+      remoteCanvas.style.cursor = currentHostCursor;
       e.preventDefault();
     }
   });

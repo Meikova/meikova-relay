@@ -1,5 +1,28 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.37)
+- **Đồng Bộ Hình Dạng Con Trỏ Chuột Thời Gian Thực Giữa Máy Trạm và Web Client (Real-time Cursor Shape Synchronization):**
+  - **Vấn đề cốt lõi:**
+    - Trước đây, 
+emoteCanvas trên web client chỉ cố định style.cursor = 'default'. Khi di chuột qua liên kết, nút bấm, thẻ tương tác (hover pointer/hand), ô nhập văn bản (I-beam text), mép cửa sổ (resize), hoặc trạng thái bận (wait/hourglass) trên máy trạm, con trỏ phía web không thay đổi, gây cảm giác mất liên kết và lệch trải nghiệm.
+  - **Khắc phục triệt để:**
+    - [host_agent/cursor_manager.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/cursor_manager.py):
+      - Sử dụng native Windows API (GetCursorInfo + GetIconInfoExW qua ctypes) tự động gắn desktop input (OpenInputDesktop + SetThreadDesktop) để đọc chính xác handle và Resource ID của con trỏ hệ thống (IDC_HAND, IDC_IBEAM, IDC_ARROW, IDC_WAIT, IDC_SIZENWSE, IDC_SIZEWE, IDC_SIZENS, IDC_SIZEALL, IDC_NO, v.v.).
+      - Ánh xạ trực tiếp sang các giá trị chuẩn CSS cursor (pointer, 	ext, default, wait, crosshair, ew-resize, 
+s-resize, move, 
+ot-allowed).
+      - Thiết lập luồng ngầm thăm dò chu kỳ 50ms và phương thức kiểm tra tức thì check_immediate() sau mỗi lần nhận sự kiện mouse_move, mouse_down, mouse_up từ client, đạt độ trễ phản hồi ~0ms.
+    - [host_agent/host_service.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/host_service.py): Tích hợp CursorManager, gửi gói tin cursor_update ngay khi con trỏ thay đổi trạng thái và gửi hình dạng ban đầu khi client kết nối.
+    - [web-client/js/app.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/app.js): Xử lý cursor_update, cập nhật biến currentHostCursor và áp dụng trực tiếp lên 
+emoteCanvas.style.cursor lẫn .monitor-tile canvas. Duy trì chính xác con trỏ sau khi kết thúc kéo pan.
+  - **Kiểm thử & Đóng gói:**
+    - Bổ sung 	ests/test_cursor_manager.py: Kiểm tra đọc dạng con trỏ, kiểm tra tức thì và vòng đời listener.
+    - Chạy toàn bộ 87 bài kiểm thử: 87/87 passed (Ran 87 tests in 18.518s - OK (skipped=1), Exit Code 0).
+    - Đóng gói thành công MeikovaRelayHost.exe mới nhất vào dist/ và 
+elay-server/.
+
+---
+
 ### Recent Updates (Version 1.0.36)
 - **Đồng Bộ Clipboard 2 Chiều Tốc Độ Cao & Kéo Thả Tệp/Thư Mục Trực Tiếp Lên Màn Hình & Hoàn Thiện File Explorer:**
   - **1. Đồng bộ Clipboard 2 chiều siêu nhạy (Realtime Bidirectional Clipboard Sync):**
