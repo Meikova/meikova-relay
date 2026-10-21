@@ -72,8 +72,6 @@ jobs:
           files: |
             dist/MeikovaRelayHost.exe
             dist/MeikovaRelayHost-windows-x64.zip
-            dist/TitanRemoteHost.exe
-            dist/TitanRemoteHost-windows-x64.zip
             dist/SHA256SUMS.txt
           draft: false
           prerelease: false

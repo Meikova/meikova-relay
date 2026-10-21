@@ -51,7 +51,7 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
         f"Section: net\n"
         f"Priority: optional\n"
         f"Architecture: amd64\n"
-        f"Maintainer: Meikova Relay <support@titan-remote.internal>\n"
+        f"Maintainer: Meikova Relay <support@meikova.org>\n"
         f"Description: Ultra low-latency remote desktop workstation host agent.\n"
         f" High-performance multi-monitor remote screen sharing, audio loopback,\n"
         f" file browser, terminal, and 120 FPS display synchronization.\n"
@@ -106,7 +106,7 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
     data_buf = io.BytesIO()
     with tarfile.open(fileobj=data_buf, mode="w:gz") as tar:
         # Binary in /usr/bin
-        bin_data = binary_path.read_bytes() if binary_path.exists() else b"#!/bin/sh\necho 'Titan Remote'\n"
+        bin_data = binary_path.read_bytes() if binary_path.exists() else b"#!/bin/sh\necho 'Meikova Relay'\n"
         ti = tarfile.TarInfo(name=f"./usr/bin/{bin_name}")
         ti.size = len(bin_data)
         ti.mode = 0o755
@@ -126,7 +126,7 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
         desktop_data = (
             b"[Desktop Entry]\n"
             b"Name=Meikova Relay Host\n"
-            b"Comment=Titan Remote Workstation Host Agent\n"
+            b"Comment=Meikova Relay Workstation Host Agent\n"
             b"Exec=meikova-relay-host\n"
             b"Terminal=false\n"
             b"Type=Application\n"
@@ -182,7 +182,7 @@ def create_linux_tarball(binary_path: Path, output_tar_path: Path) -> Path:
             "if [ -f 'meikova-relay.service' ]; then\n"
             "    sudo cp meikova-relay.service /etc/systemd/system/\n"
             "    sudo systemctl daemon-reload\n"
-            "    echo 'Systemd service installed. Start with: sudo systemctl start titan-remote'\n"
+            "    echo 'Systemd service installed. Start with: sudo systemctl start meikova-relay'\n"
             "fi\n"
             "echo 'Installation complete!'\n"
         ).encode("utf-8")
@@ -335,7 +335,7 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
         else:
             target = "linux"
 
-    print(f"=== Titan Remote Build Engine: Target [{target.upper()}] ===")
+    print(f"=== Meikova Relay Build Engine: Target [{target.upper()}] ===")
     dist_dir.mkdir(parents=True, exist_ok=True)
 
     if target == "windows":
@@ -344,12 +344,6 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
             exe_path = run_pyinstaller("windows", dist_dir)
         zip_path = dist_dir / "MeikovaRelayHost-windows-x64.zip"
         create_windows_zip(exe_path, zip_path)
-        # Backward compatibility aliases for Titan Remote
-        try:
-            shutil.copy2(exe_path, dist_dir / "TitanRemoteHost.exe")
-            shutil.copy2(zip_path, dist_dir / "TitanRemoteHost-windows-x64.zip")
-        except Exception:
-            pass
         print(f"[+] Windows artifacts: {exe_path.name}, {zip_path.name}")
 
     elif target == "linux":
@@ -387,7 +381,7 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
     print("=== Build Completed Successfully ===")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Titan Remote Multi-Platform Build Engine")
+    parser = argparse.ArgumentParser(description="Meikova Relay Multi-Platform Build Engine")
     parser.add_argument("--target", choices=["auto", "windows", "linux", "macos", "all"], default="auto")
     parser.add_argument("--dist", type=Path, default=DIST_DIR)
     parser.add_argument("--skip-pyinstaller", action="store_true", help="Skip compilation, only test packaging")
