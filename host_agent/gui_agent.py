@@ -2444,6 +2444,16 @@ def run_service_headless():
         device_name=device_name,
         account=account
     )
+    chat_window = None
+    if HostChatWindow:
+        try:
+            chat_window = HostChatWindow(
+                on_send_reply=lambda text: service.send_chat_message(text),
+                parent=None
+            )
+            service.on_chat_message = lambda sender, text: chat_window.add_message(sender, text, is_local=False)
+        except Exception:
+            chat_window = None
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
