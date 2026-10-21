@@ -2466,7 +2466,7 @@ def main():
         except Exception:
             pass
 
-    if "--service" in sys.argv:
+    if "--service" in sys.argv or "--headless" in sys.argv or "--silent" in sys.argv or "--daemon" in sys.argv:
         run_service_headless()
         return
 

@@ -53,6 +53,16 @@ class TestDownloadEndpoints(unittest.TestCase):
             self.assertEqual(resp.status, 200)
             content = resp.read().decode("utf-8")
             self.assertIn("Meikova Relay Host", content)
+            self.assertIn("HEADLESS_MODE=0", content)
+
+    def test_setup_bat_headless_download(self):
+        url = f"http://127.0.0.1:{self.port}/api/download/setup.bat?account=Tester&headless=1"
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            content = resp.read().decode("utf-8")
+            self.assertIn("HEADLESS_MODE=1", content)
+            self.assertIn("--service", content)
             self.assertIn("Tester", content)
             self.assertIn("MeikovaRelayHost.exe", content)
 

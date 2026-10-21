@@ -771,11 +771,32 @@ const server = http.createServer(async (req, res) => {
       const account = url.searchParams.get('account') || (session ? session.username : 'User');
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
+      const isHeadless = url.searchParams.get('headless') === '1' || url.searchParams.get('silent') === '1' || url.searchParams.get('mode') === 'headless' || url.searchParams.get('tray') === '0';
 
       const batContent = `@echo off
 setlocal DisableDelayedExpansion
 title Meikova Relay Host - Cai dat may tram tu dong
 chcp 65001 >nul 2>&1
+
+set "HEADLESS_MODE=${isHeadless ? '1' : '0'}"
+for %%A in (%*) do (
+    if /i "%%~A"=="/silent" set "HEADLESS_MODE=1"
+    if /i "%%~A"=="-s" set "HEADLESS_MODE=1"
+    if /i "%%~A"=="/s" set "HEADLESS_MODE=1"
+    if /i "%%~A"=="--headless" set "HEADLESS_MODE=1"
+    if /i "%%~A"=="/headless" set "HEADLESS_MODE=1"
+    if /i "%%~A"=="--service" set "HEADLESS_MODE=1"
+    if /i "%%~A"=="/service" set "HEADLESS_MODE=1"
+    if /i "%%~A"=="--no-tray" set "HEADLESS_MODE=1"
+    if /i "%%~A"=="/no-tray" set "HEADLESS_MODE=1"
+)
+
+set "APP_FLAGS="
+if "%HEADLESS_MODE%"=="1" (
+    set "APP_FLAGS=--service"
+) else (
+    set "APP_FLAGS=--autostart"
+)
 echo ==============================================================
 echo        MEIKOVA RELAY ENTERPRISE - TU DONG LIEN KET MAY TRAM
 echo ==============================================================
@@ -861,15 +882,26 @@ copy /y config.json "%USERPROFILE%\\.meikova_relay_config.json" >nul 2>&1
 
 if "%USE_STANDALONE%"=="1" goto :RUN_STANDALONE
 
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \\"%TARGET_DIR%\\gui_agent.py\\" --autostart" /f >nul 2>&1
-start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py"
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \\"%TARGET_DIR%\\gui_agent.py\\" %APP_FLAGS%" /f >nul 2>&1
+start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py" %APP_FLAGS%
 goto :FINISH_SETUP
 
 :RUN_STANDALONE
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\\"%TARGET_DIR%\\MeikovaRelayHost.exe\\" --autostart" /f >nul 2>&1
-start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\MeikovaRelayHost.exe"
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\\"%TARGET_DIR%\\MeikovaRelayHost.exe\\" %APP_FLAGS%" /f >nul 2>&1
+start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\MeikovaRelayHost.exe" %APP_FLAGS%
 
 :FINISH_SETUP
+
+if "%HEADLESS_MODE%"=="1" (
+    echo.
+    echo ==============================================================
+    echo   [THANH CONG] MAY TRAM DA KHOI CHAY NGAM (HEADLESS / NO TRAY)
+    echo   Tai khoan:  ${account}
+    echo   Room ID:    %RAND_ROOM%   ^|   PIN: %RAND_PIN%
+    echo   Che do:     Headless Service (Khong cua so, khong tray icon)
+    echo ==============================================================
+    exit /b 0
+)
 
 echo.
 echo ==============================================================
