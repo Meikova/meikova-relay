@@ -1599,6 +1599,42 @@ wss.on('connection', (ws, req) => {
           targetOs,
           details: { path: data.path || '', folderName: data.name || '' }
         });
+      } else if (type === 'file_copy_request') {
+        DB.logAudit({
+          action: 'FILE_COPY',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { src: data.src || '', dst: data.dst || '' }
+        });
+      } else if (type === 'file_move_request') {
+        DB.logAudit({
+          action: 'FILE_MOVE',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { src: data.src || '', dst: data.dst || '' }
+        });
+      } else if (type === 'file_rename_request') {
+        DB.logAudit({
+          action: 'FILE_RENAME',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { old_path: data.old_path || '', new_name: data.new_name || '' }
+        });
       } else if (type === 'file_read_request') {
         DB.logAudit({
           action: 'FILE_READ',

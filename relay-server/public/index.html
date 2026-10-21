@@ -1358,6 +1358,10 @@
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <span data-i18n="files.btn_upload">Tải tệp lên</span>
             </button>
+            <button id="btnExpPaste" class="btn-pill hidden" style="border-color: #38BDF8; color: #38BDF8; font-weight: 600;" title="Dán tệp/thư mục đã sao chép/cắt vào thư mục này" data-i18n-title="files.btn_paste_title">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+              <span id="expPasteLabel" data-i18n="files.btn_paste">Dán</span>
+            </button>
             <input type="file" id="expFileInput" class="hidden">
           </div>
 
@@ -2089,6 +2093,9 @@
         <div style="flex: 1; min-width: 0;">
           <h3 id="confirmDialogTitle" class="brand-font" style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--text);">Xác nhận</h3>
           <p id="confirmDialogMessage" style="margin: 0; font-size: 0.86rem; color: var(--text-muted); line-height: 1.5; word-break: break-word; white-space: pre-wrap;"></p>
+          <div id="confirmDialogInputWrap" class="hidden" style="margin-top: 14px;">
+            <input type="text" id="confirmDialogInput" class="instrument-input mono-font" style="width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 0.85rem;" placeholder="">
+          </div>
         </div>
       </div>
       <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">

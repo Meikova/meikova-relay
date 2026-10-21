@@ -589,6 +589,39 @@ class HostService:
                     }))
                     continue
 
+                # File Copy Request
+                elif ev_type == "file_copy_request":
+                    src = unicodedata.normalize('NFC', event.get("src") or event.get("src_path", ""))
+                    dst = unicodedata.normalize('NFC', event.get("dst") or event.get("dst_dir", ""))
+                    res = self.file_manager.copy_item(src, dst)
+                    await ws.send(json.dumps({
+                        "type": "file_copy_response",
+                        "result": res
+                    }))
+                    continue
+
+                # File Move Request
+                elif ev_type == "file_move_request":
+                    src = unicodedata.normalize('NFC', event.get("src") or event.get("src_path", ""))
+                    dst = unicodedata.normalize('NFC', event.get("dst") or event.get("dst_dir", ""))
+                    res = self.file_manager.move_item(src, dst)
+                    await ws.send(json.dumps({
+                        "type": "file_move_response",
+                        "result": res
+                    }))
+                    continue
+
+                # File Rename Request
+                elif ev_type == "file_rename_request":
+                    old_path = unicodedata.normalize('NFC', event.get("old_path", ""))
+                    new_name = unicodedata.normalize('NFC', event.get("new_name", ""))
+                    res = self.file_manager.rename_item(old_path, new_name)
+                    await ws.send(json.dumps({
+                        "type": "file_rename_response",
+                        "result": res
+                    }))
+                    continue
+
                 # Direct File Read (Online Editor)
                 elif ev_type == "file_read_request":
                     filepath = unicodedata.normalize('NFC', event.get("filepath", ""))

@@ -1,5 +1,31 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.36)
+- **Đồng Bộ Clipboard 2 Chiều Tốc Độ Cao & Kéo Thả Tệp/Thư Mục Trực Tiếp Lên Màn Hình & Hoàn Thiện File Explorer:**
+  - **1. Đồng bộ Clipboard 2 chiều siêu nhạy (Realtime Bidirectional Clipboard Sync):**
+    - host_agent/clipboard_manager.py: Rút ngắn chu kỳ thăm dò clipboard máy trạm từ 1.0s xuống 0.2s (200ms), bắt kịp tức thì thay đổi clipboard từ Windows/macOS/Linux sang client web.
+    - web-client/js/app.js: Lắng nghe sự kiện copy, paste, ocus của trình duyệt. Tự động đồng bộ nội dung sao chép sang máy trạm qua clipboard_sync, gán biến lastSyncedClientClipboard chống echo dội ngược.
+  - **2. Kéo-thả trực tiếp tệp & thư mục lên màn hình Desktop máy trạm (Direct Desktop Drag-and-Drop & Folder Tree Upload):**
+    - host_agent/file_manager.py: Mở rộng start_upload() hỗ trợ 	arget_dir: 'desktop', tự động trỏ về Path.home() / 'Desktop'. Chuẩn hóa đường dẫn tương đối và tự động tạo toàn bộ thư mục cha lồng nhau qua os.makedirs(os.path.dirname(dest_path), exist_ok=True).
+    - web-client/js/app.js: Xây dựng hàm đệ quy getFilesFromDataTransfer() duyệt toàn bộ cấu trúc thư mục lồng nhau (webkitGetAsEntry), thiết lập hàng đợi upload tuần tự uploadQueue ngăn chặn nghẽn và xung đột chunk dữ liệu.
+    - Kéo thả tệp hoặc cả thư mục trực tiếp vào màn hình điều khiển (
+emoteSection) sẽ giải nén/tải đúng cấu trúc cây thư mục lên Desktop máy trạm.
+  - **3. Hỗ trợ Dán Tệp Trực Tiếp (Direct File Paste Ctrl+V):**
+    - Nhấn Ctrl+V trên màn hình remote khi clipboard chứa tệp/hình ảnh từ OS cục bộ sẽ tự động bóc tách và đẩy tệp trực tiếp lên Desktop máy trạm.
+    - Nhấn Ctrl+V trong tab Quản lý Tệp sẽ dán mục đang copy/cut trong explorer hoặc tải tệp clipboard vào thư mục hiện tại.
+  - **4. Hoàn thiện toàn diện thao tác tệp trong Remote File Explorer (Copy, Cut/Move, Paste, Rename, New Folder):**
+    - host_agent/file_manager.py: Bổ sung copy_item(src, dst_dir), move_item(src, dst_dir), 
+ename_item(old_path, new_name) xử lý an toàn cho cả file và folder, tự động đánh số trùng lặp (- Copy (N)).
+    - host_agent/host_service.py: Xử lý các request ile_copy_request, ile_move_request, ile_rename_request.
+    - 
+elay-server/server.js: Bổ sung audit log ghi nhận FILE_COPY, FILE_MOVE, FILE_RENAME.
+    - web-client/index.html & pp.js: Thêm nút tnExpPaste, thêm nút Sao chép, Cắt, Đổi tên trên từng dòng và thẻ lưới; loại bỏ hoàn toàn window.prompt bằng modal Ambient Dark showPromptModal.
+  - **5. Kiểm thử & Đóng gói:**
+    - Toàn bộ 84 bài kiểm thử tự động vượt qua (Ran 84 tests in 18.101s - OK (skipped=1), Exit Code 0).
+    - Đóng gói thành công MeikovaRelayHost.exe Windows (Exit Code 0).
+
+---
+
 ### Recent Updates (Version 1.0.35)
 - **Loại Bỏ Hoàn Toàn Nối Chuỗi `[Console]::Out.Flush()` Trong Terminal Host (Clean Terminal Stdin):**
   - **Nguyên nhân cốt lõi:**

@@ -22,6 +22,58 @@
   const btnExpRefresh = document.getElementById('btnExpRefresh');
   const btnExpNewFolder = document.getElementById('btnExpNewFolder');
   const btnExpUpload = document.getElementById('btnExpUpload');
+  const btnExpPaste = document.getElementById('btnExpPaste');
+  const expPasteLabel = document.getElementById('expPasteLabel');
+  let explorerClipboard = null; // { action: 'copy' | 'cut', path: string, name: string }
+
+  function updatePasteButtonState() {
+    if (!btnExpPaste) return;
+    if (explorerClipboard && explorerClipboard.path) {
+      btnExpPaste.classList.remove('hidden');
+      if (expPasteLabel) {
+        const actionText = explorerClipboard.action === 'copy' ? (t('files.btn_paste') || 'Dán') : 'Chuyển';
+        expPasteLabel.textContent = `${actionText} (${explorerClipboard.name})`;
+      }
+      btnExpPaste.title = explorerClipboard.action === 'copy'
+        ? `Dán tệp đã chép: ${explorerClipboard.name}`
+        : `Di chuyển tệp đã cắt: ${explorerClipboard.name}`;
+    } else {
+      btnExpPaste.classList.add('hidden');
+      if (expPasteLabel) expPasteLabel.textContent = t('files.btn_paste') || 'Dán';
+      btnExpPaste.title = t('files.btn_paste_title') || 'Dán tệp/thư mục vào đây';
+    }
+  }
+
+  function executePasteAction() {
+    if (!remoteCurrentPath) {
+      showToast('Vui lòng chọn thư mục đích trên máy trạm', 'info');
+      return;
+    }
+    if (!explorerClipboard || !explorerClipboard.path) {
+      showToast('Khay nhớ tạm trống. Vui lòng sao chép hoặc cắt một mục trước.', 'info');
+      return;
+    }
+    if (explorerClipboard.action === 'copy') {
+      ws.send(JSON.stringify({
+        type: 'file_copy_request',
+        src_path: explorerClipboard.path,
+        dst_dir: remoteCurrentPath
+      }));
+      showToast(`Đang sao chép "${explorerClipboard.name}" vào thư mục hiện tại...`, 'info');
+    } else if (explorerClipboard.action === 'cut') {
+      ws.send(JSON.stringify({
+        type: 'file_move_request',
+        src_path: explorerClipboard.path,
+        dst_dir: remoteCurrentPath
+      }));
+      showToast(`Đang di chuyển "${explorerClipboard.name}" vào thư mục hiện tại...`, 'info');
+    }
+  }
+
+  if (btnExpPaste) {
+    btnExpPaste.addEventListener('click', executePasteAction);
+  }
+
   const expFileInput = document.getElementById('expFileInput');
   const explorerSearchInput = document.getElementById('explorerSearchInput');
   const btnModeList = document.getElementById('btnModeList');
@@ -163,6 +215,8 @@
       const iconWrap = document.getElementById('confirmDialogIconWrap');
       const iconCheck = document.getElementById('confirmDialogIconCheck');
       const iconAlert = document.getElementById('confirmDialogIconAlert');
+      const inputWrap = document.getElementById('confirmDialogInputWrap');
+      if (inputWrap) inputWrap.classList.add('hidden');
 
       if (!modal) {
         resolve(true);
@@ -263,6 +317,8 @@
       const iconWrap = document.getElementById('confirmDialogIconWrap');
       const iconCheck = document.getElementById('confirmDialogIconCheck');
       const iconAlert = document.getElementById('confirmDialogIconAlert');
+      const inputWrap = document.getElementById('confirmDialogInputWrap');
+      if (inputWrap) inputWrap.classList.add('hidden');
 
       if (!modal) {
         resolve();
@@ -320,6 +376,106 @@
       window.addEventListener('keydown', onKeyDown);
       modal.addEventListener('click', onBackdrop);
       btnConfirm?.focus();
+    });
+  }
+
+  function showPromptModal({
+    title = '',
+    message = '',
+    defaultValue = '',
+    placeholder = '',
+    confirmText = '',
+    cancelText = ''
+  } = {}) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('modalConfirmDialog');
+      const titleEl = document.getElementById('confirmDialogTitle');
+      const msgEl = document.getElementById('confirmDialogMessage');
+      const btnConfirm = document.getElementById('confirmDialogBtnConfirm');
+      const btnCancel = document.getElementById('confirmDialogBtnCancel');
+      const iconWrap = document.getElementById('confirmDialogIconWrap');
+      const iconCheck = document.getElementById('confirmDialogIconCheck');
+      const iconAlert = document.getElementById('confirmDialogIconAlert');
+      const inputWrap = document.getElementById('confirmDialogInputWrap');
+      const inputEl = document.getElementById('confirmDialogInput');
+
+      if (!modal) {
+        resolve(null);
+        return;
+      }
+
+      if (titleEl) titleEl.textContent = title || t('dialog.confirm_title') || 'Nhập thông tin';
+      if (msgEl) msgEl.textContent = message;
+      if (inputWrap) inputWrap.classList.remove('hidden');
+      if (inputEl) {
+        inputEl.value = defaultValue || '';
+        inputEl.placeholder = placeholder || '';
+      }
+
+      if (btnConfirm) {
+        btnConfirm.textContent = confirmText || t('dialog.btn_confirm') || 'Đồng ý';
+        btnConfirm.style.background = '';
+        btnConfirm.style.borderColor = '';
+        btnConfirm.style.boxShadow = '';
+      }
+      if (btnCancel) {
+        btnCancel.textContent = cancelText || t('dialog.btn_cancel') || 'Hủy';
+        btnCancel.classList.remove('hidden');
+      }
+
+      if (iconWrap) {
+        iconWrap.style.background = 'rgba(56, 189, 248, 0.12)';
+        iconWrap.style.color = '#38BDF8';
+      }
+      if (iconCheck) iconCheck.classList.remove('hidden');
+      if (iconAlert) iconAlert.classList.add('hidden');
+
+      modal.classList.remove('hidden');
+
+      function cleanup(res) {
+        modal.classList.add('hidden');
+        if (inputWrap) inputWrap.classList.add('hidden');
+        btnConfirm?.removeEventListener('click', onConfirm);
+        btnCancel?.removeEventListener('click', onCancel);
+        window.removeEventListener('keydown', onKeyDown);
+        modal.removeEventListener('click', onBackdrop);
+        resolve(res);
+      }
+
+      function onConfirm(e) {
+        e.stopPropagation();
+        cleanup(inputEl ? inputEl.value.trim() : '');
+      }
+
+      function onCancel(e) {
+        e.stopPropagation();
+        cleanup(null);
+      }
+
+      function onKeyDown(e) {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          cleanup(null);
+        } else if (e.key === 'Enter') {
+          e.stopPropagation();
+          cleanup(inputEl ? inputEl.value.trim() : '');
+        }
+      }
+
+      function onBackdrop(e) {
+        if (e.target === modal) {
+          cleanup(null);
+        }
+      }
+
+      btnConfirm?.addEventListener('click', onConfirm);
+      btnCancel?.addEventListener('click', onCancel);
+      window.addEventListener('keydown', onKeyDown);
+      modal.addEventListener('click', onBackdrop);
+      setTimeout(() => {
+        inputEl?.focus();
+        inputEl?.select();
+      }, 50);
     });
   }
 
@@ -2948,6 +3104,7 @@
         } else if (msg.type === 'monitors_list') {
           populateMonitors(msg.monitors, msg.active_id);
         } else if (msg.type === 'clipboard_sync') {
+          lastSyncedClientClipboard = msg.text || '';
           clipboardViewer.value = msg.text || '';
           if (navigator.clipboard && navigator.clipboard.writeText && msg.text) {
             navigator.clipboard.writeText(msg.text).catch(() => {});
@@ -2973,6 +3130,29 @@
             requestBrowsePath(remoteCurrentPath);
           } else {
             showToast(`Lỗi tạo thư mục: ${msg.result?.error || 'Không xác định'}`, 'error');
+          }
+        } else if (msg.type === 'file_copy_response') {
+          if (msg.result && msg.result.success) {
+            showToast(t('files.copy_success') || 'Đã sao chép tệp/thư mục thành công', 'success');
+            requestBrowsePath(remoteCurrentPath);
+          } else {
+            showToast(`Lỗi sao chép: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
+          }
+        } else if (msg.type === 'file_move_response') {
+          if (msg.result && msg.result.success) {
+            showToast(t('files.move_success') || 'Đã di chuyển tệp/thư mục thành công', 'success');
+            explorerClipboard = null;
+            updatePasteButtonState();
+            requestBrowsePath(remoteCurrentPath);
+          } else {
+            showToast(`Lỗi di chuyển: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
+          }
+        } else if (msg.type === 'file_rename_response') {
+          if (msg.result && msg.result.success) {
+            showToast(t('files.rename_success') || 'Đã đổi tên tệp/thư mục thành công', 'success');
+            requestBrowsePath(remoteCurrentPath);
+          } else {
+            showToast(`Lỗi đổi tên: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
           }
         } else if (msg.type === 'file_read_response') {
           handleFileReadResponse(msg);
@@ -4254,12 +4434,37 @@
   // --- SEAMLESS 2-WAY BACKGROUND CLIPBOARD SYNC ---
   let lastSyncedClientClipboard = '';
 
-  window.addEventListener('paste', (e) => {
-    if (!isConnected || currentView !== 'remote') return;
+  window.addEventListener('paste', async (e) => {
+    if (!isConnected) return;
     const activeEl = document.activeElement;
     const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
     if (tag === 'input' || tag === 'textarea' || (activeEl && activeEl.isContentEditable)) return;
 
+    // A. Handle file paste onto Remote Desktop screen or File Explorer
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      e.preventDefault();
+      const files = await getFilesFromDataTransfer(e.clipboardData);
+      if (files.length > 0) {
+        if (currentView === 'remote') {
+          showToast(`Đang dán ${files.length} tệp lên màn hình máy trạm...`, 'info');
+          files.forEach(f => uploadFileToHost(f, 'desktop'));
+        } else if (currentView === 'files') {
+          showToast(`Đang dán ${files.length} tệp vào thư mục hiện tại...`, 'info');
+          files.forEach(f => uploadFileToHost(f, remoteCurrentPath));
+        }
+      }
+      return;
+    }
+
+    // B. Handle File Explorer internal clipboard paste (Ctrl+V)
+    if (currentView === 'files' && explorerClipboard && explorerClipboard.path) {
+      e.preventDefault();
+      executePasteAction();
+      return;
+    }
+
+    // C. Handle text clipboard paste to remote screen
+    if (currentView !== 'remote') return;
     const pastedText = e.clipboardData?.getData('text');
     if (pastedText && ws && ws.readyState === WebSocket.OPEN) {
       lastSyncedClientClipboard = pastedText;
@@ -4272,6 +4477,25 @@
         sendHotKeyCombo([0x11, 0x56]); // Ctrl+V
       }, 50);
     }
+  });
+
+  // Client Copy Event: Sync local copy to host immediately
+  window.addEventListener('copy', async () => {
+    if (!isConnected || ws?.readyState !== WebSocket.OPEN) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        setTimeout(async () => {
+          const text = await navigator.clipboard.readText();
+          if (text && text !== lastSyncedClientClipboard && ws && ws.readyState === WebSocket.OPEN) {
+            lastSyncedClientClipboard = text;
+            ws.send(JSON.stringify({
+              type: 'clipboard_sync',
+              text: text
+            }));
+          }
+        }, 50);
+      }
+    } catch {}
   });
 
   window.addEventListener('focus', async () => {
@@ -4896,55 +5120,140 @@
     }
   });
 
-  async function uploadFileToHost(file, targetDir) {
+  async function getFilesFromDataTransfer(dataTransfer) {
+    const files = [];
+    if (dataTransfer.items && dataTransfer.items.length > 0) {
+      async function readEntry(entry, path = '') {
+        if (!entry) return;
+        if (entry.isFile) {
+          await new Promise((resolve) => {
+            entry.file((f) => {
+              const rel = path ? `${path}/${f.name}` : f.name;
+              Object.defineProperty(f, 'relativePath', { value: rel, writable: true, configurable: true });
+              files.push(f);
+              resolve();
+            }, () => resolve());
+          });
+        } else if (entry.isDirectory) {
+          const dirReader = entry.createReader();
+          const readAllEntries = () => new Promise((resolve) => {
+            dirReader.readEntries(async (entries) => {
+              if (!entries || entries.length === 0) {
+                resolve();
+                return;
+              }
+              const nextPath = path ? `${path}/${entry.name}` : entry.name;
+              for (const e of entries) {
+                await readEntry(e, nextPath);
+              }
+              await readAllEntries();
+              resolve();
+            }, () => resolve());
+          });
+          await readAllEntries();
+        }
+      }
+
+      const tasks = [];
+      for (let i = 0; i < dataTransfer.items.length; i++) {
+        const item = dataTransfer.items[i];
+        if (typeof item.webkitGetAsEntry === 'function') {
+          const entry = item.webkitGetAsEntry();
+          if (entry) tasks.push(readEntry(entry));
+        } else {
+          const f = item.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+      await Promise.all(tasks);
+    } else if (dataTransfer.files && dataTransfer.files.length > 0) {
+      for (let i = 0; i < dataTransfer.files.length; i++) {
+        files.push(dataTransfer.files[i]);
+      }
+    }
+    return files;
+  }
+
+  const uploadQueue = [];
+  let isUploading = false;
+
+  async function processUploadQueue() {
+    if (isUploading || uploadQueue.length === 0) return;
+    isUploading = true;
+    while (uploadQueue.length > 0) {
+      const task = uploadQueue.shift();
+      try {
+        await executeFileUpload(task.file, task.targetDir);
+      } catch (err) {
+        console.error('Upload failed:', err);
+      }
+    }
+    isUploading = false;
+  }
+
+  function uploadFileToHost(file, targetDir = '') {
+    uploadQueue.push({ file, targetDir });
+    processUploadQueue();
+  }
+
+  async function executeFileUpload(file, targetDir) {
     if (!isConnected) {
       showToast('Vui lòng kết nối vào máy trạm trước khi gửi tệp tin!', 'info');
       return;
     }
 
-    uploadFileName.textContent = file.name;
+    const displayName = file.relativePath || file.name;
+    uploadFileName.textContent = displayName;
     uploadPercent.textContent = '0%';
     uploadProgressBar.style.width = '0%';
     uploadProgressContainer.classList.remove('hidden');
 
     if (expTransferProgress) {
       expTransferProgress.classList.remove('hidden');
-      expTransferLabel.textContent = `Đang tải lên: ${file.name} (${formatBytes(file.size)})`;
+      expTransferLabel.textContent = `Đang tải lên: ${displayName} (${formatBytes(file.size)})`;
       expTransferPercent.textContent = '0%';
       expTransferFill.style.width = '0%';
     }
 
-    const transferId = 'transfer_' + Date.now();
+    const transferId = 'transfer_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
     const chunkSize = 64 * 1024;
-    const totalChunks = Math.ceil(file.size / chunkSize);
+    const totalChunks = Math.ceil(file.size / chunkSize) || 1;
 
     ws.send(JSON.stringify({
       type: 'file_upload_start',
       transfer_id: transferId,
-      filename: file.name,
+      filename: file.relativePath || file.name,
       filesize: file.size,
       target_dir: targetDir || remoteCurrentPath || ''
     }));
 
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * chunkSize;
-      const end = Math.min(file.size, start + chunkSize);
-      const slice = file.slice(start, end);
-      const buffer = await slice.arrayBuffer();
-      const b64 = arrayBufferToBase64(buffer);
-
+    if (file.size === 0) {
       ws.send(JSON.stringify({
         type: 'file_upload_chunk',
         transfer_id: transferId,
-        data: b64
+        data: ''
       }));
+    } else {
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(file.size, start + chunkSize);
+        const slice = file.slice(start, end);
+        const buffer = await slice.arrayBuffer();
+        const b64 = arrayBufferToBase64(buffer);
 
-      const progress = Math.round(((i + 1) / totalChunks) * 100);
-      uploadPercent.textContent = `${progress}%`;
-      uploadProgressBar.style.width = `${progress}%`;
-      if (expTransferProgress) {
-        expTransferPercent.textContent = `${progress}%`;
-        expTransferFill.style.width = `${progress}%`;
+        ws.send(JSON.stringify({
+          type: 'file_upload_chunk',
+          transfer_id: transferId,
+          data: b64
+        }));
+
+        const progress = Math.round(((i + 1) / totalChunks) * 100);
+        uploadPercent.textContent = `${progress}%`;
+        uploadProgressBar.style.width = `${progress}%`;
+        if (expTransferProgress) {
+          expTransferPercent.textContent = `${progress}%`;
+          expTransferFill.style.width = `${progress}%`;
+        }
       }
     }
 
@@ -4988,17 +5297,18 @@
     e.dataTransfer.dropEffect = 'copy';
   });
 
-  remoteSection.addEventListener('drop', (e) => {
+  remoteSection.addEventListener('drop', async (e) => {
     e.preventDefault();
     screenDragCounter = 0;
     screenDropOverlay.classList.add('hidden');
     if (!isConnected || currentView !== 'remote') return;
 
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      for (let i = 0; i < e.dataTransfer.files.length; i++) {
-        uploadFileToHost(e.dataTransfer.files[i]);
+    if (e.dataTransfer) {
+      const files = await getFilesFromDataTransfer(e.dataTransfer);
+      if (files.length > 0) {
+        showToast(`Đang truyền ${files.length} tệp/thư mục trực tiếp lên Desktop máy trạm...`, 'info');
+        files.forEach(f => uploadFileToHost(f, 'desktop'));
       }
-      showToast(`Đang truyền ${e.dataTransfer.files.length} tệp trực tiếp sang máy trạm...`, 'info');
     }
   });
 
@@ -5305,6 +5615,18 @@
                   <span>${t('files.action_edit')}</span>
                 </button>
               ` : ''}
+              <button class="btn-pill btn-action-copy" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_copy_title') || 'Sao chép'}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--line-highlight); color: var(--text-muted);">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>${t('files.action_copy') || 'Chép'}</span>
+              </button>
+              <button class="btn-pill btn-action-cut" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_cut_title') || 'Cắt / Di chuyển'}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--line-highlight); color: var(--text-muted);">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                <span>${t('files.action_cut') || 'Cắt'}</span>
+              </button>
+              <button class="btn-pill btn-action-rename" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_rename_title') || 'Đổi tên'}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--line-highlight); color: var(--text-muted);">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>${t('files.action_rename') || 'Đổi tên'}</span>
+              </button>
               ${!isDir ? `
                 <button class="btn-pill btn-action-dl" data-path="${itemPath}" title="${t('files.action_download_title')}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--accent); color: var(--accent);">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -5334,6 +5656,20 @@
             <div class="grid-item-icon" style="transform: scale(1.6); margin-bottom: 12px;">${icon}</div>
             <div class="grid-item-name">${escapeHtml(item.name)}</div>
             <div class="grid-item-size">${sizeStr}</div>
+            <div class="grid-item-actions" style="display: flex; gap: 4px; justify-content: center; margin-top: 8px;">
+              <button type="button" class="btn-pill btn-grid-copy" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_copy_title') || 'Sao chép'}" style="padding: 2px 6px; font-size: 0.65rem;">
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <button type="button" class="btn-pill btn-grid-cut" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_cut_title') || 'Cắt / Di chuyển'}" style="padding: 2px 6px; font-size: 0.65rem;">
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+              </button>
+              <button type="button" class="btn-pill btn-grid-rename" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_rename_title') || 'Đổi tên'}" style="padding: 2px 6px; font-size: 0.65rem;">
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </button>
+              <button type="button" class="btn-pill btn-grid-del" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_delete_title') || 'Xóa'}" style="padding: 2px 6px; font-size: 0.65rem; border-color: #EF4444; color: #EF4444;">
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
           </div>
         `;
       }).join('');
@@ -5375,21 +5711,73 @@
       });
     });
 
-    explorerTableBody.querySelectorAll('.btn-action-del').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    function onCopyClick(path, name) {
+      explorerClipboard = { action: 'copy', path, name };
+      updatePasteButtonState();
+      showToast(t('files.toast_copied', { name }) || `Đã sao chép "${name}". Chọn thư mục đích và nhấn Dán.`);
+    }
+
+    function onCutClick(path, name) {
+      explorerClipboard = { action: 'cut', path, name };
+      updatePasteButtonState();
+      showToast(t('files.toast_cut', { name }) || `Đã cắt "${name}". Chọn thư mục đích và nhấn Dán.`);
+    }
+
+    async function onRenameClick(path, name) {
+      const newName = await showPromptModal({
+        title: t('files.rename_title') || 'Đổi tên tệp / thư mục',
+        message: `Nhập tên mới cho "${name}":`,
+        defaultValue: name,
+        confirmText: t('dialog.btn_confirm') || 'Đổi tên',
+        cancelText: t('dialog.btn_cancel') || 'Hủy'
+      });
+      if (newName && newName.trim() && newName.trim() !== name) {
+        ws.send(JSON.stringify({
+          type: 'file_rename_request',
+          old_path: path,
+          new_name: newName.trim()
+        }));
+      }
+    }
+
+    async function onDeleteClick(path, name) {
+      const confirmed = await showConfirmModal({
+        title: 'Xóa tệp / thư mục',
+        message: t('files.delete_confirm', { name: name }),
+        confirmText: t('dialog.btn_delete') || 'Xóa',
+        cancelText: t('dialog.btn_cancel') || 'Hủy',
+        danger: true
+      });
+      if (confirmed) {
+        ws.send(JSON.stringify({ type: 'file_delete_request', filepath: path }));
+      }
+    }
+
+    explorerTableBody.querySelectorAll('.btn-action-copy').forEach(btn => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const itemName = btn.dataset.name;
-        const itemPath = btn.dataset.path;
-        const confirmed = await showConfirmModal({
-          title: 'Xóa tệp / thư mục',
-          message: t('files.delete_confirm', { name: itemName }),
-          confirmText: t('dialog.btn_delete') || 'Xóa',
-          cancelText: t('dialog.btn_cancel') || 'Hủy',
-          danger: true
-        });
-        if (confirmed) {
-          ws.send(JSON.stringify({ type: 'file_delete_request', filepath: itemPath }));
-        }
+        onCopyClick(btn.dataset.path, btn.dataset.name);
+      });
+    });
+
+    explorerTableBody.querySelectorAll('.btn-action-cut').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onCutClick(btn.dataset.path, btn.dataset.name);
+      });
+    });
+
+    explorerTableBody.querySelectorAll('.btn-action-rename').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onRenameClick(btn.dataset.path, btn.dataset.name);
+      });
+    });
+
+    explorerTableBody.querySelectorAll('.btn-action-del').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onDeleteClick(btn.dataset.path, btn.dataset.name);
       });
     });
 
@@ -5413,6 +5801,34 @@
             requestBrowsePath(p);
           }
         });
+
+        card.querySelectorAll('.btn-grid-copy').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onCopyClick(btn.dataset.path, btn.dataset.name);
+          });
+        });
+
+        card.querySelectorAll('.btn-grid-cut').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onCutClick(btn.dataset.path, btn.dataset.name);
+          });
+        });
+
+        card.querySelectorAll('.btn-grid-rename').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onRenameClick(btn.dataset.path, btn.dataset.name);
+          });
+        });
+
+        card.querySelectorAll('.btn-grid-del').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onDeleteClick(btn.dataset.path, btn.dataset.name);
+          });
+        });
       });
     }
   }
@@ -5433,12 +5849,19 @@
   }
 
   if (btnExpNewFolder) {
-    btnExpNewFolder.addEventListener('click', () => {
+    btnExpNewFolder.addEventListener('click', async () => {
       if (!remoteCurrentPath) {
-        showToast('Vui lòng chọn ổ đĩa trước khi tạo thư mục', 'info');
+        showToast('Vui lòng chọn ổ đĩa hoặc thư mục trước khi tạo thư mục mới', 'info');
         return;
       }
-      const folderName = prompt('Nhập tên thư mục mới cần tạo trên máy trạm:');
+      const folderName = await showPromptModal({
+        title: t('files.new_folder_title') || 'Tạo thư mục mới',
+        message: 'Nhập tên thư mục mới cần tạo trên máy trạm:',
+        defaultValue: 'New Folder',
+        placeholder: 'Tên thư mục...',
+        confirmText: t('dialog.btn_confirm') || 'Tạo thư mục',
+        cancelText: t('dialog.btn_cancel') || 'Hủy'
+      });
       if (folderName && folderName.trim()) {
         ws.send(JSON.stringify({
           type: 'file_create_folder_request',
@@ -5553,13 +5976,15 @@
     explorerDropTarget.addEventListener('dragleave', () => {
       explorerDropTarget.classList.remove('drag-over');
     });
-    explorerDropTarget.addEventListener('drop', (e) => {
+    explorerDropTarget.addEventListener('drop', async (e) => {
       e.preventDefault();
       explorerDropTarget.classList.remove('drag-over');
-      if (e.dataTransfer && e.dataTransfer.files) {
-        Array.from(e.dataTransfer.files).forEach(f => {
-          uploadFileToHost(f, remoteCurrentPath);
-        });
+      if (e.dataTransfer) {
+        const files = await getFilesFromDataTransfer(e.dataTransfer);
+        if (files.length > 0) {
+          showToast(`Đang tải ${files.length} tệp/thư mục vào thư mục hiện tại...`, 'info');
+          files.forEach(f => uploadFileToHost(f, remoteCurrentPath));
+        }
       }
     });
   }

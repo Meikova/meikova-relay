@@ -158,4 +158,4 @@ class ClipboardManager:
                         self.on_clipboard_change(curr)
             except Exception:
                 pass
-            time.sleep(1.0) # Check every 1s
+            time.sleep(0.2) # Fast 200ms clipboard polling

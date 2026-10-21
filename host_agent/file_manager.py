@@ -21,14 +21,26 @@ class FileManager:
         filename = unicodedata.normalize('NFC', filename)
         if target_dir:
             target_dir = unicodedata.normalize('NFC', target_dir)
-        upload_folder = target_dir if (target_dir and os.path.isdir(target_dir)) else self.download_dir
-        safe_name = os.path.basename(filename.replace('\\', '/'))
-        dest_path = os.path.join(upload_folder, safe_name)
+        if target_dir == "desktop" or not target_dir or not os.path.isdir(target_dir):
+            desktop_dir = Path.home() / "Desktop"
+            if desktop_dir.is_dir():
+                upload_folder = str(desktop_dir)
+            else:
+                upload_folder = self.download_dir
+        else:
+            upload_folder = target_dir
+
+        norm_parts = [p for p in filename.replace('\\', '/').split('/') if p and p not in ('.', '..')]
+        if not norm_parts:
+            norm_parts = ["uploaded_file.bin"]
+        rel_path = os.path.join(*norm_parts)
+        dest_path = os.path.join(upload_folder, rel_path)
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
         file_handle = open(dest_path, "wb")
         self.active_transfers[transfer_id] = {
             "path": dest_path,
-            "filename": safe_name,
+            "filename": os.path.basename(dest_path),
             "expected_size": filesize,
             "received_size": 0,
             "hasher": hashlib.sha256(),
@@ -280,5 +292,70 @@ class FileManager:
                 "size": stat.st_size,
                 "modified": int(stat.st_mtime * 1000)
             }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def copy_item(self, src: str, dst_dir: str) -> dict:
+        """Copies a file or directory into dst_dir."""
+        try:
+            import shutil
+            src = unicodedata.normalize('NFC', src)
+            dst_dir = unicodedata.normalize('NFC', dst_dir)
+            if not os.path.exists(src):
+                return {"success": False, "error": "Nguồn không tồn tại"}
+            if not os.path.isdir(dst_dir):
+                return {"success": False, "error": "Thư mục đích không tồn tại"}
+            base_name = os.path.basename(src.rstrip('\\/'))
+            target_path = os.path.join(dst_dir, base_name)
+            if os.path.exists(target_path):
+                name, ext = os.path.splitext(base_name)
+                counter = 1
+                while os.path.exists(target_path):
+                    target_path = os.path.join(dst_dir, f"{name} - Copy ({counter}){ext}" if ext else f"{name} - Copy ({counter})")
+                    counter += 1
+
+            if os.path.isdir(src):
+                shutil.copytree(src, target_path)
+            else:
+                shutil.copy2(src, target_path)
+            return {"success": True, "src": src, "dst": target_path}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def move_item(self, src: str, dst_dir: str) -> dict:
+        """Moves / cuts & pastes a file or directory into dst_dir."""
+        try:
+            import shutil
+            src = unicodedata.normalize('NFC', src)
+            dst_dir = unicodedata.normalize('NFC', dst_dir)
+            if not os.path.exists(src):
+                return {"success": False, "error": "Nguồn không tồn tại"}
+            if not os.path.isdir(dst_dir):
+                return {"success": False, "error": "Thư mục đích không tồn tại"}
+            base_name = os.path.basename(src.rstrip('\\/'))
+            target_path = os.path.join(dst_dir, base_name)
+            if os.path.exists(target_path) and os.path.abspath(target_path).lower() == os.path.abspath(src).lower():
+                return {"success": True, "src": src, "dst": target_path}
+            shutil.move(src, target_path)
+            return {"success": True, "src": src, "dst": target_path}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def rename_item(self, old_path: str, new_name: str) -> dict:
+        """Renames a file or folder in-place."""
+        try:
+            old_path = unicodedata.normalize('NFC', old_path)
+            new_name = unicodedata.normalize('NFC', new_name.strip())
+            if not os.path.exists(old_path):
+                return {"success": False, "error": "Tệp/thư mục không tồn tại"}
+            parent_dir = os.path.dirname(old_path)
+            safe_name = os.path.basename(new_name.replace('\\', '/'))
+            if not safe_name:
+                return {"success": False, "error": "Tên không hợp lệ"}
+            new_path = os.path.join(parent_dir, safe_name)
+            if os.path.exists(new_path) and os.path.abspath(new_path).lower() != os.path.abspath(old_path).lower():
+                return {"success": False, "error": "Tên mới đã tồn tại"}
+            os.rename(old_path, new_path)
+            return {"success": True, "old_path": old_path, "new_path": new_path, "new_name": safe_name}
         except Exception as e:
             return {"success": False, "error": str(e)}
