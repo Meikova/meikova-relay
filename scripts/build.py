@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Titan Remote Enterprise - Multi-Platform Workstation Build & Packaging Tool.
+Meikova Relay - Multi-Platform Workstation Build & Packaging Tool.
 Supports Windows (.exe, .zip), Linux (ELF, .deb, .tar.gz), and macOS (.app, .dmg, .tar.gz).
 Zero external dependencies outside standard Python library & PyInstaller.
 """
@@ -38,7 +38,7 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
     // ponytail: pure stdlib ar + tarfile format builder
     """
     output_deb_path.parent.mkdir(parents=True, exist_ok=True)
-    bin_name = "titan-remote-host"
+    bin_name = "meikova-relay-host"
     now = int(time.time())
 
     # 1. debian-binary member
@@ -51,7 +51,7 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
         f"Section: net\n"
         f"Priority: optional\n"
         f"Architecture: amd64\n"
-        f"Maintainer: Titan Remote Enterprise <support@titan-remote.internal>\n"
+        f"Maintainer: Meikova Relay <support@titan-remote.internal>\n"
         f"Description: Ultra low-latency remote desktop workstation host agent.\n"
         f" High-performance multi-monitor remote screen sharing, audio loopback,\n"
         f" file browser, terminal, and 120 FPS display synchronization.\n"
@@ -63,7 +63,7 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
         b"if command -v systemctl >/dev/null 2>&1; then\n"
         b"    systemctl daemon-reload || true\n"
         b"fi\n"
-        b"echo 'Titan Remote Host installed. Run \"titan-remote-host\" to launch.'\n"
+        b"echo 'Meikova Relay Host installed. Run \"meikova-relay-host\" to launch.'\n"
         b"exit 0\n"
     )
 
@@ -71,8 +71,8 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
         b"#!/bin/sh\n"
         b"set -e\n"
         b"if command -v systemctl >/dev/null 2>&1; then\n"
-        b"    systemctl stop titan-remote.service || true\n"
-        b"    systemctl disable titan-remote.service || true\n"
+        b"    systemctl stop meikova-relay.service || true\n"
+        b"    systemctl disable meikova-relay.service || true\n"
         b"fi\n"
         b"exit 0\n"
     )
@@ -114,9 +114,9 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
         tar.addfile(ti, io.BytesIO(bin_data))
 
         # Systemd unit in /lib/systemd/system
-        unit_file = REPO_ROOT / "host_agent" / "titan-remote.service"
-        unit_data = unit_file.read_bytes() if unit_file.exists() else b"[Unit]\nDescription=Titan Remote Host\n"
-        ti = tarfile.TarInfo(name="./lib/systemd/system/titan-remote.service")
+        unit_file = REPO_ROOT / "host_agent" / "meikova-relay.service"
+        unit_data = unit_file.read_bytes() if unit_file.exists() else b"[Unit]\nDescription=Meikova Relay Host\n"
+        ti = tarfile.TarInfo(name="./lib/systemd/system/meikova-relay.service")
         ti.size = len(unit_data)
         ti.mode = 0o644
         ti.mtime = now
@@ -125,14 +125,14 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
         # Desktop entry in /usr/share/applications
         desktop_data = (
             b"[Desktop Entry]\n"
-            b"Name=Titan Remote Host\n"
+            b"Name=Meikova Relay Host\n"
             b"Comment=Titan Remote Workstation Host Agent\n"
-            b"Exec=titan-remote-host\n"
+            b"Exec=meikova-relay-host\n"
             b"Terminal=false\n"
             b"Type=Application\n"
             b"Categories=Network;RemoteAccess;\n"
         )
-        ti = tarfile.TarInfo(name="./usr/share/applications/titan-remote.desktop")
+        ti = tarfile.TarInfo(name="./usr/share/applications/meikova-relay.desktop")
         ti.size = len(desktop_data)
         ti.mode = 0o644
         ti.mtime = now
@@ -167,20 +167,20 @@ def create_linux_tarball(binary_path: Path, output_tar_path: Path) -> Path:
     output_tar_path.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(output_tar_path, "w:gz") as tar:
         if binary_path.exists():
-            tar.add(binary_path, arcname="titan-remote-host")
-        service_file = REPO_ROOT / "host_agent" / "titan-remote.service"
+            tar.add(binary_path, arcname="meikova-relay-host")
+        service_file = REPO_ROOT / "host_agent" / "meikova-relay.service"
         if service_file.exists():
-            tar.add(service_file, arcname="titan-remote.service")
+            tar.add(service_file, arcname="meikova-relay.service")
         
         # Embedded one-click installer script inside tarball
         installer_script = (
             "#!/usr/bin/env bash\n"
             "set -e\n"
-            "echo 'Installing Titan Remote Host Agent to /usr/local/bin...'\n"
-            "sudo cp titan-remote-host /usr/local/bin/\n"
-            "sudo chmod +x /usr/local/bin/titan-remote-host\n"
-            "if [ -f 'titan-remote.service' ]; then\n"
-            "    sudo cp titan-remote.service /etc/systemd/system/\n"
+            "echo 'Installing Meikova Relay Host Agent to /usr/local/bin...'\n"
+            "sudo cp meikova-relay-host /usr/local/bin/\n"
+            "sudo chmod +x /usr/local/bin/meikova-relay-host\n"
+            "if [ -f 'meikova-relay.service' ]; then\n"
+            "    sudo cp meikova-relay.service /etc/systemd/system/\n"
             "    sudo systemctl daemon-reload\n"
             "    echo 'Systemd service installed. Start with: sudo systemctl start titan-remote'\n"
             "fi\n"
@@ -198,22 +198,22 @@ def create_macos_tarball(binary_path: Path, output_tar_path: Path) -> Path:
     output_tar_path.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(output_tar_path, "w:gz") as tar:
         if binary_path.exists():
-            tar.add(binary_path, arcname="titan-remote-host")
-        plist_file = REPO_ROOT / "host_agent" / "com.titan.remote.plist"
+            tar.add(binary_path, arcname="meikova-relay-host")
+        plist_file = REPO_ROOT / "host_agent" / "com.meikova.relay.plist"
         if plist_file.exists():
-            tar.add(plist_file, arcname="com.titan.remote.plist")
+            tar.add(plist_file, arcname="com.meikova.relay.plist")
         
         install_script = (
             "#!/usr/bin/env bash\n"
             "set -e\n"
-            "echo 'Installing Titan Remote Host on macOS...'\n"
-            "mkdir -p \"$HOME/.titan-remote/bin\"\n"
-            "cp titan-remote-host \"$HOME/.titan-remote/bin/\"\n"
-            "chmod +x \"$HOME/.titan-remote/bin/titan-remote-host\"\n"
-            "if [ -f 'com.titan.remote.plist' ]; then\n"
+            "echo 'Installing Meikova Relay Host on macOS...'\n"
+            "mkdir -p \"$HOME/.meikova-relay/bin\"\n"
+            "cp meikova-relay-host \"$HOME/.meikova-relay/bin/\"\n"
+            "chmod +x \"$HOME/.meikova-relay/bin/meikova-relay-host\"\n"
+            "if [ -f 'com.meikova.relay.plist' ]; then\n"
             "    mkdir -p \"$HOME/Library/LaunchAgents\"\n"
-            "    cp com.titan.remote.plist \"$HOME/Library/LaunchAgents/\"\n"
-            "    launchctl load \"$HOME/Library/LaunchAgents/com.titan.remote.plist\" || true\n"
+            "    cp com.meikova.relay.plist \"$HOME/Library/LaunchAgents/\"\n"
+            "    launchctl load \"$HOME/Library/LaunchAgents/com.meikova.relay.plist\" || true\n"
             "fi\n"
             "echo 'macOS Installation complete!'\n"
         ).encode("utf-8")
@@ -229,13 +229,13 @@ def create_windows_zip(exe_path: Path, output_zip_path: Path) -> Path:
     output_zip_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         if exe_path.exists():
-            zf.write(exe_path, arcname="TitanRemoteHost.exe")
+            zf.write(exe_path, arcname="MeikovaRelayHost.exe")
         
         readme = (
             "==============================================================\r\n"
-            "        TITAN REMOTE ENTERPRISE - HOST AGENT\r\n"
+            "        MEIKOVA RELAY - HOST AGENT\r\n"
             "==============================================================\r\n\r\n"
-            "1. Chay truc tiep TitanRemoteHost.exe de bat dau truyen phat man hinh.\r\n"
+            "1. Chay truc tiep MeikovaRelayHost.exe de bat dau truyen phat man hinh.\r\n"
             "2. Hoac su dung tham so --autostart de chay an duoi khay he thong.\r\n"
             "3. De cai dat Service chay ngam 24/7, chay file setup.bat tu Relay Server.\r\n"
         )
@@ -274,7 +274,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
     ]
 
     if target_os == "windows":
-        name = "TitanRemoteHost"
+        name = "MeikovaRelayHost"
         cmd = [
             sys.executable, "-m", "PyInstaller",
             "--noconfirm", "--onefile", "--windowed",
@@ -287,7 +287,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         ]
         out_bin = dist_dir / f"{name}.exe"
     elif target_os == "macos":
-        name = "TitanRemoteHost"
+        name = "MeikovaRelayHost"
         cmd = [
             sys.executable, "-m", "PyInstaller",
             "--noconfirm", "--onefile", "--windowed",
@@ -300,7 +300,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         ]
         out_bin = dist_dir / name
     else: # linux
-        name = "titan-remote-host"
+        name = "meikova-relay-host"
         cmd = [
             sys.executable, "-m", "PyInstaller",
             "--noconfirm", "--onefile",
@@ -339,20 +339,20 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
     dist_dir.mkdir(parents=True, exist_ok=True)
 
     if target == "windows":
-        exe_path = dist_dir / "TitanRemoteHost.exe"
+        exe_path = dist_dir / "MeikovaRelayHost.exe"
         if not skip_pyinstaller:
             exe_path = run_pyinstaller("windows", dist_dir)
-        zip_path = dist_dir / "TitanRemoteHost-windows-x64.zip"
+        zip_path = dist_dir / "MeikovaRelayHost-windows-x64.zip"
         create_windows_zip(exe_path, zip_path)
         print(f"[+] Windows artifacts: {exe_path.name}, {zip_path.name}")
 
     elif target == "linux":
-        bin_path = dist_dir / "titan-remote-host"
+        bin_path = dist_dir / "meikova-relay-host"
         if not skip_pyinstaller:
             bin_path = run_pyinstaller("linux", dist_dir)
-        deb_path = dist_dir / f"titan-remote-host_{version}_amd64.deb"
-        deb_symlink = dist_dir / "titan-remote-host_amd64.deb"
-        tar_path = dist_dir / "titan-remote-host-linux-x64.tar.gz"
+        deb_path = dist_dir / f"meikova-relay-host_{version}_amd64.deb"
+        deb_symlink = dist_dir / "meikova-relay-host_amd64.deb"
+        tar_path = dist_dir / "meikova-relay-host-linux-x64.tar.gz"
 
         create_deb_package(bin_path, deb_path, version=version)
         if deb_path != deb_symlink:
@@ -361,16 +361,16 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
         print(f"[+] Linux artifacts: {bin_path.name}, {deb_path.name}, {tar_path.name}")
 
     elif target == "macos":
-        bin_path = dist_dir / "TitanRemoteHost"
+        bin_path = dist_dir / "MeikovaRelayHost"
         if not skip_pyinstaller:
             bin_path = run_pyinstaller("macos", dist_dir)
-        tar_path = dist_dir / "titan-remote-host-macos.tar.gz"
+        tar_path = dist_dir / "meikova-relay-host-macos.tar.gz"
         create_macos_tarball(bin_path, tar_path)
         
         # If running on macOS with hdiutil, create .dmg
         if sys.platform == "darwin" and shutil.which("hdiutil"):
-            dmg_path = dist_dir / "TitanRemoteHost-macos.dmg"
-            cmd = ["hdiutil", "create", "-volname", "TitanRemoteHost", "-srcfolder", str(bin_path), "-ov", "-format", "UDZO", str(dmg_path)]
+            dmg_path = dist_dir / "MeikovaRelayHost-macos.dmg"
+            cmd = ["hdiutil", "create", "-volname", "MeikovaRelayHost", "-srcfolder", str(bin_path), "-ov", "-format", "UDZO", str(dmg_path)]
             subprocess.run(cmd, check=False)
             print(f"[+] macOS DMG: {dmg_path.name}")
 

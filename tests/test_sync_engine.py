@@ -19,6 +19,13 @@ RELAY_URL = "http://localhost:8080"
 class TestSyncEngine(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Verify server reachability before running tests
+        try:
+            with urllib.request.urlopen(f"{RELAY_URL}/api/sync/status", timeout=2) as resp:
+                pass
+        except Exception as e:
+            raise unittest.SkipTest(f"Relay server not reachable at {RELAY_URL}: {e}")
+
         # Register a test user for sync verification
         cls.username = f"sync_user_{int(time.time())}"
         cls.password = "SyncPassword123!"

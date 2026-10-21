@@ -81,7 +81,7 @@ def force_window_foreground(window, cached_hwnd: Optional[int] = None):
                     pass
 
             if not hwnd:
-                hwnd = user32.FindWindowW(None, "Titan Remote Host")
+                hwnd = user32.FindWindowW(None, "Meikova Relay Host")
 
             if hwnd:
                 SW_RESTORE = 9
@@ -110,13 +110,13 @@ def force_window_foreground(window, cached_hwnd: Optional[int] = None):
     elif sys.platform == "darwin":
         try:
             import subprocess
-            subprocess.run(["osascript", "-e", 'tell application "Titan Remote Host" to activate'], check=False)
+            subprocess.run(["osascript", "-e", 'tell application "Meikova Relay Host" to activate'], check=False)
         except Exception:
             pass
     elif sys.platform.startswith("linux"):
         try:
             import subprocess
-            subprocess.run(["wmctrl", "-a", "Titan Remote Host"], check=False)
+            subprocess.run(["wmctrl", "-a", "Meikova Relay Host"], check=False)
         except Exception:
             pass
 
@@ -166,14 +166,14 @@ try:
     from PIL import Image, ImageDraw
     HAS_TRAY = True
     try:
-        with open(Path.home() / ".titan_tray.log", "w", encoding="utf-8") as f:
+        with open(Path.home() / ".meikova_relay_tray.log", "w", encoding="utf-8") as f:
             f.write(f"HAS_TRAY SUCCESS: {pystray}\n")
     except Exception:
         pass
 except Exception as e:
     HAS_TRAY = False
     try:
-        with open(Path.home() / ".titan_tray.log", "w", encoding="utf-8") as f:
+        with open(Path.home() / ".meikova_relay_tray.log", "w", encoding="utf-8") as f:
             import traceback
             f.write(f"HAS_TRAY FAILED: {e}\n")
             traceback.print_exc(file=f)
@@ -268,7 +268,7 @@ def get_tray_icon_image():
         return fallback
 
 REG_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-APP_REG_NAME = "TitanRemoteHost"
+APP_REG_NAME = "MeikovaRelayHost"
 
 # Studio-grade dark ambient color tokens (/ambient-instrument-ui)
 COLORS = {
@@ -298,7 +298,7 @@ COLORS = {
 # ponytail: Clean stdlib dictionary; zero external dependencies.
 TRANSLATIONS = {
     "vi": {
-        "app_title": "Titan Remote Host - Điều Khiển Máy Trạm",
+        "app_title": "Meikova Relay Host - Điều Khiển Máy Trạm",
         "header_title": "TITAN REMOTE HOST",
         "workstation_fmt": "MÁY TRẠM: {name} // 120 FPS // TRUY CẬP KÉP",
         "status_stopped": "● ĐÃ DỪNG",
@@ -364,7 +364,7 @@ TRANSLATIONS = {
         "share_pin": "Mật khẩu (PIN):",
     },
     "en": {
-        "app_title": "Titan Remote Host - Workstation Control",
+        "app_title": "Meikova Relay Host - Workstation Control",
         "header_title": "TITAN REMOTE HOST",
         "workstation_fmt": "WORKSTATION: {name} // 120 FPS // DUAL-MODE ACCESS",
         "status_stopped": "● STOPPED",
@@ -438,13 +438,13 @@ def resolve_config_path() -> Path:
         exe_dir = Path(sys.executable).resolve().parent
         candidates.append(exe_dir / "config.json")
 
-    # 2. LocalAppData on Windows, ~/.titan-remote on Unix
+    # 2. LocalAppData on Windows, ~/.meikova-relay on Unix
     if sys.platform == "win32":
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data:
-            candidates.append(Path(local_app_data) / "TitanRemoteHost" / "config.json")
+            candidates.append(Path(local_app_data) / "MeikovaRelayHost" / "config.json")
     else:
-        candidates.append(Path.home() / ".titan-remote" / "config.json")
+        candidates.append(Path.home() / ".meikova-relay" / "config.json")
 
     # 3. Current Working Directory
     candidates.append(Path.cwd() / "config.json")
@@ -453,7 +453,7 @@ def resolve_config_path() -> Path:
     candidates.append(Path(__file__).resolve().parent / "config.json")
 
     # 5. User profile fallback
-    candidates.append(Path.home() / ".titan_remote_config.json")
+    candidates.append(Path.home() / ".meikova_relay_config.json")
 
     for c in candidates:
         if c.exists() and c.is_file():
@@ -461,10 +461,10 @@ def resolve_config_path() -> Path:
 
     # Default location for writing if none exists
     if sys.platform == "win32" and os.environ.get("LOCALAPPDATA"):
-        target = Path(os.environ["LOCALAPPDATA"]) / "TitanRemoteHost" / "config.json"
+        target = Path(os.environ["LOCALAPPDATA"]) / "MeikovaRelayHost" / "config.json"
         target.parent.mkdir(parents=True, exist_ok=True)
         return target
-    return Path.home() / ".titan_remote_config.json"
+    return Path.home() / ".meikova_relay_config.json"
 
 class TitanHostGUI:
     def __init__(self, root: tk.Tk):
@@ -1458,7 +1458,7 @@ class TitanHostGUI:
                 pystray.MenuItem(self.t("tray_copy"), self._copy_share_info),
                 pystray.MenuItem(self.t("tray_exit"), self._exit_application)
             )
-        self.tray_icon = pystray.Icon("TitanRemoteHost", get_tray_icon_image(), "Titan Remote Host", menu)
+        self.tray_icon = pystray.Icon("MeikovaRelayHost", get_tray_icon_image(), "Meikova Relay Host", menu)
 
         show_tray = self.config.get("show_tray_icon", True)
         if "--no-tray" in sys.argv:
@@ -1506,13 +1506,13 @@ class TitanHostGUI:
         elif sys.platform == "darwin":
             try:
                 import subprocess
-                subprocess.run(["osascript", "-e", 'tell application "Titan Remote Host" to activate'], check=False)
+                subprocess.run(["osascript", "-e", 'tell application "Meikova Relay Host" to activate'], check=False)
             except Exception:
                 pass
         elif sys.platform.startswith("linux"):
             try:
                 import subprocess
-                subprocess.run(["wmctrl", "-a", "Titan Remote Host"], check=False)
+                subprocess.run(["wmctrl", "-a", "Meikova Relay Host"], check=False)
             except Exception:
                 pass
 
@@ -1722,7 +1722,7 @@ class HostApi:
             if not self._hwnd:
                 try:
                     import ctypes
-                    self._hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote Host")
+                    self._hwnd = ctypes.windll.user32.FindWindowW(None, "Meikova Relay Host")
                 except Exception:
                     pass
         return self._hwnd
@@ -2038,7 +2038,7 @@ class HostApi:
                     content = f"""[Desktop Entry]
 Type=Application
 Version=1.0
-Name=Titan Remote Host
+Name=Meikova Relay Host
 Comment=Titan Remote Workstation Host Service
 Exec="{perm_exe}" --autostart
 Icon=titanremotehost
@@ -2213,7 +2213,7 @@ def launch_webview_app(autostart: bool = False):
     icon_str = str(ico_path) if (ico_path and ico_path.is_file()) else None
 
     window = webview.create_window(
-        title="Titan Remote Host",
+        title="Meikova Relay Host",
         html=html_content,
         js_api=api,
         width=560,
@@ -2301,7 +2301,7 @@ def launch_webview_app(autostart: bool = False):
                 pystray.MenuItem(api.t("tray_copy"), tray_copy),
                 pystray.MenuItem(api.t("tray_exit"), tray_exit),
             )
-        api._tray_icon = pystray.Icon("TitanRemoteHost", get_tray_icon_image(), "Titan Remote Host", tray_menu)
+        api._tray_icon = pystray.Icon("MeikovaRelayHost", get_tray_icon_image(), "Meikova Relay Host", tray_menu)
 
         show_tray = config.get("show_tray_icon", True)
         if "--no-tray" in sys.argv:
@@ -2421,7 +2421,7 @@ def main():
     # Single-instance check: if another instance is already running, activate its window
     resp = send_ipc_command("SHOW")
     if resp:
-        print("[INFO] Titan Remote Host đã đang chạy. Đã kích hoạt mở cửa sổ quản lý.")
+        print("[INFO] Meikova Relay Host đã đang chạy. Đã kích hoạt mở cửa sổ quản lý.")
         sys.exit(0)
 
     if "--install-user" in sys.argv:

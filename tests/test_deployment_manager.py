@@ -23,21 +23,21 @@ class TestDeploymentManager(unittest.TestCase):
         p = get_user_install_dir()
         self.assertIsInstance(p, Path)
         self.assertTrue(p.exists())
-        self.assertTrue("titanremotehost" in str(p).lower() or "titan_remote_host" in str(p).lower())
+        self.assertTrue("meikovarelayhost" in str(p).lower() or "meikova_relay_host" in str(p).lower())
 
     def test_admin_install_dir(self):
         p = get_admin_install_dir()
         self.assertIsInstance(p, Path)
-        self.assertTrue("titanremotehost" in str(p).lower() or "titan-remote-host" in str(p).lower())
+        self.assertTrue("meikovarelayhost" in str(p).lower() or "meikova-relay-host" in str(p).lower())
 
     def test_permanent_exe_path(self):
         exe = get_permanent_exe_path()
         if sys.platform == "win32":
-            self.assertEqual(exe.name, "TitanRemoteHost.exe")
+            self.assertEqual(exe.name, "MeikovaRelayHost.exe")
         elif sys.platform == "darwin":
-            self.assertEqual(exe.name, "TitanRemoteHost")
+            self.assertEqual(exe.name, "MeikovaRelayHost")
         else:
-            self.assertEqual(exe.name, "titan-remote-host")
+            self.assertEqual(exe.name, "meikova-relay-host")
         self.assertEqual(exe.parent, get_user_install_dir())
 
     def test_deployment_status_dictionary(self):
@@ -50,8 +50,8 @@ class TestDeploymentManager(unittest.TestCase):
         self.assertIsInstance(status["is_admin"], bool)
 
     def test_constants_naming(self):
-        self.assertEqual(TASK_NAME, "TitanRemoteHost")
-        self.assertEqual(SERVICE_NAME, "TitanRemoteService")
+        self.assertEqual(TASK_NAME, "MeikovaRelayHost")
+        self.assertEqual(SERVICE_NAME, "MeikovaRelayService")
 
 if __name__ == "__main__":
     unittest.main()

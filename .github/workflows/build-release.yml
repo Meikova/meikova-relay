@@ -33,7 +33,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r host_agent/requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller pywebview
 
       - name: Set up Node.js for Relay Tests
         uses: actions/setup-node@v4
@@ -55,12 +55,12 @@ jobs:
 
       - name: Verify Windows Artifacts
         run: |
-          if (-not (Test-Path "dist\TitanRemoteHost.exe")) {
-            Write-Error "dist\TitanRemoteHost.exe was not created."
+          if (-not (Test-Path "dist\MeikovaRelayHost.exe")) {
+            Write-Error "dist\MeikovaRelayHost.exe was not created."
             exit 1
           }
-          if (-not (Test-Path "dist\TitanRemoteHost-windows-x64.zip")) {
-            Write-Error "dist\TitanRemoteHost-windows-x64.zip was not created."
+          if (-not (Test-Path "dist\MeikovaRelayHost-windows-x64.zip")) {
+            Write-Error "dist\MeikovaRelayHost-windows-x64.zip was not created."
             exit 1
           }
           Get-ChildItem "dist\*" | Select-Object Name, Length
@@ -70,8 +70,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/TitanRemoteHost.exe
-            dist/TitanRemoteHost-windows-x64.zip
+            dist/MeikovaRelayHost.exe
+            dist/MeikovaRelayHost-windows-x64.zip
             dist/SHA256SUMS.txt
           draft: false
           prerelease: false
@@ -125,9 +125,9 @@ jobs:
 
       - name: Verify Linux Artifacts
         run: |
-          test -f dist/titan-remote-host || (echo "Binary not found" && exit 1)
-          test -f dist/titan-remote-host_amd64.deb || (echo "DEB package not found" && exit 1)
-          test -f dist/titan-remote-host-linux-x64.tar.gz || (echo "Tarball not found" && exit 1)
+          test -f dist/meikova-relay-host || (echo "Binary not found" && exit 1)
+          test -f dist/meikova-relay-host_amd64.deb || (echo "DEB package not found" && exit 1)
+          test -f dist/meikova-relay-host-linux-x64.tar.gz || (echo "Tarball not found" && exit 1)
           ls -lh dist/
 
       - name: Publish Linux Release Assets
@@ -135,9 +135,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/titan-remote-host
-            dist/titan-remote-host_amd64.deb
-            dist/titan-remote-host-linux-x64.tar.gz
+            dist/meikova-relay-host
+            dist/meikova-relay-host_amd64.deb
+            dist/meikova-relay-host-linux-x64.tar.gz
           draft: false
           prerelease: false
 
@@ -184,8 +184,8 @@ jobs:
 
       - name: Verify macOS Artifacts
         run: |
-          test -f dist/TitanRemoteHost || (echo "macOS binary not found" && exit 1)
-          test -f dist/titan-remote-host-macos.tar.gz || (echo "macOS tarball not found" && exit 1)
+          test -f dist/MeikovaRelayHost || (echo "macOS binary not found" && exit 1)
+          test -f dist/meikova-relay-host-macos.tar.gz || (echo "macOS tarball not found" && exit 1)
           ls -lh dist/
 
       - name: Publish macOS Release Assets
@@ -193,7 +193,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/TitanRemoteHost
-            dist/titan-remote-host-macos.tar.gz
+            dist/MeikovaRelayHost
+            dist/meikova-relay-host-macos.tar.gz
           draft: false
           prerelease: false

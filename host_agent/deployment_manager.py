@@ -2,7 +2,7 @@
 Deployment & Lifecycle Manager for Titan Remote Host.
 Provides a 2-Tier Installation System:
 - Tier 1: User-Level (No Admin Rights Needed)
-  - Installed in %LOCALAPPDATA%\\TitanRemoteHost
+  - Installed in %LOCALAPPDATA%\\MeikovaRelayHost
   - Runs on user logon via HKCU\\Run and User Task Scheduler
   - Zero-admin footprint, perfect for office PCs and restricted environments
 - Tier 2: Admin-Level (Windows 24/7 Service & Elevated Privileges)
@@ -22,11 +22,11 @@ except ImportError:
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 
-TASK_NAME = "TitanRemoteHost"
-SERVICE_NAME = "TitanRemoteService"
-SERVICE_DISPLAY_NAME = "Titan Remote Host 24/7 Service"
+TASK_NAME = "MeikovaRelayHost"
+SERVICE_NAME = "MeikovaRelayService"
+SERVICE_DISPLAY_NAME = "Meikova Relay Host 24/7 Service"
 REG_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-APP_REG_NAME = "TitanRemoteHost"
+APP_REG_NAME = "MeikovaRelayHost"
 WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
 
 
@@ -61,12 +61,12 @@ def elevate_and_execute(args_str: str) -> bool:
 
 
 def get_user_install_dir() -> Path:
-    """Returns %LOCALAPPDATA%\\TitanRemoteHost (no admin rights needed)."""
+    """Returns %LOCALAPPDATA%\\MeikovaRelayHost (no admin rights needed)."""
     local_app_data = os.environ.get("LOCALAPPDATA")
     if local_app_data:
-        target = Path(local_app_data) / "TitanRemoteHost"
+        target = Path(local_app_data) / "MeikovaRelayHost"
     else:
-        target = Path.home() / ".titan_remote_host"
+        target = Path.home() / ".meikova_relay_host"
     try:
         target.mkdir(parents=True, exist_ok=True)
     except Exception:
@@ -75,15 +75,15 @@ def get_user_install_dir() -> Path:
 
 
 def get_admin_install_dir() -> Path:
-    """Returns /opt/titan-remote-host or %ProgramData%\\TitanRemoteHost."""
+    """Returns /opt/meikova-relay-host or %ProgramData%\\MeikovaRelayHost."""
     if sys.platform != "win32":
-        target = Path("/opt/titan-remote-host")
+        target = Path("/opt/meikova-relay-host")
     else:
         prog_data = os.environ.get("ProgramData")
         if prog_data:
-            target = Path(prog_data) / "TitanRemoteHost"
+            target = Path(prog_data) / "MeikovaRelayHost"
         else:
-            target = Path("C:/ProgramData/TitanRemoteHost")
+            target = Path("C:/ProgramData/MeikovaRelayHost")
     try:
         target.mkdir(parents=True, exist_ok=True)
     except Exception:
@@ -99,11 +99,11 @@ def get_permanent_dir() -> Path:
 def get_permanent_exe_path() -> Path:
     """Returns canonical path for executable in user directory."""
     if sys.platform == "win32":
-        name = "TitanRemoteHost.exe"
+        name = "MeikovaRelayHost.exe"
     elif sys.platform == "darwin":
-        name = "TitanRemoteHost"
+        name = "MeikovaRelayHost"
     else:
-        name = "titan-remote-host"
+        name = "meikova-relay-host"
     return get_user_install_dir() / name
 
 
@@ -112,7 +112,7 @@ def is_running_from_permanent_dir() -> bool:
         current_exe = Path(sys.executable).resolve()
         return (
             current_exe == get_permanent_exe_path().resolve() or
-            current_exe == (get_admin_install_dir() / "TitanRemoteHost.exe").resolve()
+            current_exe == (get_admin_install_dir() / "MeikovaRelayHost.exe").resolve()
         )
     except Exception:
         return False
@@ -165,9 +165,9 @@ def ensure_permanent_deployment(source_config_path: Optional[Path] = None) -> Pa
 def install_user_tier(source_config_path: Optional[Path] = None) -> Tuple[bool, str]:
     """
     Installs Titan Remote Host in User Space cross-platform.
-    Windows: %LOCALAPPDATA%\\TitanRemoteHost, Task Scheduler / HKCU\\Run.
-    macOS: ~/Library/Application Support/TitanRemoteHost, ~/Library/LaunchAgents.
-    Linux: ~/.titan_remote_host, ~/.config/autostart.
+    Windows: %LOCALAPPDATA%\\MeikovaRelayHost, Task Scheduler / HKCU\\Run.
+    macOS: ~/Library/Application Support/MeikovaRelayHost, ~/Library/LaunchAgents.
+    Linux: ~/.meikova_relay_host, ~/.config/autostart.
     NO ADMINISTRATOR PRIVILEGES REQUIRED.
     """
     try:
@@ -217,15 +217,15 @@ def install_user_tier(source_config_path: Optional[Path] = None) -> Tuple[bool, 
         else:
             # Linux
             autostart_dir = Path.home() / ".config/autostart"
-            desktop_path = autostart_dir / "titanremotehost.desktop"
+            desktop_path = autostart_dir / "meikovarelayhost.desktop"
             autostart_dir.mkdir(parents=True, exist_ok=True)
             content = f"""[Desktop Entry]
 Type=Application
 Version=1.0
-Name=Titan Remote Host
-Comment=Titan Remote Workstation Host Service
+Name=Meikova Relay Host
+Comment=Meikova Relay Workstation Host Service
 Exec="{exe_path}" --autostart
-Icon=titanremotehost
+Icon=meikovarelayhost
 Terminal=false
 Categories=Network;RemoteAccess;
 """
@@ -252,7 +252,7 @@ def uninstall_user_tier() -> Tuple[bool, str]:
             if plist_path.exists():
                 plist_path.unlink()
         else:
-            desktop_path = Path.home() / ".config/autostart/titanremotehost.desktop"
+            desktop_path = Path.home() / ".config/autostart/meikovarelayhost.desktop"
             if desktop_path.exists():
                 desktop_path.unlink()
 
@@ -415,7 +415,7 @@ def manage_windows_service(action: str = "install") -> Tuple[bool, str]:
         return False, "Only supported on Windows"
 
     admin_dir = get_admin_install_dir()
-    exe_path = admin_dir / "TitanRemoteHost.exe"
+    exe_path = admin_dir / "MeikovaRelayHost.exe"
     if not exe_path.exists():
         exe_path = ensure_permanent_deployment()
     bin_cmd = f'"{exe_path}" --service'
@@ -470,6 +470,6 @@ def get_deployment_status() -> Dict[str, Any]:
         "is_admin": is_current_user_admin(),
         "user_installed": user_installed,
         "service_installed": service_installed,
-        "user_exe_path": str(get_user_install_dir() / "TitanRemoteHost.exe"),
-        "admin_exe_path": str(get_admin_install_dir() / "TitanRemoteHost.exe")
+        "user_exe_path": str(get_user_install_dir() / "MeikovaRelayHost.exe"),
+        "admin_exe_path": str(get_admin_install_dir() / "MeikovaRelayHost.exe")
     }

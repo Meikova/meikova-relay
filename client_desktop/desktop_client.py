@@ -43,7 +43,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("titan.desktop_client")
 
-import webview
+try:
+    import webview
+except ImportError:
+    webview = None
 
 # Local cache DB
 try:

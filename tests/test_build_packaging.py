@@ -30,7 +30,7 @@ class TestBuildAndPackaging(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_create_deb_package(self):
-        deb_path = self.dist_dir / "titan-remote-host_1.0.0_amd64.deb"
+        deb_path = self.dist_dir / "meikova-relay-host_1.0.0_amd64.deb"
         result = create_deb_package(self.mock_bin, deb_path, version="1.0.0")
         self.assertTrue(result.exists())
         self.assertGreater(result.stat().st_size, 100)
@@ -45,35 +45,35 @@ class TestBuildAndPackaging(unittest.TestCase):
             self.assertEqual(data1, b"2.0\n")
 
     def test_create_linux_tarball(self):
-        tar_path = self.dist_dir / "titan-remote-host-linux-x64.tar.gz"
+        tar_path = self.dist_dir / "meikova-relay-host-linux-x64.tar.gz"
         result = create_linux_tarball(self.mock_bin, tar_path)
         self.assertTrue(result.exists())
 
         with tarfile.open(result, "r:gz") as tar:
             names = tar.getnames()
-            self.assertIn("titan-remote-host", names)
+            self.assertIn("meikova-relay-host", names)
             self.assertIn("install.sh", names)
 
     def test_create_macos_tarball(self):
-        tar_path = self.dist_dir / "titan-remote-host-macos.tar.gz"
+        tar_path = self.dist_dir / "meikova-relay-host-macos.tar.gz"
         result = create_macos_tarball(self.mock_bin, tar_path)
         self.assertTrue(result.exists())
 
         with tarfile.open(result, "r:gz") as tar:
             names = tar.getnames()
-            self.assertIn("titan-remote-host", names)
+            self.assertIn("meikova-relay-host", names)
             self.assertIn("install.sh", names)
 
     def test_create_windows_zip(self):
-        zip_path = self.dist_dir / "TitanRemoteHost-windows-x64.zip"
-        exe_mock = self.dist_dir / "TitanRemoteHost.exe"
+        zip_path = self.dist_dir / "MeikovaRelayHost-windows-x64.zip"
+        exe_mock = self.dist_dir / "MeikovaRelayHost.exe"
         exe_mock.write_bytes(b"MZ_PE_MOCK_EXECUTABLE")
         result = create_windows_zip(exe_mock, zip_path)
         self.assertTrue(result.exists())
 
         with zipfile.ZipFile(result, "r") as zf:
             namelist = zf.namelist()
-            self.assertIn("TitanRemoteHost.exe", namelist)
+            self.assertIn("MeikovaRelayHost.exe", namelist)
             self.assertIn("README.txt", namelist)
 
     def test_generate_checksums(self):
@@ -91,12 +91,12 @@ class TestBuildAndPackaging(unittest.TestCase):
     def test_build_all_targets_skip_pyinstaller(self):
         build(target="all", dist_dir=self.dist_dir, skip_pyinstaller=True)
         # Verify Windows artifacts
-        self.assertTrue((self.dist_dir / "TitanRemoteHost-windows-x64.zip").exists())
+        self.assertTrue((self.dist_dir / "MeikovaRelayHost-windows-x64.zip").exists())
         # Verify Linux artifacts
-        self.assertTrue((self.dist_dir / "titan-remote-host_amd64.deb").exists())
-        self.assertTrue((self.dist_dir / "titan-remote-host-linux-x64.tar.gz").exists())
+        self.assertTrue((self.dist_dir / "meikova-relay-host_amd64.deb").exists())
+        self.assertTrue((self.dist_dir / "meikova-relay-host-linux-x64.tar.gz").exists())
         # Verify macOS artifacts
-        self.assertTrue((self.dist_dir / "titan-remote-host-macos.tar.gz").exists())
+        self.assertTrue((self.dist_dir / "meikova-relay-host-macos.tar.gz").exists())
         # Verify checksums
         self.assertTrue((self.dist_dir / "SHA256SUMS.txt").exists())
 

@@ -73,7 +73,7 @@ class TestCrossPlatformAgent(unittest.TestCase):
         with patch.dict(os.environ, {"USERPROFILE": "C:/Users/testuser", "HOME": "/home/testuser"}, clear=True):
             dir_path = get_user_install_dir()
             self.assertIsInstance(dir_path, Path)
-            self.assertTrue(dir_path.name in ("TitanRemoteHost", ".titan_remote_host"))
+            self.assertTrue(dir_path.name in ("MeikovaRelayHost", ".meikova_relay_host"))
 
     def test_resolve_config_path_prefers_localappdata(self):
         """Verifies resolve_config_path correctly prioritizes LOCALAPPDATA when present."""
@@ -81,7 +81,7 @@ class TestCrossPlatformAgent(unittest.TestCase):
         import tempfile
         with tempfile.TemporaryDirectory() as tmp_dir:
             fake_appdata = Path(tmp_dir)
-            target_cfg = fake_appdata / "TitanRemoteHost" / "config.json"
+            target_cfg = fake_appdata / "MeikovaRelayHost" / "config.json"
             target_cfg.parent.mkdir(parents=True, exist_ok=True)
             target_cfg.write_text('{"account": "test@domain.com"}', encoding="utf-8")
             with patch.dict(os.environ, {"LOCALAPPDATA": str(fake_appdata)}):
@@ -109,13 +109,13 @@ class TestCrossPlatformAgent(unittest.TestCase):
                 force_window_foreground(mock_win)
                 mock_win.show.assert_called()
                 mock_win.restore.assert_called()
-                mock_run.assert_called_with(["wmctrl", "-a", "Titan Remote Host"], check=False)
+                mock_run.assert_called_with(["wmctrl", "-a", "Meikova Relay Host"], check=False)
 
         # Test Darwin execution
         with patch('sys.platform', 'darwin'):
             with patch('subprocess.run') as mock_run:
                 force_window_foreground(mock_win)
-                mock_run.assert_called_with(["osascript", "-e", 'tell application "Titan Remote Host" to activate'], check=False)
+                mock_run.assert_called_with(["osascript", "-e", 'tell application "Meikova Relay Host" to activate'], check=False)
 
         # Test Win32 execution with no hwnd (graceful fallback)
         with patch('sys.platform', 'win32'):
@@ -132,9 +132,9 @@ class TestCrossPlatformAgent(unittest.TestCase):
                 with patch('sys.platform', 'linux'):
                     ok, msg = install_user_tier()
                     self.assertTrue(ok)
-                    desktop_file = fake_home / ".config/autostart/titanremotehost.desktop"
+                    desktop_file = fake_home / ".config/autostart/meikovarelayhost.desktop"
                     self.assertTrue(desktop_file.exists())
-                    self.assertIn("Titan Remote Host", desktop_file.read_text(encoding="utf-8"))
+                    self.assertIn("Meikova Relay Host", desktop_file.read_text(encoding="utf-8"))
 
                     un_ok, _ = uninstall_user_tier()
                     self.assertTrue(un_ok)
