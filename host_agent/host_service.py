@@ -271,7 +271,7 @@ class HostService:
     def negotiate_optimal_display_profile(self, client_w: int, client_h: int, client_fps: int = 60) -> dict:
         """
         Negotiates highest optimal resolution & frame profile between host monitor and controller client.
-        // ponytail: deterministic capability matching without heuristic overhead
+        // ponytail: deterministic capability matching prioritizing responsiveness & throughput
         """
         host_w, host_h = self.capture.resolution
         
@@ -279,8 +279,8 @@ class HostService:
         if client_fps >= 120:
             recommended = "ultra_120"
             suggested_scale = "fit" if (client_w < host_w or client_h < host_h) else "1to1"
-        # Ultra HD (2K / 4K) fidelity priority
-        elif host_w >= 2560 or host_h >= 1440 or client_w >= 2560:
+        # Ultra HD (2K / 4K) fidelity priority when controller or both sides support it
+        elif (host_w >= 2560 and client_w >= 2560) or client_w >= 3840 or client_h >= 2160:
             recommended = "crisp_2k_4k"
             suggested_scale = "1to1" if (client_w >= host_w and client_h >= host_h) else "fit"
         # Native 1:1 Pixel-Perfect priority if controller can display host resolution unscaled
@@ -323,9 +323,18 @@ class HostService:
                 await asyncio.sleep(0.2)
                 continue
 
+            # Transport write buffer backpressure check:
+            # If previous frame is still draining over the network (>64KB), yield to prevent bufferbloat
+            transport = getattr(ws, "transport", None)
+            if transport and hasattr(transport, "get_write_buffer_size"):
+                if transport.get_write_buffer_size() > 64 * 1024:
+                    await asyncio.sleep(0.008)
+                    continue
+
             start_time = time.perf_counter()
 
-            frame_bytes = self.capture.capture_frame(force=False)
+            # Offload blocking capture & JPEG encode to thread to prevent stalling asyncio event loop
+            frame_bytes = await asyncio.to_thread(self.capture.capture_frame, False)
             if frame_bytes:
                 try:
                     await ws.send(frame_bytes)
@@ -341,7 +350,7 @@ class HostService:
                     break
 
             elapsed = time.perf_counter() - start_time
-            sleep_time = max(0.001, self.frame_interval - elapsed)
+            sleep_time = max(0.002, self.frame_interval - elapsed)
             await asyncio.sleep(sleep_time)
 
     async def _send_audio_loop(self, ws: websockets.WebSocketClientProtocol):

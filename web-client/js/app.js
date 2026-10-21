@@ -2969,7 +2969,10 @@
         lastPingSend = performance.now();
         ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
       }
-    }, 3000);
+      if (isConnected && performance.now() - lastFpsUpdate > 1200) {
+        if (metricFps) metricFps.textContent = '0';
+      }
+    }, 2000);
   }
 
   function updateHostResolution(w, h) {

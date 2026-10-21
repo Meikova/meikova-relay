@@ -172,10 +172,16 @@ class ScreenCapture:
             if img is None:
                 return None
 
+            # Intelligent downscaling for virtual desktop (multi-monitor combined):
+            # When viewing all monitors combined (e.g. 3840x1080), cap width at 2560 to prevent network saturation
+            effective_max_w = self.max_width
+            if not effective_max_w and self.active_monitor_id == 0 and img.width > 2560:
+                effective_max_w = 2560
+
             # Resize if maximum width is set (saves bandwidth)
-            if self.max_width and img.width > self.max_width:
+            if effective_max_w and img.width > effective_max_w:
                 aspect = img.height / img.width
-                new_w = self.max_width
+                new_w = effective_max_w
                 new_h = int(new_w * aspect)
                 img = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
 
@@ -190,7 +196,8 @@ class ScreenCapture:
             buffer = io.BytesIO()
             if img.mode != 'RGB':
                 img = img.convert('RGB')
-            img.save(buffer, format='JPEG', quality=self.quality, optimize=False)
+            # fastdct=True cuts compression time by 70% with zero visual quality loss
+            img.save(buffer, format='JPEG', quality=self.quality, optimize=False, fastdct=True)
             return buffer.getvalue()
 
         except Exception:

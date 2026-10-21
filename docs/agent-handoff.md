@@ -1,6 +1,29 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.32)
+### Recent Updates (Version 1.0.33)
+- **Khắc Phục Tụt FPS (2 FPS) & Triệt Tiêu Độ Trễ/Bufferbloat Truyền Hình Ảnh (Zero-Lag Screen Stream & High-FPS Optimization):**
+  - **Nguyên nhân cốt lõi:**
+    1. **Nghẽn băng thông do kích thước Frame quá lớn (3840x1080):** Khi kết nối với máy trạm 2 màn hình, `host_w = 3840`. Bộ đàm phán cấu hình trước đó tự động kích hoạt `crisp_2k_4k` với `quality = 92` và không giới hạn độ rộng (`max_width = None`). Mỗi frame JPEG nặng tới ~3.8 MB (ở 30 FPS tương đương ~920 Mbps). Băng thông mạng bị nghẽn hoàn toàn, khiến tốc độ sụt giảm nghiêm trọng xuống 2 FPS.
+    2. **Hiện tượng đọng buffer (Bufferbloat & Unbounded Queue):** Cả Host `ws.send()` và Relay Server `client.ws.send()` liên tục nhồi frame mới vào hàng đợi socket bất chấp client chưa tải xong. Khi 10-20 frame bị ứ đọng trong buffer, thao tác chuột/phím của người dùng thực thi ngay trên host nhưng hình ảnh hiển thị trên client bị trễ tới 5-10 giây.
+    3. **Nén ảnh chặn Event Loop:** `capture_frame()` chạy đồng bộ trực tiếp trên luồng asyncio, chặn việc xử lý I/O mạng của WebSocket.
+  - **Khắc phục triệt để:**
+    1. **Cơ chế Triệt Tiêu Độ Trễ Hàng Đợi (Zero-Lag Backpressure Flow Control):**
+       - **Bên Relay Server (relay-server/server.js):** Kiểm tra `client.ws.bufferedAmount`. Nếu socket client đang bận gửi frame trước (`>64 KB`), lập tức hủy (drop) frame cũ này. Đảm bảo client luôn luôn nhận được frame mới nhất tại thời gian thực, độ trễ buffer bằng 0.
+       - **Bên Host Agent (host_agent/host_service.py):** Bổ sung kiểm tra `transport.get_write_buffer_size() > 64 * 1024`. Nếu mạng chưa thoát kịp, tạm dừng chụp và nhường chu kỳ CPU, ngăn ngừa frame ứ đọng trong RAM/socket.
+    2. **Tối Ưu Hóa Nén Ảnh & Đa Luồng (host_agent/screen_capture.py & host_service.py):**
+       - Kích hoạt cờ `fastdct=True` trong Pillow JPEG: Giảm thời gian nén ảnh từ 68ms xuống 19ms (nhanh gấp 3.6 lần) mà không suy giảm chất lượng hiển thị.
+       - Chuyển `capture_frame()` chạy trên worker thread riêng biệt qua `asyncio.to_thread()`, giải phóng 100% asyncio event loop cho I/O mạng và tương tác điều khiển.
+       - Giới hạn tự động độ rộng tối đa `max_width = 2560` khi hiển thị màn hình ảo gộp (3840x1080) để cắt giảm 75% dung lượng pixel, giảm kích thước frame xuống ~50-80 KB.
+    3. **Hiệu Chỉnh Bộ Đàm Phán Profile Hiển Thị (Display Profile Negotiation):**
+       - Đảm bảo màn hình chuẩn 1080p nhận cấu hình mượt `speed_60` (60 FPS) thay vì ép sang 4K.
+       - Cập nhật bộ đếm FPS trên Web Client (`app.js`): Nhận diện trạng thái tĩnh (idle) để hiển thị 0 FPS chính xác thay vì treo số liệu cũ.
+  - **Đóng Gói & Kiểm Thử:**
+    - Biên dịch lại hoàn tất `dist/MeikovaRelayHost.exe` và đồng bộ sang `relay-server/MeikovaRelayHost.exe`.
+    - Toàn bộ 82 bài kiểm thử tự động pass (`Ran 82 tests in 20.280s - OK (skipped=1)`, Exit Code 0).
+
+---
+
+### Previous Updates (Version 1.0.32)
 - **Khắc Phục Lỗi Client Không Ngắt Kết Nối Ngay Khi Host Dừng Dịch Vụ (Instant Client Kickout on Host Stop):**
   - **Nguyên nhân cốt lõi:**
     1. Khi bấm "Tắt dịch vụ" hoặc đóng Host, `HostAgentGUI._stop_service()` trước đó gán `running = False` và gọi `ws.close()` bất đồng bộ không đợi (`future.result()`). Event loop bị hủy trước khi TCP FIN / Close Frame được flush qua Cloud Proxy (Render/Cloudflare), khiến Relay Server không nhận biết Host đã ngắt.

@@ -1266,13 +1266,18 @@ wss.on('connection', (ws, req) => {
   ws.on('pong', () => { ws.isAlive = true; });
 
   ws.on('message', (message, isBinary) => {
-    // 1. Forward raw binary frames (Screen frames or file chunks to ALL active clients)
+    // 1. Forward raw binary frames (Screen frames to ALL active clients)
     if (isBinary) {
       if (role === 'host' && currentRoomId) {
         const room = rooms.get(currentRoomId);
         if (room && room.clients) {
           for (const client of room.clients.values()) {
             if (client.ws.readyState === WebSocket.OPEN) {
+              // Zero-lag backpressure: drop stale screen frame if client buffer is congested (>64KB)
+              // // ponytail: guarantees client renders real-time stream without queued bufferbloat
+              if (client.ws.bufferedAmount > 64 * 1024) {
+                continue;
+              }
               client.ws.send(message, { binary: true });
             }
           }
