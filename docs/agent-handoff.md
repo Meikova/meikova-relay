@@ -1,5 +1,31 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.40)
+- **Chuẩn Hóa Nút Đăng Nhập Google Chuẩn Phong Cách Meikova Loop / Meikova Harvest (Ambient Capsule Google Sign-In):**
+  - **1. Vấn đề nhận dạng:**
+    - Trước đây web-client gọi hàm google.accounts.id.renderButton của thư viện Google GIS, kết xuất ra một thẻ iframe mặc định của Google với giao diện thô cứng, lệch tone màu (hiện thông tin avatar + tên người dùng dạng dropdown trắng/đen lạc lõng như ảnh chụp đính kèm).
+  - **2. Đồng bộ giải pháp thiết kế từ meikova-loop & meikova-harvest:**
+    - [web-client/index.html](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/index.html) & [web-client/css/style.css](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/css/style.css):
+      - Loại bỏ container googleSignInBtn và iframe mặc định của Google.
+      - Thay thế bằng nút bấm khoang nhộng cao cấp .btn-ambient-google (Ambient Capsule): biểu tượng vector Google 4 màu SVG chuẩn, viền hairline tinh xảo, bo tròn 9999px, nền var(--ink-1) chuyển màu var(--ink-2) khi hover cùng hiệu ứng phát quang nhẹ var(--accent-glow).
+      - Đặt nút đăng nhập Google lên vị trí ưu tiên hàng đầu (Primary 1-click CTA), phân tách với khu vực nhập tài khoản mật khẩu bằng vạch ngăn .auth-divider tinh gọn.
+    - [web-client/js/app.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/app.js):
+      - Bỏ phụ thuộc vào google.accounts.id.renderButton.
+      - Khi nhấp .btn-ambient-google:
+        - Trên Web: Tự động gọi endpoint /api/auth/google/url?source=web, mở popup đăng nhập Google với kích thước tiêu chuẩn (520x640px), đồng thời lắng nghe sự kiện postMessage và polling ticket mỗi 1.2s.
+        - Trên Desktop (PyWebView): Tự động ủy quyền qua trình duyệt hệ thống với cờ source=desktop.
+        - Vẫn duy trì cơ chế nền Google One Tap (nếu khả dụng) mà không làm ô nhiễm giao diện nút bấm.
+    - [relay-server/server.js](file:///D:/JOB/DEV/meikova/meikova-relay/relay-server/server.js):
+      - Bổ sung cơ chế postMessage({ type: 'GOOGLE_AUTH_SUCCESS', token, user }) và tự động đóng popup ngay khi xác thực thành công.
+    - [web-client/js/i18n.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/i18n.js):
+      - Bổ sung các nhãn song ngữ auth.google_signin ('Tiếp tục với Google' / 'Continue with Google') và auth.or_local ('hoặc tài khoản nội bộ' / 'or internal account').
+    - Nâng cache-buster lên ?v=1.0.40 và đồng bộ toàn bộ tài nguyên sang relay-server/public/.
+  - **3. Kiểm thử & Đóng gói:**
+    - Toàn bộ 90/90 bài kiểm thử vượt qua (Ran 90 tests in 19.077s - OK (skipped=1), Exit Code 0).
+    - Biên dịch và cập nhật dist/MeikovaRelayHost.exe và relay-server/MeikovaRelayHost.exe (Exit Code 0).
+
+---
+
 ### Recent Updates (Version 1.0.39)
 - **Cửa Sổ Trò Chuyện Trực Tiếp Trên Máy Trạm (Host Floating Chat) & Khắc Phục Lỗi Double-Border Focus Input:**
   - **1. Cửa sổ Chat nổi thời gian thực trên máy trạm (Host Floating Chat Window):**

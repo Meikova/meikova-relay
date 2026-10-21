@@ -1089,52 +1089,94 @@
   let googleClientIdCache = null;
 
   async function initGoogleSignIn() {
-    const isDesktopApp = typeof window !== 'undefined' && Boolean(window.pywebview);
-    const container = document.getElementById('googleSignInBtn');
-
-    if (isDesktopApp) {
-      if (container) {
-        container.innerHTML = `
-          <button type="button" id="btnDesktopGoogleAuth" class="btn-pill" style="width: 100%; height: 40px; border-color: rgba(255,255,255,0.25); gap: 10px; font-weight: 600; background: var(--ink-0); color: var(--text);">
-            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
-            <span>Đăng nhập với Google</span>
-          </button>
-        `;
-        document.getElementById('btnDesktopGoogleAuth')?.addEventListener('click', startDesktopGoogleAuth);
-      }
-      return;
+    const btnGoogle = document.getElementById('btn-ambient-google');
+    if (btnGoogle) {
+      btnGoogle.addEventListener('click', triggerGoogleAuth);
     }
 
-    if (typeof google === 'undefined' || !google.accounts) {
-      setTimeout(initGoogleSignIn, 500);
-      return;
-    }
-
-    if (!googleClientIdCache) {
+    // Background One Tap initialize if GIS client is loaded
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
       try {
-        const confRes = await apiFetch('/api/auth/google/config');
-        if (confRes && confRes.success && confRes.client_id) {
-          googleClientIdCache = confRes.client_id;
+        if (!googleClientIdCache) {
+          const confRes = await apiFetch('/api/auth/google/config');
+          if (confRes && confRes.success && confRes.client_id) {
+            googleClientIdCache = confRes.client_id;
+          }
+        }
+        if (googleClientIdCache) {
+          google.accounts.id.initialize({
+            client_id: googleClientIdCache,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false
+          });
         }
       } catch (_) {}
     }
+  }
 
-    if (!googleClientIdCache) return;
+  async function triggerGoogleAuth() {
+    const isMobileDevice = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isDesktopApp = typeof window !== 'undefined' && Boolean(window.pywebview);
 
-    google.accounts.id.initialize({
-      client_id: googleClientIdCache,
-      callback: handleGoogleCredentialResponse,
-      auto_select: false
-    });
-    if (container) {
-      google.accounts.id.renderButton(container, {
-        theme: 'filled_black',
-        size: 'large',
-        shape: 'pill',
-        width: 300,
-        text: 'signin_with',
-        locale: 'vi'
-      });
+    if (isDesktopApp) {
+      return startDesktopGoogleAuth();
+    }
+
+    try {
+      showToast('Đang kết nối đăng nhập Google...', 'info');
+      const source = isMobileDevice ? 'mobile' : 'web';
+      const res = await apiFetch(`/api/auth/google/url?source=${source}`);
+      if (!res.success || !res.auth_url) {
+        showToast(res.error || 'Chưa cấu hình Google OAuth.', 'error');
+        return;
+      }
+
+      if (isMobileDevice) {
+        window.location.href = res.auth_url;
+        return;
+      }
+
+      const popup = window.open(res.auth_url, 'MeikovaGoogleAuth', 'width=520,height=640,menubar=no,toolbar=no,location=no');
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        window.location.href = res.auth_url;
+        return;
+      }
+
+      const ticket = res.ticket;
+      let isDone = false;
+
+      const onMessage = (event) => {
+        if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS' && event.data.token) {
+          isDone = true;
+          window.removeEventListener('message', onMessage);
+          clearInterval(pollTimer);
+          handleAuthSuccess(event.data);
+          showToast('Đăng nhập Google thành công!', 'success');
+        }
+      };
+      window.addEventListener('message', onMessage);
+
+      const pollTimer = setInterval(async () => {
+        if (isDone) return;
+        try {
+          const pollRes = await apiFetch(`/api/auth/google/poll?ticket=${ticket}`);
+          if (pollRes.success && pollRes.token) {
+            isDone = true;
+            clearInterval(pollTimer);
+            window.removeEventListener('message', onMessage);
+            try { if (popup && !popup.closed) popup.close(); } catch (_) {}
+            handleAuthSuccess(pollRes);
+            showToast('Đăng nhập Google thành công!', 'success');
+          }
+        } catch (_) {}
+      }, 1200);
+
+      setTimeout(() => {
+        clearInterval(pollTimer);
+        window.removeEventListener('message', onMessage);
+      }, 180000);
+    } catch (e) {
+      showToast(`Lỗi: ${e.message}`, 'error');
     }
   }
 
@@ -1145,7 +1187,7 @@
       const source = isDesktopApp ? 'desktop' : (isMobileDevice ? 'mobile' : 'desktop');
       const res = await apiFetch(`/api/auth/google/url?source=${source}`);
       if (!res.success || !res.auth_url) {
-        showToast('Không lấy được URL ủy quyền Google', 'error');
+        showToast(res.error || 'Không lấy được URL ủy quyền Google', 'error');
         return;
       }
       if (window.pywebview && window.pywebview.api && window.pywebview.api.open_external_url) {

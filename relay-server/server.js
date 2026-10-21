@@ -449,6 +449,12 @@ const server = http.createServer(async (req, res) => {
   </div>
   <script>
     try { localStorage.setItem('meikova_relay_token', '${auth.token}'); } catch(e){}
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', token: '${auth.token}', user: ${JSON.stringify(auth.user)} }, '*');
+        setTimeout(function() { window.close(); }, 600);
+      }
+    } catch(e){}
     setTimeout(function() { window.location.href = '/'; }, 1500);
   </script>
 </body>
