@@ -11,7 +11,7 @@ def bezier_point(p0, p1, p2, p3, u):
     )
 
 def generate_curve_points(s, steps=400):
-    """Cubic Bezier curve matching MashLoop & EveryThingDownloader."""
+    """Cubic Bezier curve matching Meikova Loop & Meikova Harvest."""
     segs = [
         ((16*s, 16*s), (19.5*s, 10.5*s), (27*s, 10.5*s), (27*s, 16*s)),
         ((27*s, 16*s), (27*s, 21.5*s), (19.5*s, 21.5*s), (16*s, 16*s)),

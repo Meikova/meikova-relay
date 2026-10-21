@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Custom System Tray Menu for Titan Remote Host.
-Follows Ambient Dark / EveryThingDownloader architecture:
+Custom System Tray Menu for Meikova Relay Host.
+Follows Ambient Dark / Meikova Harvest architecture:
 - Dark theme context menu with Windows 10/11 uxtheme enforcement
 - Custom vector icons for every menu item (Emerald, Cyan, White, Red)
 - Rich telemetry header & status indicator
@@ -266,11 +266,11 @@ class CustomMenuItem(pystray.MenuItem if HAS_PYSTRAY else object):
 
 def build_tray_menu(api, on_restore, on_exit):
     """
-    Builds dynamic EveryThingDownloader-style tray menu:
-    - Header: Titan Remote // v1.0.22 (Logo icon)
+    Builds dynamic Meikova Harvest-style tray menu:
+    - Header: Meikova Relay // v1.0.22 (Logo icon)
     - Status: Room ID & Online/Offline (Status beacon)
     - Separator
-    - Mở Titan Remote (Window icon)
+    - Mở Meikova Relay (Window icon)
     - Sao chép mã kết nối (Copy icon)
     - Mở Dashboard trên Web (Browser icon)
     - Separator
@@ -328,7 +328,7 @@ def build_tray_menu(api, on_restore, on_exit):
                 api._copy_share_info()
 
         def _do_open_web():
-            relay = cfg.get("relay") or cfg.get("relay_url") or "wss://titan-remote.onrender.com"
+            relay = cfg.get("relay") or cfg.get("relay_url") or "wss://meikova-relay.onrender.com"
             http_url = relay.replace("wss://", "https://").replace("ws://", "http://")
             dashboard_url = f"{http_url}/dashboard"
             webbrowser.open(dashboard_url)
@@ -340,7 +340,7 @@ def build_tray_menu(api, on_restore, on_exit):
 
         return (
             # 1. App Title Header
-            CustomMenuItem("Titan Remote // v1.0.22", lambda: None, icon_name="logo", enabled=False),
+            CustomMenuItem("Meikova Relay // v1.0.22", lambda: None, icon_name="logo", enabled=False),
             # 2. Live telemetry status
             CustomMenuItem(status_text, lambda: None, icon_name=status_icon, enabled=False),
             pystray.Menu.SEPARATOR,

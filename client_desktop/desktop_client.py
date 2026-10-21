@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Titan Remote Desktop Client (Avionics Remote Viewer).
-Built on Microsoft Edge WebView2 (pywebview) matching MashLoop desktop architecture.
+Meikova Relay Desktop Client (Avionics Remote Viewer).
+Built on Microsoft Edge WebView2 (pywebview) matching Meikova Loop desktop architecture.
 
 Features:
 - Standalone Native Desktop Window (no browser tabs/chrome needed)
@@ -9,7 +9,7 @@ Features:
 - Native Win32 Immersive Dark Titlebar (#070D17)
 - System Tray Integration with Dark Context Menu & Telemetry
 - Global Hotkey Interception in Fullscreen Remote Mode
-- Offline-First Local SQLite Cache (%LOCALAPPDATA%\\TitanRemoteClient)
+- Offline-First Local SQLite Cache (%LOCALAPPDATA%\\MeikovaRelayClient)
 - Cross-Platform: Windows 10/11, macOS, Linux
 """
 
@@ -41,7 +41,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
-logger = logging.getLogger("titan.desktop_client")
+logger = logging.getLogger("meikova.relay.desktop_client")
 
 try:
     import webview
@@ -177,7 +177,7 @@ def set_window_icon(hwnd):
             icon_path = find_client_resource("host_agent/icon.ico")
 
         if not icon_path or not icon_path.is_file():
-            icon_path = get_client_data_dir() / "titan_icon.ico"
+            icon_path = get_client_data_dir() / "meikova_relay_icon.ico"
             if not icon_path.exists():
                 from host_agent.make_icon import render_unified_icon
                 img = render_unified_icon(256)
@@ -292,7 +292,7 @@ class DesktopBridge:
         """Native Win32 window drag initiated from custom titlebar."""
         if sys.platform == "win32":
             try:
-                hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Meikova Relay — Avionics Console")
                 if hwnd:
                     ctypes.windll.user32.ReleaseCapture()
                     ctypes.windll.user32.SendMessageW(hwnd, 0x00A1, 2, 0)  # WM_NCLBUTTONDOWN, HTCAPTION
@@ -312,7 +312,7 @@ class DesktopBridge:
         if self._window:
             if sys.platform == "win32":
                 try:
-                    hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
+                    hwnd = ctypes.windll.user32.FindWindowW(None, "Meikova Relay — Avionics Console")
                     if hwnd:
                         is_zoomed = bool(ctypes.windll.user32.IsZoomed(hwnd))
                         if is_zoomed:
@@ -332,7 +332,7 @@ class DesktopBridge:
         """Returns True if window is currently maximized."""
         if sys.platform == "win32":
             try:
-                hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Meikova Relay — Avionics Console")
                 if hwnd:
                     return bool(ctypes.windll.user32.IsZoomed(hwnd))
             except Exception:
@@ -348,7 +348,7 @@ class DesktopBridge:
                 logger.debug("close_window error: %s", e)
 
 
-def is_autostart_enabled(app_name: str = "TitanRemoteClient") -> bool:
+def is_autostart_enabled(app_name: str = "MeikovaRelayClient") -> bool:
     """Checks if the app is registered in system autostart across Windows, macOS, and Linux."""
     if sys.platform == "win32":
         try:
@@ -364,14 +364,14 @@ def is_autostart_enabled(app_name: str = "TitanRemoteClient") -> bool:
         except OSError:
             return False
     elif sys.platform == "darwin":
-        plist = Path.home() / "Library" / "LaunchAgents" / "com.titanremote.client.plist"
+        plist = Path.home() / "Library" / "LaunchAgents" / "com.meikovarelay.client.plist"
         return plist.is_file()
     else:
-        desktop = Path.home() / ".config" / "autostart" / "titanremote_client.desktop"
+        desktop = Path.home() / ".config" / "autostart" / "meikovarelay_client.desktop"
         return desktop.is_file()
 
 
-def set_autostart(enable: bool, app_name: str = "TitanRemoteClient") -> bool:
+def set_autostart(enable: bool, app_name: str = "MeikovaRelayClient") -> bool:
     """Enables or disables auto-start at logon via system configuration across platforms."""
     if getattr(sys, "frozen", False):
         exe_cmd = f'"{sys.executable}"'
@@ -399,7 +399,7 @@ def set_autostart(enable: bool, app_name: str = "TitanRemoteClient") -> bool:
             logger.warning("Failed to update Windows autostart registry: %s", e)
             return False
     elif sys.platform == "darwin":
-        plist = Path.home() / "Library" / "LaunchAgents" / "com.titanremote.client.plist"
+        plist = Path.home() / "Library" / "LaunchAgents" / "com.meikovarelay.client.plist"
         try:
             if enable:
                 plist.parent.mkdir(parents=True, exist_ok=True)
@@ -408,7 +408,7 @@ def set_autostart(enable: bool, app_name: str = "TitanRemoteClient") -> bool:
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.titanremote.client</string>
+    <string>com.meikovarelay.client</string>
     <key>ProgramArguments</key>
     <array>
         <string>{sys.executable}</string>
@@ -425,14 +425,14 @@ def set_autostart(enable: bool, app_name: str = "TitanRemoteClient") -> bool:
         except Exception:
             return False
     else:
-        desktop = Path.home() / ".config" / "autostart" / "titanremote_client.desktop"
+        desktop = Path.home() / ".config" / "autostart" / "meikovarelay_client.desktop"
         try:
             if enable:
                 desktop.parent.mkdir(parents=True, exist_ok=True)
                 content = f"""[Desktop Entry]
 Type=Application
-Name=Titan Remote Client
-Comment=Titan Remote Avionics Desktop Client
+Name=Meikova Relay Client
+Comment=Meikova Relay Avionics Desktop Client
 Exec={exe_cmd}
 Terminal=false
 Categories=Network;RemoteAccess;
@@ -460,7 +460,7 @@ if sys.platform == "win32":
         from System.Drawing import Color, Pen
 
         class AmbientDarkColorTable(ProfessionalColorTable):
-            """Titan Remote ambient dark color palette for ContextMenuStrip."""
+            """Meikova Relay ambient dark color palette for ContextMenuStrip."""
             @property
             def ToolStripDropDownBackground(self):
                 return Color.FromArgb(7, 13, 23)  # #070D17
@@ -550,7 +550,7 @@ _GLOBAL_TRAY_REFS = []
 
 
 class ClientTray:
-    """Cross-platform Ambient-Dark Tray Manager for Titan Remote Client (EveryThingDownloader & MashLoop standard)."""
+    """Cross-platform Ambient-Dark Tray Manager for Meikova Relay Client (Meikova Harvest & Meikova Loop standard)."""
 
     def __init__(self, window, url: str = "http://localhost:8080", server=None):
         self.window = window
@@ -586,7 +586,7 @@ class ClientTray:
 
         if sys.platform == "win32":
             try:
-                hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Meikova Relay — Avionics Console")
                 if hwnd:
                     ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
                     ctypes.windll.user32.ShowWindow(hwnd, 5)  # SW_SHOW
@@ -596,13 +596,13 @@ class ClientTray:
         elif sys.platform == "darwin":
             try:
                 import subprocess
-                subprocess.run(["osascript", "-e", 'tell application "Titan Remote Client" to activate'], check=False)
+                subprocess.run(["osascript", "-e", 'tell application "Meikova Relay Client" to activate'], check=False)
             except Exception:
                 pass
         elif sys.platform.startswith("linux"):
             try:
                 import subprocess
-                subprocess.run(["wmctrl", "-a", "Titan Remote — Avionics Console"], check=False)
+                subprocess.run(["wmctrl", "-a", "Meikova Relay — Avionics Console"], check=False)
             except Exception:
                 pass
 
@@ -680,7 +680,7 @@ class ClientTray:
             ico_file = find_client_resource("host_agent/icon.ico")
 
         if not ico_file or not ico_file.is_file():
-            ico_file = get_client_data_dir() / "titan_icon.ico"
+            ico_file = get_client_data_dir() / "meikova_relay_icon.ico"
             if not ico_file.is_file():
                 try:
                     from host_agent.make_icon import render_unified_icon
@@ -698,7 +698,7 @@ class ClientTray:
             logger.debug("Failed loading tray icon from file: %s", e)
             tray.Icon = SystemIcons.Application
 
-        tray.Text = "Titan Remote — Avionics Console"[:63]
+        tray.Text = "Meikova Relay — Avionics Console"[:63]
 
         menu = ContextMenuStrip()
         if AmbientDarkRenderer:
@@ -713,7 +713,7 @@ class ClientTray:
         item_pad = Padding(4, 5, 4, 5)
 
         # 1. Header (Branding, Disabled)
-        header = ToolStripMenuItem("TITAN REMOTE // v1.0.25")
+        header = ToolStripMenuItem("MEIKOVA RELAY // v1.0.25")
         header.Enabled = False
         header.Font = font_bold
         header.Padding = Padding(4, 6, 4, 6)
@@ -724,7 +724,7 @@ class ClientTray:
         menu.Items.Add(ToolStripSeparator())
 
         # 2. Show Window
-        item_show = ToolStripMenuItem("Mở Titan Remote")
+        item_show = ToolStripMenuItem("Mở Meikova Relay")
         item_show.Font = font_bold
         item_show.Padding = item_pad
         bmp_win = self._get_icon_bitmap("window")
@@ -850,9 +850,9 @@ class ClientTray:
 
             auto_on = is_autostart_enabled()
             menu = pystray.Menu(
-                pystray.MenuItem("TITAN REMOTE // v1.0.25", None, enabled=False),
+                pystray.MenuItem("MEIKOVA RELAY // v1.0.25", None, enabled=False),
                 pystray.Menu.SEPARATOR,
-                pystray.MenuItem("Mở Titan Remote", on_show, default=True),
+                pystray.MenuItem("Mở Meikova Relay", on_show, default=True),
                 pystray.MenuItem("Mở trên trình duyệt Web", on_web),
                 pystray.MenuItem("Mở thư mục tệp tin (Downloads)", on_dl),
                 pystray.Menu.SEPARATOR,
@@ -863,7 +863,7 @@ class ClientTray:
                 pystray.MenuItem("Thoát hoàn toàn", on_quit)
             )
 
-            self._tray = pystray.Icon("TitanRemoteClient", icon_img, "Titan Remote Client", menu)
+            self._tray = pystray.Icon("MeikovaRelayClient", icon_img, "Meikova Relay Client", menu)
             threading.Thread(target=self._tray.run, daemon=True).start()
         except Exception as e:
             logger.debug("pystray setup failed: %s", e)
@@ -983,7 +983,7 @@ class ClientEmbeddedServer:
                 content_len = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(content_len) if content_len > 0 else None
                 headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "content-length")}
-                headers["User-Agent"] = "TitanDesktopClient"
+                headers["User-Agent"] = "MeikovaRelayClient"
                 try:
                     req = urllib.request.Request(target_url, data=body, headers=headers, method=method)
                     with urllib.request.urlopen(req, timeout=5.0) as resp:
@@ -1026,7 +1026,7 @@ class ClientEmbeddedServer:
 def is_server_online(url: str) -> bool:
     try:
         status_url = f"{url.rstrip('/')}/api/sync/status"
-        req = urllib.request.Request(status_url, headers={"User-Agent": "TitanDesktopClient"})
+        req = urllib.request.Request(status_url, headers={"User-Agent": "MeikovaRelayClient"})
         with urllib.request.urlopen(req, timeout=2.0) as resp:
             return resp.status == 200
     except Exception:
@@ -1035,7 +1035,7 @@ def is_server_online(url: str) -> bool:
 
 def main(argv=None):
     ensure_interactive_desktop()
-    parser = argparse.ArgumentParser(prog="TitanRemoteClient", description="Titan Remote Desktop Avionics Client")
+    parser = argparse.ArgumentParser(prog="MeikovaRelayClient", description="Meikova Relay Desktop Avionics Client")
     parser.add_argument("--url", type=str, default="http://localhost:8080", help="Relay Server URL (default: http://localhost:8080)")
     parser.add_argument("--debug", action="store_true", help="Enable WebView DevTools")
     args = parser.parse_args(argv)
@@ -1048,12 +1048,12 @@ def main(argv=None):
     if sys.platform == "win32":
         try:
             kernel32 = ctypes.windll.kernel32
-            mutex_name = "Local\\TitanRemote_Desktop_Client_Mutex"
+            mutex_name = "Local\\MeikovaRelay_Desktop_Client_Mutex"
             _h_mutex = kernel32.CreateMutexW(None, False, mutex_name)
             if kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
-                hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Meikova Relay — Avionics Console")
                 if hwnd:
-                    logger.info("Titan Remote Client is already running. Restoring window.")
+                    logger.info("Meikova Relay Client is already running. Restoring window.")
                     ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
                     ctypes.windll.user32.SetForegroundWindow(hwnd)
                     sys.exit(0)
@@ -1075,7 +1075,7 @@ def main(argv=None):
     # AppUserModelID for Windows Taskbar Grouping & Icon
     if sys.platform == "win32":
         try:
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("TitanRemote.DesktopClient.1.0")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MeikovaRelay.DesktopClient.1.0")
         except Exception:
             pass
 
@@ -1095,7 +1095,7 @@ def main(argv=None):
 
     # Initialize webview window with ambient dark styling and custom frameless titlebar
     window = webview.create_window(
-        title="Titan Remote — Avionics Console",
+        title="Meikova Relay — Avionics Console",
         url=app_url,
         width=1366,
         height=840,
@@ -1121,7 +1121,7 @@ def main(argv=None):
         def _apply_theme():
             time.sleep(0.3)
             try:
-                hwnd = ctypes.windll.user32.FindWindowW(None, "Titan Remote — Avionics Console")
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Meikova Relay — Avionics Console")
                 if hwnd:
                     set_window_icon(hwnd)
                     # Enable minimize/maximize styles for taskbar & titlebar controls

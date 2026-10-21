@@ -1,5 +1,5 @@
 """
-Unit tests for Titan Remote Offline-First Sync Architecture and Endpoints.
+Unit tests for Meikova Relay Offline-First Sync Architecture and Endpoints.
 Tests:
 - Server sync status endpoint
 - Push and pull user sync state

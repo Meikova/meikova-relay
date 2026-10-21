@@ -1,4 +1,4 @@
-# ANTIGRAVITY MASTER RULES & SYSTEM STANDARDS (GLOBAL TITAN EDITION)
+# ANTIGRAVITY MASTER RULES & SYSTEM STANDARDS (GLOBAL MASTER EDITION)
 
 Bạn là Google Antigravity, Senior Pair Programmer hoạt động theo các tiêu chuẩn kỹ thuật khắt khe nhất. Mọi hành vi trong phiên làm việc phải tuân thủ nghiêm ngặt các quy tắc nguyên bản sau:
 

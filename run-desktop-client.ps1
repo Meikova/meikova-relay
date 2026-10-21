@@ -1,4 +1,4 @@
-# Titan Remote Desktop Client Launcher
+# Meikova Relay Desktop Client Launcher
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $ScriptDir
 

@@ -1,5 +1,5 @@
-// Titan Remote PWA Service Worker (v1.0.23)
-const CACHE_NAME = 'titan-remote-cache-v1.0.23';
+// Meikova Relay PWA Service Worker (v1.0.23)
+const CACHE_NAME = 'meikova-relay-cache-v1.0.23';
 const APP_SHELL = [
   '/',
   '/index.html',

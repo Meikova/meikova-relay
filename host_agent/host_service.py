@@ -28,7 +28,7 @@ def _resolve_doh(domain: str) -> Optional[str]:
     ]
     for ep in endpoints:
         try:
-            req = urllib.request.Request(ep, headers={"Accept": "application/dns-json", "User-Agent": "TitanRemoteDNS"})
+            req = urllib.request.Request(ep, headers={"Accept": "application/dns-json", "User-Agent": "MeikovaRelayDNS"})
             with urllib.request.urlopen(req, timeout=3.0) as resp:
                 data = json.loads(resp.read().decode())
                 for ans in data.get("Answer", []):
@@ -372,7 +372,7 @@ class HostService:
                     cwd = os.getcwd()
                     await ws.send(json.dumps({
                         "type": "terminal_output",
-                        "data": f"=== TITAN REMOTE POWERSHELL (UTF-8) SẴN SÀNG ===\r\nThiết bị: {self.device_name} | Thư mục: {cwd}\r\nPS {cwd}> "
+                        "data": f"=== MEIKOVA RELAY POWERSHELL (UTF-8) SẴN SÀNG ===\r\nThiết bị: {self.device_name} | Thư mục: {cwd}\r\nPS {cwd}> "
                     }))
                     continue
 
@@ -830,7 +830,7 @@ class HostService:
             PowerManager.prevent_sleep(False)
 
 def main():
-    parser = argparse.ArgumentParser(description="Titan Remote Desktop - Host Agent")
+    parser = argparse.ArgumentParser(description="Meikova Relay Desktop - Host Agent")
     parser.add_argument("--relay", default="ws://127.0.0.1:8080", help="Relay Server URL")
     parser.add_argument("--room", default="RD-8888", help="Room ID / Session Code")
     parser.add_argument("--pin", default="123456", help="Security PIN")

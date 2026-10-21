@@ -1,5 +1,5 @@
 """
-Unit tests for Titan Remote Desktop Client.
+Unit tests for Meikova Relay Desktop Client.
 Tests:
 - ClientLocalDB initialization, key-value storage, and device caching
 - DesktopBridge methods and offline cache access

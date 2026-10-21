@@ -1,13 +1,13 @@
 [Unit]
-Description=Titan Remote Workstation Host 24/7 Service
+Description=Meikova Relay Workstation Host 24/7 Service
 After=network.target display-manager.service
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/titan-remote/host_agent
-ExecStart=/opt/titan-remote/host_agent/.venv/bin/python3 host_service.py --service
+WorkingDirectory=/opt/meikova-relay/host_agent
+ExecStart=/opt/meikova-relay/host_agent/.venv/bin/python3 host_service.py --service
 Restart=always
 RestartSec=5s
 Environment=DISPLAY=:0

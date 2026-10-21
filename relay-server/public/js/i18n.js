@@ -1,5 +1,5 @@
 /**
- * TITAN REMOTE — INTERNATIONALIZATION (i18n) ENGINE
+ * MEIKOVA RELAY — INTERNATIONALIZATION (i18n) ENGINE
  * Default / Primary: Vietnamese ('vi')
  * Secondary: English ('en')
  * Architecture: Zero-dependency, extensible dictionary with dynamic interpolation,
@@ -10,14 +10,14 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory();
   } else {
-    root.TitanI18n = factory();
-    root.t = root.TitanI18n.t;
+    root.MeikovaI18n = factory();
+    root.t = root.MeikovaI18n.t;
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
   const DEFAULT_LANG = 'vi';
-  const STORAGE_KEY = 'titan_remote_lang';
+  const STORAGE_KEY = 'meikova_relay_lang';
 
   // Master Translation Dictionary
   // ponytail: Minimal flat-key dictionary; registerLang() allows arbitrary expansion (ja, zh, ko)
@@ -33,7 +33,7 @@
       'nav.aria_label': 'Phân hệ điều khiển',
 
       // Topbar
-      'topbar.brand': 'TITAN REMOTE',
+      'topbar.brand': 'MEIKOVA RELAY',
       'topbar.logout': 'Thoát',
       'topbar.logout_title': 'Đăng xuất khỏi phiên làm việc',
       'topbar.quick_connect': 'Kết nối nhanh',
@@ -146,7 +146,7 @@
       'terminal.hint': 'Enter: Thực thi | ↑/↓: Lịch sử | Ctrl+L: Xóa',
       'terminal.btn_clear': 'Xóa màn hình',
       'terminal.screen_title': 'Nhấn vào màn hình để gõ lệnh trực tiếp',
-      'terminal.welcome': 'Titan Remote PowerShell Console sẵn sàng. Đang chạy trong môi trường UTF-8.',
+      'terminal.welcome': 'Meikova Relay PowerShell Console sẵn sàng. Đang chạy trong môi trường UTF-8.',
 
       // View 5: Tasks & Diagnostics
       'tasks.title': 'Giám sát & Quản lý tiến trình',
@@ -357,7 +357,7 @@
       'landing.stat_engine': 'Desktop Standalone',
       'landing.topo_client': 'MÁY ĐIỀU KHIỂN',
       'landing.topo_client_meta': '0.8ms ĐỘ TRỄ',
-      'landing.topo_relay': 'TITAN RELAY',
+      'landing.topo_relay': 'MEIKOVA RELAY',
       'landing.topo_relay_meta': 'E2E TLS 1.3',
       'landing.topo_host': 'MÁY TRẠM HOST',
       'landing.topo_host_meta': 'WIN • LINUX • MACOS',
@@ -414,15 +414,15 @@
 
       'landing.dl_exe_title': 'Phần mềm Desktop Standalone (.exe)',
       'landing.dl_exe_desc': 'Đóng gói sẵn trọn gói Python Runtime, Tkinter, Pillow, Websockets. Hỗ trợ 2 tùy chọn: Chạy ngay không cần quyền Admin hoặc Cài đặt dịch vụ hệ thống 24/7.',
-      'landing.dl_exe_btn': 'Tải TitanRemoteHost.exe (19.8 MB)',
-      'landing.dl_exe_btn_title': 'Tải TitanRemoteHost.exe',
+      'landing.dl_exe_btn': 'Tải MeikovaRelayHost.exe (19.8 MB)',
+      'landing.dl_exe_btn_title': 'Tải MeikovaRelayHost.exe',
       'landing.dl_exe_btn_size': '(19.8 MB)',
       'landing.dl_exe_f1': '2 Tùy chọn: User Portable & Dịch vụ 24/7',
       'landing.dl_exe_f2': 'Khởi động cùng Win & Chống tắt máy',
       'landing.dl_exe_f3': 'Tương thích Windows 10/11/Server (64-bit)',
       'landing.dl_bat_title': 'Bộ cài đặt tự động (.bat)',
       'landing.dl_bat_desc': 'Script cài đặt thông minh, tự động liên kết với tài khoản chủ máy và tự động fallback tải .exe nếu máy trạm chưa có Python.',
-      'landing.dl_bat_btn': 'Tải Setup-TitanHost.bat',
+      'landing.dl_bat_btn': 'Tải Setup-MeikovaHost.bat',
       'landing.dl_bat_size': '(Tự động nhận diện)',
       'landing.dl_bat_f1': 'Tự động liên kết tài khoản chủ',
       'landing.dl_bat_f2': 'Tự tạo Service chạy nền 24/7',
@@ -445,15 +445,15 @@
       'landing.dl_linux_deb_f1': 'Cài 1-click qua: sudo dpkg -i',
       'landing.dl_linux_deb_f2': 'Tự tạo systemd service 24/7',
       'landing.dl_linux_deb_f3': 'Hỗ trợ Ubuntu 20.04+, Debian 11+',
-      'landing.dl_linux_deb_btn': 'Tải titan-remote.deb',
+      'landing.dl_linux_deb_btn': 'Tải meikova-relay.deb',
       'landing.dl_linux_tar_title': 'Gói Linux Độc lập (.tar.gz)',
       'landing.dl_linux_tar_desc': 'Gói nén chứa file thực thi ELF độc lập, unit file systemd và script install.sh tương thích mọi bản phân phối Linux.',
       'landing.dl_linux_tar_f1': 'Chạy trực tiếp không cần cài đặt',
       'landing.dl_linux_tar_f2': 'Tương thích Fedora, Arch, RHEL, Mint',
       'landing.dl_linux_tar_f3': 'Kèm mã nguồn Python universal',
-      'landing.dl_linux_tar_btn': 'Tải titan-remote-linux.tar.gz',
+      'landing.dl_linux_tar_btn': 'Tải meikova-relay-linux.tar.gz',
       'landing.dl_linux_systemd_title': 'Dịch vụ Hệ thống (Systemd 24/7)',
-      'landing.dl_linux_systemd_desc': 'Chạy ngầm ổn định như một Linux daemon qua titan-remote.service, tự động bật cùng OS và tự khôi phục khi restart.',
+      'landing.dl_linux_systemd_desc': 'Chạy ngầm ổn định như một Linux daemon qua meikova-relay.service, tự động bật cùng OS và tự khôi phục khi restart.',
       'landing.dl_linux_systemd_f1': 'Tự khởi động cùng Linux (systemctl)',
       'landing.dl_linux_systemd_f2': 'Hỗ trợ X11 & Wayland Screen Grab',
       'landing.dl_linux_systemd_f3': 'Phù hợp Ubuntu, Debian, Arch, Fedora',
@@ -473,10 +473,10 @@
       'landing.dl_macos_apple_silicon_f1': 'Hỗ trợ Chip M1, M2, M3, M4 & Intel',
       'landing.dl_macos_apple_silicon_f2': 'Ghi hình màn hình độ trễ tối thiểu',
       'landing.dl_macos_apple_silicon_f3': 'Cần cấp quyền Screen & Accessibility',
-      'landing.dl_macos_tar_btn': 'Tải titan-remote-macos.tar.gz',
+      'landing.dl_macos_tar_btn': 'Tải meikova-relay-macos.tar.gz',
       'landing.dl_macos_guide_link': 'Xem hướng dẫn cấp quyền Security & Accessibility',
       'landing.dl_macos_launchd_title': 'Dịch vụ Khởi động (Launchd 24/7)',
-      'landing.dl_macos_launchd_desc': 'Đăng ký LaunchAgent com.titan.remote.plist để tự động chạy ngầm mỗi khi người dùng đăng nhập vào macOS.',
+      'landing.dl_macos_launchd_desc': 'Đăng ký LaunchAgent com.meikova.relay.plist để tự động chạy ngầm mỗi khi người dùng đăng nhập vào macOS.',
       'landing.dl_macos_launchd_f1': 'Tự động chạy qua launchctl',
       'landing.dl_macos_launchd_f2': 'Hoạt động ngầm không hiện cửa sổ',
       'landing.dl_macos_launchd_f3': 'Không kẹt tường lửa qua Outbound Tunnel',
@@ -500,7 +500,7 @@
       // Landing CI/CD & Footer
       'landing.cicd_title': 'Biên dịch tự động qua GitHub Actions CI/CD',
       'landing.cicd_desc': 'Mọi phiên bản phát hành đều được tự động biên dịch, kiểm thử và đóng gói trên hạ tầng GitHub Actions độc lập (Windows, Ubuntu Linux, macOS), xuất bản đầy đủ gói cài đặt (.exe, .deb, .tar.gz, .dmg) kèm mã băm SHA256 kiểm chứng.',
-      'landing.footer_brand': 'TITAN REMOTE // AMBIENT INSTRUMENT SPECIFICATION',
+      'landing.footer_brand': 'MEIKOVA RELAY // AMBIENT INSTRUMENT SPECIFICATION',
       'landing.footer_status': 'HỆ THỐNG: HOẠT ĐỘNG // RELAY: CLOUD-EDGE // E2E ENCRYPTED',
 
       // Session Activity & Inactivity Timeout
@@ -531,7 +531,7 @@
       'nav.aria_label': 'System Control Navigation',
 
       // Topbar
-      'topbar.brand': 'TITAN REMOTE',
+      'topbar.brand': 'MEIKOVA RELAY',
       'topbar.logout': 'Logout',
       'topbar.logout_title': 'Logout from current session',
       'topbar.quick_connect': 'Quick Connect',
@@ -644,7 +644,7 @@
       'terminal.hint': 'Enter: Execute | ↑/↓: History | Ctrl+L: Clear',
       'terminal.btn_clear': 'Clear Screen',
       'terminal.screen_title': 'Click screen to type commands directly',
-      'terminal.welcome': 'Titan Remote PowerShell Console ready. Running in UTF-8 environment.',
+      'terminal.welcome': 'Meikova Relay PowerShell Console ready. Running in UTF-8 environment.',
 
       // View 5: Tasks & Diagnostics
       'tasks.title': 'Process Monitor & Hardware Diagnostics',
@@ -855,7 +855,7 @@
       'landing.stat_engine': 'Desktop Standalone',
       'landing.topo_client': 'LOCAL CLIENT',
       'landing.topo_client_meta': '0.8ms JITTER',
-      'landing.topo_relay': 'TITAN RELAY',
+      'landing.topo_relay': 'MEIKOVA RELAY',
       'landing.topo_relay_meta': 'E2E TLS 1.3',
       'landing.topo_host': 'CROSS-PLATFORM WORKSTATIONS',
       'landing.topo_host_meta': 'WIN • LINUX • MACOS',
@@ -912,15 +912,15 @@
 
       'landing.dl_exe_title': 'Standalone Desktop App (.exe)',
       'landing.dl_exe_desc': 'Fully bundled with Python Runtime, Tkinter, Pillow, and Websockets. Supports 2 options: Portable without Admin or 24/7 System Service with Admin.',
-      'landing.dl_exe_btn': 'Download TitanRemoteHost.exe (19.8 MB)',
-      'landing.dl_exe_btn_title': 'Download TitanRemoteHost.exe',
+      'landing.dl_exe_btn': 'Download MeikovaRelayHost.exe (19.8 MB)',
+      'landing.dl_exe_btn_title': 'Download MeikovaRelayHost.exe',
       'landing.dl_exe_btn_size': '(19.8 MB)',
       'landing.dl_exe_f1': '2 Options: User Portable & 24/7 Service',
       'landing.dl_exe_f2': 'Auto-run on boot & Anti-sleep',
       'landing.dl_exe_f3': 'Windows 10/11/Server (64-bit)',
       'landing.dl_bat_title': 'Automated Installer (.bat)',
       'landing.dl_bat_desc': 'Smart setup script linking to your account with auto-fallback to download the standalone .exe if Python is absent.',
-      'landing.dl_bat_btn': 'Download Setup-TitanHost.bat',
+      'landing.dl_bat_btn': 'Download Setup-MeikovaHost.bat',
       'landing.dl_bat_size': '(Auto-Config)',
       'landing.dl_bat_f1': 'Auto-links owner account',
       'landing.dl_bat_f2': 'Background 24/7 host service',
@@ -943,15 +943,15 @@
       'landing.dl_linux_deb_f1': '1-click install via: sudo dpkg -i',
       'landing.dl_linux_deb_f2': 'Auto-installs 24/7 systemd service',
       'landing.dl_linux_deb_f3': 'Ubuntu 20.04+, Debian 11+ 64-bit',
-      'landing.dl_linux_deb_btn': 'Download titan-remote.deb',
+      'landing.dl_linux_deb_btn': 'Download meikova-relay.deb',
       'landing.dl_linux_tar_title': 'Standalone Linux Archive (.tar.gz)',
       'landing.dl_linux_tar_desc': 'Self-contained archive with ELF binary, systemd unit, and install.sh script.',
       'landing.dl_linux_tar_f1': 'Run directly without installation',
       'landing.dl_linux_tar_f2': 'Compatible with Fedora, Arch, RHEL',
       'landing.dl_linux_tar_f3': 'Includes universal source fallback',
-      'landing.dl_linux_tar_btn': 'Download titan-remote-linux.tar.gz',
+      'landing.dl_linux_tar_btn': 'Download meikova-relay-linux.tar.gz',
       'landing.dl_linux_systemd_title': 'System Daemon (Systemd 24/7)',
-      'landing.dl_linux_systemd_desc': 'Runs reliably as a background service via titan-remote.service, auto-starting on OS boot and auto-restarting on failure.',
+      'landing.dl_linux_systemd_desc': 'Runs reliably as a background service via meikova-relay.service, auto-starting on OS boot and auto-restarting on failure.',
       'landing.dl_linux_systemd_f1': 'Auto-start on Linux boot (systemctl)',
       'landing.dl_linux_systemd_f2': 'Supports X11 & Wayland Screen Grab',
       'landing.dl_linux_systemd_f3': 'For Ubuntu, Debian, Arch, Fedora',
@@ -971,10 +971,10 @@
       'landing.dl_macos_apple_silicon_f1': 'Apple Silicon M1/M2/M3/M4 & Intel',
       'landing.dl_macos_apple_silicon_f2': 'Ultra-low capture latency',
       'landing.dl_macos_apple_silicon_f3': 'Requires Screen & Accessibility rights',
-      'landing.dl_macos_tar_btn': 'Download titan-remote-macos.tar.gz',
+      'landing.dl_macos_tar_btn': 'Download meikova-relay-macos.tar.gz',
       'landing.dl_macos_guide_link': 'Security & Accessibility permission guide',
       'landing.dl_macos_launchd_title': 'Auto-Start Daemon (Launchd 24/7)',
-      'landing.dl_macos_launchd_desc': 'Registers com.titan.remote.plist in ~/Library/LaunchAgents to run automatically on macOS login.',
+      'landing.dl_macos_launchd_desc': 'Registers com.meikova.relay.plist in ~/Library/LaunchAgents to run automatically on macOS login.',
       'landing.dl_macos_launchd_f1': 'Auto-start via launchctl',
       'landing.dl_macos_launchd_f2': 'Silent background execution',
       'landing.dl_macos_launchd_f3': 'Firewall-friendly Outbound Relay',
@@ -998,7 +998,7 @@
       // Landing CI/CD & Footer
       'landing.cicd_title': 'Automated GitHub Actions CI/CD Pipeline',
       'landing.cicd_desc': 'Every release is automatically compiled, tested, and packaged across isolated GitHub Actions runners (Windows, Ubuntu Linux, macOS), producing multi-platform packages (.exe, .deb, .tar.gz, .dmg) with verifiable SHA256 checksums.',
-      'landing.footer_brand': 'TITAN REMOTE // AMBIENT INSTRUMENT SPECIFICATION',
+      'landing.footer_brand': 'MEIKOVA RELAY // AMBIENT INSTRUMENT SPECIFICATION',
       'landing.footer_status': 'SYSTEM: OPERATIONAL // RELAY: CLOUD-EDGE // E2E ENCRYPTED',
 
       // Session Activity & Inactivity Timeout
@@ -1144,7 +1144,7 @@
 
     // Dispatch global event for application listeners (dynamic re-renders)
     if (typeof window !== 'undefined' && window.dispatchEvent) {
-      window.dispatchEvent(new CustomEvent('titan-lang-changed', {
+      window.dispatchEvent(new CustomEvent('meikova-lang-changed', {
         detail: { lang: currentLang }
       }));
     }

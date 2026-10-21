@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 echo ==============================================================
-echo        TITAN REMOTE ENTERPRISE - BUILD EXECUTABLE & PACKAGES
+echo        MEIKOVA RELAY ENTERPRISE - BUILD EXECUTABLE & PACKAGES
 echo ==============================================================
 echo.
 
@@ -27,7 +27,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo [3/3] Hoan tat! 
-echo - File chay Standalone: dist\TitanRemoteHost.exe
-echo - Goi Zip cai dat: dist\TitanRemoteHost-windows-x64.zip
+echo - File chay Standalone: dist\MeikovaRelayHost.exe
+echo - Goi Zip cai dat: dist\MeikovaRelayHost-windows-x64.zip
 echo ==============================================================
 pause

@@ -82,19 +82,19 @@ class TestExtendedFeatures(unittest.TestCase):
         term = TerminalManager(on_output=on_out)
         term.start()
         time.sleep(1.0)
-        term.send_input("Write-Output 'TITAN_TEST_OK'")
+        term.send_input("Write-Output 'MEIKOVA_TEST_OK'")
         time.sleep(1.0)
         term.stop()
 
         full_output = "".join(output_received)
-        self.assertIn("TITAN", full_output)
+        self.assertIn("MEIKOVA", full_output)
 
     def test_file_transfer_integrity(self):
         import tempfile
         import hashlib
         with tempfile.TemporaryDirectory() as tmpdir:
             fm = FileManager(download_dir=tmpdir)
-            data = b"Hello Titan Remote Enterprise Stream" * 100
+            data = b"Hello Meikova Relay Enterprise Stream" * 100
             expected_hash = hashlib.sha256(data).hexdigest()
             dest = fm.start_upload("tx1", "test.bin", len(data), expected_hash)
             # Write chunk

@@ -339,14 +339,14 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
 
         if (is_mobile) {
-          const appScheme = 'titanremote';
+          const appScheme = 'meikovarelay';
           const deepLinkUrl = `${appScheme}://auth-success?token=${auth.token}&email=${encodeURIComponent(email)}`;
           res.end(`<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Titan Remote // Đã xác thực cho Mobile App</title>
+  <title>Meikova Relay // Đã xác thực cho Mobile App</title>
   <style>
     body { background: #070D17; color: #22C55E; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 16px; box-sizing: border-box; text-align: center; }
     .card { background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 16px; padding: 32px 24px; box-shadow: 0 0 30px rgba(34, 197, 94, 0.2); max-width: 380px; width: 100%; }
@@ -362,9 +362,9 @@ const server = http.createServer(async (req, res) => {
   <div class="card">
     <div class="badge">MOBILE APP // KẾT NỐI THÀNH CÔNG</div>
     <h2>ĐÃ ĐĂNG NHẬP GOOGLE</h2>
-    <p>Chào mừng <strong>${name}</strong> (${email}).<br>Đã cấp phiên đăng nhập cho Titan Remote Mobile.<br>Nhấn nút bên dưới để quay lại app.</p>
+    <p>Chào mừng <strong>${name}</strong> (${email}).<br>Đã cấp phiên đăng nhập cho Meikova Relay Mobile.<br>Nhấn nút bên dưới để quay lại app.</p>
     <div class="actions">
-      <a href="${deepLinkUrl}" class="btn">Mở lại Titan Remote</a>
+      <a href="${deepLinkUrl}" class="btn">Mở lại Meikova Relay</a>
       <button class="btn btn-ghost" onclick="window.close()">Đóng tab</button>
     </div>
   </div>
@@ -383,7 +383,7 @@ const server = http.createServer(async (req, res) => {
 <html lang="vi">
 <head>
   <meta charset="utf-8">
-  <title>Xác thực thành công // Titan Remote Desktop</title>
+  <title>Xác thực thành công // Meikova Relay Desktop</title>
   <style>
     body { background: #070D17; color: #22C55E; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
     .card { background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 16px; padding: 36px 40px; box-shadow: 0 0 40px rgba(34, 197, 94, 0.2); max-width: 440px; }
@@ -400,7 +400,7 @@ const server = http.createServer(async (req, res) => {
   <div class="card">
     <div class="badge">DESKTOP APP // KẾT NỐI THÀNH CÔNG</div>
     <h2>ĐÃ ĐĂNG NHẬP GOOGLE</h2>
-    <p>Tài khoản <strong>${email}</strong> đã kết nối với ứng dụng Desktop.<br>Bạn có thể đóng tab này và quay lại Titan Remote.</p>
+    <p>Tài khoản <strong>${email}</strong> đã kết nối với ứng dụng Desktop.<br>Bạn có thể đóng tab này và quay lại Meikova Relay.</p>
     <button type="button" id="close-btn" class="btn-close" onclick="attemptClose()">Đóng tab này</button>
     <div id="close-tip" class="tip">(Nếu trình duyệt chặn script đóng, hãy bấm <kbd>Ctrl + W</kbd>)</div>
   </div>
@@ -430,7 +430,7 @@ const server = http.createServer(async (req, res) => {
 <html lang="vi">
 <head>
   <meta charset="utf-8">
-  <title>Titan Remote // Đăng nhập Google thành công</title>
+  <title>Meikova Relay // Đăng nhập Google thành công</title>
   <style>
     body { background: #070D17; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
     .card { background: #0F172A; border: 1px solid #1E293B; border-radius: 16px; padding: 36px 32px; text-align: center; max-width: 440px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); }
@@ -445,10 +445,10 @@ const server = http.createServer(async (req, res) => {
   <div class="card">
     <div class="badge"><span class="dot"></span> XÁC THỰC GOOGLE THÀNH CÔNG</div>
     <h2>Xin chào, ${name}</h2>
-    <p>Đang chuyển hướng về bảng điều khiển Titan Remote...</p>
+    <p>Đang chuyển hướng về bảng điều khiển Meikova Relay...</p>
   </div>
   <script>
-    try { localStorage.setItem('titan_token', '${auth.token}'); } catch(e){}
+    try { localStorage.setItem('meikova_relay_token', '${auth.token}'); } catch(e){}
     setTimeout(function() { window.location.href = '/'; }, 1500);
   </script>
 </body>
@@ -651,7 +651,7 @@ const server = http.createServer(async (req, res) => {
       if (format === 'json') {
         res.writeHead(200, {
           'Content-Type': 'application/json; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="titan-audit-logs.json"'
+          'Content-Disposition': 'attachment; filename="meikova-relay-audit-logs.json"'
         });
         return res.end(JSON.stringify(logs, null, 2));
       }
@@ -672,7 +672,7 @@ const server = http.createServer(async (req, res) => {
       const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
       res.writeHead(200, {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': 'attachment; filename="titan-audit-logs.csv"'
+        'Content-Disposition': 'attachment; filename="meikova-relay-audit-logs.csv"'
       });
       return res.end(csvContent);
     }
@@ -685,38 +685,38 @@ const server = http.createServer(async (req, res) => {
 
       const batContent = `@echo off
 setlocal DisableDelayedExpansion
-title Titan Remote Host - Cai dat may tram tu dong
+title Meikova Relay Host - Cai dat may tram tu dong
 chcp 65001 >nul 2>&1
 echo ==============================================================
-echo        TITAN REMOTE ENTERPRISE - TU DONG LIEN KET MAY TRAM
+echo        MEIKOVA RELAY ENTERPRISE - TU DONG LIEN KET MAY TRAM
 echo ==============================================================
 echo Tai khoan lien ket: ${account}
 echo Relay Server:       ${relayWs}
 echo.
 
-set "TARGET_DIR=%LOCALAPPDATA%\\TitanRemoteHost"
+set "TARGET_DIR=%LOCALAPPDATA%\\MeikovaRelayHost"
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
 
 echo [1/3] Kiem tra va cap nhat ban Standalone Desktop (.exe)...
-powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe.new') } catch {}"
-if exist "TitanRemoteHost.exe.new" (
-    for %%I in ("TitanRemoteHost.exe.new") do if %%~zI GTR 5000000 (
-        taskkill /f /im TitanRemoteHost.exe >nul 2>&1
-        move /y "TitanRemoteHost.exe.new" "TitanRemoteHost.exe" >nul 2>&1
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', 'MeikovaRelayHost.exe.new') } catch {}"
+if exist "MeikovaRelayHost.exe.new" (
+    for %%I in ("MeikovaRelayHost.exe.new") do if %%~zI GTR 5000000 (
+        taskkill /f /im MeikovaRelayHost.exe >nul 2>&1
+        move /y "MeikovaRelayHost.exe.new" "MeikovaRelayHost.exe" >nul 2>&1
     )
-    if exist "TitanRemoteHost.exe.new" del /f /q "TitanRemoteHost.exe.new" >nul 2>&1
+    if exist "MeikovaRelayHost.exe.new" del /f /q "MeikovaRelayHost.exe.new" >nul 2>&1
 )
 
-if not exist "TitanRemoteHost.exe" (
-    echo Dang tai TitanRemoteHost.exe tu Relay Server...
-    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe')"
+if not exist "MeikovaRelayHost.exe" (
+    echo Dang tai MeikovaRelayHost.exe tu Relay Server...
+    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', 'MeikovaRelayHost.exe')"
 )
 
 :CHECK_STANDALONE
 set "USE_STANDALONE=0"
-if exist "TitanRemoteHost.exe" (
-    for %%I in ("TitanRemoteHost.exe") do if %%~zI GTR 5000000 set "USE_STANDALONE=1"
+if exist "MeikovaRelayHost.exe" (
+    for %%I in ("MeikovaRelayHost.exe") do if %%~zI GTR 5000000 set "USE_STANDALONE=1"
 )
 
 if "%USE_STANDALONE%"=="1" (
@@ -764,17 +764,17 @@ echo }
 ) > config.json
 
 REM Dong bo cau hinh vao thu muc nguoi dung de tranh ghi de hoac thieu tai khoan
-copy /y config.json "%USERPROFILE%\\.titan_remote_config.json" >nul 2>&1
+copy /y config.json "%USERPROFILE%\\.meikova_relay_config.json" >nul 2>&1
 
 if "%USE_STANDALONE%"=="1" goto :RUN_STANDALONE
 
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "pythonw.exe \\"%TARGET_DIR%\\gui_agent.py\\" --autostart" /f >nul 2>&1
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \\"%TARGET_DIR%\\gui_agent.py\\" --autostart" /f >nul 2>&1
 start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py"
 goto :FINISH_SETUP
 
 :RUN_STANDALONE
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TitanRemoteHost" /t REG_SZ /d "\\"%TARGET_DIR%\\TitanRemoteHost.exe\\" --autostart" /f >nul 2>&1
-start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\TitanRemoteHost.exe"
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\\"%TARGET_DIR%\\MeikovaRelayHost.exe\\" --autostart" /f >nul 2>&1
+start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\MeikovaRelayHost.exe"
 
 :FINISH_SETUP
 
@@ -784,7 +784,7 @@ echo   [THANH CONG] MAY TRAM DA KHOI CHAY VA LIEN KET
 echo   Tai khoan:  ${account}
 echo   Room ID:    %RAND_ROOM%   ^|   PIN: %RAND_PIN%
 echo.
-echo   Kiem tra bieu tuong Titan Remote o khay he thong (System Tray).
+echo   Kiem tra bieu tuong Meikova Relay o khay he thong (System Tray).
 echo   Thiet bi se tu dong xuat hien tren trinh duyet trong giay lat.
 echo ==============================================================
 echo.
@@ -794,7 +794,7 @@ pause >nul
 
       res.writeHead(200, {
         'Content-Type': 'application/x-bat; charset=utf-8',
-        'Content-Disposition': 'attachment; filename="Setup-TitanHost.bat"',
+        'Content-Disposition': 'attachment; filename="Setup-MeikovaHost.bat"',
         'Cache-Control': 'no-cache'
       });
       res.end(batContent);
@@ -823,18 +823,18 @@ pause >nul
 
     // 7.5 Download: Multi-Platform Workstation Artifacts (Windows, Linux, macOS)
     const artifactMap = {
-      '/api/download/TitanRemoteHost.exe': { name: 'TitanRemoteHost.exe', type: 'application/vnd.microsoft.portable-executable' },
-      '/api/download/titan-remote-host.exe': { name: 'TitanRemoteHost.exe', type: 'application/vnd.microsoft.portable-executable' },
-      '/api/download/TitanRemoteHost-windows-x64.zip': { name: 'TitanRemoteHost-windows-x64.zip', type: 'application/zip' },
-      '/api/download/titan-remote-windows.zip': { name: 'TitanRemoteHost-windows-x64.zip', type: 'application/zip' },
-      '/api/download/titan-remote-host_amd64.deb': { name: 'titan-remote-host_amd64.deb', type: 'application/vnd.debian.binary-package' },
-      '/api/download/titan-remote.deb': { name: 'titan-remote-host_amd64.deb', type: 'application/vnd.debian.binary-package' },
-      '/api/download/titan-remote-host-linux-x64.tar.gz': { name: 'titan-remote-host-linux-x64.tar.gz', type: 'application/gzip' },
-      '/api/download/titan-remote-linux.tar.gz': { name: 'titan-remote-host-linux-x64.tar.gz', type: 'application/gzip' },
-      '/api/download/titan-remote-host-macos.tar.gz': { name: 'titan-remote-host-macos.tar.gz', type: 'application/gzip' },
-      '/api/download/titan-remote-macos.tar.gz': { name: 'titan-remote-host-macos.tar.gz', type: 'application/gzip' },
-      '/api/download/TitanRemoteHost-macos.dmg': { name: 'TitanRemoteHost-macos.dmg', type: 'application/x-apple-diskimage' },
-      '/api/download/titan-remote.dmg': { name: 'TitanRemoteHost-macos.dmg', type: 'application/x-apple-diskimage' }
+      '/api/download/MeikovaRelayHost.exe': { name: 'MeikovaRelayHost.exe', type: 'application/vnd.microsoft.portable-executable' },
+      '/api/download/meikova-relay-host.exe': { name: 'MeikovaRelayHost.exe', type: 'application/vnd.microsoft.portable-executable' },
+      '/api/download/MeikovaRelayHost-windows-x64.zip': { name: 'MeikovaRelayHost-windows-x64.zip', type: 'application/zip' },
+      '/api/download/meikova-relay-windows.zip': { name: 'MeikovaRelayHost-windows-x64.zip', type: 'application/zip' },
+      '/api/download/meikova-relay-host_amd64.deb': { name: 'meikova-relay-host_amd64.deb', type: 'application/vnd.debian.binary-package' },
+      '/api/download/meikova-relay.deb': { name: 'meikova-relay-host_amd64.deb', type: 'application/vnd.debian.binary-package' },
+      '/api/download/meikova-relay-host-linux-x64.tar.gz': { name: 'meikova-relay-host-linux-x64.tar.gz', type: 'application/gzip' },
+      '/api/download/meikova-relay-linux.tar.gz': { name: 'meikova-relay-host-linux-x64.tar.gz', type: 'application/gzip' },
+      '/api/download/meikova-relay-host-macos.tar.gz': { name: 'meikova-relay-host-macos.tar.gz', type: 'application/gzip' },
+      '/api/download/meikova-relay-macos.tar.gz': { name: 'meikova-relay-host-macos.tar.gz', type: 'application/gzip' },
+      '/api/download/MeikovaRelayHost-macos.dmg': { name: 'MeikovaRelayHost-macos.dmg', type: 'application/x-apple-diskimage' },
+      '/api/download/meikova-relay.dmg': { name: 'MeikovaRelayHost-macos.dmg', type: 'application/x-apple-diskimage' }
     };
 
     if (artifactMap[pathname] && (req.method === 'GET' || req.method === 'HEAD')) {
@@ -865,14 +865,14 @@ pause >nul
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
       const shContent = `#!/usr/bin/env bash
-# Titan Remote Host Agent - Linux Auto-Installer
+# Meikova Relay Host Agent - Linux Auto-Installer
 set -e
 ORIGIN="${origin}"
 RELAY_WS="${relayWs}"
 ACCOUNT="${account}"
-TARGET_DIR="$HOME/.titan-remote"
+TARGET_DIR="$HOME/.meikova-relay"
 
-echo "=== TITAN REMOTE HOST AGENT - LINUX INSTALLER ==="
+echo "=== MEIKOVA RELAY HOST AGENT - LINUX INSTALLER ==="
 mkdir -p "$TARGET_DIR"
 cd "$TARGET_DIR"
 
@@ -913,11 +913,11 @@ cat << EOF > config.json
 EOF
 
 echo "=============================================================="
-echo "  TITAN REMOTE HOST (LINUX) READY!"
+echo "  MEIKOVA RELAY HOST (LINUX) READY!"
 echo "  Account: $ACCOUNT | Room ID: $RAND_ROOM | PIN: $RAND_PIN"
 echo "=============================================================="
-nohup python3 host_service.py > titan-agent.log 2>&1 &
-echo "Titan Remote Host running in background (PID: $!)."
+nohup python3 host_service.py > meikova-agent.log 2>&1 &
+echo "Meikova Relay Host running in background (PID: $!)."
 `;
       res.writeHead(200, {
         'Content-Type': 'application/x-sh; charset=utf-8',
@@ -933,14 +933,14 @@ echo "Titan Remote Host running in background (PID: $!)."
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
       const shContent = `#!/usr/bin/env bash
-# Titan Remote Host Agent - macOS Auto-Installer
+# Meikova Relay Host Agent - macOS Auto-Installer
 set -e
 ORIGIN="${origin}"
 RELAY_WS="${relayWs}"
 ACCOUNT="${account}"
-TARGET_DIR="$HOME/.titan-remote"
+TARGET_DIR="$HOME/.meikova-relay"
 
-echo "=== TITAN REMOTE HOST AGENT - macOS INSTALLER ==="
+echo "=== MEIKOVA RELAY HOST AGENT - macOS INSTALLER ==="
 echo "[NOTE] macOS requires Screen Recording & Accessibility permissions:"
 echo "  System Settings -> Privacy & Security -> Screen Recording / Accessibility"
 
@@ -984,11 +984,11 @@ cat << EOF > config.json
 EOF
 
 echo "=============================================================="
-echo "  TITAN REMOTE HOST (macOS) READY!"
+echo "  MEIKOVA RELAY HOST (macOS) READY!"
 echo "  Account: $ACCOUNT | Room ID: $RAND_ROOM | PIN: $RAND_PIN"
 echo "=============================================================="
-nohup python3 host_service.py > titan-agent.log 2>&1 &
-echo "Titan Remote Host running in background (PID: $!)."
+nohup python3 host_service.py > meikova-agent.log 2>&1 &
+echo "Meikova Relay Host running in background (PID: $!)."
 `;
       res.writeHead(200, {
         'Content-Type': 'application/x-sh; charset=utf-8',
@@ -999,14 +999,14 @@ echo "Titan Remote Host running in background (PID: $!)."
     }
 
     // 7.8 Download: Linux Systemd Unit
-    if (pathname === '/api/download/titan-remote.service' && (req.method === 'GET' || req.method === 'HEAD')) {
-      const unitPath = path.join(__dirname, '..', 'host_agent', 'titan-remote.service');
+    if (pathname === '/api/download/meikova-relay.service' && (req.method === 'GET' || req.method === 'HEAD')) {
+      const unitPath = path.join(__dirname, '..', 'host_agent', 'meikova-relay.service');
       if (fs.existsSync(unitPath)) {
         const stat = fs.statSync(unitPath);
         res.writeHead(200, {
           'Content-Type': 'text/plain; charset=utf-8',
           'Content-Length': stat.size,
-          'Content-Disposition': 'attachment; filename="titan-remote.service"',
+          'Content-Disposition': 'attachment; filename="meikova-relay.service"',
           'Cache-Control': 'no-cache'
         });
         if (req.method === 'HEAD') return res.end();
@@ -1016,14 +1016,14 @@ echo "Titan Remote Host running in background (PID: $!)."
     }
 
     // 7.9 Download: macOS Launchd Plist
-    if (pathname === '/api/download/com.titan.remote.plist' && (req.method === 'GET' || req.method === 'HEAD')) {
-      const plistPath = path.join(__dirname, '..', 'host_agent', 'com.titan.remote.plist');
+    if (pathname === '/api/download/com.meikova.relay.plist' && (req.method === 'GET' || req.method === 'HEAD')) {
+      const plistPath = path.join(__dirname, '..', 'host_agent', 'com.meikova.relay.plist');
       if (fs.existsSync(plistPath)) {
         const stat = fs.statSync(plistPath);
         res.writeHead(200, {
           'Content-Type': 'application/xml; charset=utf-8',
           'Content-Length': stat.size,
-          'Content-Disposition': 'attachment; filename="com.titan.remote.plist"',
+          'Content-Disposition': 'attachment; filename="com.meikova.relay.plist"',
           'Cache-Control': 'no-cache'
         });
         if (req.method === 'HEAD') return res.end();
@@ -1058,7 +1058,7 @@ echo "Titan Remote Host running in background (PID: $!)."
       }
 
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('404 Not Found - Titan Remote Client');
+      res.end('404 Not Found - Meikova Relay Client');
       return;
     }
 
@@ -1500,11 +1500,11 @@ setInterval(() => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
-  console.log(`  TITAN REMOTE ENTERPRISE - RELAY & REST API SERVER `);
+  console.log(`  MEIKOVA RELAY ENTERPRISE - RELAY & REST API SERVER `);
   console.log(`====================================================`);
   console.log(`* Local Web UI & Relay: http://localhost:${PORT}`);
   console.log(`* Auth REST API:        http://localhost:${PORT}/api/auth`);
   console.log(`* Devices REST API:     http://localhost:${PORT}/api/devices`);
-  console.log(`* Database:             SQLite (titan_remote.db)`);
+  console.log(`* Database:             SQLite (meikova_relay.db)`);
   console.log(`====================================================`);
 });

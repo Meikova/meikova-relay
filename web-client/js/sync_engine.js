@@ -1,5 +1,5 @@
 /**
- * Titan Remote — Ambient Instrument Offline-First Sync Engine
+ * Meikova Relay — Ambient Instrument Offline-First Sync Engine
  * 
  * Philosophy:
  * - Lightweight sync: User preferences, device bookmarks, quick connect history, custom labels.
@@ -8,11 +8,11 @@
  *   Immediately flushes pending queue upon reconnection (Last-Write-Wins based on timestamps).
  */
 
-class TitanSyncEngine {
+class MeikovaSyncEngine {
   constructor(options = {}) {
     this.apiUrl = options.apiUrl || '';
-    this.storageKey = 'titan:sync:state';
-    this.queueKey = 'titan:sync:queue';
+    this.storageKey = 'meikova:relay:sync:state';
+    this.queueKey = 'meikova:relay:sync:queue';
     this.authToken = null;
     this.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     this.statusListeners = [];
@@ -283,10 +283,10 @@ class TitanSyncEngine {
 
 // Attach globally for browser / webview usage
 if (typeof window !== 'undefined') {
-  window.TitanSyncEngine = TitanSyncEngine;
-  window.titanSync = new TitanSyncEngine();
+  window.MeikovaSyncEngine = MeikovaSyncEngine;
+  window.meikovaSync = new MeikovaSyncEngine();
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = TitanSyncEngine;
+  module.exports = MeikovaSyncEngine;
 }

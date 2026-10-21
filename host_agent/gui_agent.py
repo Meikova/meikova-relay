@@ -299,7 +299,7 @@ COLORS = {
 TRANSLATIONS = {
     "vi": {
         "app_title": "Meikova Relay Host - Điều Khiển Máy Trạm",
-        "header_title": "TITAN REMOTE HOST",
+        "header_title": "MEIKOVA RELAY HOST",
         "workstation_fmt": "MÁY TRẠM: {name} // 120 FPS // TRUY CẬP KÉP",
         "status_stopped": "● ĐÃ DỪNG",
         "status_running": "● ĐANG CHẠY",
@@ -338,7 +338,7 @@ TRANSLATIONS = {
         "relay_ph": "ws://localhost:8080",
         "btn_save_settings": "LƯU CẤU HÌNH",
         "log_title": "Nhật ký hoạt động thời gian thực (Activity Log):",
-        "tray_open": "Mở Titan Remote",
+        "tray_open": "Mở Meikova Relay",
         "tray_copy": "Sao chép mã kết nối",
         "tray_exit": "Thoát",
         "log_service_started": "Khởi động dịch vụ thành công! Room ID: {room_id}",
@@ -358,14 +358,14 @@ TRANSLATIONS = {
         "log_autostart_off": "Đã tắt tự khởi động cùng Windows",
         "log_keepawake": "Chống tắt màn hình / Sleep: {state}",
         "log_minimized": "Đã thu nhỏ ứng dụng vào khay hệ thống (System Tray).",
-        "share_header": "--- TITAN REMOTE // KẾT NỐI HỖ TRỢ TỪ XA ---",
+        "share_header": "--- MEIKOVA RELAY // KẾT NỐI HỖ TRỢ TỪ XA ---",
         "share_dashboard": "Trang điều khiển:",
         "share_room": "Mã phòng (Room ID):",
         "share_pin": "Mật khẩu (PIN):",
     },
     "en": {
         "app_title": "Meikova Relay Host - Workstation Control",
-        "header_title": "TITAN REMOTE HOST",
+        "header_title": "MEIKOVA RELAY HOST",
         "workstation_fmt": "WORKSTATION: {name} // 120 FPS // DUAL-MODE ACCESS",
         "status_stopped": "● STOPPED",
         "status_running": "● RUNNING",
@@ -404,7 +404,7 @@ TRANSLATIONS = {
         "relay_ph": "ws://localhost:8080",
         "btn_save_settings": "SAVE SETTINGS",
         "log_title": "Real-time Activity Log:",
-        "tray_open": "Open Titan Remote",
+        "tray_open": "Open Meikova Relay",
         "tray_copy": "Copy Connection Info",
         "tray_exit": "Exit",
         "log_service_started": "Service started successfully! Room ID: {room_id}",
@@ -424,7 +424,7 @@ TRANSLATIONS = {
         "log_autostart_off": "Disabled Windows run on boot",
         "log_keepawake": "Anti-Sleep / Screen keep awake: {state}",
         "log_minimized": "Application minimized to system tray.",
-        "share_header": "--- TITAN REMOTE // REMOTE ASSIST CONNECTION ---",
+        "share_header": "--- MEIKOVA RELAY // REMOTE ASSIST CONNECTION ---",
         "share_dashboard": "Control Portal:",
         "share_room": "Room ID:",
         "share_pin": "Password (PIN):",
@@ -443,10 +443,10 @@ def resolve_config_path() -> Path:
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data:
             candidates.append(Path(local_app_data) / "MeikovaRelayHost" / "config.json")
-            candidates.append(Path(local_app_data) / "TitanRemoteHost" / "config.json")
+            candidates.append(Path(local_app_data) / "MeikovaRelayHost" / "config.json")
     else:
         candidates.append(Path.home() / ".meikova-relay" / "config.json")
-        candidates.append(Path.home() / ".titan-remote" / "config.json")
+        candidates.append(Path.home() / ".meikova-relay" / "config.json")
 
     # 3. Current Working Directory
     candidates.append(Path.cwd() / "config.json")
@@ -456,7 +456,7 @@ def resolve_config_path() -> Path:
 
     # 5. User profile fallback
     candidates.append(Path.home() / ".meikova_relay_config.json")
-    candidates.append(Path.home() / ".titan_remote_config.json")
+    candidates.append(Path.home() / ".meikova_relay_config.json")
 
     for c in candidates:
         if c.exists() and c.is_file():
@@ -469,7 +469,7 @@ def resolve_config_path() -> Path:
         return target
     return Path.home() / ".meikova_relay_config.json"
 
-class TitanHostGUI:
+class MeikovaRelayHostGUI:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.geometry("540x720")
@@ -486,7 +486,7 @@ class TitanHostGUI:
         # Windows taskbar grouping AppUserModelID for custom icon display
         try:
             import ctypes
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("TitanRemote.WorkstationHost.2.0")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MeikovaRelay.WorkstationHost.2.0")
         except Exception:
             pass
 
@@ -552,7 +552,7 @@ class TitanHostGUI:
     def _load_config(self):
         default_comp = os.environ.get("COMPUTERNAME", socket.gethostname())
         self.config = {
-            "relay": "wss://titan-remote.onrender.com",
+            "relay": "wss://meikova-relay.onrender.com",
             "account": "",
             "device_name": default_comp,
             "room_id": f"RD-{random.randint(1000, 9999)}",
@@ -1084,7 +1084,7 @@ class TitanHostGUI:
         relay_row = tk.Frame(card, bg=COLORS["bg_card"])
         relay_row.pack(fill="x")
 
-        self.relay_var = tk.StringVar(value=self.config.get("relay", "wss://titan-remote.onrender.com"))
+        self.relay_var = tk.StringVar(value=self.config.get("relay", "wss://meikova-relay.onrender.com"))
         entry_relay = tk.Entry(
             relay_row,
             textvariable=self.relay_var,
@@ -1614,11 +1614,11 @@ def is_autostart_enabled() -> bool:
                 pass
         return False
     elif sys.platform == "darwin":
-        plist = Path.home() / "Library/LaunchAgents/com.titanremote.host.plist"
+        plist = Path.home() / "Library/LaunchAgents/com.meikovarelay.host.plist"
         return plist.exists()
     else:
         # Linux
-        desktop = Path.home() / ".config/autostart/titanremotehost.desktop"
+        desktop = Path.home() / ".config/autostart/meikovarelayhost.desktop"
         return desktop.exists()
 
 def apply_dark_titlebar(hwnd):
@@ -1677,7 +1677,7 @@ def _get_default_config_path() -> Path:
 def _load_initial_config(cfg_file: Path) -> dict:
     default_comp = os.environ.get("COMPUTERNAME", socket.gethostname())
     config = {
-        "relay": "wss://titan-remote.onrender.com",
+        "relay": "wss://meikova-relay.onrender.com",
         "account": "",
         "device_name": default_comp,
         "room_id": f"RD-{random.randint(1000, 9999)}",
@@ -1761,7 +1761,7 @@ class HostApi:
 
     def get_initial_data(self) -> dict:
         cfg_copy = dict(self._config)
-        cfg_copy["relay_url"] = cfg_copy.get("relay") or "wss://titan-remote.onrender.com"
+        cfg_copy["relay_url"] = cfg_copy.get("relay") or "wss://meikova-relay.onrender.com"
         return {
             "config": cfg_copy,
             "autostart": is_autostart_enabled(),
@@ -1851,7 +1851,7 @@ class HostApi:
         if self._is_running:
             return
 
-        relay_url = self._config.get("relay") or self._config.get("relay_url") or "wss://titan-remote.onrender.com"
+        relay_url = self._config.get("relay") or self._config.get("relay_url") or "wss://meikova-relay.onrender.com"
         room_id = self._config.get("room_id") or "RD-8888"
         pin = self._config.get("pin") or "123456"
         account = self._config.get("account") or ""
@@ -1963,7 +1963,7 @@ class HostApi:
     def copy_share_info(self):
         room = self._config.get("room_id", "")
         pin = self._config.get("pin", "")
-        relay = self._config.get("relay") or self._config.get("relay_url") or "wss://titan-remote.onrender.com"
+        relay = self._config.get("relay") or self._config.get("relay_url") or "wss://meikova-relay.onrender.com"
         http_url = relay.replace("wss://", "https://").replace("ws://", "http://")
         info = (
             f"{self.t('share_header')}\n"
@@ -2013,7 +2013,7 @@ class HostApi:
                     winreg.CloseKey(key)
             elif sys.platform == "darwin":
                 plist_dir = Path.home() / "Library/LaunchAgents"
-                plist_path = plist_dir / "com.titanremote.host.plist"
+                plist_path = plist_dir / "com.meikovarelay.host.plist"
                 if is_on:
                     plist_dir.mkdir(parents=True, exist_ok=True)
                     perm_exe = ensure_permanent_deployment(self._config_path)
@@ -2022,7 +2022,7 @@ class HostApi:
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.titanremote.host</string>
+    <string>com.meikovarelay.host</string>
     <key>ProgramArguments</key>
     <array>
         <string>{perm_exe}</string>
@@ -2040,7 +2040,7 @@ class HostApi:
                     self._log(self.t("log_autostart_off"))
             else:
                 autostart_dir = Path.home() / ".config/autostart"
-                desktop_path = autostart_dir / "titanremotehost.desktop"
+                desktop_path = autostart_dir / "meikovarelayhost.desktop"
                 if is_on:
                     autostart_dir.mkdir(parents=True, exist_ok=True)
                     perm_exe = ensure_permanent_deployment(self._config_path)
@@ -2048,9 +2048,9 @@ class HostApi:
 Type=Application
 Version=1.0
 Name=Meikova Relay Host
-Comment=Titan Remote Workstation Host Service
+Comment=Meikova Relay Workstation Host Service
 Exec="{perm_exe}" --autostart
-Icon=titanremotehost
+Icon=meikovarelayhost
 Terminal=false
 Categories=Network;RemoteAccess;
 """
@@ -2203,7 +2203,7 @@ def launch_webview_app(autostart: bool = False):
     if sys.platform == "win32":
         try:
             import ctypes
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("TitanRemote.WorkstationHost.2.0")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MeikovaRelay.WorkstationHost.2.0")
             ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
         except Exception:
             pass
@@ -2369,7 +2369,7 @@ def run_service_headless():
     """Runs the host service headless in background (for Windows Service or CLI daemon)."""
     cfg_file = _get_default_config_path()
     config = _load_initial_config(cfg_file)
-    relay_url = config.get("relay") or config.get("relay_url") or "wss://titan-remote.onrender.com"
+    relay_url = config.get("relay") or config.get("relay_url") or "wss://meikova-relay.onrender.com"
     room_id = config.get("room_id") or f"RD-{random.randint(1000, 9999)}"
     pin = config.get("pin") or f"{random.randint(100000, 999999)}"
     account = config.get("account") or ""
@@ -2456,7 +2456,7 @@ def main():
     autostart = "--autostart" in sys.argv
     if "--legacy-tk" in sys.argv or not HAS_WEBVIEW:
         root = tk.Tk()
-        app = TitanHostGUI(root)
+        app = MeikovaRelayHostGUI(root)
         def handle_tk_ipc(cmd: str) -> str:
             c = cmd.strip().upper()
             if c == "SHOW":
@@ -2485,7 +2485,7 @@ def main():
     except Exception as e:
         print(f"[WARN] WebView2 launch failed ({e}), falling back to Tkinter GUI.")
         root = tk.Tk()
-        app = TitanHostGUI(root)
+        app = MeikovaRelayHostGUI(root)
         def handle_tk_fallback_ipc(cmd: str) -> str:
             c = cmd.strip().upper()
             if c == "SHOW":
@@ -2515,7 +2515,7 @@ if __name__ == "__main__":
     except Exception as e:
         try:
             import traceback
-            crash_log = Path.home() / ".titan_remote_crash.log"
+            crash_log = Path.home() / ".meikova_relay_crash.log"
             with open(crash_log, "a", encoding="utf-8") as f:
                 f.write(f"\n--- CRASH AT {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
                 traceback.print_exc(file=f)

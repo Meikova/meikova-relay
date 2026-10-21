@@ -25,11 +25,11 @@ class TerminalManager:
                 "$OutputEncoding = [System.Text.UTF8Encoding]::new($false)"
             )
             shell_cmd = ["powershell.exe", "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", init_cmd]
-            ready_msg = "=== TITAN REMOTE POWERSHELL (UTF-8) SẴN SÀNG ===\n"
+            ready_msg = "=== MEIKOVA RELAY POWERSHELL (UTF-8) SẴN SÀNG ===\n"
         else:
             shell_bin = "/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh"
             shell_cmd = [shell_bin, "-i"]
-            ready_msg = f"=== TITAN REMOTE TERMINAL ({os.path.basename(shell_bin).upper()}) SẴN SÀNG ===\n"
+            ready_msg = f"=== MEIKOVA RELAY TERMINAL ({os.path.basename(shell_bin).upper()}) SẴN SÀNG ===\n"
 
         try:
             self.process = subprocess.Popen(

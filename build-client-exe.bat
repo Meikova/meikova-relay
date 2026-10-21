@@ -1,8 +1,8 @@
 @echo off
-title Build Titan Remote Desktop Client EXE
+title Build Meikova Relay Desktop Client EXE
 cd /d "%~dp0"
 
-echo [1/2] Compiling TitanRemoteClient.exe via PyInstaller...
+echo [1/2] Compiling MeikovaRelayClient.exe via PyInstaller...
 if exist ".venv\Scripts\pyinstaller.exe" (
     ".venv\Scripts\pyinstaller.exe" --noconfirm client_desktop/client.spec
 ) else (
@@ -14,4 +14,4 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo [2/2] Build completed successfully: dist\TitanRemoteClient.exe
+echo [2/2] Build completed successfully: dist\MeikovaRelayClient.exe

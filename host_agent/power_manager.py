@@ -33,7 +33,7 @@ class PowerManager:
     def restart_machine(delay_seconds: int = 5) -> bool:
         try:
             if sys.platform == "win32":
-                cmd = ["shutdown", "/r", "/t", str(delay_seconds), "/c", "Titan Remote Restart"]
+                cmd = ["shutdown", "/r", "/t", str(delay_seconds), "/c", "Meikova Relay Restart"]
             elif sys.platform == "darwin":
                 cmd = ["shutdown", "-r", f"+{max(1, delay_seconds // 60)}"]
             else:
@@ -48,7 +48,7 @@ class PowerManager:
     def shutdown_machine(delay_seconds: int = 10) -> bool:
         try:
             if sys.platform == "win32":
-                cmd = ["shutdown", "/s", "/t", str(delay_seconds), "/c", "Titan Remote Shutdown"]
+                cmd = ["shutdown", "/s", "/t", str(delay_seconds), "/c", "Meikova Relay Shutdown"]
             elif sys.platform == "darwin":
                 cmd = ["shutdown", "-h", f"+{max(1, delay_seconds // 60)}"]
             else:

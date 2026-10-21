@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.titan.remote</string>
+    <string>com.meikova.relay</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/python3</string>
-        <string>/Applications/TitanRemote/host_agent/host_service.py</string>
+        <string>/Applications/MeikovaRelay/host_agent/host_service.py</string>
         <string>--service</string>
     </array>
     <key>RunAtLoad</key>
@@ -15,8 +15,8 @@
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/var/log/titan-remote.log</string>
+    <string>/var/log/meikova-relay.log</string>
     <key>StandardErrorPath</key>
-    <string>/var/log/titan-remote-err.log</string>
+    <string>/var/log/meikova-relay-err.log</string>
 </dict>
 </plist>

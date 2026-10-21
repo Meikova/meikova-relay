@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Titan Remote Enterprise - macOS Build Script
+# Meikova Relay Enterprise - macOS Build Script
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -7,7 +7,7 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$REPO_ROOT"
 
 echo "=============================================================="
-echo "       TITAN REMOTE ENTERPRISE - MACOS BUILD ENGINE"
+echo "       MEIKOVA RELAY ENTERPRISE - MACOS BUILD ENGINE"
 echo "=============================================================="
 
 # 1. Ensure Python 3
@@ -39,5 +39,5 @@ python3 scripts/build.py --target macos
 
 echo ""
 echo "[✓] Build complete! Artifacts in dist/:"
-ls -lh dist/TitanRemoteHost* dist/titan-remote-host* dist/SHA256SUMS.txt 2>/dev/null || true
+ls -lh dist/MeikovaRelayHost* dist/meikova-relay-host* dist/SHA256SUMS.txt 2>/dev/null || true
 echo "=============================================================="

@@ -1,4 +1,4 @@
-// Titan Remote Enterprise — Ambient Instrument Web Application
+// Meikova Relay Enterprise — Ambient Instrument Web Application
 (function () {
   'use strict';
 
@@ -122,8 +122,8 @@
 
   function showToast(message, type = 'info', duration = 3500) {
     if (!toastContainer) return;
-    const resolvedMsg = (window.TitanI18n && typeof window.TitanI18n.t === 'function')
-      ? window.TitanI18n.t(message)
+    const resolvedMsg = (window.MeikovaI18n && typeof window.MeikovaI18n.t === 'function')
+      ? window.MeikovaI18n.t(message)
       : message;
     const toast = document.createElement('div');
     toast.className = `toast toast--${type}`;
@@ -292,7 +292,7 @@
 
   // --- Application State ---
   let isInputBlocked = false;
-  let authToken = localStorage.getItem('titan_token') || null;
+  let authToken = localStorage.getItem('meikova_relay_token') || null;
   let currentUser = null;
   let authMode = 'login';
   let currentView = 'landing';
@@ -383,15 +383,15 @@
     const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     defaultWsUrl = `${wsProto}//${window.location.host}`;
   }
-  const savedWsRelay = localStorage.getItem('titan_custom_relay_url');
+  const savedWsRelay = localStorage.getItem('meikova_relay_custom_url');
   qcRelayUrl.value = savedWsRelay || defaultWsUrl;
   qcRelayUrl.addEventListener('change', () => {
     if (qcRelayUrl.value.trim()) {
-      localStorage.setItem('titan_custom_relay_url', qcRelayUrl.value.trim());
+      localStorage.setItem('meikova_relay_custom_url', qcRelayUrl.value.trim());
     }
   });
 
-  // --- SLIDING SEGMENTED INDICATOR ENGINE (MASHLOOP PATTERN) ---
+  // --- SLIDING SEGMENTED INDICATOR ENGINE (MEIKOVA LOOP PATTERN) ---
   function placeIndicator(seg) {
     if (!seg) return;
     const onBtn = seg.querySelector('button.on');
@@ -444,8 +444,8 @@
     else if (rawPath === 'home' || rawPath === 'landing' || rawPath === '') view = 'landing';
 
     const langParam = params.get('lang');
-    if (langParam && window.TitanI18n) {
-      window.TitanI18n.setLang(langParam, false);
+    if (langParam && window.MeikovaI18n) {
+      window.MeikovaI18n.setLang(langParam, false);
     }
 
     return {
@@ -474,8 +474,8 @@
       }
     }
 
-    if (window.TitanI18n && window.TitanI18n.getLang() !== window.TitanI18n.DEFAULT_LANG) {
-      params.set('lang', window.TitanI18n.getLang());
+    if (window.MeikovaI18n && window.MeikovaI18n.getLang() !== window.MeikovaI18n.DEFAULT_LANG) {
+      params.set('lang', window.MeikovaI18n.getLang());
     }
 
     const qs = params.toString() ? '?' + params.toString() : '';
@@ -491,7 +491,7 @@
     }
   }
 
-  window.addEventListener('titan-lang-changed', () => {
+  window.addEventListener('meikova-lang-changed', () => {
     syncUrlWithState(true);
     updateRoStatus();
     updateTerminalStatusBadge();
@@ -526,7 +526,7 @@
     }
     if (route.room && route.room !== currentRoom) {
       currentRoom = route.room;
-      currentPin = route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
+      currentPin = route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
       remoteCurrentPath = route.browsePath || '';
       switchView(route.view, false);
       startRemoteSession(defaultWsUrl, route.room, currentPin);
@@ -646,7 +646,7 @@
     // Restore deep link state synchronously
     if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
       currentRoom = route.room;
-      const savedPin = route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
+      const savedPin = route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
       currentPin = savedPin;
       if (route.browsePath) {
         remoteCurrentPath = route.browsePath;
@@ -672,7 +672,7 @@
 
           // If room was deep linked, start session
           if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
-            const savedPin = currentPin || route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
+            const savedPin = currentPin || route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
             startRemoteSession(defaultWsUrl, route.room, savedPin);
             return;
           }
@@ -682,7 +682,7 @@
           // Token expired or invalid
           authToken = null;
           currentUser = null;
-          localStorage.removeItem('titan_token');
+          localStorage.removeItem('meikova_relay_token');
           renderUserBadge();
           if (targetView !== 'landing' && targetView !== 'auth') {
             switchView('landing', true);
@@ -697,27 +697,27 @@
 
     // 3. Unauthenticated pending deep link
     if (route.view !== 'landing' && route.room) {
-      sessionStorage.setItem('titan_pending_route', window.location.pathname + window.location.search);
+      sessionStorage.setItem('meikova_relay_pending_route', window.location.pathname + window.location.search);
     }
   }
 
   function handleAuthSuccess(res) {
     authToken = res.token;
-    localStorage.setItem('titan_token', authToken);
-    if (window.titanSync) window.titanSync.setAuthToken(authToken);
+    localStorage.setItem('meikova_relay_token', authToken);
+    if (window.meikovaSync) window.meikovaSync.setAuthToken(authToken);
     currentUser = res.user;
     lastGlobalActivity = Date.now();
     lastTokenRefreshTime = Date.now();
     renderUserBadge();
 
-    const pending = sessionStorage.getItem('titan_pending_route');
+    const pending = sessionStorage.getItem('meikova_relay_pending_route');
     if (pending) {
-      sessionStorage.removeItem('titan_pending_route');
+      sessionStorage.removeItem('meikova_relay_pending_route');
       history.replaceState(null, '', pending);
       const route = getRouteStateFromUrl();
       if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
         currentRoom = route.room;
-        currentPin = route.pin || sessionStorage.getItem('titan_pin_' + route.room) || '';
+        currentPin = route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
         if (route.browsePath) remoteCurrentPath = route.browsePath;
         switchView(route.view, false);
         syncUrlWithState(true);
@@ -1064,7 +1064,7 @@
       ctx.lineWidth = 0.8;
       ctx.stroke();
 
-      // --- 3. Internal Neural Telemetry Chords (MashLoop Arc Web) with Magnetic Pull ---
+      // --- 3. Internal Neural Telemetry Chords (Meikova Loop Arc Web) with Magnetic Pull ---
       chordPairs.forEach((cp, idx) => {
         const p1 = getPoint(cp.t1);
         const p2 = getPoint(cp.t2);
@@ -1809,7 +1809,7 @@
       return;
     }
     if (view !== 'auth' && (!authToken || !currentUser)) {
-      sessionStorage.setItem('titan_pending_route', view);
+      sessionStorage.setItem('meikova_relay_pending_route', view);
       switchView('auth', true);
       return;
     }
@@ -1856,7 +1856,7 @@
     if (!room) return;
     currentRoom = room;
     currentPin = pin;
-    if (pin) sessionStorage.setItem('titan_pin_' + room, pin);
+    if (pin) sessionStorage.setItem('meikova_relay_pin_' + room, pin);
     startRemoteSession(defaultWsUrl, room, pin);
   });
 
@@ -1867,7 +1867,7 @@
   const ps1CodeSnippet = document.getElementById('ps1CodeSnippet');
   if (ps1CodeSnippet) {
     const origin = window.location.origin;
-    ps1CodeSnippet.textContent = `iwr -useb ${origin}/api/download/TitanRemoteHost.exe -OutFile "$env:TEMP\\TitanRemoteHost.exe"; Start-Process "$env:TEMP\\TitanRemoteHost.exe"`;
+    ps1CodeSnippet.textContent = `iwr -useb ${origin}/api/download/MeikovaRelayHost.exe -OutFile "$env:TEMP\\MeikovaRelayHost.exe"; Start-Process "$env:TEMP\\MeikovaRelayHost.exe"`;
   }
 
   btnLandingCopyPs1?.addEventListener('click', async () => {
@@ -1971,22 +1971,22 @@
 
   // Direct Package Download Handlers
   document.getElementById('btnLandingDlLinuxDeb')?.addEventListener('click', () => {
-    window.location.href = '/api/download/titan-remote-host_amd64.deb';
+    window.location.href = '/api/download/meikova-relay-host_amd64.deb';
   });
   document.getElementById('btnLandingDlLinuxTar')?.addEventListener('click', () => {
-    window.location.href = '/api/download/titan-remote-host-linux-x64.tar.gz';
+    window.location.href = '/api/download/meikova-relay-host-linux-x64.tar.gz';
   });
   document.getElementById('btnLandingDlMacosTar')?.addEventListener('click', () => {
-    window.location.href = '/api/download/titan-remote-host-macos.tar.gz';
+    window.location.href = '/api/download/meikova-relay-host-macos.tar.gz';
   });
   document.getElementById('btnLandingDlLinuxUnit')?.addEventListener('click', () => {
-    window.location.href = '/api/download/titan-remote.service';
+    window.location.href = '/api/download/meikova-relay.service';
   });
   document.getElementById('btnLandingDlZip')?.addEventListener('click', () => {
     window.location.href = '/api/download/agent-package.zip';
   });
   document.getElementById('btnLandingDlMacosPlist')?.addEventListener('click', () => {
-    window.location.href = '/api/download/com.titan.remote.plist';
+    window.location.href = '/api/download/com.meikova.relay.plist';
   });
 
   // --- AUTHENTICATION ---
@@ -2026,10 +2026,10 @@
   });
 
   // --- SESSION ACTIVITY & INACTIVITY TIMEOUT ENGINE (SLIDING SESSION) ---
-  let timeoutRemoteMin = parseInt(localStorage.getItem('titan_timeout_remote_min') || '15', 10);
+  let timeoutRemoteMin = parseInt(localStorage.getItem('meikova_relay_timeout_remote_min') || '15', 10);
   if (isNaN(timeoutRemoteMin) || timeoutRemoteMin < 1) timeoutRemoteMin = 15;
 
-  let timeoutGlobalMin = parseInt(localStorage.getItem('titan_timeout_global_min') || '30', 10);
+  let timeoutGlobalMin = parseInt(localStorage.getItem('meikova_relay_timeout_global_min') || '30', 10);
   if (isNaN(timeoutGlobalMin) || timeoutGlobalMin < 2) timeoutGlobalMin = 30;
 
   let lastRemoteActivity = Date.now();
@@ -2053,7 +2053,7 @@
         const data = await res.json();
         if (data.success && data.token) {
           authToken = data.token;
-          localStorage.setItem('titan_token', authToken);
+          localStorage.setItem('meikova_relay_token', authToken);
           lastTokenRefreshTime = Date.now();
         }
       } else if (res.status === 401) {
@@ -2128,9 +2128,9 @@
     }
     disconnect();
     authToken = null;
-    if (window.titanSync) window.titanSync.setAuthToken(null);
+    if (window.meikovaSync) window.meikovaSync.setAuthToken(null);
     currentUser = null;
-    localStorage.removeItem('titan_token');
+    localStorage.removeItem('meikova_relay_token');
     renderUserBadge();
     switchView('auth', true);
     if (reasonMsg) {
@@ -2183,8 +2183,8 @@
       }
       timeoutRemoteMin = x;
       timeoutGlobalMin = y;
-      localStorage.setItem('titan_timeout_remote_min', String(x));
-      localStorage.setItem('titan_timeout_global_min', String(y));
+      localStorage.setItem('meikova_relay_timeout_remote_min', String(x));
+      localStorage.setItem('meikova_relay_timeout_global_min', String(y));
       sessionConfigModal.classList.add('hidden');
       showToast(
         (window.t ? t('session.toast_saved', { x, y }) : null) ||
@@ -2219,7 +2219,7 @@
   const btnCopyLinuxCmd = document.getElementById('btnCopyLinuxCmd');
 
   function downloadDesktopExe() {
-    window.location.href = '/api/download/TitanRemoteHost.exe';
+    window.location.href = '/api/download/MeikovaRelayHost.exe';
   }
   function downloadHostInstaller() {
     const accountName = currentUser ? currentUser.username : 'User';
@@ -2469,7 +2469,7 @@
     currentRoom = roomId;
     currentPin = pin || '';
     if (pin) {
-      sessionStorage.setItem('titan_pin_' + roomId, pin);
+      sessionStorage.setItem('meikova_relay_pin_' + roomId, pin);
     }
 
     if (!['files', 'terminal', 'tasks', 'remote'].includes(currentView)) {
@@ -2532,7 +2532,7 @@
           startPingLoop();
         } else if (msg.status === 'error') {
           if (isAwaitingRemoteRestart) {
-            console.log('[Titan] Host is restarting, waiting before retry:', msg.message);
+            console.log('[MeikovaRelay] Host is restarting, waiting before retry:', msg.message);
             return;
           }
           showToast(`Lỗi: ${msg.message}`, 'error');
@@ -2654,7 +2654,7 @@
         } else if (msg.type === 'client_mic_status') {
           updateMicUi(msg.enabled);
         } else if (msg.type === 'audio_capabilities') {
-          console.log('[Titan] Host audio capabilities:', msg);
+          console.log('[MeikovaRelay] Host audio capabilities:', msg);
         } else if (msg.type === 'block_input_response') {
           isInputBlocked = msg.blocked;
           btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
@@ -2928,7 +2928,7 @@
     if (!monitorGrid || hostMonitors.length < 2) return;
     
     // Load saved order or default to monitors' IDs
-    const savedOrder = localStorage.getItem('titan_grid_order');
+    const savedOrder = localStorage.getItem('meikova_grid_order');
     let order = [];
     if (savedOrder) {
       try {
@@ -3048,7 +3048,7 @@
       if (fromIdx !== -1 && toIdx !== -1) {
         gridMonitorOrder.splice(fromIdx, 1);
         gridMonitorOrder.splice(toIdx, 0, fromId);
-        localStorage.setItem('titan_grid_order', JSON.stringify(gridMonitorOrder));
+        localStorage.setItem('meikova_grid_order', JSON.stringify(gridMonitorOrder));
         renderGridTiles();
       }
     });
@@ -3158,7 +3158,7 @@
 
   btnGridInvert?.addEventListener('click', () => {
     gridMonitorOrder.reverse();
-    localStorage.setItem('titan_grid_order', JSON.stringify(gridMonitorOrder));
+    localStorage.setItem('meikova_grid_order', JSON.stringify(gridMonitorOrder));
     renderGridTiles();
   });
 
@@ -3577,7 +3577,7 @@
           recAnimId = null;
         }
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
-        downloadBlob(blob, `titan-session-${Date.now()}.webm`);
+        downloadBlob(blob, `meikova-relay-session-${Date.now()}.webm`);
         recordedChunks = [];
         showToast('Đã lưu tệp ghi hình webm', 'success');
       };
@@ -3616,7 +3616,7 @@
     }
     remoteCanvas.toBlob((blob) => {
       if (blob) {
-        downloadBlob(blob, `titan-screen-${Date.now()}.png`);
+        downloadBlob(blob, `meikova-relay-screen-${Date.now()}.png`);
         showToast('Đã chụp và lưu ảnh màn hình png', 'success');
       }
     }, 'image/png');
@@ -3954,7 +3954,7 @@
   }
 
   // --- DECK DISPLAY MODES (BOTTOM FLOAT / TOP PINNED / TOP UNPINNED) ---
-  let currentDeckMode = localStorage.getItem('titan_deck_mode') || 'bottom-float';
+  let currentDeckMode = localStorage.getItem('meikova_deck_mode') || 'bottom-float';
   let deckPeekTimer = null;
 
   function applyDeckMode(mode) {
@@ -3962,7 +3962,7 @@
       mode = 'bottom-float';
     }
     currentDeckMode = mode;
-    localStorage.setItem('titan_deck_mode', mode);
+    localStorage.setItem('meikova_deck_mode', mode);
 
     // Reset modifier classes
     floatingDeck.classList.remove('deck--bottom', 'deck--top-pinned', 'deck--top-unpinned', 'deck--peek');
@@ -4222,7 +4222,7 @@
       }
 
       if (!isConnected) {
-        handleTerminalOutput('[Titan] Chưa kết nối máy trạm. Vui lòng kết nối thiết bị từ bảng điều khiển trước.\n\n');
+        handleTerminalOutput('[MeikovaRelay] Chưa kết nối máy trạm. Vui lòng kết nối thiết bị từ bảng điều khiển trước.\n\n');
         showToast('Vui lòng kết nối vào máy trạm để sử dụng Terminal', 'info');
         return;
       }
@@ -5508,7 +5508,7 @@
       const downloadUrl = `/api/audit-logs/export?${params.toString()}`;
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = `titan-audit-logs-${Date.now()}.csv`;
+      a.download = `meikova-relay-audit-logs-${Date.now()}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

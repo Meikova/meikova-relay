@@ -1,5 +1,5 @@
 """
-Deployment & Lifecycle Manager for Titan Remote Host.
+Deployment & Lifecycle Manager for Meikova Relay Host.
 Provides a 2-Tier Installation System:
 - Tier 1: User-Level (No Admin Rights Needed)
   - Installed in %LOCALAPPDATA%\\MeikovaRelayHost
@@ -164,7 +164,7 @@ def ensure_permanent_deployment(source_config_path: Optional[Path] = None) -> Pa
 # ---------------------------------------------------------------------------
 def install_user_tier(source_config_path: Optional[Path] = None) -> Tuple[bool, str]:
     """
-    Installs Titan Remote Host in User Space cross-platform.
+    Installs Meikova Relay Host in User Space cross-platform.
     Windows: %LOCALAPPDATA%\\MeikovaRelayHost, Task Scheduler / HKCU\\Run.
     macOS: ~/Library/Application Support/MeikovaRelayHost, ~/Library/LaunchAgents.
     Linux: ~/.meikova_relay_host, ~/.config/autostart.
@@ -194,14 +194,14 @@ def install_user_tier(source_config_path: Optional[Path] = None) -> Tuple[bool, 
 
         elif sys.platform == "darwin":
             plist_dir = Path.home() / "Library/LaunchAgents"
-            plist_path = plist_dir / "com.titanremote.host.plist"
+            plist_path = plist_dir / "com.meikovarelay.host.plist"
             plist_dir.mkdir(parents=True, exist_ok=True)
             content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.titanremote.host</string>
+    <string>com.meikovarelay.host</string>
     <key>ProgramArguments</key>
     <array>
         <string>{exe_path}</string>
@@ -248,7 +248,7 @@ def uninstall_user_tier() -> Tuple[bool, str]:
                     pass
             setup_task_scheduler_autostart(enable=False)
         elif sys.platform == "darwin":
-            plist_path = Path.home() / "Library/LaunchAgents/com.titanremote.host.plist"
+            plist_path = Path.home() / "Library/LaunchAgents/com.meikovarelay.host.plist"
             if plist_path.exists():
                 plist_path.unlink()
         else:
@@ -266,7 +266,7 @@ def uninstall_user_tier() -> Tuple[bool, str]:
 # ---------------------------------------------------------------------------
 def install_admin_tier(source_config_path: Optional[Path] = None) -> Tuple[bool, str]:
     """
-    Installs Titan Remote Host as a full Windows Service running under LocalSystem.
+    Installs Meikova Relay Host as a full Windows Service running under LocalSystem.
     Requires Administrator privileges (automatically triggers UAC elevation if needed).
     """
     if sys.platform != "win32":
@@ -431,7 +431,7 @@ def manage_windows_service(action: str = "install") -> Tuple[bool, str]:
             res = subprocess.run(args, capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
             if res.returncode == 0:
                 subprocess.run(
-                    ["sc.exe", "description", SERVICE_NAME, "Titan Remote Unattended Access Service"],
+                    ["sc.exe", "description", SERVICE_NAME, "Meikova Relay Unattended Access Service"],
                     capture_output=True,
                     check=False,
                     creationflags=WIN_NO_WINDOW

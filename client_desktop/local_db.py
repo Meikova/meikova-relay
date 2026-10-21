@@ -1,5 +1,5 @@
 """
-Local SQLite Storage and Offline Cache for Titan Remote Desktop Client.
+Local SQLite Storage and Offline Cache for Meikova Relay Desktop Client.
 Stores:
 - User Preferences & Session Tokens
 - Cached Device Fleet (accessible even when disconnected)
@@ -19,11 +19,11 @@ def get_client_data_dir() -> Path:
     """Returns local app data directory for desktop client."""
     if sys.platform == "win32":
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-        data_dir = base / "TitanRemoteClient"
+        data_dir = base / "MeikovaRelayClient"
     elif sys.platform == "darwin":
-        data_dir = Path.home() / "Library" / "Application Support" / "TitanRemoteClient"
+        data_dir = Path.home() / "Library" / "Application Support" / "MeikovaRelayClient"
     else:
-        data_dir = Path.home() / ".local" / "share" / "titan-remote-client"
+        data_dir = Path.home() / ".local" / "share" / "meikova-relay-client"
 
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir

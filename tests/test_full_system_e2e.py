@@ -115,7 +115,7 @@ class TestFullSystemE2E(unittest.IsolatedAsyncioTestCase):
             "pin": pin,
             "width": 1920,
             "height": 1080,
-            "device_name": "Titan-Enterprise-Host",
+            "device_name": "Meikova-Enterprise-Host",
             "os_info": "Windows 11 x64",
             "monitors": [{"id": 1, "name": "Primary", "width": 1920, "height": 1080}]
         }))

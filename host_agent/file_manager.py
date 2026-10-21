@@ -9,7 +9,7 @@ class FileManager:
 
     def __init__(self, download_dir: Optional[str] = None):
         if not download_dir:
-            user_downloads = Path.home() / "Downloads" / "TitanRemote"
+            user_downloads = Path.home() / "Downloads" / "MeikovaRelay"
             user_downloads.mkdir(parents=True, exist_ok=True)
             self.download_dir = str(user_downloads)
         else:

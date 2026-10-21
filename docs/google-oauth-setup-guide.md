@@ -1,12 +1,12 @@
 # Hướng dẫn Thiết lập và Lấy Google OAuth Credentials
 
-Tài liệu hướng dẫn chi tiết cách tạo và cấu hình `Client ID` & `Client Secret` từ **Google Cloud Console** để kích hoạt tính năng đăng nhập Google trên Titan Remote (hỗ trợ Web, App Desktop Windows/macOS/Linux, và Cloud Relay Server).
+Tài liệu hướng dẫn chi tiết cách tạo và cấu hình `Client ID` & `Client Secret` từ **Google Cloud Console** để kích hoạt tính năng đăng nhập Google trên Meikova Relay (hỗ trợ Web, App Desktop Windows/macOS/Linux, và Cloud Relay Server).
 
 ---
 
 ## 📌 Tổng quan các thông số cấu hình cần thiết
 
-Trước khi bắt đầu, hãy lưu lại các thông số Redirect URI và Origin mà Titan Remote yêu cầu:
+Trước khi bắt đầu, hãy lưu lại các thông số Redirect URI và Origin mà Meikova Relay yêu cầu:
 
 | Thông số | Giá trị Local (Chạy thử / Desktop) | Giá trị Production (Deploy Render) |
 | :--- | :--- | :--- |
@@ -15,7 +15,7 @@ Trước khi bắt đầu, hãy lưu lại các thông số Redirect URI và Ori
 | **Authorized redirect URIs** | `http://localhost:8080/api/auth/google/callback` | `https://<ten-app-cua-ban>.onrender.com/api/auth/google/callback` |
 
 > [!NOTE]
-> Titan Remote sử dụng kiến trúc **RFC 8252 (Loopback Browser Flow)** cho App Desktop, nên cả phiên bản Web lẫn Desktop đều dùng chung cấu hình **Web application** với redirect URI trỏ về server relay (`/api/auth/google/callback`).
+> Meikova Relay sử dụng kiến trúc **RFC 8252 (Loopback Browser Flow)** cho App Desktop, nên cả phiên bản Web lẫn Desktop đều dùng chung cấu hình **Web application** với redirect URI trỏ về server relay (`/api/auth/google/callback`).
 
 ---
 
@@ -27,7 +27,7 @@ Trước khi bắt đầu, hãy lưu lại các thông số Redirect URI và Ori
 
 ### Bước 2: Tạo Project mới
 1. Nhấp vào thanh chọn dự án ở góc trên bên trái (bên cạnh logo Google Cloud) → Chọn **New Project** (Dự án mới).
-2. **Project name**: Đặt tên dự án (ví dụ: `Titan Remote` hoặc `Titan-Cluster`).
+2. **Project name**: Đặt tên dự án (ví dụ: `Meikova Relay` hoặc `Meikova-Cluster`).
 3. **Organization**: Để mặc định (hoặc chọn tổ chức của bạn nếu dùng Google Workspace).
 4. Nhấn **Create** và chờ 5-10 giây để Google khởi tạo dự án.
 5. Khi có thông báo hoàn tất, click chọn project vừa tạo để vào trang Dashboard của project đó.
@@ -41,7 +41,7 @@ Trước khi bắt đầu, hãy lưu lại các thông số Redirect URI và Ori
    - *(Chọn Internal nếu bạn dùng Google Workspace và chỉ muốn nhân viên trong công ty đăng nhập).*
 3. Nhấn **Create**.
 4. **Điền thông tin ứng dụng (App information)**:
-   - **App name**: `Titan Remote`
+   - **App name**: `Meikova Relay`
    - **User support email**: Chọn email của bạn.
    - **Developer contact information**: Điền email nhận thông báo của bạn.
    - Nhấn **Save and Continue**.
@@ -61,7 +61,7 @@ Trước khi bắt đầu, hãy lưu lại các thông số Redirect URI và Ori
 1. Trên menu bên trái, vào **APIs & Services** → **Credentials**.
 2. Nhấp vào nút **+ CREATE CREDENTIALS** ở trên cùng → Chọn **OAuth client ID**.
 3. **Application type**: Chọn **Web application**.
-4. **Name**: Đặt tên nhận diện (ví dụ: `Titan Remote Relay Client`).
+4. **Name**: Đặt tên nhận diện (ví dụ: `Meikova Relay Relay Client`).
 5. **Authorized JavaScript origins**:
    - Nhấn **+ ADD URI** và thêm:
      - `http://localhost:8080`
@@ -97,7 +97,7 @@ Nếu bạn đã có sẵn một Google Cloud Project từ trước:
 1. Vào mục **APIs & Services** → **Credentials**.
 2. Nhấn **+ CREATE CREDENTIALS** → Chọn **OAuth client ID**.
 3. **Application type**: Chọn **Web application**.
-4. **Name**: Đặt tên (ví dụ: `Titan Remote Client`).
+4. **Name**: Đặt tên (ví dụ: `Meikova Relay Client`).
 5. Thêm các URL:
    - **Authorized JavaScript origins**:
      - `http://localhost:8080`
@@ -110,21 +110,21 @@ Nếu bạn đã có sẵn một Google Cloud Project từ trước:
 
 ---
 
-## 📂 Cách đưa Credentials vào Titan Remote
+## 📂 Cách đưa Credentials vào Meikova Relay
 
 Sau khi đã có file hoặc thông tin `Client ID` / `Client Secret`, bạn áp dụng vào dự án theo 1 trong các cách sau:
 
 ### Cách 1: Bỏ file vào thư mục `data/` (Dành cho Dev Local & Desktop)
 - Di chuyển file `client_secret.json` vào thư mục:
   ```
-  titan-remote/
+  meikova-relay/
   ├── data/
   │   └── client_secret.json   <-- Đặt ở đây
   ```
 - *Thư mục `data/` đã được cấu hình trong `.gitignore`, bạn hoàn toàn yên tâm push git mà không lo bị lộ mã bí mật.*
 
 ### Cách 2: Cấu hình trên Render (Production Cloud)
-- Truy cập vào **Render Dashboard** → Chọn Web Service `titan-remote`.
+- Truy cập vào **Render Dashboard** → Chọn Web Service `meikova-relay`.
 - Mở tab **Environment** → Chọn **Add Environment Variable**:
   - `GOOGLE_CLIENT_ID` = `...apps.googleusercontent.com`
   - `GOOGLE_CLIENT_SECRET` = `GOCSPX-...`

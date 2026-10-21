@@ -13,7 +13,7 @@ class TestFileEditor(unittest.TestCase):
 
     def test_read_and_save_vietnamese_text_file(self):
         test_file = os.path.join(self.test_dir.name, "ghi_chu_tieng_viet.txt")
-        initial_content = "Xin chào Titan Remote!\nThử nghiệm chỉnh sửa trực tiếp: Hà Nội, Đà Nẵng, TP. Hồ Chí Minh."
+        initial_content = "Xin chào Meikova Relay!\nThử nghiệm chỉnh sửa trực tiếp: Hà Nội, Đà Nẵng, TP. Hồ Chí Minh."
 
         # Save file directly
         save_res = self.fm.save_file_content(test_file, initial_content, encoding="utf-8")

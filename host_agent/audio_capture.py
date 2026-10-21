@@ -6,7 +6,7 @@ import logging
 import threading
 from typing import Callable, Optional
 
-logger = logging.getLogger("TitanAudio")
+logger = logging.getLogger("MeikovaAudio")
 
 class AudioCapture:
     """Captures system audio playback loopback via native Windows WASAPI."""
@@ -23,7 +23,7 @@ class AudioCapture:
         if self.running:
             return
         self.running = True
-        self.thread = threading.Thread(target=self._capture_thread_main, daemon=True, name="TitanAudioCapture")
+        self.thread = threading.Thread(target=self._capture_thread_main, daemon=True, name="MeikovaAudioCapture")
         self.thread.start()
         logger.info("[AudioCapture] Started loopback capture thread.")
 

@@ -1,9 +1,9 @@
 @echo off
-title Titan Remote Desktop Client
+title Meikova Relay Desktop Client
 cd /d "%~dp0"
 
-if exist "dist\TitanRemoteClient.exe" (
-    start "" "dist\TitanRemoteClient.exe" %*
+if exist "dist\MeikovaRelayClient.exe" (
+    start "" "dist\MeikovaRelayClient.exe" %*
     exit /b 0
 )
 

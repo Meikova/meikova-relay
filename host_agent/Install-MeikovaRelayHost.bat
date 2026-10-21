@@ -3,9 +3,9 @@ chcp 65001 >nul
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
 setlocal EnableDelayedExpansion
-title Titan Remote Host - Cài đặt máy trạm (Installer)
+title Meikova Relay Host - Cài đặt máy trạm (Installer)
 echo ==============================================================
-echo        TITAN REMOTE ENTERPRISE - HOST AGENT INSTALLER
+echo        MEIKOVA RELAY ENTERPRISE - HOST AGENT INSTALLER
 echo ==============================================================
 echo.
 
@@ -47,7 +47,7 @@ echo [4/4] Tao loi tat khoi dong ngam va mo bang dieu khien...
 set "VENV_PYW=%CD%\.venv\Scripts\pythonw.exe"
 set "GUI_SCRIPT=%CD%\host_agent\gui_agent.py"
 
-echo Khoi chay Titan Remote Control Panel...
+echo Khoi chay Meikova Relay Control Panel...
 start "" "%VENV_PYW%" "%GUI_SCRIPT%"
 
 echo.

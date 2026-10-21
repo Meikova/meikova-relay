@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller specification for Titan Remote Desktop Client."""
+"""PyInstaller specification for Meikova Relay Desktop Client."""
 import sys
 from pathlib import Path
 
@@ -61,7 +61,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name="TitanRemoteClient",
+    name="MeikovaRelayClient",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

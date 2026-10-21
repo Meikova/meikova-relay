@@ -145,9 +145,9 @@ class TestCrossPlatformAgent(unittest.TestCase):
                 with patch('sys.platform', 'darwin'):
                     ok, msg = install_user_tier()
                     self.assertTrue(ok)
-                    plist_file = fake_home / "Library/LaunchAgents/com.titanremote.host.plist"
+                    plist_file = fake_home / "Library/LaunchAgents/com.meikovarelay.host.plist"
                     self.assertTrue(plist_file.exists())
-                    self.assertIn("com.titanremote.host", plist_file.read_text(encoding="utf-8"))
+                    self.assertIn("com.meikovarelay.host", plist_file.read_text(encoding="utf-8"))
 
                     un_ok, _ = uninstall_user_tier()
                     self.assertTrue(un_ok)

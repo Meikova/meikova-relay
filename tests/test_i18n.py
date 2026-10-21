@@ -67,7 +67,7 @@ class TestI18nEngine(unittest.TestCase):
         self.assertIn("getSupportedLangs", self.content)
         self.assertIn("applyTranslations", self.content)
         self.assertIn("setLang", self.content)
-        self.assertIn("titan-lang-changed", self.content)
+        self.assertIn("meikova-lang-changed", self.content)
 
     def test_app_js_dashboard_instant_i18n_render(self):
         app_js_path = Path(__file__).resolve().parent.parent / "web-client" / "js" / "app.js"
@@ -86,14 +86,14 @@ class TestI18nEngine(unittest.TestCase):
         # 3. Verify currentDeviceList caching
         self.assertIn('let currentDeviceList = [];', app_content)
 
-        # 4. Verify titan-lang-changed immediately re-renders dashboard
-        pattern = r"window\.addEventListener\('titan-lang-changed',.*?\n\s*if\s*\(\s*currentView\s*===\s*'dashboard'\s*\)\s*\{\s*renderDeviceGrid\(currentDeviceList\);\s*\}"
+        # 4. Verify meikova-lang-changed immediately re-renders dashboard
+        pattern = r"window\.addEventListener\('meikova-lang-changed',.*?\n\s*if\s*\(\s*currentView\s*===\s*'dashboard'\s*\)\s*\{\s*renderDeviceGrid\(currentDeviceList\);\s*\}"
         self.assertIsNotNone(
             re.search(pattern, app_content, re.DOTALL),
-            "titan-lang-changed listener must immediately re-render deviceGrid on dashboard view"
+            "meikova-lang-changed listener must immediately re-render deviceGrid on dashboard view"
         )
 
-        # 5. Verify updateRoStatus is called in titan-lang-changed
+        # 5. Verify updateRoStatus is called in meikova-lang-changed
         self.assertIn("updateRoStatus();", app_content)
 
 if __name__ == "__main__":

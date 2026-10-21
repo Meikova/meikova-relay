@@ -1,6 +1,6 @@
 # Hướng dẫn Kỹ thuật & Kiến trúc Đa nền tảng Máy Trạm (Workstation Host OS Guide)
 
-Tài liệu này cung cấp chi tiết kỹ thuật về khả năng hỗ trợ hệ điều hành của **Titan Remote**: Phân định rõ ràng giữa **Máy Trạm (Host Agent - Thiết bị bị điều khiển)** và **Máy Điều Khiển (Client / Controller - Thiết bị truy cập)**.
+Tài liệu này cung cấp chi tiết kỹ thuật về khả năng hỗ trợ hệ điều hành của **Meikova Relay**: Phân định rõ ràng giữa **Máy Trạm (Host Agent - Thiết bị bị điều khiển)** và **Máy Điều Khiển (Client / Controller - Thiết bị truy cập)**.
 
 ---
 
@@ -53,19 +53,19 @@ chmod +x run_agent_linux.sh
 Để máy trạm Linux tự khởi động ngầm ngay từ khi bật nguồn (kể cả chưa đăng nhập màn hình):
 ```bash
 # 1. Copy thư mục mã nguồn vào /opt
-sudo mkdir -p /opt/titan-remote
-sudo cp -r host_agent /opt/titan-remote/
+sudo mkdir -p /opt/meikova-relay
+sudo cp -r host_agent /opt/meikova-relay/
 
 # 2. Cài đặt file systemd service
-sudo cp host_agent/titan-remote.service /etc/systemd/system/
+sudo cp host_agent/meikova-relay.service /etc/systemd/system/
 
 # 3. Kích hoạt và bật tự khởi động
 sudo systemctl daemon-reload
-sudo systemctl enable titan-remote.service
-sudo systemctl start titan-remote.service
+sudo systemctl enable meikova-relay.service
+sudo systemctl start meikova-relay.service
 
 # Kiểm tra trạng thái
-sudo systemctl status titan-remote.service
+sudo systemctl status meikova-relay.service
 ```
 
 ---
@@ -86,15 +86,15 @@ chmod +x run_agent_macos.sh
 
 ### 4.3. Cài đặt Chạy ngầm 24/7 qua Launchd
 ```bash
-cp host_agent/com.titan.remote.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.titan.remote.plist
+cp host_agent/com.meikova.relay.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.meikova.relay.plist
 ```
 
 ---
 
 ## 5. Trải nghiệm Máy Điều Khiển trên iPadOS, iOS và Mobile
 
-Mặc dù iOS/iPadOS không thể làm máy bị điều khiển, nhưng **iPad và iPhone lại là các thiết bị điều khiển từ xa (Controller) xuất sắc nhất** khi kết hợp với Web Client của Titan Remote:
+Mặc dù iOS/iPadOS không thể làm máy bị điều khiển, nhưng **iPad và iPhone lại là các thiết bị điều khiển từ xa (Controller) xuất sắc nhất** khi kết hợp với Web Client của Meikova Relay:
 - Mở Safari trên iPad/iPhone, truy cập URL Web Client (hoặc chọn "Add to Home Screen" để chạy toàn màn hình không có thanh địa chỉ Safari).
 - **Hệ thống điều khiển cảm ứng tối ưu:**
   - Chạm 1 ngón: Click chuột trái.

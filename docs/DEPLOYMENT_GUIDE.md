@@ -1,6 +1,6 @@
-# HƯỚNG DẪN TRIỂN KHAI HỆ THỐNG TITAN REMOTE (DEPLOYMENT GUIDE)
+# HƯỚNG DẪN TRIỂN KHAI HỆ THỐNG MEIKOVA RELAY (DEPLOYMENT GUIDE)
 
-Tài liệu hướng dẫn triển khai toàn diện hệ thống **Titan Remote Desktop**, bao gồm:
+Tài liệu hướng dẫn triển khai toàn diện hệ thống **Meikova Relay Desktop**, bao gồm:
 1. Triển khai Relay Server (Cloud Render.com, VPS Linux, Docker, Systemd).
 2. Cấu hình xác thực Google OAuth 2.0 (Google Identity Services - GIS).
 3. Triển khai máy trạm (Host Agent) trên Windows, Linux và macOS.
@@ -55,9 +55,9 @@ Tài liệu hướng dẫn triển khai toàn diện hệ thống **Titan Remote
 Render.com cung cấp môi trường Web Service miễn phí có sẵn SSL (HTTPS và WSS) tự động.
 
 1. Đăng ký/Đăng nhập tại [https://render.com](https://render.com).
-2. Chọn **New +** -> **Web Service** -> Kết nối với repository GitHub của bạn (`titan-remote`).
+2. Chọn **New +** -> **Web Service** -> Kết nối với repository GitHub của bạn (`meikova-relay`).
 3. Điền cấu hình triển khai:
-   - **Name**: `titan-remote`
+   - **Name**: `meikova-relay`
    - **Region**: Singapore (khuyên dùng để có độ trễ Ping thấp nhất về Việt Nam) hoặc Oregon.
    - **Root Directory**: `relay-server`
    - **Runtime**: `Node`
@@ -66,8 +66,8 @@ Render.com cung cấp môi trường Web Service miễn phí có sẵn SSL (HTTP
    - **Instance Type**: `Free`
 4. Bấm **Create Web Service**.
 5. Sau 1-2 phút, Render sẽ cấp tên miền an toàn:
-   - Web URL: `https://titan-remote.onrender.com`
-   - WebSocket URL: `wss://titan-remote.onrender.com`
+   - Web URL: `https://meikova-relay.onrender.com`
+   - WebSocket URL: `wss://meikova-relay.onrender.com`
 
 ---
 
@@ -82,22 +82,22 @@ sudo apt-get install -y nodejs git
 
 #### Bước 2: Tải mã nguồn & Cài đặt thư viện
 ```bash
-git clone https://github.com/m3iK18dp/titan-remote.git /opt/titan-remote
-cd /opt/titan-remote/relay-server
+git clone https://github.com/m3iK18dp/meikova-relay.git /opt/meikova-relay
+cd /opt/meikova-relay/relay-server
 npm install
 ```
 
 #### Bước 3: Cấu hình Systemd Service chạy nền vĩnh viễn
-Tạo file dịch vụ `/etc/systemd/system/titan-relay.service`:
+Tạo file dịch vụ `/etc/systemd/system/meikova-relay.service`:
 ```ini
 [Unit]
-Description=Titan Remote Relay Server Hub
+Description=Meikova Relay Relay Server Hub
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/titan-remote/relay-server
+WorkingDirectory=/opt/meikova-relay/relay-server
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5
@@ -111,9 +111,9 @@ WantedBy=multi-user.target
 Kích hoạt và chạy dịch vụ:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable titan-relay
-sudo systemctl start titan-relay
-sudo systemctl status titan-relay
+sudo systemctl enable meikova-relay
+sudo systemctl start meikova-relay
+sudo systemctl status meikova-relay
 ```
 
 #### Bước 4: Cấu hình Nginx Reverse Proxy & SSL (Cổng 443 WSS)
@@ -122,7 +122,7 @@ Cài đặt Nginx và Certbot:
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 ```
 
-Tạo file cấu hình `/etc/nginx/sites-available/titan-remote`:
+Tạo file cấu hình `/etc/nginx/sites-available/meikova-relay`:
 ```nginx
 server {
     server_name remote.yourdomain.com;
@@ -144,7 +144,7 @@ server {
 
 Bật site và cấp chứng chỉ SSL Let's Encrypt:
 ```bash
-sudo ln -s /etc/nginx/sites-available/titan-remote /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/meikova-relay /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 sudo certbot --nginx -d remote.yourdomain.com
@@ -158,11 +158,11 @@ Tạo file `docker-compose.yml` tại thư mục gốc:
 version: '3.8'
 
 services:
-  titan-relay:
+  meikova-relay:
     build:
       context: ./relay-server
       dockerfile: Dockerfile
-    container_name: titan-relay
+    container_name: meikova-relay
     restart: always
     ports:
       - "8080:8080"
@@ -188,21 +188,21 @@ docker compose up -d
 2. Tạo mới hoặc chọn dự án hiện tại của bạn.
 3. Vào **APIs & Services** -> **OAuth consent screen**:
    - Chọn loại người dùng: **External**.
-   - Nhập tên ứng dụng: `Titan Remote`.
+   - Nhập tên ứng dụng: `Meikova Relay`.
    - Nhập email liên hệ hỗ trợ.
    - Tại mục **Test users**: Bấm **+ ADD USERS** và thêm các email Google được phép đăng nhập thử nghiệm.
 4. Vào **Credentials** -> Bấm **+ CREATE CREDENTIALS** -> Chọn **OAuth client ID**:
    - Application type: **Web application**.
-   - Name: `Titan Remote Web Hub`.
+   - Name: `Meikova Relay Web Hub`.
    - **Authorized JavaScript origins** (Nguồn gốc JavaScript được phép):
      ```
-     https://titan-remote.onrender.com
+     https://meikova-relay.onrender.com
      http://localhost:8080
      ```
    - **Authorized redirect URIs** (URI chuyển hướng được phép):
      ```
-     https://titan-remote.onrender.com/auth
-     https://titan-remote.onrender.com
+     https://meikova-relay.onrender.com/auth
+     https://meikova-relay.onrender.com
      http://localhost:8080/auth
      ```
 5. Bấm **CREATE**. Google sẽ cấp:
@@ -217,53 +217,53 @@ docker compose up -d
 
 ## 4. Cài đặt & Vận hành Máy Trạm (Host Agent)
 
-Tất cả các bản phát hành nhị phân đã được đóng gói sẵn trên [GitHub Releases](https://github.com/m3iK18dp/titan-remote/releases).
+Tất cả các bản phát hành nhị phân đã được đóng gói sẵn trên [GitHub Releases](https://github.com/m3iK18dp/meikova-relay/releases).
 
 ### Trên Windows
 
 #### Lựa chọn A: Chạy tức thì không cần cài đặt (Portable)
-1. Tải file `TitanRemoteHost.exe` từ GitHub Release.
+1. Tải file `MeikovaRelayHost.exe` từ GitHub Release.
 2. Click đúp chuột để chạy.
 3. Giao diện điều khiển mở ra, hiển thị mã PIN kết nối và trạng thái trực tuyến.
 
 #### Lựa chọn B: Cài đặt User Tier (Không cần quyền Quản trị viên Admin)
 - Dành cho máy công ty bị IT khóa quyền UAC / Administrator.
-- Trên giao diện `TitanRemoteHost`, bấm **Cài đặt cấp Người dùng (User)**:
-  - Ứng dụng tự động sao chép vào `%LOCALAPPDATA%\TitanRemoteHost\`.
+- Trên giao diện `MeikovaRelayHost`, bấm **Cài đặt cấp Người dùng (User)**:
+  - Ứng dụng tự động sao chép vào `%LOCALAPPDATA%\MeikovaRelayHost\`.
   - Đăng ký khởi động tự động qua HKCU Run Registry và Task Scheduler của user.
 
 #### Lựa chọn C: Cài đặt Admin Tier (Dịch vụ Chạy Ngầm 24/7)
 - Dành cho máy chủ hoặc máy cá nhân có quyền Admin:
   - Bấm **Cài đặt Dịch vụ Hệ thống (Admin Service)**.
-  - Đăng ký Windows Service `TitanRemoteHost` với tài khoản `LocalSystem`, tự động khởi động ngay khi bật máy trước khi đăng nhập Windows (hỗ trợ màn hình khóa Lock Screen / Login Screen).
+  - Đăng ký Windows Service `MeikovaRelayHost` với tài khoản `LocalSystem`, tự động khởi động ngay khi bật máy trước khi đăng nhập Windows (hỗ trợ màn hình khóa Lock Screen / Login Screen).
 
 ---
 
 ### Trên Linux (Ubuntu, Debian, Fedora, Arch)
 
 #### Cách 1: Gói cài đặt Debian / Ubuntu (Khuyên dùng)
-1. Tải file `titan-remote-host_amd64.deb`.
+1. Tải file `meikova-relay-host_amd64.deb`.
 2. Mở Terminal và cài đặt:
    ```bash
-   sudo dpkg -i titan-remote-host_amd64.deb
+   sudo dpkg -i meikova-relay-host_amd64.deb
    sudo apt-get install -f # Tự động sửa dependency nếu thiếu
    ```
 3. Khởi chạy:
-   - Bấm vào icon **Titan Remote Host** trong App Menu hoặc chạy:
+   - Bấm vào icon **Meikova Relay Host** trong App Menu hoặc chạy:
      ```bash
-     titan-remote-host
+     meikova-relay-host
      ```
    - Quản lý dịch vụ chạy ngầm systemd:
      ```bash
-     sudo systemctl enable titan-remote
-     sudo systemctl start titan-remote
+     sudo systemctl enable meikova-relay
+     sudo systemctl start meikova-relay
      ```
 
 #### Cách 2: Gói nén Portable `.tar.gz`
-1. Tải `titan-remote-host-linux-x64.tar.gz` và giải nén:
+1. Tải `meikova-relay-host-linux-x64.tar.gz` và giải nén:
    ```bash
-   tar -xzf titan-remote-host-linux-x64.tar.gz
-   cd titan-remote-host-linux-x64
+   tar -xzf meikova-relay-host-linux-x64.tar.gz
+   cd meikova-relay-host-linux-x64
    chmod +x install.sh
    sudo ./install.sh
    ```
@@ -272,18 +272,18 @@ Tất cả các bản phát hành nhị phân đã được đóng gói sẵn tr
 
 ### Trên macOS (Apple Silicon M1/M2/M3 & Intel)
 
-1. Tải file `titan-remote-host-macos.tar.gz` từ GitHub Release.
+1. Tải file `meikova-relay-host-macos.tar.gz` từ GitHub Release.
 2. Click đúp chuột vào file để Finder giải nén tự động.
 3. Mở Terminal tại thư mục vừa bung và chạy:
    ```bash
    chmod +x install.sh
    ./install.sh
    ```
-   Script tự động sao chép nhị phân vào `~/.titan-remote/bin/` và đăng ký LaunchAgent `com.titan.remote.plist` để chạy tự động cùng hệ thống.
+   Script tự động sao chép nhị phân vào `~/.meikova-relay/bin/` và đăng ký LaunchAgent `com.meikova.relay.plist` để chạy tự động cùng hệ thống.
 4. **Cấp quyền bảo mật hệ thống macOS (Bắt buộc):**
    - Vào **System Settings** -> **Privacy & Security**:
-     - **Screen Recording** (Ghi màn hình): Bật cho phép `TitanRemoteHost`.
-     - **Accessibility** (Trợ năng): Bật cho phép `TitanRemoteHost` (để nhận lệnh chuột và phím).
+     - **Screen Recording** (Ghi màn hình): Bật cho phép `MeikovaRelayHost`.
+     - **Accessibility** (Trợ năng): Bật cho phép `MeikovaRelayHost` (để nhận lệnh chuột và phím).
 
 ---
 
@@ -291,7 +291,7 @@ Tất cả các bản phát hành nhị phân đã được đóng gói sẵn tr
 
 | Hiện tượng | Nguyên nhân | Cách khắc phục |
 | :--- | :--- | :--- |
-| **Lỗi 400: origin_mismatch khi đăng nhập Google** | Domain triển khai chưa được khai báo trong Google Cloud Console | Vào Credentials của Google Cloud, thêm domain `https://titan-remote.onrender.com` vào mục **Authorized JavaScript origins** và **Authorized redirect URIs**. |
+| **Lỗi 400: origin_mismatch khi đăng nhập Google** | Domain triển khai chưa được khai báo trong Google Cloud Console | Vào Credentials của Google Cloud, thêm domain `https://meikova-relay.onrender.com` vào mục **Authorized JavaScript origins** và **Authorized redirect URIs**. |
 | **Web Client báo "Mất kết nối tới Relay Server"** | Server Render miễn phí đang ở trạng thái ngủ đông (Spin-down) | Chờ khoảng 30 - 45 giây để instance khởi động lại hoặc nâng cấp lên gói Starter có tính năng Always-On. |
-| **Không click được chuột trên macOS** | Thiếu quyền Trợ năng (Accessibility) của macOS | Vào `System Settings` -> `Privacy & Security` -> `Accessibility`, bật công tắc cho phép ứng dụng `TitanRemoteHost`. |
+| **Không click được chuột trên macOS** | Thiếu quyền Trợ năng (Accessibility) của macOS | Vào `System Settings` -> `Privacy & Security` -> `Accessibility`, bật công tắc cho phép ứng dụng `MeikovaRelayHost`. |
 | **Màn hình máy trạm bị đen khi truyền** | Máy trạm tắt màn hình hoặc bị vô hiệu hóa driver ảo | Đảm bảo tính năng **Ngăn máy trạm ngủ (Keep Awake)** đang bật trên Host Agent. |

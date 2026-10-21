@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Titan Remote Host Agent - Linux Launcher
+# Meikova Relay Host Agent - Linux Launcher
 # Supports Ubuntu, Debian, Fedora, Arch, Raspberry Pi OS, etc.
 
 set -e
@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "=== TITAN REMOTE HOST AGENT (LINUX) ==="
+echo "=== MEIKOVA RELAY HOST AGENT (LINUX) ==="
 
 # Check Python 3
 if ! command -v python3 &> /dev/null; then
@@ -29,5 +29,5 @@ pip install --upgrade pip -q
 pip install websockets pillow psutil screeninfo pynput -q
 
 # Run Agent
-echo "[INFO] Khởi động Titan Remote Host Agent..."
+echo "[INFO] Khởi động Meikova Relay Host Agent..."
 python3 host_service.py "$@"

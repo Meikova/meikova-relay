@@ -2,7 +2,7 @@ const { DatabaseSync } = require('node:sqlite');
 const crypto = require('crypto');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'titan_remote.db');
+const DB_PATH = path.join(__dirname, 'meikova_relay.db');
 const db = new DatabaseSync(DB_PATH);
 
 // Initialize schema

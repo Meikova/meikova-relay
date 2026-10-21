@@ -1,7 +1,7 @@
 import unittest
 import re
 import tkinter as tk
-from host_agent.gui_agent import TRANSLATIONS, TitanHostGUI
+from host_agent.gui_agent import TRANSLATIONS, MeikovaRelayHostGUI
 
 class TestGuiI18n(unittest.TestCase):
     def test_translation_dictionaries_parity(self):
@@ -47,7 +47,7 @@ class TestGuiI18n(unittest.TestCase):
             self.skipTest("Tkinter display unavailable in test environment")
 
         try:
-            app = TitanHostGUI(root)
+            app = MeikovaRelayHostGUI(root)
             self.assertEqual(app.lang, "vi")
             self.assertEqual(app.btn_tab_ultra.cget("text"), TRANSLATIONS["vi"]["tab_ultra"])
 

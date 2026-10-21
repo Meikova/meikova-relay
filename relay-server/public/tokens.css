@@ -1,5 +1,5 @@
-/* Titan Remote Enterprise — Ambient Instrument Design Tokens
-   Inspired by MashLoop (OKLCH Dynamic Lighting, Fluid Typography, Spring Easings) */
+/* Meikova Relay Enterprise — Ambient Instrument Design Tokens
+   Inspired by Meikova Loop (OKLCH Dynamic Lighting, Fluid Typography, Spring Easings) */
 
 @property --pulse { syntax: "<number>"; inherits: true; initial-value: 0; }
 @property --acc-l { syntax: "<number>"; inherits: true; initial-value: 0.78; }

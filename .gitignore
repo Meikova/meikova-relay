@@ -6,10 +6,10 @@ scratch/
 build/
 dist/
 *.spec
-!TitanRemoteHost.spec
+!MeikovaRelayHost.spec
 !client_desktop/client.spec
 *.exe
-!relay-server/TitanRemoteHost.exe
+!relay-server/MeikovaRelayHost.exe
 *.msi
 *.dll
 *.so
@@ -44,7 +44,7 @@ yarn-error.log*
 
 # Local Configuration & Secrets
 config.json
-.titan_remote_config.json
+.meikova_relay_config.json
 .env
 .env.*
 !.env.example
