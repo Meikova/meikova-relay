@@ -1,5 +1,31 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.43)
+- **Truyền Âm Thanh Từ Máy Trạm Không Cắm Loa Ngoài (Headless Virtual Audio Provisioning):**
+  - **1. Tính khả thi & Nguyên lý kỹ thuật:**
+    - Khi máy trạm (Workstation / Mini PC / Cloud VM) không cắm jack loa 3.5mm hoặc HDMI âm thanh, hệ điều hành Windows tự động ngắt thiết bị phát mặc định (`eRender`), khiến các trình duyệt (Chrome, Edge), ứng dụng media, game báo lỗi không có thiết bị âm thanh và từ chối phát nhạc.
+    - Giải pháp: Khởi tạo thiết bị Loa Ảo (Virtual Audio Device / VB-Audio Virtual Cable chuẩn WHQL của Microsoft). Windows nhận diện đây là một loa ngoài phần mềm luôn cắm sẵn 24/7. Mọi âm thanh hệ thống được xuất vào Loa Ảo này, và mô-đun WASAPI Loopback Capture của Meikova tóm lấy từng gói tin PCM để truyền trực tiếp về máy điều khiển.
+  - **2. Các thành phần đã triển khai:**
+    - [host_agent/virtual_audio.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/virtual_audio.py):
+      - `is_audio_output_available()`: Kiểm tra qua Windows WASAPI xem máy trạm có bất kỳ thiết bị xuất âm thanh nào đang hoạt động hay không.
+      - `download_and_install_vbcable()`: Tự động tải gói driver WHQL chính thức và cài đặt ngầm (silent install `-i -h`) không làm gián đoạn người dùng.
+    - [host_agent/audio_capture.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/audio_capture.py):
+      - Cải tiến cơ chế chọn thiết bị: Nếu `GetDefaultAudioEndpoint` thất bại do không có thiết bị mặc định, tự động chuyển sang duyệt `EnumAudioEndpoints` để kết nối vào bất kỳ thiết bị phát đang hoạt động (Virtual Cable, HDMI, USB audio).
+      - Thêm callback `on_status` thông báo trạng thái có hay không có thiết bị.
+    - [host_agent/host_service.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/host_service.py):
+      - Tiếp nhận lệnh `install_virtual_audio` từ xa từ máy điều khiển.
+      - Báo cáo trường `has_device` trong `audio_capabilities` và `audio_stream_status`.
+      - Hỗ trợ tham số dòng lệnh `--install-virtual-audio` trong `main()`.
+    - [web-client/js/app.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/app.js) & [web-client/js/i18n.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/i18n.js):
+      - Khi bật âm thanh trên máy trạm không có loa ngoài, Web Client hiện Ambient Modal trực quan: Thông báo máy trạm không có loa và cung cấp tùy chọn "Cài Đặt Loa Ảo" 1-click.
+      - Tự động kích hoạt luồng truyền âm thanh ngay sau khi cài đặt hoàn tất.
+    - [tests/test_virtual_audio.py](file:///D:/JOB/DEV/meikova/meikova-relay/tests/test_virtual_audio.py):
+      - Bổ sung 3 bài kiểm thử unit test tự động.
+  - **3. Kiểm thử:**
+    - Toàn bộ 93/93 bài kiểm thử vượt qua (`Ran 93 tests in 18.758s - OK (skipped=1)`, Exit Code 0).
+
+---
+
 ### Recent Updates (Version 1.0.42)
 - **Tối Ưu Hóa Diện Tích Deck & Chuẩn Hóa Menu Cấu Hình Chất Lượng Ambient Dark (Zero-Native-Inputs):**
   - **1. Vấn đề nhận diện:**

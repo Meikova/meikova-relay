@@ -11,13 +11,15 @@ logger = logging.getLogger("MeikovaAudio")
 class AudioCapture:
     """Captures system audio playback loopback via native Windows WASAPI."""
 
-    def __init__(self, on_chunk: Optional[Callable[[bytes, int, int], None]] = None, sample_rate: int = 48000, channels: int = 2):
+    def __init__(self, on_chunk: Optional[Callable[[bytes, int, int], None]] = None, on_status: Optional[Callable[[dict], None]] = None, sample_rate: int = 48000, channels: int = 2):
         self.on_chunk = on_chunk
+        self.on_status = on_status
         self.sample_rate = sample_rate
         self.channels = channels
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.is_wasapi_available = (sys.platform == "win32")
+        self.has_active_device = True
 
     def start(self):
         if self.running:
@@ -90,11 +92,29 @@ class AudioCapture:
             return fn(ptr, *args)
 
         p_device = ctypes.c_void_p()
-        # eRender=0, eConsole=0
+        # 1. Try GetDefaultAudioEndpoint (eRender=0, eConsole=0)
         hr = v_call(p_enum, 4, [ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p)], 0, 0, ctypes.byref(p_device))
-        if hr != 0:
+        if hr != 0 or not p_device.value:
+            # 2. Fallback: Enumerate any active render endpoint (Virtual Audio Cable, HDMI, etc.)
+            p_col = ctypes.c_void_p()
+            hr_enum = v_call(p_enum, 3, [ctypes.c_int, ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p)], 0, 1, ctypes.byref(p_col))
+            if hr_enum == 0 and p_col.value:
+                count = wintypes.UINT()
+                v_call(p_col, 3, [ctypes.POINTER(wintypes.UINT)], ctypes.byref(count))
+                if count.value > 0:
+                    v_call(p_col, 4, [wintypes.UINT, ctypes.POINTER(ctypes.c_void_p)], 0, ctypes.byref(p_device))
+                    logger.info(f"[AudioCapture] GetDefaultAudioEndpoint unavailable, using active fallback render device ({count.value} available).")
+
+        if not p_device.value:
+            self.has_active_device = False
             ole32.CoUninitialize()
-            raise RuntimeError(f"GetDefaultAudioEndpoint failed: {hex(hr & 0xffffffff)}")
+            if self.on_status:
+                self.on_status({"has_device": False, "status": "no_render_device"})
+            raise RuntimeError("No active audio playback device found (headless host). Virtual Audio Device required.")
+
+        self.has_active_device = True
+        if self.on_status:
+            self.on_status({"has_device": True, "status": "active"})
 
         p_client = ctypes.c_void_p()
         hr = v_call(p_device, 3, [ctypes.POINTER(GUID), ctypes.c_uint, ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p)], ctypes.byref(iid_client), 23, None, ctypes.byref(p_client))

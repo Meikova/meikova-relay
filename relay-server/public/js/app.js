@@ -3287,7 +3287,27 @@
           }
         } else if (msg.type === 'audio_stream_status') {
           updateAudioStreamUi(msg.enabled);
-          showToast(msg.enabled ? 'Đã bật truyền âm thanh từ máy trạm' : 'Đã tắt truyền âm thanh', msg.enabled ? 'success' : 'info');
+          if (msg.enabled && msg.has_device === false) {
+            showConfirmModal({
+              title: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.no_speaker_title') : 'Máy Trạm Chưa Có Loa Ngoài',
+              message: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.no_speaker_desc') : 'Máy trạm hiện không cắm loa ngoài hoặc tai nghe. Bạn có muốn máy trạm tự động cài đặt Loa Ảo (Virtual Audio Cable) để truyền âm thanh về máy này không?',
+              confirmText: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.install_btn') : 'Cài Đặt Loa Ảo',
+              cancelText: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.dismiss_btn') : 'Để sau'
+            }).then(confirmed => {
+              if (confirmed) {
+                showToast('Đang yêu cầu máy trạm cài đặt Loa Ảo (VB-Audio Cable)...', 'info');
+                ws.send(JSON.stringify({ type: 'install_virtual_audio' }));
+              }
+            });
+          } else {
+            showToast(msg.enabled ? 'Đã bật truyền âm thanh từ máy trạm' : 'Đã tắt truyền âm thanh', msg.enabled ? 'success' : 'info');
+          }
+        } else if (msg.type === 'virtual_audio_install_result') {
+          if (msg.success) {
+            showToast(msg.message || 'Đã cài đặt Loa Ảo thành công! Đang truyền âm thanh.', 'success');
+          } else {
+            showToast(msg.message || 'Cài đặt Loa Ảo thất bại.', 'error');
+          }
         } else if (msg.type === 'client_mic_status') {
           updateMicUi(msg.enabled);
         } else if (msg.type === 'audio_capabilities') {

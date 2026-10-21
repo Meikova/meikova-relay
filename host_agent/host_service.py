@@ -96,6 +96,7 @@ try:
     from host_agent.power_manager import PowerManager
     from host_agent.audio_capture import AudioCapture
     from host_agent.audio_playback import AudioPlayback
+    from host_agent.virtual_audio import is_audio_output_available, download_and_install_vbcable
 except ModuleNotFoundError:
     from protocol import Protocol
     from screen_capture import ScreenCapture
@@ -108,6 +109,7 @@ except ModuleNotFoundError:
     from power_manager import PowerManager
     from audio_capture import AudioCapture
     from audio_playback import AudioPlayback
+    from virtual_audio import is_audio_output_available, download_and_install_vbcable
 
 logging.basicConfig(
     level=logging.INFO,
@@ -137,7 +139,7 @@ class HostService:
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 
         # Audio Capture & Stream
-        self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk)
+        self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk, on_status=self._on_audio_status)
         self.audio_enabled = False
         self.audio_queue: Optional[asyncio.Queue] = None
 
@@ -193,6 +195,18 @@ class HostService:
                 fut.result(timeout=1.5)
             except Exception as e:
                 logger.warning(f"Error during graceful close: {e}")
+
+    def _on_audio_status(self, status: dict):
+        if self.has_active_client and self.loop and self.loop.is_running() and self.ws:
+            msg = json.dumps({
+                "type": "audio_device_status",
+                "has_device": status.get("has_device", False),
+                "status": status.get("status", "")
+            })
+            try:
+                self.loop.call_soon_threadsafe(self._enqueue_audio, msg)
+            except Exception:
+                pass
 
     def _on_audio_chunk(self, chunk: bytes, rate: int, channels: int):
         if not self.audio_enabled or not self.has_active_client or not self.audio_queue or not self.loop or not self.loop.is_running():
@@ -428,9 +442,11 @@ class HostService:
                         "monitors": self.capture.monitors,
                         "active_id": self.capture.active_monitor_id
                     }))
+                    has_output = is_audio_output_available()
                     await ws.send(json.dumps({
                         "type": "audio_capabilities",
                         "available": self.audio_capture.is_wasapi_available,
+                        "has_output_device": has_output,
                         "sample_rate": self.audio_capture.sample_rate,
                         "channels": self.audio_capture.channels
                     }))
@@ -470,6 +486,7 @@ class HostService:
                 # Audio Stream Control (Host Speakers -> Client Browser)
                 elif ev_type == "audio_stream_toggle":
                     self.audio_enabled = bool(event.get("enabled", False))
+                    has_output = is_audio_output_available()
                     if self.audio_enabled:
                         self.audio_capture.start()
                     else:
@@ -477,8 +494,26 @@ class HostService:
                     await ws.send(json.dumps({
                         "type": "audio_stream_status",
                         "enabled": self.audio_enabled,
+                        "has_device": has_output,
                         "sample_rate": self.audio_capture.sample_rate,
                         "channels": self.audio_capture.channels
+                    }))
+                    continue
+
+                # Install Virtual Audio Device Request (Headless / No Speaker Workaround)
+                elif ev_type == "install_virtual_audio":
+                    logger.info("[HostService] Received client request to install Virtual Audio Device (VB-CABLE).")
+                    loop = asyncio.get_running_loop()
+                    res = await loop.run_in_executor(None, download_and_install_vbcable)
+                    if res.get("success") and self.audio_enabled:
+                        self.audio_capture.stop()
+                        await asyncio.sleep(1)
+                        self.audio_capture.start()
+                    await ws.send(json.dumps({
+                        "type": "virtual_audio_install_result",
+                        "success": res.get("success", False),
+                        "has_device": res.get("has_device", False),
+                        "message": res.get("message", "")
                     }))
                     continue
 
@@ -966,8 +1001,14 @@ def main():
     parser.add_argument("--account", default="", help="Linked user account (email or username)")
     parser.add_argument("--fps", type=int, default=25, help="Target capture FPS")
     parser.add_argument("--quality", type=int, default=65, help="JPEG quality 1-100")
+    parser.add_argument("--install-virtual-audio", action="store_true", help="Download and install VB-Audio Virtual Cable for headless audio")
 
     args = parser.parse_args()
+    if args.install_virtual_audio:
+        print("[*] Installing Virtual Audio Device (VB-CABLE)...")
+        res = download_and_install_vbcable()
+        print("[+]" if res.get("success") else "[-]", res.get("message"))
+        sys.exit(0 if res.get("success") else 1)
     service = HostService(
         relay_url=args.relay,
         room_id=args.room,
