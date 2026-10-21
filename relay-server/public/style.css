@@ -1121,7 +1121,7 @@ input:-webkit-autofill:active {
 /* 1:1 Pixel-Perfect Floating Status Pill */
 .pixel-indicator-badge {
   position: absolute;
-  top: 14px;
+  top: 40px;
   right: 18px;
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(12px);
@@ -3843,4 +3843,249 @@ input:-webkit-autofill:active {
   color: var(--text-faint);
   flex-wrap: wrap;
   gap: 16px;
+}
+
+/* ==========================================================================
+   Meikova Relay: Multiplatform Native Apps Download Modal & Tab Switcher
+   Ambient Dark Instrument UI Standards
+   ========================================================================== */
+
+.dl-apps-card {
+  background: #0B132B !important;
+  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 32px -8px rgba(34, 197, 94, 0.2) !important;
+  padding: 20px 24px !important;
+}
+
+.dl-apps-hero {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.dl-apps-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dl-seg-wrapper {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.dl-tab-seg {
+  display: flex;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.dl-tab-seg button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dl-tab-seg button.on {
+  background: var(--accent);
+  color: #070D17;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.dl-role-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 8px;
+  font-size: 0.7rem;
+  color: #4ADE80;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+.dl-led-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22C55E;
+  box-shadow: 0 0 8px #22C55E;
+  animation: dl-pulse 2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes dl-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.dl-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 600px) {
+  .dl-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.dl-box-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.dl-box-card:hover {
+  background: rgba(34, 197, 94, 0.06);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 14px rgba(34, 197, 94, 0.2);
+}
+
+.dl-box-card--highlight {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.04);
+}
+
+.dl-box-card--highlight-blue:hover {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: #38BDF8;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 14px rgba(56, 189, 248, 0.25);
+}
+
+.dl-box-card--btn {
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dl-box-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.dl-box-card__icon {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+}
+
+.dl-box-card__badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ADE80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  line-height: 1;
+}
+
+.dl-box-card__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.dl-box-card__sub {
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.dl-cmd-box {
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dl-cmd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+}
+
+.btn-copy-cmd {
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.dl-cmd-box code {
+  font-size: 0.75rem;
+  color: #A3E635;
+  word-break: break-all;
+}
+
+.dl-modal-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-faint);
 }

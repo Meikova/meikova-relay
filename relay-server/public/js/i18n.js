@@ -38,6 +38,15 @@
       'topbar.logout_title': 'Đăng xuất khỏi phiên làm việc',
       'topbar.quick_connect': 'Kết nối nhanh',
       'topbar.quick_connect_title': 'Kết nối trực tiếp bằng Room ID',
+      'topbar.download_apps': 'Tải App',
+      'topbar.download_apps_title': 'Tải ứng dụng Meikova Relay (Host & Viewer)',
+      'dl_modal.title': 'Cài đặt & Tải ứng dụng',
+      'dl_modal.subtitle': 'HỆ SINH THÁI ĐA NỀN TẢNG // HOST AGENT & VIEWER',
+      'dl_modal.close_title': 'Đóng',
+      'dl_modal.tab_host': 'Máy trạm (Host Agent)',
+      'dl_modal.tab_client': 'Máy điều khiển (Viewer Client)',
+      'dl_modal.host_role_hint': 'MÁY BỊ ĐIỀU KHIỂN: Cài đặt trên máy tính cần truy cập hoặc hỗ trợ từ xa.',
+      'dl_modal.client_role_hint': 'MÁY ĐIỀU KHIỂN: Cài đặt trên máy của bạn để kết nối, xem và điều khiển các máy trạm khác.',
 
       // Telemetry Readouts
       'ro.disconnected': 'CHƯA KẾT NỐI',
@@ -536,6 +545,15 @@
       'topbar.logout_title': 'Logout from current session',
       'topbar.quick_connect': 'Quick Connect',
       'topbar.quick_connect_title': 'Direct connect via Room ID',
+      'topbar.download_apps': 'Download App',
+      'topbar.download_apps_title': 'Download Meikova Relay Apps (Host & Viewer)',
+      'dl_modal.title': 'Install & Download Apps',
+      'dl_modal.subtitle': 'CROSS-PLATFORM ECOSYSTEM // HOST AGENT & VIEWER',
+      'dl_modal.close_title': 'Close',
+      'dl_modal.tab_host': 'Host Agent (Station)',
+      'dl_modal.tab_client': 'Viewer Client (Controller)',
+      'dl_modal.host_role_hint': 'CONTROLLED MACHINE: Install on computers that need remote access or support.',
+      'dl_modal.client_role_hint': 'CONTROLLER DEVICE: Install on your device to connect, monitor, and control hosts.',
 
       // Telemetry Readouts
       'ro.disconnected': 'DISCONNECTED',

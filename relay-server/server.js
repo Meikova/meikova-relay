@@ -834,7 +834,15 @@ pause >nul
       '/api/download/meikova-relay-host-macos.tar.gz': { name: 'meikova-relay-host-macos.tar.gz', type: 'application/gzip' },
       '/api/download/meikova-relay-macos.tar.gz': { name: 'meikova-relay-host-macos.tar.gz', type: 'application/gzip' },
       '/api/download/MeikovaRelayHost-macos.dmg': { name: 'MeikovaRelayHost-macos.dmg', type: 'application/x-apple-diskimage' },
-      '/api/download/meikova-relay.dmg': { name: 'MeikovaRelayHost-macos.dmg', type: 'application/x-apple-diskimage' }
+      '/api/download/meikova-relay.dmg': { name: 'MeikovaRelayHost-macos.dmg', type: 'application/x-apple-diskimage' },
+      '/api/download/MeikovaRelayClient.exe': { name: 'MeikovaRelayClient.exe', type: 'application/vnd.microsoft.portable-executable' },
+      '/api/download/meikova-relay-client.exe': { name: 'MeikovaRelayClient.exe', type: 'application/vnd.microsoft.portable-executable' },
+      '/api/download/MeikovaRelayClient-windows-x64.zip': { name: 'MeikovaRelayClient-windows-x64.zip', type: 'application/zip' },
+      '/api/download/meikova-relay-client.zip': { name: 'MeikovaRelayClient-windows-x64.zip', type: 'application/zip' },
+      '/api/download/MeikovaRelayClient-macos.dmg': { name: 'MeikovaRelayClient-macos.dmg', type: 'application/x-apple-diskimage' },
+      '/api/download/meikova-relay-client.dmg': { name: 'MeikovaRelayClient-macos.dmg', type: 'application/x-apple-diskimage' },
+      '/api/download/meikova-relay-client-linux-x64.tar.gz': { name: 'meikova-relay-client-linux-x64.tar.gz', type: 'application/gzip' },
+      '/api/download/meikova-relay-client.tar.gz': { name: 'meikova-relay-client-linux-x64.tar.gz', type: 'application/gzip' }
     };
 
     if (artifactMap[pathname] && (req.method === 'GET' || req.method === 'HEAD')) {
@@ -856,7 +864,12 @@ pause >nul
         fs.createReadStream(foundPath).pipe(res);
         return;
       }
-      return jsonResponse(res, 404, { error: `${art.name} not found on server` });
+      const releaseBase = 'https://github.com/Meikova/meikova-relay/releases/latest/download';
+      res.writeHead(307, {
+        'Location': `${releaseBase}/${art.name}`,
+        'Cache-Control': 'no-cache'
+      });
+      return res.end();
     }
 
     // 7.6 Download: Linux Auto-Installer (.sh)

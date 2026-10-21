@@ -1121,7 +1121,7 @@ input:-webkit-autofill:active {
 /* 1:1 Pixel-Perfect Floating Status Pill */
 .pixel-indicator-badge {
   position: absolute;
-  top: 14px;
+  top: 40px;
   right: 18px;
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(12px);

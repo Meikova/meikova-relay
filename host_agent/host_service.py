@@ -437,6 +437,7 @@ class HostService:
                 # Multi-Monitor Switch
                 elif ev_type == "switch_monitor":
                     mon_id = int(event.get("monitor_id", 1))
+                    self.capture.monitors = self.capture.detect_monitors()
                     self.capture.set_active_monitor(mon_id)
                     w, h = self.capture.resolution
                     await ws.send(json.dumps({

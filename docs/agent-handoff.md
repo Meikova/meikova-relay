@@ -1,6 +1,23 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.29)
+### Recent Updates (Version 1.0.30)
+- **Khắc Phục Tối Đen Màn Hình 2 & Chống Đè Lấn Huy Hiệu 1:1 Pixel-Perfect:**
+  - **Khắc phục màn hình phụ bị tối đen (host_agent/screen_capture.py, host_agent/host_service.py):**
+    - **Nguyên nhân cốt lõi:** Khi người dùng chọn màn hình 2 (hoặc bất kỳ màn phụ nào có tọa độ x >= 1920 hoặc x âm), `capture_frame()` trước đó đặt cờ `all_screens = False`. Trên Windows, thư viện Pillow `grabscreen_win32` khi nhận `all_screens=False` chỉ chụp duy nhất màn hình chính `(0, 0, w, h)`. Khi tiến hành cắt vùng `bbox` của màn 2 ngoài phạm vi màn chính, Pillow tự động fill toàn bộ ảnh bằng điểm ảnh đen thuần túy `RGB(0, 0, 0)`.
+    - **Khắc phục:**
+      1. Bắt buộc kích hoạt `all_screens = True` trên Windows khi cắt `bbox` theo từng màn hình, giúp Pillow BitBlt toàn bộ Virtual Desktop trước khi crop, đảm bảo điểm ảnh của màn 2 được trích xuất trực tiếp và sắc nét.
+      2. Kích hoạt Per-Monitor DPI Awareness V2 (`SetProcessDpiAwarenessContext(-4)`) ngay khi nạp module để tọa độ enum màn hình khớp 100% với pixel thực tế.
+      3. Cập nhật lại danh sách màn hình tự động (`detect_monitors()`) trong `switch_monitor` của `host_service.py`.
+  - **Loại bỏ đè lấn chỉ số RTT / FPS của Huy hiệu 1:1 Pixel-Perfect (style.css):**
+    - Di dời `.pixel-indicator-badge` từ `top: 14px` xuống `top: 40px` (ngay dưới dòng telemetry `ro-tr`). Khắc phục triệt để việc huy hiệu đè lên sparkline canvas, FPS và thông số độ phân giải.
+  - **Đóng gói & Kiểm thử:**
+    - Biên dịch lại hoàn tất `dist/MeikovaRelayHost.exe` và đồng bộ sang `relay-server/MeikovaRelayHost.exe`.
+    - Đóng gói lại `relay-server/agent-package.zip`.
+    - Toàn bộ 76 test cases pass (Ran 76 tests in 18.128s - OK, Exit Code 0).
+
+---
+
+### Previous Updates (Version 1.0.29)
 - **Tái Cấu Trúc Thương Hiệu Meikova Relay Toàn Diện & Tối Ưu Kết Nối Môi Trường Doanh Nghiệp (Corporate Firewall/Proxy/SSL Inspection):**
   - **Khắc phục lỗi kết nối máy trạm công ty (host_service.py):**
     - **Cơ chế DoH Fallback:** Tích hợp _resolve_doh() tự động phân giải IP máy chủ qua DNS-over-HTTPS (Google & Cloudflare DoH) khi DNS nội bộ công ty bị chặn hoặc lọc tên miền.

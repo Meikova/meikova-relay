@@ -8,6 +8,16 @@ from PIL import Image, ImageGrab
 # Win32 user32 guard for cross-platform support
 user32 = getattr(ctypes, 'windll', None).user32 if hasattr(ctypes, 'windll') else None
 
+# Enable Per-Monitor DPI Awareness V2 if available
+if user32:
+    try:
+        if hasattr(user32, 'SetProcessDpiAwarenessContext'):
+            user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        elif hasattr(user32, 'SetProcessDPIAware'):
+            user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
 # Win32 System Metrics Constants
 SM_CXSCREEN = 0
 SM_CYSCREEN = 1
@@ -141,19 +151,24 @@ class ScreenCapture:
         """
         try:
             bbox = None
-            all_screens = False
             if self.active_monitor_id == 0:
-                all_screens = True
                 bbox = None
             else:
                 for m in self.monitors:
                     if m["id"] == self.active_monitor_id:
                         bbox = m["rect"]
                         break
-                if not bbox:
+                if not bbox and self.monitors:
                     bbox = self.monitors[0]["rect"]
 
-            img = ImageGrab.grab(bbox=bbox, all_screens=all_screens)
+            # On Windows multi-monitor setups, all_screens=True is REQUIRED.
+            # Without all_screens=True, Pillow grabscreen_win32 only captures the primary screen (0,0,w,h)
+            # and crops any secondary monitor (e.g. x >= 1920 or x < 0) out-of-bounds to solid black RGB(0,0,0).
+            try:
+                img = ImageGrab.grab(bbox=bbox, all_screens=True)
+            except Exception:
+                img = ImageGrab.grab(bbox=bbox, all_screens=(self.active_monitor_id == 0))
+
             if img is None:
                 return None
 
