@@ -25,6 +25,7 @@ class HostChatWindow:
         self._entry = None
         self._ready_event = threading.Event()
         self._is_standalone = parent is None
+        self.history = []
 
         if self.parent:
             self._init_ui(parent=self.parent)
@@ -35,10 +36,18 @@ class HostChatWindow:
             self._ready_event.wait(timeout=3.0)
 
     def _standalone_worker(self):
-        root = tk.Tk()
-        self._init_ui(parent=None, tk_root=root)
-        self._ready_event.set()
-        root.mainloop()
+        # macOS Cocoa AppKit strictly prohibits NSWindow creation on secondary threads
+        if sys.platform == "darwin":
+            self._ready_event.set()
+            return
+
+        try:
+            root = tk.Tk()
+            self._init_ui(parent=None, tk_root=root)
+            self._ready_event.set()
+            root.mainloop()
+        except Exception:
+            self._ready_event.set()
 
     def _init_ui(self, parent=None, tk_root=None):
         if tk_root:
@@ -179,9 +188,13 @@ class HostChatWindow:
             self.root.withdraw()
 
     def add_message(self, sender: str, text: str, is_local: bool = False):
+        self.history.append({"sender": sender, "text": text, "is_local": is_local, "time": time.time()})
         if not self._ready_event.is_set() or not self.root:
             return
-        self.root.after(0, lambda: self._add_message_ui(sender, text, is_local))
+        try:
+            self.root.after(0, lambda: self._add_message_ui(sender, text, is_local))
+        except Exception:
+            pass
 
     def _add_message_ui(self, sender: str, text: str, is_local: bool = False):
         if not self._text_area:

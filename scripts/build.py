@@ -385,11 +385,14 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
         bin_path = dist_dir / "MeikovaRelayHost"
         if not skip_pyinstaller:
             bin_path = run_pyinstaller("macos", dist_dir)
+        elif not bin_path.exists():
+            bin_path.write_bytes(b"MOCK_MACOS_STANDALONE_BINARY")
+
         tar_path = dist_dir / "meikova-relay-host-macos.tar.gz"
         create_macos_tarball(bin_path, tar_path)
         
-        # If running on macOS with hdiutil, create .dmg
-        if sys.platform == "darwin" and shutil.which("hdiutil"):
+        # If running on macOS with hdiutil, create .dmg (only when binary exists and not skipping pyinstaller)
+        if sys.platform == "darwin" and shutil.which("hdiutil") and not skip_pyinstaller and bin_path.exists():
             dmg_path = dist_dir / "MeikovaRelayHost-macos.dmg"
             cmd = ["hdiutil", "create", "-volname", "MeikovaRelayHost", "-srcfolder", str(bin_path), "-ov", "-format", "UDZO", str(dmg_path)]
             subprocess.run(cmd, check=False)

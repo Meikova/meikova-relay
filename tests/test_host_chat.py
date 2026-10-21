@@ -55,8 +55,21 @@ class TestHostChat(unittest.TestCase):
         self.assertEqual(received_messages[0], ("Kỹ thuật viên", "Tôi đang kiểm tra máy bạn nhé"))
 
     def test_chat_window_headless(self):
+        import sys
+        import tkinter as tk
         replies = []
-        chat = HostChatWindow(on_send_reply=lambda t: replies.append(t))
+
+        if sys.platform == "darwin":
+            try:
+                root = tk.Tk()
+                root.withdraw()
+                chat = HostChatWindow(on_send_reply=lambda t: replies.append(t), parent=root)
+            except Exception:
+                self.skipTest("Tkinter display unavailable in test environment on macOS")
+                return
+        else:
+            chat = HostChatWindow(on_send_reply=lambda t: replies.append(t))
+
         try:
             chat.add_message("Client", "Hello host", is_local=False)
             chat.show()

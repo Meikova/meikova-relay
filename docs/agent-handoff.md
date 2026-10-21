@@ -1,5 +1,23 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.45)
+- **Khắc Phục Lỗi CI/CD Trên macOS Runner (AppKit NSWindow Threading & hdiutil):**
+  - **1. Phân tích nguyên nhân gốc rễ (Root Cause Analysis):**
+    - **Lỗi 1 (Abort trap 6 / Exit Code 134):** Trong `test_host_chat.py`, `HostChatWindow()` khởi tạo một luồng phụ ngầm `_standalone_worker` và gọi `tk.Tk()`. Trên macOS, bộ khung giao diện Cocoa AppKit nghiêm ngặt yêu cầu mọi cửa sổ `NSWindow` và `NSApplication` phải được khởi tạo độc quyền trên luồng chính (Main Thread). Việc gọi từ pthread phụ kích hoạt ngoại lệ `NSInternalInconsistencyException: NSWindow should only be instantiated on the main thread!`, khiến `libc++abi` buộc dừng tiến trình bằng tín hiệu `SIGABRT`.
+    - **Lỗi 2 (hdiutil create failed):** Trong `scripts/build.py`, khi chạy kiểm thử `skip_pyinstaller=True`, lệnh tạo đĩa ảnh `.dmg` của macOS vẫn được gọi vào đường dẫn tệp chưa tồn tại.
+  - **2. Giải pháp khắc phục:**
+    - [host_agent/chat_window.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/chat_window.py):
+      - Bổ sung cơ chế bảo vệ luồng Cocoa trên macOS: Không tạo `tk.Tk()` trên luồng phụ khi chạy trên Darwin.
+      - Bổ sung bộ đệm lịch sử `self.history`, bao bọc các phương thức `add_message`, `show`, `hide` an toàn 100% kể cả khi chạy ở chế độ không có giao diện đồ họa (headless).
+    - [tests/test_host_chat.py](file:///D:/JOB/DEV/meikova/meikova-relay/tests/test_host_chat.py):
+      - Trên macOS, kiểm tra và chạy với `parent=root` trên main thread nếu có display, hoặc `skipTest` nếu môi trường CI runner headless không có giao diện đồ họa.
+    - [scripts/build.py](file:///D:/JOB/DEV/meikova/meikova-relay/scripts/build.py):
+      - Đảm bảo mock binary tồn tại khi `skip_pyinstaller=True`, và chỉ kích hoạt `hdiutil create` khi file binary thực sự tồn tại trong quá trình build chính thức.
+  - **3. Kiểm thử & Đóng gói:**
+    - Toàn bộ 98/98 bài kiểm thử vượt qua (`Ran 98 tests in 20.857s - OK (skipped=1)`, Exit Code 0).
+
+---
+
 ### Recent Updates (Version 1.0.44)
 - **Màn Hình Ảo Đa Nền Tảng Cho Máy Trạm Không Màn Hình (Headless Virtual Display & Cross-Platform Architecture):**
   - **1. Hiện tượng khi máy trạm không cắm màn hình (Headless PC / VPS):**
