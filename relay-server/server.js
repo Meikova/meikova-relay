@@ -1138,6 +1138,49 @@ echo "Meikova Relay Host running in background (PID: $!)."
       }
     }
 
+    // 7.10 Download: Dynamic Microsoft Remote Desktop Connection File (.rdp)
+    if (((pathname.startsWith('/api/session/') && pathname.endsWith('/rdp-config')) || pathname === '/api/rdp-config') && req.method === 'GET') {
+      const parts = pathname.split('/');
+      const roomId = parts[3] || url.searchParams.get('room') || 'Workstation';
+      const rdpPort = url.searchParams.get('port') || '3389';
+      const rdpHost = url.searchParams.get('host') || '127.0.0.1';
+      const width = url.searchParams.get('width') || '1920';
+      const height = url.searchParams.get('height') || '1080';
+      const username = url.searchParams.get('username') || '';
+
+      const rdpLines = [
+        'screen mode id:i:2',
+        'use multimon:i:0',
+        `desktopwidth:i:${width}`,
+        `desktopheight:i:${height}`,
+        'session bpp:i:32',
+        'winposstr:s:0,3,0,0,800,600',
+        'compression:i:1',
+        'keyboardhook:i:2',
+        'audiomode:i:0',
+        'redirectprinters:i:0',
+        'redirectcomports:i:0',
+        'redirectsmartcards:i:0',
+        'redirectclipboard:i:1',
+        'redirectposdevices:i:0',
+        'autoreconnection enabled:i:1',
+        'authentication level:i:0',
+        'prompt for credentials:i:1',
+        'negotiate security layer:i:1',
+        'remoteapplicationmode:i:0',
+        `full address:s:${rdpHost}:${rdpPort}`
+      ];
+      if (username) rdpLines.push(`username:s:${username}`);
+      const rdpContent = rdpLines.join('\r\n') + '\r\n';
+
+      res.writeHead(200, {
+        'Content-Type': 'application/x-rdp; charset=utf-8',
+        'Content-Disposition': `attachment; filename="Meikova-${roomId}.rdp"`,
+        'Cache-Control': 'no-cache'
+      });
+      return res.end(rdpContent);
+    }
+
     return jsonResponse(res, 404, { error: 'API endpoint not found' });
   }
 
@@ -1704,6 +1747,18 @@ wss.on('connection', (ws, req) => {
           targetDevice,
           targetOs,
           details: { blocked: !!data.blocked }
+        });
+      } else if (type === 'tunnel_open') {
+        DB.logAudit({
+          action: 'TUNNEL_OPEN',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: { protocol: data.protocol || 'rdp', port: data.port, tunnel_id: data.tunnel_id }
         });
       } else if (type === 'clipboard_sync') {
         DB.logAudit({

@@ -1,5 +1,43 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.46)
+- **Nâng Cấp Toàn Diện: Native Protocol First & Seamless Bypass Fallback Engine:**
+  - **1. Mục tiêu kiến trúc & Yêu cầu:**
+    - Mặc định ưu tiên các giao thức gốc: Remote dùng RDP (`3389`) / VNC (`5900`), File dùng SFTP (`22`) / FTP (`21`), Terminal dùng SSH (`22`).
+    - Tự động kiểm tra (probe) các giao thức gốc trên localhost máy trạm khi khởi động và khi client kết nối. Nếu cổng mở và dịch vụ phản hồi bắt tay, ưu tiên kích hoạt Native Protocol.
+    - Ngược lại, nếu cổng đóng hoặc kết nối lỗi, tự động trượt (seamless fallback) về cơ chế Meikova Bypass Native (GDI/DXGI Capture + WASAPI Loopback + Interactive Subprocess Shell + Chunked File Transfer) mà không làm gián đoạn phiên làm việc.
+  - **2. Các thành phần đã triển khai:**
+    - [host_agent/protocol_prober.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/protocol_prober.py) `[NEW]`:
+      - Dò quét và xác thực giao thức cục bộ bằng Python socket chuẩn (zero third-party dependencies).
+      - `probe_rdp()`: Gửi gói tin X.224 Connection Request PDU và xác nhận phản hồi TermService.
+      - `probe_ssh()`: Kết nối port 22 và đọc chuỗi nhận dạng `SSH-2.0-...`.
+      - `probe_sftp()`, `probe_ftp()`, `probe_vnc()`: Kiểm tra tính khả dụng của SFTP/FTP/VNC.
+      - `probe_all_protocols()`: Tổng hợp ma trận giao thức chuẩn hóa và xác định lộ trình ưu tiên.
+    - [host_agent/tcp_tunnel.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/tcp_tunnel.py) `[NEW]`:
+      - Cầu nối TCP Tunnel hai chiều lồng qua WebSocket (Zero-Port-Forwarding) xuyên tường lửa/NAT.
+      - Quản lý các phiên stream nhị phân độc lập (`tunnel_open`, `tunnel_data`, `tunnel_close`).
+    - [host_agent/host_service.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/host_service.py):
+      - Tích hợp dò quét giao thức tự động khi khởi động và gửi `protocol_matrix` cho client khi kết nối.
+      - Tiếp nhận và xử lý các sự kiện `probe_protocols`, `tunnel_open`, `tunnel_data`, `tunnel_close`.
+      - Bổ sung cờ CLI `--probe-protocols` hiển thị bảng ma trận giao thức trên console máy trạm.
+    - [relay-server/server.js](file:///D:/JOB/DEV/meikova/meikova-relay/relay-server/server.js):
+      - Bổ sung endpoint REST `/api/session/:room/rdp-config`: Sinh động tệp cấu hình `.rdp` chuẩn cho phép mở kết nối Microsoft Remote Desktop 1-click.
+      - Bổ sung ghi nhận nhật ký kiểm toán hệ thống (`TUNNEL_OPEN`) cho các phiên tunnel.
+    - [web-client/index.html](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/index.html) & [web-client/css/style.css](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/css/style.css):
+      - Nút khoang nhộng Protocol Capsule `#btnProtocolMenu` trên Cockpit Deck hiển thị trạng thái động (`⚡ RDP` hoặc `🌐 BYPASS`).
+      - Popover menu `#protocolMenuDropdown` chuẩn Ambient Dark hiển thị chi tiết ma trận chẩn đoán, nút tải file `.rdp` 1-click, nút sao chép lệnh SSH, và 3 chế độ điều hướng (`Tự động (Native First)`, `Ép Meikova Bypass`, `Ép Native (RDP/SSH)`).
+    - [web-client/js/app.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/app.js) & [web-client/js/i18n.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/i18n.js):
+      - Tiếp nhận `protocol_matrix` và cập nhật giao diện thời gian thực.
+      - Đồng bộ hoàn toàn sang `relay-server/public/`.
+    - [tests/test_protocol_prober.py](file:///D:/JOB/DEV/meikova/meikova-relay/tests/test_protocol_prober.py) `[NEW]`: 7 bài kiểm thử unit test dò cổng và bắt tay giao thức.
+    - [tests/test_tcp_tunnel.py](file:///D:/JOB/DEV/meikova/meikova-relay/tests/test_tcp_tunnel.py) `[NEW]`: 4 bài kiểm thử cầu nối TCP tunnel hai chiều.
+    - [tests/test_download_endpoints.py](file:///D:/JOB/DEV/meikova/meikova-relay/tests/test_download_endpoints.py) & [tests/test_integration_relay.py](file:///D:/JOB/DEV/meikova/meikova-relay/tests/test_integration_relay.py): Kiểm thử tải file `.rdp` và định tuyến tunnel qua WebSocket relay.
+  - **3. Kiểm thử & Đóng gói:**
+    - Toàn bộ 111/111 bài kiểm thử vượt qua (`Ran 111 tests in 27.931s - OK (skipped=1)`, Exit Code 0).
+    - Đã cập nhật `agent-package.zip` chứa đầy đủ mã nguồn mới nhất.
+
+---
+
 ### Recent Updates (Version 1.0.45)
 - **Khắc Phục Lỗi CI/CD Trên macOS Runner (AppKit NSWindow Threading & hdiutil):**
   - **1. Phân tích nguyên nhân gốc rễ (Root Cause Analysis):**

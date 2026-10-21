@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.agents/**'
+      - 'LICENSE'
+      - '.gitignore'
     tags:
       - 'v*'
   workflow_dispatch:
@@ -17,6 +23,15 @@ jobs:
   # ==========================================
   build-windows:
     name: Build Windows Host (.exe & .zip)
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[ci skip]') &&
+      (
+        startsWith(github.ref, 'refs/tags/v') ||
+        contains(github.event.head_commit.message, '[build]') ||
+        contains(github.event.head_commit.message, '[release]') ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: windows-latest
 
     steps:

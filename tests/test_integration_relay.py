@@ -109,5 +109,70 @@ class TestIntegrationRelay(unittest.IsolatedAsyncioTestCase):
         await client_ws.close()
         await host_ws.close()
 
+    async def test_protocol_matrix_and_tunnel_forwarding(self):
+        url = "ws://127.0.0.1:8999"
+
+        # 1. Connect Host
+        host_ws = await websockets.connect(url)
+        await host_ws.send(json.dumps({
+            "type": "init_host",
+            "room_id": "PROTO-ROOM",
+            "pin": "123321",
+            "device_name": "Protocol-Host"
+        }))
+        host_ack = json.loads(await host_ws.recv())
+        self.assertEqual(host_ack.get("status"), "ok")
+
+        # 2. Connect Client
+        client_ws = await websockets.connect(url)
+        await client_ws.send(json.dumps({
+            "type": "init_client",
+            "room_id": "PROTO-ROOM",
+            "pin": "123321"
+        }))
+        client_ack = json.loads(await client_ws.recv())
+        self.assertEqual(client_ack.get("status"), "ok")
+
+        _ = await host_ws.recv()  # client_connected
+
+        # 3. Host broadcasts protocol_matrix
+        matrix_payload = {
+            "type": "protocol_matrix",
+            "matrix": {
+                "remote": {"preferred": "rdp", "rdp": {"available": True, "port": 3389}},
+                "terminal": {"preferred": "ssh", "ssh": {"available": True, "port": 22}},
+                "file": {"preferred": "sftp", "sftp": {"available": True, "port": 22}}
+            }
+        }
+        await host_ws.send(json.dumps(matrix_payload))
+        client_recv = json.loads(await client_ws.recv())
+        self.assertEqual(client_recv.get("type"), "protocol_matrix")
+        self.assertEqual(client_recv["matrix"]["remote"]["preferred"], "rdp")
+
+        # 4. Client requests tunnel_open
+        tunnel_req = {
+            "type": "tunnel_open",
+            "tunnel_id": "tun-test-99",
+            "protocol": "rdp",
+            "port": 3389
+        }
+        await client_ws.send(json.dumps(tunnel_req))
+        host_recv = json.loads(await host_ws.recv())
+        self.assertEqual(host_recv.get("type"), "tunnel_open")
+        self.assertEqual(host_recv.get("tunnel_id"), "tun-test-99")
+
+        # 5. Host confirms tunnel_opened
+        tunnel_ack = {
+            "type": "tunnel_opened",
+            "tunnel_id": "tun-test-99",
+            "status": "ready"
+        }
+        await host_ws.send(json.dumps(tunnel_ack))
+        client_recv_ack = json.loads(await client_ws.recv())
+        self.assertEqual(client_recv_ack.get("type"), "tunnel_opened")
+
+        await client_ws.close()
+        await host_ws.close()
+
 if __name__ == "__main__":
     unittest.main()

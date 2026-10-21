@@ -98,6 +98,8 @@ try:
     from host_agent.audio_playback import AudioPlayback
     from host_agent.virtual_audio import is_audio_output_available, download_and_install_vbcable
     from host_agent.virtual_display import is_headless_display, download_and_install_virtual_display
+    from host_agent.protocol_prober import probe_all_protocols
+    from host_agent.tcp_tunnel import TcpTunnelManager
 except ModuleNotFoundError:
     from protocol import Protocol
     from screen_capture import ScreenCapture
@@ -112,6 +114,8 @@ except ModuleNotFoundError:
     from audio_playback import AudioPlayback
     from virtual_audio import is_audio_output_available, download_and_install_vbcable
     from virtual_display import is_headless_display, download_and_install_virtual_display
+    from protocol_prober import probe_all_protocols
+    from tcp_tunnel import TcpTunnelManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -164,6 +168,9 @@ class HostService:
         # Terminal Session
         self.terminal = TerminalManager(on_output=self._on_terminal_output)
         self.terminal.start()
+        # Protocol Negotiation Matrix & TCP Tunnel Manager
+        self.protocol_matrix = {}
+        self.tunnel_manager = TcpTunnelManager(send_ws_fn=self._send_ws_tunnel_msg)
 
     def stop(self):
         """Gracefully stop HostService, notifying relay server and tearing down connections."""
@@ -197,6 +204,13 @@ class HostService:
                 fut.result(timeout=1.5)
             except Exception as e:
                 logger.warning(f"Error during graceful close: {e}")
+
+    async def _send_ws_tunnel_msg(self, msg: dict):
+        if self.ws and getattr(self.ws, "open", False):
+            try:
+                await self.ws.send(json.dumps(msg))
+            except Exception as e:
+                logger.debug(f"[HostService] Failed to send tunnel message: {e}")
 
     def _on_audio_status(self, status: dict):
         if self.has_active_client and self.loop and self.loop.is_running() and self.ws:
@@ -464,6 +478,16 @@ class HostService:
                         "type": "cursor_update",
                         "cursor": cur_shape
                     }))
+                    # Probe and broadcast native protocol matrix
+                    try:
+                        loop = asyncio.get_running_loop()
+                        self.protocol_matrix = await loop.run_in_executor(None, probe_all_protocols)
+                    except Exception as e:
+                        logger.warning(f"Protocol probing failed: {e}")
+                    await ws.send(json.dumps({
+                        "type": "protocol_matrix",
+                        "matrix": self.protocol_matrix
+                    }))
                     # Send initial terminal prompt & working directory
                     cwd = os.getcwd()
                     await ws.send(json.dumps({
@@ -478,12 +502,46 @@ class HostService:
                     self.audio_enabled = False
                     self.audio_capture.stop()
                     self.audio_playback.stop()
+                    await self.tunnel_manager.close_all()
                     if self.on_client_disconnect:
                         try:
                             self.on_client_disconnect()
                         except Exception:
                             pass
                     continue
+                    continue
+
+                # Protocol Probing & Tunnel Events
+                elif ev_type == "probe_protocols":
+                    loop = asyncio.get_running_loop()
+                    try:
+                        self.protocol_matrix = await loop.run_in_executor(None, probe_all_protocols)
+                    except Exception as e:
+                        logger.warning(f"Protocol probe error: {e}")
+                    await ws.send(json.dumps({
+                        "type": "protocol_matrix",
+                        "matrix": self.protocol_matrix
+                    }))
+                    continue
+
+                elif ev_type == "tunnel_open":
+                    tunnel_id = event.get("tunnel_id", f"tun_{int(time.time()*1000)}")
+                    protocol = event.get("protocol", "rdp")
+                    port = event.get("port")
+                    await self.tunnel_manager.open_tunnel(tunnel_id, protocol, port)
+                    continue
+
+                elif ev_type == "tunnel_data":
+                    tunnel_id = event.get("tunnel_id")
+                    data_b64 = event.get("data", "")
+                    if tunnel_id and data_b64:
+                        await self.tunnel_manager.handle_data(tunnel_id, data_b64)
+                    continue
+
+                elif ev_type == "tunnel_close":
+                    tunnel_id = event.get("tunnel_id")
+                    if tunnel_id:
+                        await self.tunnel_manager.close_tunnel(tunnel_id)
                     continue
 
                 # Audio Stream Control (Host Speakers -> Client Browser)
@@ -982,6 +1040,7 @@ class HostService:
                             t.cancel()
                         self.audio_capture.stop()
                         self.audio_playback.stop()
+                    await self.tunnel_manager.close_all()
 
                 except (websockets.ConnectionClosed, ConnectionRefusedError, OSError, ssl.SSLError) as e:
                     if not self.running:
@@ -1030,8 +1089,15 @@ def main():
     parser.add_argument("--quality", type=int, default=65, help="JPEG quality 1-100")
     parser.add_argument("--install-virtual-audio", action="store_true", help="Download and install VB-Audio Virtual Cable for headless audio")
     parser.add_argument("--install-virtual-display", action="store_true", help="Download and install Microsoft IddCx Virtual Display Driver for headless display")
+    parser.add_argument("--probe-protocols", action="store_true", help="Probe and display native protocol negotiation matrix")
 
     args = parser.parse_args()
+    if getattr(args, "probe_protocols", False):
+        import json
+        matrix = probe_all_protocols()
+        print("=== MEIKOVA NATIVE PROTOCOL MATRIX ===")
+        print(json.dumps(matrix, indent=2))
+        sys.exit(0)
     if getattr(args, "install_virtual_display", False):
         print("[*] Installing Virtual Display Driver (IddCx)...")
         res = download_and_install_virtual_display()

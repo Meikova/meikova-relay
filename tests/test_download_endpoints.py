@@ -89,5 +89,15 @@ class TestDownloadEndpoints(unittest.TestCase):
         except urllib.error.HTTPError as e:
             self.assertEqual(e.code, 404)
 
+    def test_rdp_config_download(self):
+        url = f"http://127.0.0.1:{self.port}/api/session/RD-9999/rdp-config?port=3389&host=127.0.0.1"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertIn("application/x-rdp", resp.headers.get("Content-Type", ""))
+            body = resp.read().decode("utf-8")
+            self.assertIn("full address:s:127.0.0.1:3389", body)
+            self.assertIn("screen mode id:i:2", body)
+
 if __name__ == "__main__":
     unittest.main()

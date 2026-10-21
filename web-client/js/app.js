@@ -515,6 +515,23 @@
   const monitorSelector = document.getElementById('monitorSelector');
   const qualitySelector = document.getElementById('qualitySelector');
   const btnQualityMenu = document.getElementById('btnQualityMenu');
+  const btnProtocolMenu = document.getElementById('btnProtocolMenu');
+  const protocolCurrentLabel = document.getElementById('protocolCurrentLabel');
+  const protocolMenuDropdown = document.getElementById('protocolMenuDropdown');
+  const btnRefreshProtocols = document.getElementById('btnRefreshProtocols');
+  const protoBadgeRdp = document.getElementById('protoBadgeRdp');
+  const protoDescRdp = document.getElementById('protoDescRdp');
+  const btnDownloadRdp = document.getElementById('btnDownloadRdp');
+  const protoBadgeSsh = document.getElementById('protoBadgeSsh');
+  const protoDescSsh = document.getElementById('protoDescSsh');
+  const btnCopySshCmd = document.getElementById('btnCopySshCmd');
+  const protoBadgeFile = document.getElementById('protoBadgeFile');
+  const protoDescFile = document.getElementById('protoDescFile');
+  const protoModeAuto = document.getElementById('protoModeAuto');
+  const protoModeBypass = document.getElementById('protoModeBypass');
+  const protoModeNative = document.getElementById('protoModeNative');
+  let currentProtocolMatrix = null;
+  let protocolRoutingMode = 'auto'; // 'auto' | 'bypass' | 'native'
   const qualityCurrentLabel = document.getElementById('qualityCurrentLabel');
   const qualityMenuDropdown = document.getElementById('qualityMenuDropdown');
   const btnSyncDisplay = document.getElementById('btnSyncDisplay');
@@ -3097,6 +3114,12 @@
       try {
         const msg = JSON.parse(event.data);
 
+        if (msg.type === 'protocol_matrix') {
+          currentProtocolMatrix = msg.matrix;
+          updateProtocolUI(msg.matrix);
+          return;
+        }
+
         if (msg.status === 'ok' && msg.role === 'client') {
           isConnected = true;
           lastRemoteActivity = Date.now();
@@ -4910,6 +4933,182 @@
     }
   });
 
+
+  // --- PROTOCOL MATRIX & NEGOTIATION LOGIC ---
+  function updateProtocolUI(matrix) {
+    if (!matrix) return;
+    const isVi = !window.MeikovaI18n || window.MeikovaI18n.currentLang === 'vi';
+
+    // 1. Remote Desktop (RDP 3389 / VNC 5900)
+    if (matrix.remote && matrix.remote.rdp) {
+      const rdp = matrix.remote.rdp;
+      if (rdp.available) {
+        if (protoBadgeRdp) {
+          protoBadgeRdp.className = 'proto-status-pill ready';
+          protoBadgeRdp.textContent = isVi ? 'RDP: SẴN SÀNG' : 'RDP: READY';
+        }
+        if (protoDescRdp) {
+          protoDescRdp.textContent = rdp.details || (isVi ? 'Port 3389 mở (X.224 xác nhận)' : 'Port 3389 active (X.224)');
+        }
+        if (btnDownloadRdp) btnDownloadRdp.style.display = 'inline-flex';
+      } else {
+        if (protoBadgeRdp) {
+          protoBadgeRdp.className = 'proto-status-pill closed';
+          protoBadgeRdp.textContent = isVi ? 'RDP: ĐÃ ĐÓNG' : 'RDP: CLOSED';
+        }
+        if (protoDescRdp) {
+          protoDescRdp.textContent = isVi ? 'Port 3389 đóng → Dùng Meikova Stream' : 'Port 3389 closed → Fallback to Meikova Stream';
+        }
+        if (btnDownloadRdp) btnDownloadRdp.style.display = 'none';
+      }
+    }
+
+    // 2. Terminal (SSH 22)
+    if (matrix.terminal && matrix.terminal.ssh) {
+      const ssh = matrix.terminal.ssh;
+      if (ssh.available) {
+        if (protoBadgeSsh) {
+          protoBadgeSsh.className = 'proto-status-pill ready';
+          protoBadgeSsh.textContent = isVi ? 'SSH: SẴN SÀNG' : 'SSH: READY';
+        }
+        if (protoDescSsh) {
+          protoDescSsh.textContent = ssh.details || (isVi ? 'OpenSSH Server khả dụng' : 'OpenSSH Server ready');
+        }
+        if (btnCopySshCmd) btnCopySshCmd.style.display = 'inline-flex';
+      } else {
+        if (protoBadgeSsh) {
+          protoBadgeSsh.className = 'proto-status-pill closed';
+          protoBadgeSsh.textContent = isVi ? 'SSH: ĐÃ ĐÓNG' : 'SSH: CLOSED';
+        }
+        if (protoDescSsh) {
+          protoDescSsh.textContent = isVi ? 'Port 22 đóng → Dùng Meikova Shell Subprocess' : 'Port 22 closed → Fallback to Meikova Shell';
+        }
+        if (btnCopySshCmd) btnCopySshCmd.style.display = 'none';
+      }
+    }
+
+    // 3. File Transfer (SFTP 22 / FTP 21)
+    if (matrix.file) {
+      const sftp = matrix.file.sftp;
+      const ftp = matrix.file.ftp;
+      const fileAvail = (sftp && sftp.available) || (ftp && ftp.available);
+      if (fileAvail) {
+        if (protoBadgeFile) {
+          protoBadgeFile.className = 'proto-status-pill ready';
+          protoBadgeFile.textContent = sftp && sftp.available ? 'SFTP: SẴN SÀNG' : 'FTP: SẴN SÀNG';
+        }
+        if (protoDescFile) {
+          protoDescFile.textContent = sftp && sftp.available ? (isVi ? 'SFTP Subsystem qua SSH' : 'SFTP Subsystem via SSH') : (isVi ? 'FTP Server mở' : 'FTP Server ready');
+        }
+      } else {
+        if (protoBadgeFile) {
+          protoBadgeFile.className = 'proto-status-pill closed';
+          protoBadgeFile.textContent = isVi ? 'SFTP: ĐÃ ĐÓNG' : 'SFTP: CLOSED';
+        }
+        if (protoDescFile) {
+          protoDescFile.textContent = isVi ? 'Cổng đóng → Dùng Meikova File Transfer' : 'Port closed → Fallback to Meikova Shelf';
+        }
+      }
+    }
+
+    // Update capsule button badge
+    if (protocolCurrentLabel && btnProtocolMenu) {
+      if (protocolRoutingMode === 'bypass') {
+        protocolCurrentLabel.textContent = 'BYPASS';
+        btnProtocolMenu.className = 'deck__btn deck__btn--protocol bypass-active';
+      } else if (protocolRoutingMode === 'native' || (protocolRoutingMode === 'auto' && matrix.remote && matrix.remote.rdp && matrix.remote.rdp.available)) {
+        protocolCurrentLabel.textContent = '⚡ RDP';
+        btnProtocolMenu.className = 'deck__btn deck__btn--protocol native-active';
+      } else {
+        protocolCurrentLabel.textContent = 'BYPASS';
+        btnProtocolMenu.className = 'deck__btn deck__btn--protocol bypass-active';
+      }
+    }
+  }
+
+  // Toggle Protocol Popover Menu
+  if (btnProtocolMenu) {
+    btnProtocolMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (protocolMenuDropdown) {
+        const isOpening = protocolMenuDropdown.classList.contains('hidden');
+        protocolMenuDropdown.classList.toggle('hidden');
+        btnProtocolMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening && qualityMenuDropdown) {
+          qualityMenuDropdown.classList.add('hidden');
+          if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
+  // Refresh Protocols Button
+  if (btnRefreshProtocols) {
+    btnRefreshProtocols.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'probe_protocols' }));
+        showToast('Đang quét lại các giao thức trên máy trạm...', 'info');
+      } else {
+        showToast('Chưa kết nối máy trạm', 'info');
+      }
+    });
+  }
+
+  // Download .RDP Button
+  if (btnDownloadRdp) {
+    btnDownloadRdp.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const roomId = currentRoomId || 'Workstation';
+      const rdpUrl = `/api/session/${roomId}/rdp-config?port=3389&host=127.0.0.1`;
+      const a = document.createElement('a');
+      a.href = rdpUrl;
+      a.download = `Meikova-${roomId}.rdp`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showToast('Đã tải tệp cấu hình RDP (.rdp). Nhấp đúp để mở mstsc.exe!', 'success');
+    });
+  }
+
+  // Copy SSH Command Button
+  if (btnCopySshCmd) {
+    btnCopySshCmd.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const sshCmd = 'ssh -p 22 127.0.0.1';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(sshCmd).then(() => {
+          showToast(t('deck.proto_copied') || 'Đã sao chép lệnh SSH vào bộ nhớ tạm!', 'success');
+        });
+      } else {
+        showToast(sshCmd, 'info');
+      }
+    });
+  }
+
+  // Routing Mode Pills
+  const setRoutingMode = (mode) => {
+    protocolRoutingMode = mode;
+    [protoModeAuto, protoModeBypass, protoModeNative].forEach(pill => {
+      if (pill) {
+        pill.classList.toggle('active', pill.dataset.mode === mode);
+      }
+    });
+    if (currentProtocolMatrix) {
+      updateProtocolUI(currentProtocolMatrix);
+    }
+    const modeLabels = {
+      auto: 'Tự động (Ưu tiên Native First)',
+      bypass: 'Ép buộc Meikova Bypass Stream',
+      native: 'Ép buộc kết nối Native (RDP/SSH)'
+    };
+    showToast(`Đã chuyển chế độ: ${modeLabels[mode] || mode}`, 'info');
+  };
+
+  if (protoModeAuto) protoModeAuto.addEventListener('click', () => setRoutingMode('auto'));
+  if (protoModeBypass) protoModeBypass.addEventListener('click', () => setRoutingMode('bypass'));
+  if (protoModeNative) protoModeNative.addEventListener('click', () => setRoutingMode('native'));
+
   // --- POWER ACTIONS MENU ---
   btnPowerMenu.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -4925,6 +5124,10 @@
     }
     if (deckModeDropdown && !deckModeDropdown.contains(e.target) && e.target !== btnDeckDisplayMode && (!btnDeckDisplayMode || !btnDeckDisplayMode.contains(e.target))) {
       deckModeDropdown.classList.add('hidden');
+    }
+    if (protocolMenuDropdown && !protocolMenuDropdown.contains(e.target) && e.target !== btnProtocolMenu && (!btnProtocolMenu || !btnProtocolMenu.contains(e.target))) {
+      protocolMenuDropdown.classList.add('hidden');
+      if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
     }
     if (qualityMenuDropdown && !qualityMenuDropdown.contains(e.target) && e.target !== btnQualityMenu && (!btnQualityMenu || !btnQualityMenu.contains(e.target))) {
       qualityMenuDropdown.classList.add('hidden');

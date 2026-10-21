@@ -1053,6 +1053,15 @@
           </button>
         </div>
 
+                <!-- Compact Protocol Capsule Trigger Button (Native First / Bypass Fallback) -->
+        <button type="button" id="btnProtocolMenu" class="deck__btn deck__btn--protocol" title="Giao thức kết nối: Native First & Bypass" data-i18n-title="deck.protocol_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span id="protocolCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700; color: var(--accent);">AUTO</span>
+          <svg class="deck-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+
         <!-- Compact Quality Preset Trigger Button (Ambient Capsule) -->
         <button type="button" id="btnQualityMenu" class="deck__btn deck__btn--quality" title="Cấu hình phân giải, FPS & chất lượng" data-i18n-title="deck.quality_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1163,6 +1172,76 @@
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </footer>
+
+            <!-- Protocol Negotiation Matrix & Actions Floating Menu -->
+      <div id="protocolMenuDropdown" class="protocol-menu hidden">
+        <div class="protocol-menu-header">
+          <span data-i18n="deck.protocol_menu_title">MA TRẬN GIAO THỨC (PROTOCOL MATRIX)</span>
+          <button type="button" id="btnRefreshProtocols" class="protocol-refresh-btn" title="Quét lại giao thức">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
+        </div>
+
+        <div class="protocol-section">
+          <div class="protocol-row">
+            <div class="protocol-info">
+              <div class="protocol-name">
+                <span data-i18n="deck.proto_remote">Remote Desktop</span>
+                <span id="protoBadgeRdp" class="proto-status-pill checking">RDP: 3389</span>
+              </div>
+              <div id="protoDescRdp" class="protocol-desc">Đang kiểm tra TermService...</div>
+            </div>
+            <div class="protocol-actions">
+              <button type="button" id="btnDownloadRdp" class="proto-btn" title="Tải file .rdp 1-click">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>.RDP</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="protocol-row">
+            <div class="protocol-info">
+              <div class="protocol-name">
+                <span data-i18n="deck.proto_terminal">Terminal (PTY)</span>
+                <span id="protoBadgeSsh" class="proto-status-pill checking">SSH: 22</span>
+              </div>
+              <div id="protoDescSsh" class="protocol-desc">Đang kiểm tra OpenSSH...</div>
+            </div>
+            <div class="protocol-actions">
+              <button type="button" id="btnCopySshCmd" class="proto-btn" title="Sao chép lệnh SSH">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>SSH</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="protocol-row">
+            <div class="protocol-info">
+              <div class="protocol-name">
+                <span data-i18n="deck.proto_file">File Transfer</span>
+                <span id="protoBadgeFile" class="proto-status-pill checking">SFTP / FTP</span>
+              </div>
+              <div id="protoDescFile" class="protocol-desc">Đang kiểm tra SFTP / FTP...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="protocol-mode-switch">
+          <div class="protocol-mode-title" data-i18n="deck.proto_routing">CHẾ ĐỘ ĐIỀU HƯỚNG</div>
+          <div class="protocol-pills">
+            <button type="button" class="protocol-pill active" data-mode="auto" id="protoModeAuto">
+              <span class="pill-dot"></span>
+              <span data-i18n="deck.proto_auto">Tự động (Native First)</span>
+            </button>
+            <button type="button" class="protocol-pill" data-mode="bypass" id="protoModeBypass">
+              <span data-i18n="deck.proto_force_bypass">Ép Meikova Bypass</span>
+            </button>
+            <button type="button" class="protocol-pill" data-mode="native" id="protoModeNative">
+              <span data-i18n="deck.proto_force_native">Ép Native (RDP/SSH)</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Quality & Performance Presets Floating Menu -->
       <div id="qualityMenuDropdown" class="quality-menu hidden">
