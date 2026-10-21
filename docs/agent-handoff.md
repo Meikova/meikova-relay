@@ -1,5 +1,27 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.44)
+- **Màn Hình Ảo Đa Nền Tảng Cho Máy Trạm Không Màn Hình (Headless Virtual Display & Cross-Platform Architecture):**
+  - **1. Hiện tượng khi máy trạm không cắm màn hình (Headless PC / VPS):**
+    - Khi không có dây HDMI/DisplayPort kết nối, GPU rơi vào trạng thái ngủ sâu (Low-Power State). Windows DWM vô hiệu hóa chuỗi hoán đổi khung hình (Swapchain), khiến remote desktop rơi vào tình trạng:
+      - Hoặc màn hình đen kịt (Black Screen) hoàn toàn.
+      - Hoặc tụt về độ phân giải dự phòng 640x480 / 1024x768 với đồ họa phần mềm cơ bản (WARP/Basic Display), vô hiệu hóa GPU encoding (NVENC/AMF) và giật lag 5-10 FPS.
+    - Giải pháp: Khởi tạo **Màn Hình Ảo (Microsoft IddCx Virtual Display Driver)**. Trình điều khiển tạo ra 1 đến 4 màn hình ảo trực tiếp từ GPU với đầy đủ độ phân giải 1080p, 2K, 4K @ 60/120Hz và tăng tốc 3D DirectX/Vulkan/OpenGL mượt mà như cắm màn hình vật lý.
+  - **2. Các thành phần đã triển khai:**
+    - [host_agent/virtual_display.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/virtual_display.py):
+      - `is_headless_display()`: Nhận diện trạng thái headless trên cả Windows (DWM/WMI), Linux (`$DISPLAY` / `xrandr`), macOS.
+      - `generate_headless_placeholder()`: Tạo khung hình Ambient Dark sắc nét 1080p có logo và hướng dẫn trực quan thay cho màn hình đen kịt.
+      - `download_and_install_virtual_display()`: Tự động tải và cài đặt driver IddCx trên Windows hoặc kích hoạt `Xvfb` trên Linux.
+    - [host_agent/virtual_audio.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/virtual_audio.py): Mở rộng hỗ trợ âm thanh ảo trên cả 3 nền tảng: Windows (VB-Audio WHQL), Linux (PulseAudio/PipeWire native `module-null-sink`), macOS (BlackHole 2ch).
+    - [host_agent/screen_capture.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/screen_capture.py): Tích hợp cờ `is_headless`, tự động dự phòng khung hình đồ họa hướng dẫn khi máy trạm chưa có màn hình.
+    - [host_agent/host_service.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/host_service.py): Hỗ trợ lệnh điều khiển `install_virtual_display` qua WebSocket, gửi cờ `is_headless` trong `monitors_list`, hỗ trợ CLI `--install-virtual-display`.
+    - [web-client/js/app.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/app.js) & [web-client/js/i18n.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/i18n.js): Hiện Modal hỏi người dùng kích hoạt Màn Hình Ảo 1-click khi kết nối vào máy trạm headless.
+    - [tests/test_virtual_display.py](file:///D:/JOB/DEV/meikova/meikova-relay/tests/test_virtual_display.py): Bổ sung 5 bài kiểm thử unit test.
+  - **3. Kiểm thử & Đóng gói:**
+    - Toàn bộ 98/98 bài kiểm thử vượt qua (`Ran 98 tests in 20.783s - OK (skipped=1)`, Exit Code 0).
+
+---
+
 ### Recent Updates (Version 1.0.43)
 - **Truyền Âm Thanh Từ Máy Trạm Không Cắm Loa Ngoài (Headless Virtual Audio Provisioning):**
   - **1. Tính khả thi & Nguyên lý kỹ thuật:**

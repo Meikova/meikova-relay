@@ -97,6 +97,7 @@ try:
     from host_agent.audio_capture import AudioCapture
     from host_agent.audio_playback import AudioPlayback
     from host_agent.virtual_audio import is_audio_output_available, download_and_install_vbcable
+    from host_agent.virtual_display import is_headless_display, download_and_install_virtual_display
 except ModuleNotFoundError:
     from protocol import Protocol
     from screen_capture import ScreenCapture
@@ -110,6 +111,7 @@ except ModuleNotFoundError:
     from audio_capture import AudioCapture
     from audio_playback import AudioPlayback
     from virtual_audio import is_audio_output_available, download_and_install_vbcable
+    from virtual_display import is_headless_display, download_and_install_virtual_display
 
 logging.basicConfig(
     level=logging.INFO,
@@ -440,7 +442,8 @@ class HostService:
                     await ws.send(json.dumps({
                         "type": "monitors_list",
                         "monitors": self.capture.monitors,
-                        "active_id": self.capture.active_monitor_id
+                        "active_id": self.capture.active_monitor_id,
+                        "is_headless": getattr(self.capture, "is_headless", False)
                     }))
                     has_output = is_audio_output_available()
                     await ws.send(json.dumps({
@@ -515,6 +518,30 @@ class HostService:
                         "has_device": res.get("has_device", False),
                         "message": res.get("message", "")
                     }))
+                    continue
+
+                # Install Virtual Display Driver Request (Headless / No Physical Monitor)
+                elif ev_type == "install_virtual_display":
+                    logger.info("[HostService] Received client request to install Virtual Display Driver.")
+                    loop = asyncio.get_running_loop()
+                    res = await loop.run_in_executor(None, download_and_install_virtual_display)
+                    # Refresh monitors list
+                    self.capture.monitors = self.capture.detect_monitors()
+                    self.capture.is_headless = getattr(self.capture, "is_headless", False) and len(self.capture.monitors) == 0
+                    await ws.send(json.dumps({
+                        "type": "virtual_display_result",
+                        "success": res.get("success", False),
+                        "message": res.get("message", "")
+                    }))
+                    await ws.send(json.dumps({
+                        "type": "monitors_list",
+                        "monitors": self.capture.monitors,
+                        "active_id": self.capture.active_monitor_id,
+                        "is_headless": self.capture.is_headless
+                    }))
+                    initial_frame = self.capture.capture_frame(force=True)
+                    if initial_frame:
+                        await ws.send(initial_frame)
                     continue
 
                 # Voice Intercom Control (Client Browser Mic -> Host Speakers)
@@ -1002,8 +1029,14 @@ def main():
     parser.add_argument("--fps", type=int, default=25, help="Target capture FPS")
     parser.add_argument("--quality", type=int, default=65, help="JPEG quality 1-100")
     parser.add_argument("--install-virtual-audio", action="store_true", help="Download and install VB-Audio Virtual Cable for headless audio")
+    parser.add_argument("--install-virtual-display", action="store_true", help="Download and install Microsoft IddCx Virtual Display Driver for headless display")
 
     args = parser.parse_args()
+    if getattr(args, "install_virtual_display", False):
+        print("[*] Installing Virtual Display Driver (IddCx)...")
+        res = download_and_install_virtual_display()
+        print("[+]" if res.get("success") else "[-]", res.get("message"))
+        sys.exit(0 if res.get("success") else 1)
     if args.install_virtual_audio:
         print("[*] Installing Virtual Audio Device (VB-CABLE)...")
         res = download_and_install_vbcable()

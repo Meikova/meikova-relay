@@ -634,6 +634,7 @@
 
   let ws = null;
   let isConnected = false;
+  let hasPromptedHeadlessDisplay = false;
   let currentRoom = null;
   let currentPin = '';
   let hostResolution = { width: 1920, height: 1080 };
@@ -3308,6 +3309,12 @@
           } else {
             showToast(msg.message || 'Cài đặt Loa Ảo thất bại.', 'error');
           }
+        } else if (msg.type === 'virtual_display_result') {
+          if (msg.success) {
+            showToast(msg.message || 'Đã kích hoạt Màn hình ảo thành công!', 'success');
+          } else {
+            showToast(msg.message || 'Kích hoạt Màn hình ảo thất bại.', 'error');
+          }
         } else if (msg.type === 'client_mic_status') {
           updateMicUi(msg.enabled);
         } else if (msg.type === 'audio_capabilities') {
@@ -3351,6 +3358,7 @@
       ws = null;
     }
     isConnected = false;
+    hasPromptedHeadlessDisplay = false;
     roStatus.textContent = `${restartReconnectRoom} // ${t('ro.rebooting')}`;
 
     if (restartReconnectTimer) return;

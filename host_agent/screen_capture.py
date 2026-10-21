@@ -5,6 +5,15 @@ import ctypes
 from typing import Tuple, Optional, List, Dict, Any
 from PIL import Image, ImageGrab
 
+try:
+    from host_agent.virtual_display import is_headless_display, generate_headless_placeholder
+except ImportError:
+    try:
+        from virtual_display import is_headless_display, generate_headless_placeholder
+    except ImportError:
+        def is_headless_display(): return False
+        def generate_headless_placeholder(w=1920, h=1080): return b''
+
 # Win32 user32 guard for cross-platform support
 user32 = getattr(ctypes, 'windll', None).user32 if hasattr(ctypes, 'windll') else None
 
@@ -34,6 +43,7 @@ class ScreenCapture:
         self.max_width = max_width
         self._attached = False
         self._attach_window_station()
+        self.is_headless = is_headless_display()
         self.active_monitor_id = 0 # 0 = All monitors (virtual desktop), 1..N = specific monitor
         self.monitors = self.detect_monitors()
         self._last_frame_hash: Optional[int] = None
@@ -170,6 +180,8 @@ class ScreenCapture:
                 img = ImageGrab.grab(bbox=bbox, all_screens=(self.active_monitor_id == 0))
 
             if img is None:
+                if self.is_headless:
+                    return generate_headless_placeholder(1920, 1080)
                 return None
 
             # Intelligent downscaling for virtual desktop (multi-monitor combined):
@@ -202,4 +214,9 @@ class ScreenCapture:
 
         except Exception:
             self._attach_window_station()
+            if getattr(self, 'is_headless', False):
+                try:
+                    return generate_headless_placeholder(1920, 1080)
+                except Exception:
+                    pass
             return None
