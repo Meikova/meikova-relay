@@ -2154,9 +2154,13 @@
 
   if (btnOpenSessionConfig && sessionConfigModal && cfgTimeoutRemote && cfgTimeoutGlobal) {
     btnOpenSessionConfig.addEventListener('click', () => {
-      cfgTimeoutRemote.value = timeoutRemoteMin;
-      cfgTimeoutGlobal.value = timeoutGlobalMin;
-      sessionConfigModal.classList.remove('hidden');
+      if (isConnected && currentRoomId) {
+        openSessionManagerModal(currentRoomId, hostResolution ? `Trạm (${hostResolution.width}x${hostResolution.height})` : currentRoomId);
+      } else {
+        cfgTimeoutRemote.value = timeoutRemoteMin;
+        cfgTimeoutGlobal.value = timeoutGlobalMin;
+        sessionConfigModal.classList.remove('hidden');
+      }
     });
 
     btnCancelSessionCfg?.addEventListener('click', () => {
@@ -2352,6 +2356,171 @@
   const resSvg = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
   const roomSvg = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
 
+
+  // --- MULTI-CLIENT SESSION MANAGEMENT & LIVE FLEET SESSIONS ---
+  let currentManagingRoomId = null;
+  let mySessionId = null;
+  let roomSessions = [];
+
+  const modalSessionManager = document.getElementById('modalSessionManager');
+  const btnCloseSessionManager = document.getElementById('btnCloseSessionManager');
+  const btnRefreshSessions = document.getElementById('btnRefreshSessions');
+  const btnOpenTimeoutFromSessions = document.getElementById('btnOpenTimeoutFromSessions');
+
+  btnCloseSessionManager?.addEventListener('click', () => {
+    modalSessionManager?.classList.add('hidden');
+  });
+
+  modalSessionManager?.addEventListener('click', (e) => {
+    if (e.target === modalSessionManager) {
+      modalSessionManager.classList.add('hidden');
+    }
+  });
+
+  btnRefreshSessions?.addEventListener('click', () => {
+    refreshSessionManagerList();
+  });
+
+  btnOpenTimeoutFromSessions?.addEventListener('click', () => {
+    modalSessionManager?.classList.add('hidden');
+    if (cfgTimeoutRemote && cfgTimeoutGlobal) {
+      cfgTimeoutRemote.value = timeoutRemoteMin;
+      cfgTimeoutGlobal.value = timeoutGlobalMin;
+    }
+    sessionConfigModal?.classList.remove('hidden');
+  });
+
+  async function openSessionManagerModal(roomId, deviceName) {
+    currentManagingRoomId = roomId || currentRoomId;
+    const titleEl = document.getElementById('modalSessionManagerTitle');
+    const subEl = document.getElementById('sessionManagerSubtitle');
+    if (titleEl) titleEl.textContent = `Quản lý phiên // ${deviceName || currentManagingRoomId}`;
+    if (subEl) subEl.textContent = `MÃ PHÒNG: ${currentManagingRoomId} // ĐA PHIÊN & NGẮT PHIÊN ĐỐI PHƯƠNG`;
+
+    modalSessionManager?.classList.remove('hidden');
+    await refreshSessionManagerList();
+  }
+
+  function formatTimeAgo(timestamp) {
+    if (!timestamp) return 'Vừa xong';
+    const sec = Math.max(1, Math.floor((Date.now() - timestamp) / 1000));
+    if (sec < 60) return `${sec}s trước`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min} phút trước`;
+    const hrs = Math.floor(min / 60);
+    return `${hrs}h${min % 60}m trước`;
+  }
+
+  async function refreshSessionManagerList() {
+    const listEl = document.getElementById('sessionManagerList');
+    const footerCount = document.getElementById('sessionManagerFooterCount');
+    if (!listEl) return;
+
+    listEl.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted);" class="mono-font">Đang tải danh sách phiên trực tiếp...</div>`;
+
+    try {
+      if (ws && ws.readyState === WebSocket.OPEN && currentRoomId === currentManagingRoomId) {
+        ws.send(JSON.stringify({ type: 'get_sessions' }));
+      }
+
+      const res = await apiFetch(`/api/rooms/${currentManagingRoomId}/sessions`, 'GET');
+      if (res && res.success) {
+        roomSessions = res.sessions || [];
+      }
+      renderSessionManagerList(roomSessions);
+    } catch (err) {
+      listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#ef4444;" class="mono-font">Lỗi khi tải danh sách phiên: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderSessionManagerList(sessions) {
+    const listEl = document.getElementById('sessionManagerList');
+    const footerCount = document.getElementById('sessionManagerFooterCount');
+    if (!listEl) return;
+    if (footerCount) footerCount.textContent = `${(sessions || []).length} phiên đang hoạt động`;
+
+    if (!sessions || sessions.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align:center; padding:32px; background:var(--ink-1); border:1px dashed var(--line); border-radius:var(--radius);">
+          <p class="brand-font" style="margin:0 0 6px 0; color:var(--text); font-size:0.95rem;">Chưa có phiên kết nối nào</p>
+          <p class="mono-font" style="margin:0; font-size:0.72rem; color:var(--text-faint);">Máy trạm hiện không có ai remote hoặc đang chờ kết nối.</p>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = sessions.map(sess => {
+      const isSelf = !!sess.isSelf || sess.id === mySessionId || (currentUser && sess.username === currentUser.username);
+      const connTime = formatTimeAgo(sess.connectedAt);
+      return `
+        <div class="session-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--ink-1); border:1px solid ${isSelf ? 'rgba(34,197,94,0.3)' : 'var(--line)'}; border-radius:var(--radius); gap:12px;">
+          <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+            <div style="width:36px; height:36px; border-radius:50%; background:${isSelf ? 'rgba(34,197,94,0.1)' : 'rgba(56,189,248,0.1)'}; border:1px solid ${isSelf ? 'rgba(34,197,94,0.3)' : 'rgba(56,189,248,0.3)'}; color:${isSelf ? 'var(--accent)' : '#38bdf8'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div style="min-width:0; flex:1;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <strong style="font-size:0.85rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(sess.username || 'Khách (Ẩn danh)')}</strong>
+                ${isSelf ? `<span class="spec-chip mono-font" style="background:rgba(34,197,94,0.15); color:var(--accent); font-size:0.62rem; padding:1px 6px;">BẠN</span>` : `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.12); color:#38bdf8; font-size:0.62rem; padding:1px 6px;">KHÁCH</span>`}
+              </div>
+              <div class="mono-font" style="font-size:0.68rem; color:var(--text-muted); display:flex; gap:8px; margin-top:3px; flex-wrap:wrap;">
+                <span>IP: ${escapeHtml(sess.clientIp || '127.0.0.1')}</span>
+                <span>•</span>
+                <span>${escapeHtml(sess.clientDevice || 'Trình duyệt Web')}</span>
+                <span>•</span>
+                <span>${connTime}</span>
+              </div>
+            </div>
+          </div>
+          ${!isSelf ? `
+            <button type="button" class="btn-kill-session btn-pill" data-session-id="${sess.id}" data-user="${escapeHtml(sess.username || 'Khách')}" style="border-color:rgba(239,68,68,0.4); color:#ef4444; background:rgba(239,68,68,0.08); font-weight:600; padding:5px 12px; font-size:0.72rem; flex-shrink:0;" onmouseenter="this.style.background='rgba(239,68,68,0.2)';" onmouseleave="this.style.background='rgba(239,68,68,0.08)';">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              <span>Ngắt phiên</span>
+            </button>
+          ` : `
+            <span class="mono-font" style="font-size:0.68rem; color:var(--text-faint); padding: 4px 6px;">Phiên của bạn</span>
+          `}
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.btn-kill-session').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const sessId = btn.dataset.sessionId;
+        const uName = btn.dataset.user;
+        if (!confirm(`Bạn có chắc muốn NGẮT PHIÊN của "${uName}" ngay lập tức?`)) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Đang ngắt...';
+
+        try {
+          if (ws && ws.readyState === WebSocket.OPEN && currentRoomId === currentManagingRoomId) {
+            ws.send(JSON.stringify({ type: 'kill_session', session_id: sessId }));
+          }
+
+          const res = await apiFetch('/api/sessions/kill', 'POST', {
+            roomId: currentManagingRoomId,
+            sessionId: sessId
+          });
+
+          if (res && res.success) {
+            showToast(`Đã ngắt phiên của "${uName}" thành công!`, 'success');
+            await refreshSessionManagerList();
+            loadDeviceFleet(true);
+          } else {
+            showToast(`Lỗi: ${res?.message || 'Không thể ngắt phiên'}`, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Ngắt phiên';
+          }
+        } catch (err) {
+          showToast(`Lỗi: ${err.message}`, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Ngắt phiên';
+        }
+      });
+    });
+  }
+
   function renderDeviceGrid(devices) {
     const devList = devices !== undefined ? devices : currentDeviceList;
     if (!devList || devList.length === 0) {
@@ -2400,6 +2569,18 @@
             <span class="spec-chip">${resSvg} <span>${escapeHtml(d.resolution || '1920x1080')}</span></span>
             <span class="spec-chip">${roomSvg} <span>${escapeHtml(d.room_id)}</span></span>
           </div>
+          <div class="device-sessions-bar" style="margin: 8px 0; display:flex; align-items:center; justify-content:space-between; font-size: 0.72rem; padding: 6px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: var(--radius);">
+            <span class="sessions-indicator mono-font" style="display:inline-flex; align-items:center; gap:6px; color: ${(d.session_count || 0) > 0 ? 'var(--accent)' : 'var(--text-faint)'};">
+              <span class="status-dot" style="width:6px; height:6px; border-radius:50%; background: ${(d.session_count || 0) > 0 ? 'var(--accent)' : 'var(--line)'}; ${(d.session_count || 0) > 0 ? 'box-shadow: 0 0 6px var(--accent);' : ''}"></span>
+              <span>${(d.session_count || 0) > 0 ? `${d.session_count} phiên đang kết nối` : 'Chưa có phiên kết nối'}</span>
+            </span>
+            ${(d.session_count || 0) > 0 ? `
+              <button type="button" class="btn-manage-sessions btn-pill" data-room="${escapeHtml(d.room_id)}" data-name="${escapeHtml(d.device_name)}" style="padding: 2px 8px; font-size: 0.68rem; height: 22px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; background: rgba(56, 189, 248, 0.08);" title="Quản lý & ngắt phiên kết nối">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:3px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+                <span>Quản lý</span>
+              </button>
+            ` : ''}
+          </div>
           <div class="device-card-actions" style="display:flex;gap:8px;align-items:center;margin-top:auto;">
             <button class="btn-connect-device" data-room="${d.room_id}" data-pin="${d.pin}" style="flex:1;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
@@ -2412,6 +2593,13 @@
         </div>
       `;
     }).join('');
+
+    deviceGrid.querySelectorAll('.btn-manage-sessions').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSessionManagerModal(btn.dataset.room, btn.dataset.name);
+      });
+    });
 
     deviceGrid.querySelectorAll('.btn-connect-device').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2537,6 +2725,27 @@
           }
           showToast(`Lỗi: ${msg.message}`, 'error');
           disconnect();
+        } else if (msg.type === 'session_list') {
+          roomSessions = msg.sessions || [];
+          const count = msg.clientCount || roomSessions.length;
+          const btnSessionCfg = document.getElementById('btnOpenSessionConfig');
+          if (btnSessionCfg) {
+            const span = btnSessionCfg.querySelector('span');
+            if (span) span.textContent = count > 0 ? `Phiên (${count})` : (t('topbar.session_cfg') || 'Phiên');
+          }
+          if (currentManagingRoomId === currentRoomId) {
+            renderSessionManagerList(roomSessions);
+          }
+          if (currentView === 'dashboard') {
+            loadDeviceFleet(true);
+          }
+        } else if (msg.type === 'session_killed') {
+          showToast(msg.message || 'Phiên kết nối của bạn đã bị ngắt bởi quản trị viên.', 'error');
+          disconnect();
+        } else if (msg.type === 'kill_session_success') {
+          showToast('Đã ngắt phiên kết nối đối phương thành công.', 'success');
+          refreshSessionManagerList();
+          loadDeviceFleet(true);
         } else if (msg.type === 'host_ready') {
           updateHostResolution(msg.width, msg.height);
           if (msg.monitors) populateMonitors(msg.monitors, msg.active_id);
@@ -5546,6 +5755,121 @@
         auditPage = 0;
         loadAuditLogs();
       }, 300);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Meikova Relay: Multiplatform Native Apps Download Modal & Tab Switcher
+  // -------------------------------------------------------------------------
+  const btnNavDownloadApps = document.getElementById('btnNavDownloadApps');
+  const modalDownloadApps = document.getElementById('modalDownloadApps');
+  const btnCloseDownloadApps = document.getElementById('btnCloseDownloadApps');
+  const tabBtnHost = document.getElementById('tabBtnHost');
+  const tabBtnClient = document.getElementById('tabBtnClient');
+  const dlTabPaneHost = document.getElementById('dlTabPaneHost');
+  const dlTabPaneClient = document.getElementById('dlTabPaneClient');
+  const btnCopyHostCmd = document.getElementById('btnCopyHostCmd');
+  const btnPwaInstallRelay = document.getElementById('btnPwaInstallRelay');
+  const pwaBadgeRelay = document.getElementById('pwaBadgeRelay');
+  const pwaDescRelay = document.getElementById('pwaDescRelay');
+
+  let relayPwaPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    relayPwaPrompt = e;
+    if (pwaBadgeRelay) pwaBadgeRelay.textContent = 'SẴN SÀNG';
+    if (pwaDescRelay) pwaDescRelay.textContent = 'Bấm để cài đặt PWA';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    relayPwaPrompt = null;
+    if (pwaBadgeRelay) pwaBadgeRelay.textContent = 'ĐÃ CÀI ĐẶT';
+    if (pwaDescRelay) pwaDescRelay.textContent = 'Đã cài làm App';
+  });
+
+  if (btnNavDownloadApps && modalDownloadApps) {
+    const openDownloadModal = () => {
+      modalDownloadApps.classList.remove('hidden');
+    };
+    const closeDownloadModal = () => {
+      modalDownloadApps.classList.add('hidden');
+    };
+
+    btnNavDownloadApps.addEventListener('click', openDownloadModal);
+    if (btnCloseDownloadApps) {
+      btnCloseDownloadApps.addEventListener('click', closeDownloadModal);
+    }
+
+    modalDownloadApps.addEventListener('click', (e) => {
+      if (e.target === modalDownloadApps) {
+        closeDownloadModal();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modalDownloadApps.classList.contains('hidden')) {
+        closeDownloadModal();
+      }
+    });
+  }
+
+  // Switch tabs between Host and Client
+  if (tabBtnHost && tabBtnClient && dlTabPaneHost && dlTabPaneClient) {
+    tabBtnHost.addEventListener('click', () => {
+      tabBtnHost.classList.add('on');
+      tabBtnClient.classList.remove('on');
+      tabBtnHost.setAttribute('aria-selected', 'true');
+      tabBtnClient.setAttribute('aria-selected', 'false');
+      dlTabPaneHost.classList.remove('hidden');
+      dlTabPaneClient.classList.add('hidden');
+    });
+
+    tabBtnClient.addEventListener('click', () => {
+      tabBtnClient.classList.add('on');
+      tabBtnHost.classList.remove('on');
+      tabBtnClient.setAttribute('aria-selected', 'true');
+      tabBtnHost.setAttribute('aria-selected', 'false');
+      dlTabPaneClient.classList.remove('hidden');
+      dlTabPaneHost.classList.add('hidden');
+    });
+  }
+
+  // Copy 1-liner command
+  if (btnCopyHostCmd) {
+    btnCopyHostCmd.addEventListener('click', async () => {
+      const cmd = btnCopyHostCmd.getAttribute('data-cmd');
+      if (!cmd) return;
+      try {
+        await navigator.clipboard.writeText(cmd);
+        if (typeof showToast === 'function') {
+          showToast('Đã sao chép lệnh cài đặt!', 'success');
+        }
+      } catch {
+        const input = document.createElement('textarea');
+        input.value = cmd;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        if (typeof showToast === 'function') {
+          showToast('Đã sao chép lệnh cài đặt!', 'success');
+        }
+      }
+    });
+  }
+
+  // PWA install click
+  if (btnPwaInstallRelay) {
+    btnPwaInstallRelay.addEventListener('click', async () => {
+      if (relayPwaPrompt) {
+        relayPwaPrompt.prompt();
+        const choice = await relayPwaPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          relayPwaPrompt = null;
+        }
+      } else {
+        alert('Để cài đặt Meikova Relay làm Web App (PWA):\n\n• Trên Chrome/Edge (Desktop): Nhấn biểu tượng Cài đặt (+) trên thanh địa chỉ URL.\n• Trên iPhone/Safari: Bấm nút Chia sẻ (Share) -> chọn "Thêm vào MH chính" (Add to Home Screen).\n• Trên Android: Bấm menu 3 chấm -> chọn "Cài đặt ứng dụng".');
+      }
     });
   }
 

@@ -555,13 +555,96 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // 4. Devices: List for logged-in user
+    // 4. Devices: List for logged-in user with live active sessions
     if (pathname === '/api/devices' && req.method === 'GET') {
       if (!session) {
         return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
       }
-      const devices = DB.getDevices(session.id);
+      const rawDevices = DB.getDevices(session.id);
+      const devices = rawDevices.map(d => {
+        const room = rooms.get(d.room_id);
+        const isOnline = !!(room && room.hostWs && room.hostWs.readyState === WebSocket.OPEN);
+        const activeSessions = (room && room.clients) ? Array.from(room.clients.values()).map(c => ({
+          id: c.id,
+          username: c.username || 'Khách (Ẩn danh)',
+          clientIp: c.clientIp || '127.0.0.1',
+          clientDevice: c.clientDevice || 'Trình duyệt Web',
+          connectedAt: c.connectTime || Date.now()
+        })) : [];
+        return {
+          ...d,
+          is_online: isOnline ? 1 : d.is_online,
+          active_sessions: activeSessions,
+          session_count: activeSessions.length
+        };
+      });
       return jsonResponse(res, 200, { success: true, devices });
+    }
+
+    // 4.1 Sessions: List active sessions for a specific room
+    if (pathname.startsWith('/api/rooms/') && pathname.endsWith('/sessions') && req.method === 'GET') {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
+      }
+      const parts = pathname.split('/');
+      const roomId = parts[3];
+      const room = rooms.get(roomId);
+      const activeSessions = (room && room.clients) ? Array.from(room.clients.values()).map(c => ({
+        id: c.id,
+        username: c.username || 'Khách (Ẩn danh)',
+        clientIp: c.clientIp || '127.0.0.1',
+        clientDevice: c.clientDevice || 'Trình duyệt Web',
+        connectedAt: c.connectTime || Date.now(),
+        isSelf: c.userId === session.id
+      })) : [];
+      return jsonResponse(res, 200, {
+        success: true,
+        roomId,
+        sessions: activeSessions,
+        count: activeSessions.length,
+        isOnline: !!(room && room.hostWs && room.hostWs.readyState === WebSocket.OPEN)
+      });
+    }
+
+    // 4.2 Sessions: Kill an active session
+    if (pathname === '/api/sessions/kill' && req.method === 'POST') {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
+      }
+      const body = await parseBody(req);
+      const { roomId, sessionId } = body;
+      if (!roomId || !sessionId) {
+        return jsonResponse(res, 400, { success: false, message: 'Thiếu roomId hoặc sessionId' });
+      }
+      const room = rooms.get(roomId);
+      if (!room || !room.clients || !room.clients.has(sessionId)) {
+        return jsonResponse(res, 404, { success: false, message: 'Phiên không tồn tại hoặc đã ngắt kết nối' });
+      }
+      const target = room.clients.get(sessionId);
+      DB.logAudit({
+        action: 'SESSION_KILLED',
+        userId: session.id,
+        username: session.username || session.email,
+        clientIp: getClientIp(req),
+        clientDevice: parseClientDevice(req.headers['user-agent']),
+        roomId,
+        targetDevice: room.hostMeta?.deviceName,
+        targetOs: room.hostMeta?.osInfo,
+        details: { killedSessionId: sessionId, killedUser: target.username, killedIp: target.clientIp }
+      });
+      target.ws.send(JSON.stringify({
+        type: 'session_killed',
+        message: `Phiên làm việc của bạn đã bị ngắt bởi ${session.username || session.email || 'người điều khiển khác'}.`
+      }));
+      try {
+        target.ws.close(1000, 'Session terminated by admin');
+      } catch {}
+      room.clients.delete(sessionId);
+      broadcastSessionList(room);
+      if (room.clients.size === 0 && room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
+        room.hostWs.send(JSON.stringify({ type: 'client_disconnected' }));
+      }
+      return jsonResponse(res, 200, { success: true, message: 'Đã ngắt phiên kết nối thành công' });
     }
 
     // 5. Devices: Link a device to account
@@ -1090,16 +1173,52 @@ echo "Meikova Relay Host running in background (PID: $!)."
 const wss = new WebSocketServer({ server });
 const rooms = new Map();
 
+function broadcastSessionList(room, targetWs = null) {
+  if (!room || !room.clients) return;
+  const sessions = Array.from(room.clients.values()).map(c => ({
+    id: c.id,
+    username: c.username || 'Khách (Ẩn danh)',
+    userId: c.userId,
+    clientIp: c.clientIp || '127.0.0.1',
+    clientDevice: c.clientDevice || 'Trình duyệt Web',
+    connectedAt: c.connectTime || Date.now()
+  }));
+
+  if (targetWs) {
+    if (targetWs.readyState === WebSocket.OPEN) {
+      targetWs.send(JSON.stringify({
+        type: 'session_list',
+        sessions: sessions.map(s => ({ ...s, isSelf: s.id === targetWs.sessionId })),
+        clientCount: sessions.length
+      }));
+    }
+    return;
+  }
+
+  for (const client of room.clients.values()) {
+    if (client.ws.readyState === WebSocket.OPEN) {
+      client.ws.send(JSON.stringify({
+        type: 'session_list',
+        sessions: sessions.map(s => ({ ...s, isSelf: s.id === client.id })),
+        clientCount: sessions.length
+      }));
+    }
+  }
+}
+
 function getOrCreateRoom(roomId) {
   if (!rooms.has(roomId)) {
     rooms.set(roomId, {
       pin: null,
       hostWs: null,
       clientWs: null,
+      clients: new Map(),
       hostMeta: null
     });
   }
-  return rooms.get(roomId);
+  const r = rooms.get(roomId);
+  if (!r.clients) r.clients = new Map();
+  return r;
 }
 
 wss.on('connection', (ws, req) => {
@@ -1116,12 +1235,16 @@ wss.on('connection', (ws, req) => {
   ws.on('pong', () => { ws.isAlive = true; });
 
   ws.on('message', (message, isBinary) => {
-    // 1. Forward raw binary frames (Screen frames or file chunks)
+    // 1. Forward raw binary frames (Screen frames or file chunks to ALL active clients)
     if (isBinary) {
       if (role === 'host' && currentRoomId) {
         const room = rooms.get(currentRoomId);
-        if (room && room.clientWs && room.clientWs.readyState === WebSocket.OPEN) {
-          room.clientWs.send(message, { binary: true });
+        if (room && room.clients) {
+          for (const client of room.clients.values()) {
+            if (client.ws.readyState === WebSocket.OPEN) {
+              client.ws.send(message, { binary: true });
+            }
+          }
         }
       } else if (role === 'client' && currentRoomId) {
         const room = rooms.get(currentRoomId);
@@ -1196,15 +1319,19 @@ wss.on('connection', (ws, req) => {
       console.log(`[Host Online] Room: ${roomId} | Device: ${room.hostMeta.deviceName} | IP: ${ws.clientIp}`);
       ws.send(JSON.stringify({ status: 'ok', role: 'host', room_id: roomId }));
 
-      if (room.clientWs && room.clientWs.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'client_connected' }));
-        room.clientWs.send(JSON.stringify({
-          type: 'host_ready',
-          width: room.hostMeta.width,
-          height: room.hostMeta.height,
-          deviceName: room.hostMeta.deviceName,
-          monitors: room.hostMeta.monitors
-        }));
+      if (room.clients && room.clients.size > 0) {
+        ws.send(JSON.stringify({ type: 'client_connected', clientCount: room.clients.size }));
+        for (const client of room.clients.values()) {
+          if (client.ws.readyState === WebSocket.OPEN) {
+            client.ws.send(JSON.stringify({
+              type: 'host_ready',
+              width: room.hostMeta.width,
+              height: room.hostMeta.height,
+              deviceName: room.hostMeta.deviceName,
+              monitors: room.hostMeta.monitors
+            }));
+          }
+        }
       }
       return;
     }
@@ -1257,7 +1384,19 @@ wss.on('connection', (ws, req) => {
 
       role = 'client';
       currentRoomId = roomId;
-      room.clientWs = ws;
+      const sessionId = 'sess_' + Math.random().toString(36).substring(2, 9);
+      ws.sessionId = sessionId;
+      const clientInfo = {
+        id: sessionId,
+        ws: ws,
+        username: ws.username,
+        userId: ws.userId,
+        clientIp: ws.clientIp,
+        clientDevice: ws.clientDevice,
+        connectTime: Date.now()
+      };
+      room.clients.set(sessionId, clientInfo);
+      room.clientWs = ws; // backward compat reference
 
       DB.logAudit({
         action: 'SESSION_CONNECTED',
@@ -1268,18 +1407,58 @@ wss.on('connection', (ws, req) => {
         roomId,
         targetDevice: room.hostMeta?.deviceName,
         targetOs: room.hostMeta?.osInfo,
-        details: { status: 'connected', resolution: `${room.hostMeta?.width}x${room.hostMeta?.height}` }
+        details: { status: 'connected', resolution: `${room.hostMeta?.width}x${room.hostMeta?.height}`, sessionId }
       });
 
-      console.log(`[Client Connected] Room: ${roomId} | User: ${ws.username} | IP: ${ws.clientIp} | Device: ${ws.clientDevice}`);
+      console.log(`[Client Connected] Room: ${roomId} | Session: ${sessionId} | User: ${ws.username} | Total: ${room.clients.size}`);
       ws.send(JSON.stringify({
         status: 'ok',
         role: 'client',
         room_id: roomId,
+        session_id: sessionId,
         hostMeta: room.hostMeta
       }));
 
-      room.hostWs.send(JSON.stringify({ type: 'client_connected' }));
+      if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
+        room.hostWs.send(JSON.stringify({ type: 'client_connected', clientCount: room.clients.size, sessionId }));
+      }
+      return;
+    }
+
+    // --- Session Management Messages (Live list & Kill Session) ---
+    if (type === 'get_sessions' && currentRoomId) {
+      const room = rooms.get(currentRoomId);
+      if (room) broadcastSessionList(room, ws);
+      return;
+    }
+
+    if (type === 'kill_session' && currentRoomId) {
+      const room = rooms.get(currentRoomId);
+      const targetSessionId = data.session_id || data.targetSessionId;
+      if (room && room.clients && room.clients.has(targetSessionId)) {
+        const target = room.clients.get(targetSessionId);
+        DB.logAudit({
+          action: 'SESSION_KILLED',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice: room.hostMeta?.deviceName,
+          details: { killedSessionId: targetSessionId, killedUser: target.username, killedIp: target.clientIp }
+        });
+        target.ws.send(JSON.stringify({
+          type: 'session_killed',
+          message: `Phiên kết nối của bạn đã bị ngắt bởi ${ws.username || 'người điều khiển khác'}.`
+        }));
+        try { target.ws.close(1000, 'Session terminated'); } catch {}
+        room.clients.delete(targetSessionId);
+        broadcastSessionList(room);
+        if (room.clients.size === 0 && room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
+          room.hostWs.send(JSON.stringify({ type: 'client_disconnected' }));
+        }
+        ws.send(JSON.stringify({ type: 'kill_session_success', session_id: targetSessionId }));
+      }
       return;
     }
 
@@ -1450,8 +1629,13 @@ wss.on('connection', (ws, req) => {
       }
     } else if (role === 'host' && currentRoomId) {
       const room = rooms.get(currentRoomId);
-      if (room && room.clientWs && room.clientWs.readyState === WebSocket.OPEN) {
-        room.clientWs.send(message.toString());
+      if (room && room.clients) {
+        const msgStr = message.toString();
+        for (const client of room.clients.values()) {
+          if (client.ws.readyState === WebSocket.OPEN) {
+            client.ws.send(msgStr);
+          }
+        }
       }
     }
   });
@@ -1472,11 +1656,15 @@ wss.on('connection', (ws, req) => {
         });
         room.hostWs = null;
         DB.setDeviceOnlineStatus(currentRoomId, false);
-        if (room.clientWs && room.clientWs.readyState === WebSocket.OPEN) {
-          room.clientWs.send(JSON.stringify({ type: 'host_disconnected', message: 'Máy trạm đã ngắt kết nối' }));
+        if (room.clients) {
+          for (const client of room.clients.values()) {
+            if (client.ws.readyState === WebSocket.OPEN) {
+              client.ws.send(JSON.stringify({ type: 'host_disconnected', message: 'Máy trạm đã ngắt kết nối' }));
+            }
+          }
         }
       } else if (role === 'client') {
-        console.log(`[Client Disconnected] Room: ${currentRoomId}`);
+        console.log(`[Client Disconnected] Room: ${currentRoomId} | Session: ${ws.sessionId}`);
         const durationSec = Math.round((Date.now() - (ws.connectTime || Date.now())) / 1000);
         DB.logAudit({
           action: 'SESSION_DISCONNECTED',
@@ -1487,15 +1675,18 @@ wss.on('connection', (ws, req) => {
           roomId: currentRoomId,
           targetDevice: room?.hostMeta?.deviceName,
           targetOs: room?.hostMeta?.osInfo,
-          details: { durationSec, durationText: `${durationSec}s` }
+          details: { durationSec, durationText: `${durationSec}s`, sessionId: ws.sessionId }
         });
-        room.clientWs = null;
-        if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
-          room.hostWs.send(JSON.stringify({ type: 'client_disconnected' }));
+        if (room && room.clients) {
+          room.clients.delete(ws.sessionId);
+          broadcastSessionList(room);
+          if (room.clients.size === 0 && room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
+            room.hostWs.send(JSON.stringify({ type: 'client_disconnected' }));
+          }
         }
       }
 
-      if (!room.hostWs && !room.clientWs) {
+      if (!room.hostWs && (!room.clients || room.clients.size === 0)) {
         rooms.delete(currentRoomId);
       }
     }

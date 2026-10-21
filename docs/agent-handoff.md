@@ -1,6 +1,28 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.30)
+### Recent Updates (Version 1.0.31)
+- **Hỗ Trợ Nhiều Client Remote Đồng Thời Tới 1 Máy Trạm & Quản Lý / Ngắt Phiên (Multi-Client Fanout & Session Management):**
+  - **Kiến trúc Đa Client Đồng Thời (relay-server/server.js):**
+    - Chuyển đổi quản lý kết nối đơn lẻ `room.clientWs` sang `room.clients = new Map()` với metadata từng phiên: `sessionId`, `ws`, `username`, `userId`, `clientIp`, `clientDevice`, `connectTime`.
+    - Host binary stream (video, input ACK) và bản tin trạng thái được phát tán (fan-out broadcast) tức thì tới toàn bộ client đang kết nối trong cùng phòng mà không làm tăng độ trễ.
+    - Nhận diện và chuyển tiếp tương tác bàn phím/chuột độc lập từ bất kỳ client nào tới máy trạm host.
+  - **Quản Lý Phiên Kết Nối Thời Gian Thực & Cơ Chế Kill Session:**
+    - Bổ sung REST Endpoints:
+      - `GET /api/rooms/:roomId/sessions`: Lấy danh sách phiên kết nối thời gian thực của máy trạm.
+      - `POST /api/sessions/kill`: Ngắt kết nối phiên làm việc của đối phương từ xa.
+    - Bổ sung WebSocket Protocol: `get_sessions`, `kill_session`, `session_list`, `session_killed`, `kill_session_success`.
+    - Bổ sung Audit Trail: Ghi nhận sự kiện `SESSION_KILLED` và `SESSION_DISCONNECTED` (kèm thời lượng `durationSec`) vào CSDL phục vụ tra cứu bảo mật.
+  - **Giao Diện Điều Khiển & Quản Lý Phiên (web-client & relay-server/public):**
+    - Thẻ máy trạm tại danh sách "Máy trạm" (`/api/devices`) hiển thị huy hiệu thời gian thực: `● X phiên đang kết nối` kèm nút `[Quản trị phiên]`.
+    - Modal Quản Lý Phiên (`#modalSessionManager`): Hiển thị chi tiết từng phiên (Tên tài khoản, IP, thiết bị, thời gian kết nối, huy hiệu "(Bạn)") cùng nút `[Ngắt phiên]` cho phép ngắt client khác.
+    - Tích hợp nút "Phiên" trực tiếp trên thanh điều khiển Remote Desktop cho phép quản lý ngay trong lúc đang điều khiển máy từ xa.
+  - **Kiểm Thử & Xác Nhận:**
+    - Toàn bộ 81 bài kiểm thử tự động pass hoàn toàn (`Ran 81 tests in 21.011s - OK (skipped=1)`, Exit Code 0).
+    - Cú pháp `node -c relay-server/server.js` đạt chuẩn, Exit Code 0.
+
+---
+
+### Previous Updates (Version 1.0.30)
 - **Khắc Phục Tối Đen Màn Hình 2 & Chống Đè Lấn Huy Hiệu 1:1 Pixel-Perfect:**
   - **Khắc phục màn hình phụ bị tối đen (host_agent/screen_capture.py, host_agent/host_service.py):**
     - **Nguyên nhân cốt lõi:** Khi người dùng chọn màn hình 2 (hoặc bất kỳ màn phụ nào có tọa độ x >= 1920 hoặc x âm), `capture_frame()` trước đó đặt cờ `all_screens = False`. Trên Windows, thư viện Pillow `grabscreen_win32` khi nhận `all_screens=False` chỉ chụp duy nhất màn hình chính `(0, 0, w, h)`. Khi tiến hành cắt vùng `bbox` của màn 2 ngoài phạm vi màn chính, Pillow tự động fill toàn bộ ảnh bằng điểm ảnh đen thuần túy `RGB(0, 0, 0)`.
