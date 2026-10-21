@@ -1,4 +1,12 @@
-const { DatabaseSync } = require('node:sqlite');
+let DatabaseSync;
+try {
+  ({ DatabaseSync } = require('node:sqlite'));
+} catch (err) {
+  console.error('\n[FATAL] node:sqlite module could not be loaded: ' + err.message);
+  console.error('[FATAL] Node.js 22 requires the flag: node --experimental-sqlite server.js');
+  console.error('[FATAL] Or set env variable: NODE_OPTIONS=--experimental-sqlite\n');
+  throw err;
+}
 const crypto = require('crypto');
 const path = require('path');
 

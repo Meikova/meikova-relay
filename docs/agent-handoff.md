@@ -1,5 +1,26 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.49 - Node 22 Experimental SQLite Flag & Render Deployment)
+- **1. Khac Phuc Loi node:sqlite Tren Render (Node.js v22.12.0):**
+  - **Phan tich nguyen nhan goc re:**
+    * Tren Node.js 22.12.0, module chuan node:sqlite nam sau co tinh nang thuc nghiem (--experimental-sqlite).
+    * Khi Render khoi dong qua node server.js, Node nem loi ERR_UNKNOWN_BUILTIN_MODULE: No such built-in module: node:sqlite.
+  - **Khac phuc:**
+    * relay-server/package.json: Doi "start": "node --experimental-sqlite server.js".
+    * render.yaml: Cau hinh startCommand: node --experimental-sqlite server.js va bien moi truong NODE_OPTIONS: --experimental-sqlite.
+    * relay-server/db.js: Boc require('node:sqlite') trong khoi try-catch an toan, fail-loud kem thong bao huong dan ro rang.
+- **2. Lam Sach Chuan Giao Dien Zero-Emoji:**
+  * host_agent/gui_agent.py: Chuyen text nut Chat khong dung emoji.
+  * host_agent/gui_view.html: Chuyen nut #btnHostChat sang Inline SVG icon chuan optical center.
+- **3. Huong Dan Lien Ket Render Voi GitHub Organization Meikova & Auto-Deploy:**
+  * Giai thich chi tiet nguyen nhan chi thay tai khoan ca nhan m3ik18dp: Do GitHub Organization Meikova chua cap quyen cho Render GitHub App.
+  * Huong dan cap quyen Render tren GitHub Org va cach cau hinh Webhook / Deploy Hook khi ket noi dang Public Repo.
+- **4. Kiem thu & Dong goi:**
+  * Chay test suite python -m unittest discover tests: 112/112 tests pass (Exit Code 0).
+  * Kiem thu node --experimental-sqlite relay-server/server.js: Khoi dong thanh cong, SQLite schema san sang.
+
+---
+
 ### Recent Updates (Version 1.0.48 - Complete Brand Harmonization, Instant Tray Exit & Render Deploy Fix)
 - **1. Đồng Bộ Triệt Để Nhận Diện Thương Hiệu Meikova Relay (Duplex Bridge):**
   - **Tài sản thương hiệu chuẩn (`D:\JOB\DEV\meikova\assets\logos\products\meikova-relay` & `docs/BRAND-AND-LOGOS.md`):**

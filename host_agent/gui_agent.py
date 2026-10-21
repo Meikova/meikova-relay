@@ -931,7 +931,7 @@ class MeikovaRelayHostGUI:
 
         self.btn_open_chat = tk.Button(
             self.active_session_card,
-            text="💬 Chat",
+            text="Chat",
             font=("Segoe UI", 7, "bold"),
             bg=COLORS["btn_surface"],
             fg=COLORS["accent_cyan"],
