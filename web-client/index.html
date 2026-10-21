@@ -20,8 +20,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/favicon.svg">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.0.40">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.40">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.0.42">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.42">
 </head>
 <body>
 
@@ -1053,15 +1053,28 @@
           </button>
         </div>
 
-        <select id="qualitySelector" class="deck__btn" title="Cấu hình phân giải, FPS & chất lượng" data-i18n-title="deck.quality_title">
-          <option value="native_1to1" data-i18n="deck.quality_native_1to1">1:1 Chuẩn gốc (Pixel-Perfect)</option>
-          <option value="auto_sync" data-i18n="deck.quality_auto_sync">Tự động tối ưu (Auto-Sync)</option>
-          <option value="ultra_120" data-i18n="deck.quality_ultra_120">120 FPS Siêu mượt</option>
-          <option value="speed_60" data-i18n="deck.quality_speed">60 FPS Mượt mà</option>
-          <option value="crisp_2k_4k" data-i18n="deck.quality_crisp_2k_4k">2K / 4K Cực nét (95%)</option>
-          <option value="crisp_hd" data-i18n="deck.quality_hd">HD Nét (85%)</option>
-          <option value="balanced" selected data-i18n="deck.quality_balanced">30 FPS Cân bằng</option>
-          <option value="grayscale" data-i18n="deck.quality_grayscale">Tiết kiệm băng thông</option>
+        <!-- Compact Quality Preset Trigger Button (Ambient Capsule) -->
+        <button type="button" id="btnQualityMenu" class="deck__btn deck__btn--quality" title="Cấu hình phân giải, FPS & chất lượng" data-i18n-title="deck.quality_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+          <span id="qualityCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700; color: var(--accent);">30 FPS</span>
+          <svg class="deck-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+
+        <!-- Hidden Native Select (Synchronized for backward compatibility) -->
+        <select id="qualitySelector" class="hidden" title="Cấu hình phân giải, FPS & chất lượng">
+          <option value="native_1to1">1:1 Chuẩn gốc (Pixel-Perfect)</option>
+          <option value="auto_sync">Tự động tối ưu (Auto-Sync)</option>
+          <option value="ultra_120">120 FPS Siêu mượt</option>
+          <option value="speed_60">60 FPS Mượt mà</option>
+          <option value="crisp_2k_4k">2K / 4K Cực nét (95%)</option>
+          <option value="crisp_hd">HD Nét (85%)</option>
+          <option value="balanced" selected>30 FPS Cân bằng</option>
+          <option value="grayscale">Tiết kiệm băng thông</option>
         </select>
 
         <!-- 1-Click Display Auto-Sync Button -->
@@ -1150,6 +1163,77 @@
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </footer>
+
+      <!-- Quality & Performance Presets Floating Menu -->
+      <div id="qualityMenuDropdown" class="quality-menu hidden">
+        <div class="quality-menu-header" data-i18n="deck.quality_menu_title">CHẤT LƯỢNG & TỐC ĐỘ (PRESET)</div>
+        <div class="quality-menu-list">
+          <button type="button" class="quality-menu-item" data-preset="native_1to1">
+            <span class="quality-item-badge">1:1</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_native_1to1">1:1 Chuẩn gốc (Pixel-Perfect)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_native_1to1_desc">Nguyên bản từng pixel, độ nét tối đa không suy hao</div>
+            </div>
+            <span class="quality-check hidden">✓</span>
+          </button>
+          <button type="button" class="quality-menu-item" data-preset="auto_sync">
+            <span class="quality-item-badge">AUTO</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_auto_sync">Tự động tối ưu (Auto-Sync)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_auto_sync_desc">Tự đàm phán phân giải & FPS theo đường truyền</div>
+            </div>
+            <span class="quality-check hidden">✓</span>
+          </button>
+          <button type="button" class="quality-menu-item" data-preset="ultra_120">
+            <span class="quality-item-badge">120</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_ultra_120">120 FPS Siêu mượt</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_ultra_120_desc">Độ trễ tối thiểu, tối ưu gaming & cuộn mượt mà</div>
+            </div>
+            <span class="quality-check hidden">✓</span>
+          </button>
+          <button type="button" class="quality-menu-item" data-preset="speed_60">
+            <span class="quality-item-badge">60</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_speed">60 FPS Mượt mà</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_speed_desc">Tiêu chuẩn 60 FPS mượt mà cho thao tác đồ họa</div>
+            </div>
+            <span class="quality-check hidden">✓</span>
+          </button>
+          <button type="button" class="quality-menu-item" data-preset="crisp_2k_4k">
+            <span class="quality-item-badge">4K</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_crisp_2k_4k">2K / 4K Cực nét (95%)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_crisp_2k_4k_desc">Chất lượng nén 95%, sắc nét từng chi tiết</div>
+            </div>
+            <span class="quality-check hidden">✓</span>
+          </button>
+          <button type="button" class="quality-menu-item" data-preset="crisp_hd">
+            <span class="quality-item-badge">HD</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_hd">HD Nét (85%)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_hd_desc">Chất lượng nén 85%, cân bằng độ nét</div>
+            </div>
+            <span class="quality-check hidden">✓</span>
+          </button>
+          <button type="button" class="quality-menu-item active" data-preset="balanced">
+            <span class="quality-item-badge">30</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_balanced">30 FPS Cân bằng</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_balanced_desc">Tối ưu tài nguyên CPU trạm và băng thông ổn định</div>
+            </div>
+            <span class="quality-check">✓</span>
+          </button>
+          <button type="button" class="quality-menu-item" data-preset="grayscale">
+            <span class="quality-item-badge">ECO</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_grayscale">Tiết kiệm băng thông</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_grayscale_desc">Chế độ đơn sắc / nén cao khi mạng 3G/4G yếu</div>
+            </div>
+            <span class="quality-check hidden">✓</span>
+          </button>
+        </div>
+      </div>
 
       <!-- Power Actions Floating Menu -->
       <div id="powerMenuDropdown" class="power-menu hidden">
@@ -2121,9 +2205,9 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.40"></script>
-  <script src="/js/sync_engine.js?v=1.0.40"></script>
-  <script src="/js/app.js?v=1.0.40"></script>
+  <script src="/js/i18n.js?v=1.0.42"></script>
+  <script src="/js/sync_engine.js?v=1.0.42"></script>
+  <script src="/js/app.js?v=1.0.42"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {

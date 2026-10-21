@@ -1,5 +1,25 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.42)
+- **Tối Ưu Hóa Diện Tích Deck & Chuẩn Hóa Menu Cấu Hình Chất Lượng Ambient Dark (Zero-Native-Inputs):**
+  - **1. Vấn đề nhận diện:**
+    - Nút lựa chọn cấu hình chất lượng/FPS trước đây dùng thẻ `<select id="qualitySelector">` với các nhãn văn bản quá dài (như `1:1 Chuẩn gốc (Pixel-Perfect)` dài 30 ký tự chiếm ~250px bề ngang), làm phình to thanh điều khiển nổi (Floating Pill Deck) và lấn chiếm diện tích của hơn 20 nút công cụ khác.
+    - Khi nhấp chọn, trình duyệt kích hoạt dropdown menu nguyên mẫu của hệ điều hành với nền xám thô cứng, phá vỡ phong cách thiết kế Ambient Dark (vi phạm quy chuẩn Zero-Native-Inputs).
+  - **2. Giải pháp khắc phục:**
+    - [web-client/index.html](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/index.html) & [web-client/css/style.css](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/css/style.css):
+      - Thu gọn nút bấm trên deck thành khoang nhộng tinh gọn `#btnQualityMenu` (.deck__btn--quality): Kích thước giảm từ ~250px xuống còn ~75px (tiết kiệm hơn 65% diện tích bề ngang deck). Gồm biểu tượng tinh chỉnh chất lượng SVG, nhãn mã hóa tín hiệu cao (`1:1`, `AUTO`, `120 FPS`, `60 FPS`, `4K`, `HD`, `30 FPS`, `ECO`) màu neon `var(--accent)`, cùng mũi tên xoay động khi mở menu.
+      - Xây dựng popover nổi `#qualityMenuDropdown` (.quality-menu) chuẩn Ambient Dark đồng bộ cùng `#powerMenuDropdown` và `#deckModeDropdown`: Nền mờ kính `blur(16px)`, hiệu ứng chiều sâu phát quang neon, mỗi mục gồm huy hiệu mono, tiêu đề preset, mô tả chi tiết song ngữ và dấu tích xanh `✓` biểu thị preset đang kích hoạt.
+      - Giới hạn độ rộng `#monitorSelector` tối đa 125px kèm `text-overflow: ellipsis` chống giãn phình deck khi máy trạm có nhiều màn hình.
+    - [web-client/js/app.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/app.js):
+      - Duy trì `<select id="qualitySelector" class="hidden">` ngầm định, tự động đồng bộ 2 chiều (Bi-directional Sync) khi người dùng chọn menu hoặc khi server tự động tối ưu hiển thị (`handleDisplayProfileMatched`). Bảo toàn 100% tính tương thích ngược với toàn bộ logic hiện hành.
+      - Xử lý đóng mở popover, đóng khi nhấp ngoài màn hình (click-outside), chống làm mờ deck khi đang rê chuột trong menu (`resetDeckIdle` & `releaseDeckPeek`).
+    - [web-client/js/i18n.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/i18n.js): Bổ sung tiêu đề menu và mô tả song ngữ cho toàn bộ 8 preset.
+    - Nâng cache-buster lên `?v=1.0.42` và cập nhật Service Worker `meikova-relay-cache-v1.0.42`, đồng bộ toàn diện sang `relay-server/public/`.
+  - **3. Kiểm thử & Đóng gói:**
+    - Vượt qua toàn bộ 90/90 bài kiểm thử tự động (`Ran 90 tests in 18.677s - OK (skipped=1)`, Exit Code 0).
+
+---
+
 ### Recent Updates (Version 1.0.41)
 - **Khắc Phục Lỗi "Access is denied" và Tự Động Hóa Đóng Gói Host GUI Mới Nhất Trên Máy Trạm (`setup.bat` & `agent-package.zip`):**
   - **1. Phân tích nguyên nhân gốc rễ (Root Cause Analysis):**
