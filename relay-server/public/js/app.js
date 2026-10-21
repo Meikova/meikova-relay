@@ -3107,9 +3107,17 @@
           applyHostCursor(msg.cursor);
         } else if (msg.type === 'clipboard_sync') {
           lastSyncedClientClipboard = msg.text || '';
-          clipboardViewer.value = msg.text || '';
+          if (document.activeElement !== clipboardViewer) {
+            clipboardViewer.value = msg.text || '';
+          }
           if (navigator.clipboard && navigator.clipboard.writeText && msg.text) {
             navigator.clipboard.writeText(msg.text).catch(() => {});
+          }
+        } else if (msg.type === 'clipboard_sync_ack') {
+          if (msg.success) {
+            showToast('Đã đồng bộ sang bộ nhớ tạm của máy trạm!', 'success');
+          } else {
+            showToast('Không thể cập nhật bộ nhớ tạm trên máy trạm', 'error');
           }
         } else if (msg.type === 'terminal_output') {
           handleTerminalOutput(msg.data || '');
@@ -5090,14 +5098,27 @@
   });
 
   // Clipboard Push
-  btnPushClipboard.addEventListener('click', () => {
-    if (!isConnected) return;
+  btnPushClipboard.addEventListener('click', async () => {
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast('Chưa kết nối máy trạm', 'info');
+      return;
+    }
     const text = clipboardViewer.value;
+    if (!text) {
+      showToast('Vui lòng nhập nội dung cần đồng bộ', 'info');
+      return;
+    }
+    lastSyncedClientClipboard = text;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {}
+    }
     ws.send(JSON.stringify({
       type: 'clipboard_sync',
       text: text
     }));
-    showToast('Đã đồng bộ sang bộ nhớ tạm của máy trạm!', 'success');
+    showToast('Đang đẩy sang bộ nhớ tạm của máy trạm...', 'info');
   });
 
   // Direct Unicode Typing (PowerPoint, Word, Terminal, etc.)

@@ -1,5 +1,31 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.38)
+- **Chuẩn Hóa UI Nút Bấm Side Shelf & Khắc Phục Triệt Để Đồng Bộ 'Đẩy Clipboard':**
+  - **1. Chuẩn hóa giao diện nút bấm Side Shelf (Equalized Pill Button Styling):**
+    - **Nguyên nhân lệch size:** Trước đây nút "Đẩy clipboard" dùng class `.btn-cta` (padding 12px, margin-top lớn, không cố định chiều cao) trong khi nút "Gõ trực tiếp" dùng class `.btn-pill` (height 34px), khiến hai nút đặt cạnh nhau bị tình trạng "nút to nút nhỏ", lệch đường cơ sở (baseline) và mất cân đối.
+    - **Khắc phục:** Chuyển layout sang lưới chia đôi cân xứng `display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;`. Cả 2 nút đều dùng class `.btn-pill` với chiều cao chuẩn hóa `height: 38px`, `font-size: 0.85rem; justify-content: center; margin: 0;`. Nút Đẩy clipboard giữ vai trò CTA chính (nền accent xanh neon + glow), nút Gõ trực tiếp là pill thứ cấp (viền Ambient Dark hairline) tinh tế, đối xứng hoàn hảo 50/50.
+  - **2. Khắc phục triệt để lỗi 'Đẩy clipboard' không đồng bộ (Thread-Safe Clipboard Sync & Desktop Attachment):**
+    - **Nguyên nhân:**
+      1. Trong `host_agent/clipboard_manager.py`, luồng ngầm `_loop` thăm dò chu kỳ 200ms gọi `OpenClipboard()`, đồng thời luồng websocket gọi `set_clipboard_text()` mà không có Mutex/Lock. Khi cả 2 luồng cùng mở clipboard cùng lúc hoặc ứng dụng ngoài đang giữ clipboard, Windows trả về lỗi `ERROR_ACCESS_DENIED (5)`. Code cũ nuốt lỗi và trả về `False` ngay lập tức mà không thử lại.
+      2. Luồng gọi thiếu gắn kết với Desktop tương tác của người dùng (`OpenInputDesktop`).
+      3. Trên client web, khi người dùng đang gõ vào `clipboardViewer`, các gói tin `clipboard_sync` thăm dò từ máy trạm có thể ghi đè nội dung đang nhập. Nút Đẩy clipboard cũng chưa đồng bộ ngược lại vào `navigator.clipboard` của trình duyệt.
+    - **Khắc phục:**
+      - [host_agent/clipboard_manager.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/clipboard_manager.py):
+        - Bổ sung `threading.Lock()` bảo vệ cả `get_clipboard_text` và `set_clipboard_text`.
+        - Bổ sung cơ chế thử lại (retry loop 10 lần, 20ms/lần) vượt qua hiện tượng khóa tạm thời của OS.
+        - Thêm `_attach_desktop()` tự động kết nối Desktop input đang hoạt động trên Windows.
+        - Dự phòng chuyển tiếp mượt mà giữa `win32clipboard` và native ctypes.
+      - [host_agent/host_service.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/host_service.py): Bổ sung gửi gói tin `clipboard_sync_ack` phản hồi kết quả thực thi về client.
+      - [web-client/js/app.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/js/app.js):
+        - Ngăn ghi đè `clipboardViewer` khi người dùng đang focus nhập liệu (`document.activeElement !== clipboardViewer`).
+        - Nút Đẩy clipboard tự động cập nhật clipboard nội bộ của trình duyệt (`navigator.clipboard.writeText`) và hiển thị thông báo trạng thái `clipboard_sync_ack`.
+  - **3. Kiểm thử & Đóng gói:**
+    - Toàn bộ 87 bài kiểm thử vượt qua (`Ran 87 tests in 18.181s - OK (skipped=1)`, Exit Code 0).
+    - Biên dịch lại `MeikovaRelayHost.exe` Windows thành công (Exit Code 0).
+
+---
+
 ### Recent Updates (Version 1.0.37)
 - **Đồng Bộ Hình Dạng Con Trỏ Chuột Thời Gian Thực Giữa Máy Trạm và Web Client (Real-time Cursor Shape Synchronization):**
   - **Vấn đề cốt lõi:**

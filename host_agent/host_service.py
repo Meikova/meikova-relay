@@ -713,8 +713,14 @@ class HostService:
                 # Clipboard Sync from Client
                 elif ev_type == "clipboard_sync":
                     new_text = event.get("text", "")
-                    if new_text:
-                        self.clipboard.set_clipboard_text(new_text)
+                    ok = False
+                    if new_text is not None:
+                        ok = self.clipboard.set_clipboard_text(new_text)
+                    await ws.send(json.dumps({
+                        "type": "clipboard_sync_ack",
+                        "success": ok,
+                        "text": new_text
+                    }))
                     continue
 
                 # File Upload Events
