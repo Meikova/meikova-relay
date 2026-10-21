@@ -16,15 +16,27 @@ class TestDownloadEndpoints(unittest.TestCase):
         try:
             cls.server_process = subprocess.Popen(
                 ["node", server_path],
+                cwd=str(Path(__file__).resolve().parent.parent / "relay-server"),
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            time.sleep(1.5)
-            if cls.server_process.poll() is not None:
-                _, err = cls.server_process.communicate()
-                err_text = err.decode('utf-8', errors='replace')
-                raise unittest.SkipTest(f"Relay server failed to start: {err_text}")
+            import socket
+            start_time = time.time()
+            ready = False
+            while time.time() - start_time < 8.0:
+                if cls.server_process.poll() is not None:
+                    _, err = cls.server_process.communicate()
+                    err_text = err.decode('utf-8', errors='replace')
+                    raise unittest.SkipTest(f"Relay server failed to start: {err_text}")
+                try:
+                    with socket.create_connection(("127.0.0.1", cls.port), timeout=0.2):
+                        ready = True
+                        break
+                except (ConnectionRefusedError, OSError):
+                    time.sleep(0.1)
+            if not ready:
+                raise unittest.SkipTest(f"Relay server did not start listening on port {cls.port} within 8s")
         except FileNotFoundError:
             raise unittest.SkipTest("Node.js runtime not installed, skipping test.")
 

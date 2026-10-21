@@ -1778,7 +1778,7 @@
   </div>
 
   <!-- Online Direct File Editor Modal -->
-  <div id="fileEditorModal" class="modal-overlay hidden" style="z-index: 10000; padding: 20px;">
+  <div id="fileEditorModal" class="auth-container modal-overlay hidden" style="z-index: 10000; padding: 20px;">
     <div class="file-editor-card">
       <div class="file-editor-header">
         <div class="file-editor-header-left">
@@ -2074,6 +2074,26 @@
           <span>GitHub Releases</span>
           <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meikova Ambient Confirmation & Alert Dialog Modal -->
+  <div id="modalConfirmDialog" class="auth-container modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle" style="z-index: 10001;">
+    <div class="instrument-card" style="max-width: 440px; width: 90vw; border-color: var(--line-highlight); box-shadow: 0 24px 64px rgba(0,0,0,0.85);">
+      <div style="display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px;">
+        <div id="confirmDialogIconWrap" style="width: 40px; height: 40px; border-radius: 10px; background: rgba(34, 197, 94, 0.12); color: #22C55E; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg id="confirmDialogIconCheck" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <svg id="confirmDialogIconAlert" class="hidden" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+          <h3 id="confirmDialogTitle" class="brand-font" style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--text);">Xác nhận</h3>
+          <p id="confirmDialogMessage" style="margin: 0; font-size: 0.86rem; color: var(--text-muted); line-height: 1.5; word-break: break-word; white-space: pre-wrap;"></p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+        <button type="button" id="confirmDialogBtnCancel" class="btn-pill" style="min-width: 90px; justify-content: center;">Hủy</button>
+        <button type="button" id="confirmDialogBtnConfirm" class="btn-cta" style="margin: 0; min-width: 100px; justify-content: center;">Đồng ý</button>
       </div>
     </div>
   </div>

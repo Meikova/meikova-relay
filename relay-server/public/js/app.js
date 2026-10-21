@@ -147,6 +147,182 @@
     }, duration);
   }
 
+  function showConfirmModal({
+    title = '',
+    message = '',
+    confirmText = '',
+    cancelText = '',
+    danger = false
+  } = {}) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('modalConfirmDialog');
+      const titleEl = document.getElementById('confirmDialogTitle');
+      const msgEl = document.getElementById('confirmDialogMessage');
+      const btnConfirm = document.getElementById('confirmDialogBtnConfirm');
+      const btnCancel = document.getElementById('confirmDialogBtnCancel');
+      const iconWrap = document.getElementById('confirmDialogIconWrap');
+      const iconCheck = document.getElementById('confirmDialogIconCheck');
+      const iconAlert = document.getElementById('confirmDialogIconAlert');
+
+      if (!modal) {
+        resolve(true);
+        return;
+      }
+
+      if (titleEl) titleEl.textContent = title || t('dialog.confirm_title') || 'Xác nhận';
+      if (msgEl) msgEl.textContent = message;
+      if (btnConfirm) {
+        btnConfirm.textContent = confirmText || t('dialog.btn_confirm') || 'Đồng ý';
+        if (danger) {
+          btnConfirm.style.background = '#EF4444';
+          btnConfirm.style.borderColor = '#EF4444';
+          btnConfirm.style.boxShadow = '0 0 16px rgba(239, 68, 68, 0.4)';
+        } else {
+          btnConfirm.style.background = '';
+          btnConfirm.style.borderColor = '';
+          btnConfirm.style.boxShadow = '';
+        }
+      }
+      if (btnCancel) {
+        btnCancel.textContent = cancelText || t('dialog.btn_cancel') || 'Hủy';
+        btnCancel.classList.remove('hidden');
+      }
+
+      if (danger) {
+        if (iconWrap) {
+          iconWrap.style.background = 'rgba(239, 68, 68, 0.12)';
+          iconWrap.style.color = '#EF4444';
+        }
+        if (iconCheck) iconCheck.classList.add('hidden');
+        if (iconAlert) iconAlert.classList.remove('hidden');
+      } else {
+        if (iconWrap) {
+          iconWrap.style.background = 'rgba(34, 197, 94, 0.12)';
+          iconWrap.style.color = '#22C55E';
+        }
+        if (iconCheck) iconCheck.classList.remove('hidden');
+        if (iconAlert) iconAlert.classList.add('hidden');
+      }
+
+      modal.classList.remove('hidden');
+
+      function cleanup(res) {
+        modal.classList.add('hidden');
+        btnConfirm?.removeEventListener('click', onConfirm);
+        btnCancel?.removeEventListener('click', onCancel);
+        window.removeEventListener('keydown', onKeyDown);
+        modal.removeEventListener('click', onBackdrop);
+        resolve(res);
+      }
+
+      function onConfirm(e) {
+        e.stopPropagation();
+        cleanup(true);
+      }
+
+      function onCancel(e) {
+        e.stopPropagation();
+        cleanup(false);
+      }
+
+      function onKeyDown(e) {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          cleanup(false);
+        } else if (e.key === 'Enter') {
+          e.stopPropagation();
+          cleanup(true);
+        }
+      }
+
+      function onBackdrop(e) {
+        if (e.target === modal) {
+          cleanup(false);
+        }
+      }
+
+      btnConfirm?.addEventListener('click', onConfirm);
+      btnCancel?.addEventListener('click', onCancel);
+      window.addEventListener('keydown', onKeyDown);
+      modal.addEventListener('click', onBackdrop);
+      btnConfirm?.focus();
+    });
+  }
+
+  function showAlertModal({
+    title = '',
+    message = '',
+    okText = ''
+  } = {}) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('modalConfirmDialog');
+      const titleEl = document.getElementById('confirmDialogTitle');
+      const msgEl = document.getElementById('confirmDialogMessage');
+      const btnConfirm = document.getElementById('confirmDialogBtnConfirm');
+      const btnCancel = document.getElementById('confirmDialogBtnCancel');
+      const iconWrap = document.getElementById('confirmDialogIconWrap');
+      const iconCheck = document.getElementById('confirmDialogIconCheck');
+      const iconAlert = document.getElementById('confirmDialogIconAlert');
+
+      if (!modal) {
+        resolve();
+        return;
+      }
+
+      if (titleEl) titleEl.textContent = title || t('dialog.alert_title') || 'Thông báo';
+      if (msgEl) msgEl.textContent = message;
+      if (btnConfirm) {
+        btnConfirm.textContent = okText || t('dialog.btn_ok') || 'Đã hiểu';
+        btnConfirm.style.background = '';
+        btnConfirm.style.borderColor = '';
+        btnConfirm.style.boxShadow = '';
+      }
+      if (btnCancel) {
+        btnCancel.classList.add('hidden');
+      }
+
+      if (iconWrap) {
+        iconWrap.style.background = 'rgba(56, 189, 248, 0.12)';
+        iconWrap.style.color = '#38BDF8';
+      }
+      if (iconCheck) iconCheck.classList.remove('hidden');
+      if (iconAlert) iconAlert.classList.add('hidden');
+
+      modal.classList.remove('hidden');
+
+      function cleanup() {
+        modal.classList.add('hidden');
+        btnConfirm?.removeEventListener('click', onConfirm);
+        window.removeEventListener('keydown', onKeyDown);
+        modal.removeEventListener('click', onBackdrop);
+        resolve();
+      }
+
+      function onConfirm(e) {
+        e.stopPropagation();
+        cleanup();
+      }
+
+      function onKeyDown(e) {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+          e.stopPropagation();
+          cleanup();
+        }
+      }
+
+      function onBackdrop(e) {
+        if (e.target === modal) {
+          cleanup();
+        }
+      }
+
+      btnConfirm?.addEventListener('click', onConfirm);
+      window.addEventListener('keydown', onKeyDown);
+      modal.addEventListener('click', onBackdrop);
+      btnConfirm?.focus();
+    });
+  }
+
   function recordPingSample(rtt) {
     pingSamples.push(rtt);
     if (pingSamples.length > 16) pingSamples.shift();
@@ -2488,7 +2664,14 @@
       btn.addEventListener('click', async () => {
         const sessId = btn.dataset.sessionId;
         const uName = btn.dataset.user;
-        if (!confirm(`Bạn có chắc muốn NGẮT PHIÊN của "${uName}" ngay lập tức?`)) return;
+        const confirmed = await showConfirmModal({
+          title: t('dialog.confirm_title') || 'Ngắt phiên điều khiển',
+          message: `Bạn có chắc muốn NGẮT PHIÊN của "${uName}" ngay lập tức?`,
+          confirmText: t('dialog.btn_kill') || 'Ngắt phiên',
+          cancelText: t('dialog.btn_cancel') || 'Hủy',
+          danger: true
+        });
+        if (!confirmed) return;
 
         btn.disabled = true;
         btn.textContent = 'Đang ngắt...';
@@ -2615,13 +2798,23 @@
         const id = btn.dataset.id;
         const name = btn.dataset.name;
         const confirmMsg = t('dashboard.delete_confirm') || `Bạn có chắc muốn xóa máy trạm "${name}" khỏi danh sách?`;
-        if (confirm(confirmMsg)) {
+        const confirmed = await showConfirmModal({
+          title: t('dialog.confirm_title') || 'Xóa máy trạm',
+          message: confirmMsg,
+          confirmText: t('dialog.btn_delete') || 'Xóa',
+          cancelText: t('dialog.btn_cancel') || 'Hủy',
+          danger: true
+        });
+        if (confirmed) {
           try {
             const res = await apiFetch(`/api/devices/${id}`, 'DELETE');
             if (res && res.success) {
               await fetchDevices();
             } else {
-              alert(res?.message || 'Lỗi khi xóa máy trạm');
+              await showAlertModal({
+                title: t('dialog.alert_title') || 'Lỗi',
+                message: res?.message || 'Lỗi khi xóa máy trạm'
+              });
             }
           } catch (err) {
             console.error('Delete device error:', err);
@@ -4348,7 +4541,7 @@
   });
 
   document.querySelectorAll('[data-power]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const act = btn.dataset.power;
       powerMenuDropdown.classList.add('hidden');
       if (!isConnected) {
@@ -4356,11 +4549,24 @@
         return;
       }
       if (act === 'lock') {
-        if (confirm('Khóa màn hình máy trạm (Lock Workstation)?')) {
+        const confirmed = await showConfirmModal({
+          title: 'Khóa máy trạm',
+          message: 'Khóa màn hình máy trạm (Lock Workstation)?',
+          confirmText: 'Khóa',
+          cancelText: t('dialog.btn_cancel') || 'Hủy'
+        });
+        if (confirmed) {
           ws.send(JSON.stringify({ type: 'power_action', action: 'lock' }));
         }
       } else if (act === 'restart') {
-        if (confirm('Khởi động lại máy trạm sẽ ngắt phiên làm việc tạm thời. Hệ thống sẽ tự động kết nối lại khi máy online. Bạn có chắc chắn?')) {
+        const confirmed = await showConfirmModal({
+          title: 'Khởi động lại máy trạm',
+          message: t('deck.power_restart_confirm') || 'Khởi động lại máy trạm sẽ ngắt phiên làm việc tạm thời. Hệ thống sẽ tự động kết nối lại khi máy online. Bạn có chắc chắn?',
+          confirmText: 'Khởi động lại',
+          cancelText: t('dialog.btn_cancel') || 'Hủy',
+          danger: true
+        });
+        if (confirmed) {
           isAwaitingRemoteRestart = true;
           restartReconnectRoom = currentRoom;
           restartReconnectPin = currentPin;
@@ -4557,10 +4763,17 @@
     `).join('');
 
     processTableBody.querySelectorAll('.btn-kill-proc').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const pid = parseInt(btn.dataset.pid, 10);
         const name = btn.dataset.name || 'process';
-        if (confirm(t('tasks.kill_confirm', { name, pid }))) {
+        const confirmed = await showConfirmModal({
+          title: 'Dừng tiến trình',
+          message: t('tasks.kill_confirm', { name, pid }),
+          confirmText: 'Dừng tiến trình',
+          cancelText: t('dialog.btn_cancel') || 'Hủy',
+          danger: true
+        });
+        if (confirmed) {
           ws.send(JSON.stringify({
             type: 'process_kill_request',
             pid: pid
@@ -5163,11 +5376,18 @@
     });
 
     explorerTableBody.querySelectorAll('.btn-action-del').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const itemName = btn.dataset.name;
         const itemPath = btn.dataset.path;
-        if (confirm(t('files.delete_confirm', { name: itemName }))) {
+        const confirmed = await showConfirmModal({
+          title: 'Xóa tệp / thư mục',
+          message: t('files.delete_confirm', { name: itemName }),
+          confirmText: t('dialog.btn_delete') || 'Xóa',
+          cancelText: t('dialog.btn_cancel') || 'Hủy',
+          danger: true
+        });
+        if (confirmed) {
           ws.send(JSON.stringify({ type: 'file_delete_request', filepath: itemPath }));
         }
       });
@@ -5459,10 +5679,17 @@
     }));
   }
 
-  function closeFileEditor() {
+  async function closeFileEditor() {
     const isDirty = fileEditorTextarea.value !== currentEditorOriginalContent;
     if (isDirty) {
-      if (!confirm(t('editor.discard_confirm'))) {
+      const confirmed = await showConfirmModal({
+        title: t('dialog.confirm_title') || 'Đóng tệp chưa lưu',
+        message: t('editor.discard_confirm') || 'Tập tin đã được chỉnh sửa nhưng chưa lưu. Bạn có chắc chắn muốn đóng mà không lưu?',
+        confirmText: t('dialog.btn_discard') || 'Đóng & Hủy',
+        cancelText: t('dialog.btn_keep_editing') || 'Tiếp tục sửa',
+        danger: true
+      });
+      if (!confirmed) {
         return;
       }
     }
@@ -5880,7 +6107,11 @@
           relayPwaPrompt = null;
         }
       } else {
-        alert('Để cài đặt Meikova Relay làm Web App (PWA):\n\n• Trên Chrome/Edge (Desktop): Nhấn biểu tượng Cài đặt (+) trên thanh địa chỉ URL.\n• Trên iPhone/Safari: Bấm nút Chia sẻ (Share) -> chọn "Thêm vào MH chính" (Add to Home Screen).\n• Trên Android: Bấm menu 3 chấm -> chọn "Cài đặt ứng dụng".');
+        await showAlertModal({
+          title: 'Cài đặt Web App (PWA)',
+          message: 'Để cài đặt Meikova Relay làm Web App (PWA):\n\n• Trên Chrome/Edge (Desktop): Nhấn biểu tượng Cài đặt (+) trên thanh địa chỉ URL.\n• Trên iPhone/Safari: Bấm nút Chia sẻ (Share) -> chọn "Thêm vào MH chính" (Add to Home Screen).\n• Trên Android: Bấm menu 3 chấm -> chọn "Cài đặt ứng dụng".',
+          okText: t('dialog.btn_ok') || 'Đã hiểu'
+        });
       }
     });
   }

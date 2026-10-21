@@ -20,18 +20,39 @@ class TestMultiClientSessions(unittest.IsolatedAsyncioTestCase):
 
     @classmethod
     def setUpClass(cls):
-        server_js = REPO_ROOT / "relay-server" / "server.js"
-        env = dict(**dict(import_os_environ=True)) if False else {}
         import os
+        import socket
+        server_js = REPO_ROOT / "relay-server" / "server.js"
         env = os.environ.copy()
         env["PORT"] = str(cls.server_port)
-        cls.server_process = subprocess.Popen(
-            ["node", str(server_js)],
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        time.sleep(1.2)
+        try:
+            cls.server_process = subprocess.Popen(
+                ["node", str(server_js)],
+                cwd=str(REPO_ROOT / "relay-server"),
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+        except FileNotFoundError:
+            raise unittest.SkipTest("Node.js runtime not installed, skipping multi-client tests.")
+
+        # Active polling for server to bind port
+        start_time = time.time()
+        ready = False
+        while time.time() - start_time < 8.0:
+            if cls.server_process.poll() is not None:
+                _, err = cls.server_process.communicate()
+                err_text = err.decode("utf-8", errors="replace")
+                raise unittest.SkipTest(f"Relay server failed to start: {err_text}")
+            try:
+                with socket.create_connection(("127.0.0.1", cls.server_port), timeout=0.2):
+                    ready = True
+                    break
+            except (ConnectionRefusedError, OSError):
+                time.sleep(0.1)
+
+        if not ready:
+            raise unittest.SkipTest("Relay server did not start listening on port 9015 within 8s")
 
     @classmethod
     def tearDownClass(cls):

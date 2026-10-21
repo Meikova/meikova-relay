@@ -313,6 +313,17 @@
       'editor.save_success': 'Đã lưu tệp thành công lên máy trạm',
       'editor.discard_confirm': 'Tệp đã được chỉnh sửa nhưng chưa lưu. Bạn có chắc chắn muốn đóng mà không lưu?',
 
+      // Ambient Confirmation & Alert Dialog
+      'dialog.confirm_title': 'Xác nhận',
+      'dialog.alert_title': 'Thông báo',
+      'dialog.btn_confirm': 'Đồng ý',
+      'dialog.btn_cancel': 'Hủy',
+      'dialog.btn_ok': 'Đã hiểu',
+      'dialog.btn_delete': 'Xóa',
+      'dialog.btn_kill': 'Ngắt phiên',
+      'dialog.btn_discard': 'Đóng & Hủy',
+      'dialog.btn_keep_editing': 'Tiếp tục sửa',
+
       // Toasts & Alerts
       'toast.ws_error': 'Không thể kết nối WebSocket: {error}',
       'toast.connected': 'Đã kết nối thành công tới máy trạm {room}!',
@@ -819,6 +830,17 @@
       'editor.save_error': 'Error saving file: {error}',
       'editor.save_success': 'File saved successfully to host disk',
       'editor.discard_confirm': 'File has unsaved changes. Are you sure you want to discard them?',
+
+      // Ambient Confirmation & Alert Dialog
+      'dialog.confirm_title': 'Confirmation',
+      'dialog.alert_title': 'Notice',
+      'dialog.btn_confirm': 'Confirm',
+      'dialog.btn_cancel': 'Cancel',
+      'dialog.btn_ok': 'OK',
+      'dialog.btn_delete': 'Delete',
+      'dialog.btn_kill': 'Disconnect',
+      'dialog.btn_discard': 'Discard changes',
+      'dialog.btn_keep_editing': 'Keep editing',
 
       // Toasts & Alerts
       'toast.ws_error': 'Cannot connect WebSocket: {error}',

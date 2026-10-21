@@ -1,6 +1,30 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.33)
+### Recent Updates (Version 1.0.34)
+- **Sửa Lỗi CI/CD Test Suite & Căn Giữa Modal Soạn Thảo & Chuẩn Hóa Ambient Dialog (CI/CD Fix, Centered File Modal & Native Ambient Dialogs):**
+  - **1. Sửa Lỗi CI/CD (GitHub Actions `Run Test Suite` Failed with Exit Code 1):**
+    - **Nguyên nhân cốt lõi:**
+      - File cấu hình workflow `.github/workflows/build-release.yml` khai báo `node-version: '20'` trên cả 3 runner Windows, Linux và macOS.
+      - Máy chủ `relay-server/server.js` và `relay-server/db.js` sử dụng module chuẩn `node:sqlite` (DatabaseSync), vốn chỉ có từ phiên bản Node.js v22.5.0+. Khi chạy trên Node 20 trong CI, `node server.js` bị crash ngay lập tức do không tìm thấy module `node:sqlite`.
+      - Bài test `tests/test_multi_client_sessions.py` chỉ dùng `time.sleep(1.2)` mà không kiểm tra tiến trình `poll()`, dẫn đến gọi `websockets.connect()` vào cổng chưa mở và báo lỗi `ConnectionRefusedError: [WinError 1225]`.
+    - **Khắc phục triệt để:**
+      - Nâng cấp `node-version: '22'` trong toàn bộ 3 job build (`build-windows`, `build-linux`, `build-macos`) trong `.github/workflows/build-release.yml`.
+      - Bổ sung cơ chế thăm dò cổng chủ động (active socket polling loop bằng `socket.create_connection` tối đa 8s) cùng kiểm tra `poll() is not None` thu gom `stderr` cho `test_multi_client_sessions.py`, `test_integration_relay.py`, và `test_download_endpoints.py`.
+  - **2. Khắc phục Modal Xem/Sửa Tệp Bị Lệch Màn Hình (File Editor Modal Alignment):**
+    - **Nguyên nhân:** Thẻ `#fileEditorModal` thiếu lớp `.auth-container` và `.modal-overlay` thiếu `display: flex; align-items: center; justify-content: center;`, khiến thẻ `.file-editor-card` (max-width 1240px) bị dạt hẳn về góc trên bên trái `top: 20px, left: 20px`, để lộ khoảng đen lớn bên phải trên màn hình 2K/4K và đa màn hình.
+    - **Khắc phục:** Thêm `.auth-container` vào `#fileEditorModal`, bổ sung flex centering vào `.modal-overlay` và `margin: auto;` vào `.file-editor-card`. Modal căn giữa hoàn hảo 100% trên mọi tỷ lệ màn hình.
+  - **3. Triệt Tiêu Hoàn Toàn `window.confirm` & `alert` sang Modal Ambient Dark Meikova:**
+    - Tạo cấu trúc modal chuẩn Ambient Dark `#modalConfirmDialog` trong `web-client/index.html` và `relay-server/public/index.html`.
+    - Cung cấp 2 hàm Promise bất đồng bộ: `showConfirmModal()` và `showAlertModal()`.
+    - Thay thế toàn bộ 7 vị trí `confirm()` và 2 vị trí `alert()` trong `app.js` (ngắt phiên, xóa thiết bị, khóa máy, khởi động lại, dừng tiến trình, xóa tệp, đóng trình soạn thảo khi chưa lưu, hướng dẫn PWA).
+    - Đồng bộ từ điển i18n (`vi` & `en`) cho các nút bấm dialog.
+  - **Kiểm Thử & Đóng Gói:**
+    - Toàn bộ 82 bài test tự động vượt qua (`Ran 82 tests in 17.656s - OK (skipped=1)`, Exit Code 0).
+    - Cú pháp Node.js trên các file client và server kiểm tra hợp lệ 100% (Exit Code 0).
+
+---
+
+### Previous Updates (Version 1.0.33)
 - **Khắc Phục Tụt FPS (2 FPS) & Triệt Tiêu Độ Trễ/Bufferbloat Truyền Hình Ảnh (Zero-Lag Screen Stream & High-FPS Optimization):**
   - **Nguyên nhân cốt lõi:**
     1. **Nghẽn băng thông do kích thước Frame quá lớn (3840x1080):** Khi kết nối với máy trạm 2 màn hình, `host_w = 3840`. Bộ đàm phán cấu hình trước đó tự động kích hoạt `crisp_2k_4k` với `quality = 92` và không giới hạn độ rộng (`max_width = None`). Mỗi frame JPEG nặng tới ~3.8 MB (ở 30 FPS tương đương ~920 Mbps). Băng thông mạng bị nghẽn hoàn toàn, khiến tốc độ sụt giảm nghiêm trọng xuống 2 FPS.

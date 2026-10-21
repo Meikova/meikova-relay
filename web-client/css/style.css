@@ -2068,6 +2068,9 @@ input:-webkit-autofill:active {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Ambient Toast Notifications */
@@ -2409,6 +2412,7 @@ input:-webkit-autofill:active {
   width: 92vw;
   max-width: 1240px;
   height: 88vh;
+  margin: auto;
   display: flex;
   flex-direction: column;
   padding: 0;
