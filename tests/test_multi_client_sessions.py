@@ -122,13 +122,57 @@ class TestMultiClientSessions(unittest.IsolatedAsyncioTestCase):
         self.assertIn("session_list", msg_types)
         self.assertIn("kill_session_success", msg_types)
 
+        # 7. Host graceful stop -> Client 1 immediately receives host_disconnected and socket is closed
+        await host_ws.send(json.dumps({"type": "host_closing", "room_id": room_id}))
+        c1_close_msg = json.loads(await client1_ws.recv())
+        self.assertEqual(c1_close_msg.get("type"), "host_disconnected")
+        with self.assertRaises(websockets.ConnectionClosed):
+            await client1_ws.recv()
+
         # Cleanup
-        await host_ws.close()
-        await client1_ws.close()
+        try:
+            await host_ws.close()
+        except Exception:
+            pass
+        try:
+            await client1_ws.close()
+        except Exception:
+            pass
         try:
             await client2_ws.close()
         except Exception:
             pass
+
+    async def test_host_disconnect_kicks_all_clients(self):
+        url = f"ws://127.0.0.1:{self.server_port}"
+        room_id = "MC-HOST-DROP-1"
+        pin = "654321"
+
+        host_ws = await websockets.connect(url)
+        await host_ws.send(json.dumps({
+            "type": "init_host",
+            "room_id": room_id,
+            "pin": pin
+        }))
+        await host_ws.recv()
+
+        client_ws = await websockets.connect(url)
+        await client_ws.send(json.dumps({
+            "type": "init_client",
+            "room_id": room_id,
+            "pin": pin
+        }))
+        await client_ws.recv()
+        await host_ws.recv() # client_connected
+
+        # Host drops socket unexpectedly
+        await host_ws.close()
+
+        # Client must receive host_disconnected and then socket is closed immediately
+        c_msg = json.loads(await client_ws.recv())
+        self.assertEqual(c_msg.get("type"), "host_disconnected")
+        with self.assertRaises(websockets.ConnectionClosed):
+            await client_ws.recv()
 
 if __name__ == "__main__":
     unittest.main()

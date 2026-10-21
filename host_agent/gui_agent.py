@@ -1298,12 +1298,10 @@ class MeikovaRelayHostGUI:
 
     def _stop_service(self):
         if self.host_service:
-            self.host_service.running = False
-            if self.host_service.ws and self.host_service.loop:
-                try:
-                    asyncio.run_coroutine_threadsafe(self.host_service.ws.close(), self.host_service.loop)
-                except Exception:
-                    pass
+            try:
+                self.host_service.stop()
+            except Exception:
+                pass
 
         PowerManager.prevent_sleep(False)
         self.is_running = False
@@ -1902,12 +1900,10 @@ class HostApi:
 
     def stop_service(self):
         if self._host_service:
-            self._host_service.running = False
-            if self._host_service.ws and self._host_service.loop:
-                try:
-                    asyncio.run_coroutine_threadsafe(self._host_service.ws.close(), self._host_service.loop)
-                except Exception:
-                    pass
+            try:
+                self._host_service.stop()
+            except Exception:
+                pass
 
         PowerManager.prevent_sleep(False)
         self._is_running = False

@@ -1206,6 +1206,37 @@ function broadcastSessionList(room, targetWs = null) {
   }
 }
 
+function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết nối') {
+  if (!roomId || !rooms.has(roomId)) return;
+  const room = rooms.get(roomId);
+  DB.setDeviceOnlineStatus(roomId, false);
+  room.hostWs = null;
+
+  if (room.clients && room.clients.size > 0) {
+    for (const client of room.clients.values()) {
+      try {
+        if (client.ws.readyState === WebSocket.OPEN) {
+          client.ws.send(JSON.stringify({ type: 'host_disconnected', message: reason }));
+          client.ws.close(1000, reason);
+        }
+      } catch (err) {
+        console.error(`Error closing client session ${client.id}:`, err);
+      }
+    }
+    room.clients.clear();
+  }
+
+  if (room.clientWs && room.clientWs.readyState === WebSocket.OPEN) {
+    try {
+      room.clientWs.send(JSON.stringify({ type: 'host_disconnected', message: reason }));
+      room.clientWs.close(1000, reason);
+    } catch {}
+    room.clientWs = null;
+  }
+
+  rooms.delete(roomId);
+}
+
 function getOrCreateRoom(roomId) {
   if (!rooms.has(roomId)) {
     rooms.set(roomId, {
@@ -1462,6 +1493,23 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    // --- Host Graceful Shutdown ---
+    if (type === 'host_closing' && role === 'host' && currentRoomId) {
+      console.log(`[Host Explicit Close] Room: ${currentRoomId}`);
+      const room = rooms.get(currentRoomId);
+      DB.logAudit({
+        action: 'HOST_OFFLINE',
+        roomId: currentRoomId,
+        clientIp: ws.clientIp,
+        clientDevice: ws.clientDevice,
+        targetDevice: room?.hostMeta?.deviceName,
+        targetOs: room?.hostMeta?.osInfo,
+        details: { status: 'stopped_by_user' }
+      });
+      closeRoomClients(currentRoomId, 'Máy trạm đã tắt dịch vụ');
+      return;
+    }
+
     // --- Ping / Pong ---
     if (type === 'ping') {
       ws.send(JSON.stringify({ type: 'pong', ts: data.ts }));
@@ -1654,15 +1702,7 @@ wss.on('connection', (ws, req) => {
           targetOs: room?.hostMeta?.osInfo,
           details: { status: 'offline' }
         });
-        room.hostWs = null;
-        DB.setDeviceOnlineStatus(currentRoomId, false);
-        if (room.clients) {
-          for (const client of room.clients.values()) {
-            if (client.ws.readyState === WebSocket.OPEN) {
-              client.ws.send(JSON.stringify({ type: 'host_disconnected', message: 'Máy trạm đã ngắt kết nối' }));
-            }
-          }
-        }
+        closeRoomClients(currentRoomId, 'Máy trạm đã ngắt kết nối');
       } else if (role === 'client') {
         console.log(`[Client Disconnected] Room: ${currentRoomId} | Session: ${ws.sessionId}`);
         const durationSec = Math.round((Date.now() - (ws.connectTime || Date.now())) / 1000);

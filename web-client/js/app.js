@@ -2875,7 +2875,7 @@
             handleRemoteRestartReconnecting();
             return;
           }
-          showToast('Máy trạm đã ngắt kết nối!', 'error');
+          showToast(msg.message || 'Máy trạm đã ngắt kết nối!', 'error');
           disconnect();
         }
       } catch (err) {
@@ -2883,12 +2883,15 @@
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
       if (isAwaitingRemoteRestart) {
         handleRemoteRestartReconnecting();
         return;
       }
-      if (isConnected) showToast('Mất kết nối với máy trạm', 'error');
+      if (isConnected) {
+        const reason = ev && ev.reason ? `Máy trạm đã ngắt kết nối (${ev.reason})` : 'Mất kết nối với máy trạm';
+        showToast(reason, 'error');
+      }
       disconnect();
     };
   }
@@ -2942,11 +2945,17 @@
     }
     if (pingIntervalId) clearInterval(pingIntervalId);
     if (ws) {
-      ws.close();
+      try { ws.close(); } catch {}
       ws = null;
     }
     stopRecording();
     stopWebcam();
+    if (remoteCanvas && ctx) {
+      ctx.clearRect(0, 0, remoteCanvas.width, remoteCanvas.height);
+    }
+    if (laserCanvas && laserCtx) {
+      laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
+    }
     updateRoStatus();
     switchView('dashboard', true);
   }

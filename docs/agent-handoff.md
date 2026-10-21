@@ -1,6 +1,27 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.31)
+### Recent Updates (Version 1.0.32)
+- **Khắc Phục Lỗi Client Không Ngắt Kết Nối Ngay Khi Host Dừng Dịch Vụ (Instant Client Kickout on Host Stop):**
+  - **Nguyên nhân cốt lõi:**
+    1. Khi bấm "Tắt dịch vụ" hoặc đóng Host, `HostAgentGUI._stop_service()` trước đó gán `running = False` và gọi `ws.close()` bất đồng bộ không đợi (`future.result()`). Event loop bị hủy trước khi TCP FIN / Close Frame được flush qua Cloud Proxy (Render/Cloudflare), khiến Relay Server không nhận biết Host đã ngắt.
+    2. Trên Relay Server (`relay-server/server.js`), sự kiện Host offline trước đó chỉ gửi tin nhắn `{ type: 'host_disconnected' }` mà KHÔNG GỌI `client.ws.close()`. Nếu bản tin bị trễ hoặc socket giữ nguyên, client trình duyệt tiếp tục gửi Ping và nhận Pong RTT (43ms), khiến màn hình bị tối đen mà không văng về Dashboard.
+  - **Khắc phục triệt để:**
+    1. **Host Graceful Shutdown (host_agent/host_service.py & gui_agent.py):**
+       - Bổ sung hàm `HostService.stop()` gửi gói tin `{"type": "host_closing"}` tới máy chủ Relay và chờ `fut.result(timeout=1.5)` để bảo đảm gói tin và close frame 1000 thoát khỏi network stack.
+       - Tích hợp `HostService.stop()` vào toàn bộ các luồng tắt: `_stop_service()`, `stop_service()`, đóng cửa sổ, khay hệ thống (System Tray).
+    2. **Đóng Kết Nối Ngay Lập Tức Trên Relay Server (relay-server/server.js):**
+       - Bổ sung hàm `closeRoomClients(roomId, reason)`: Khi nhận `host_closing` hoặc `ws.on('close')` từ Host, lập tức gửi `host_disconnected` VÀ gọi `client.ws.close(1000, reason)` cho toàn bộ client trong phòng.
+       - Xóa sạch danh sách phiên và hủy phòng ngay lập tức khỏi `rooms` Map.
+    3. **Dọn Dẹp & Trở Về Dashboard Tức Thì Trên Web Client (web-client/js/app.js & relay-server/public):**
+       - Khi nhận `host_disconnected` hoặc `ws.onclose`: Hiển thị thông báo Toast, dọn sạch canvas (`remoteCanvas`, `laserCanvas`), đóng socket và chuyển ngay về giao diện Dashboard (`switchView('dashboard')`).
+  - **Đóng Gói & Kiểm Thử:**
+    - Biên dịch lại hoàn tất `dist/MeikovaRelayHost.exe` và đồng bộ sang `relay-server/MeikovaRelayHost.exe`.
+    - Bổ sung 2 ca kiểm thử mới trong `tests/test_multi_client_sessions.py` xác minh việc ngắt kết nối tức thì khi Host dừng chủ động hoặc ngắt socket bất ngờ.
+    - Toàn bộ 82 bài kiểm thử tự động pass (`Ran 82 tests in 21.080s - OK (skipped=1)`, Exit Code 0).
+
+---
+
+### Previous Updates (Version 1.0.31)
 - **Hỗ Trợ Nhiều Client Remote Đồng Thời Tới 1 Máy Trạm & Quản Lý / Ngắt Phiên (Multi-Client Fanout & Session Management):**
   - **Kiến trúc Đa Client Đồng Thời (relay-server/server.js):**
     - Chuyển đổi quản lý kết nối đơn lẻ `room.clientWs` sang `room.clients = new Map()` với metadata từng phiên: `sessionId`, `ws`, `username`, `userId`, `clientIp`, `clientDevice`, `connectTime`.

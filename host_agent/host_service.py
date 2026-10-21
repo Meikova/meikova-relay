@@ -155,6 +155,38 @@ class HostService:
         self.terminal = TerminalManager(on_output=self._on_terminal_output)
         self.terminal.start()
 
+    def stop(self):
+        """Gracefully stop HostService, notifying relay server and tearing down connections."""
+        # ponytail: explicit host_closing packet + ws.close prevents ghost sessions on cloud relay
+        if not self.running:
+            return
+        self.running = False
+        self.has_active_client = False
+        self.audio_enabled = False
+
+        try:
+            self.audio_capture.stop()
+            self.audio_playback.stop()
+        except Exception:
+            pass
+
+        if self.ws and self.loop and self.loop.is_running():
+            async def _graceful_close():
+                try:
+                    await self.ws.send(json.dumps({"type": "host_closing", "room_id": self.room_id}))
+                except Exception:
+                    pass
+                try:
+                    await self.ws.close(code=1000, reason="Host stopped by user")
+                except Exception:
+                    pass
+
+            try:
+                fut = asyncio.run_coroutine_threadsafe(_graceful_close(), self.loop)
+                fut.result(timeout=1.5)
+            except Exception as e:
+                logger.warning(f"Error during graceful close: {e}")
+
     def _on_audio_chunk(self, chunk: bytes, rate: int, channels: int):
         if not self.audio_enabled or not self.has_active_client or not self.audio_queue or not self.loop or not self.loop.is_running():
             return
@@ -797,6 +829,8 @@ class HostService:
                         self.audio_playback.stop()
 
                 except (websockets.ConnectionClosed, ConnectionRefusedError, OSError, ssl.SSLError) as e:
+                    if not self.running:
+                        break
                     err_str = str(e) or type(e).__name__
                     # Detect corporate SSL Inspection and auto-switch to enterprise bypass
                     is_ssl_err = isinstance(e, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in err_str or "self-signed certificate" in err_str or "certificate verify failed" in err_str
