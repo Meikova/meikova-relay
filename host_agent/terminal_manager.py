@@ -66,9 +66,9 @@ class TerminalManager:
                 if os.name == 'nt':
                     # Append Out.Flush() for PowerShell immediate pipe transmission
                     if cmd:
-                        self.process.stdin.write(f"{cmd}; [Console]::Out.Flush()\n")
+                        self.process.stdin.write(f"{cmd}\n")
                     else:
-                        self.process.stdin.write("[Console]::Out.Flush()\n")
+                        self.process.stdin.write("\n")
                 else:
                     # POSIX shell (bash/sh)
                     if cmd:

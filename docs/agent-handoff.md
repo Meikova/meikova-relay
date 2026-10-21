@@ -1,6 +1,18 @@
 # PROJECT SESSION HANDOFF LOG
 
-### Recent Updates (Version 1.0.34)
+### Recent Updates (Version 1.0.35)
+- **Loại Bỏ Hoàn Toàn Nối Chuỗi `[Console]::Out.Flush()` Trong Terminal Host (Clean Terminal Stdin):**
+  - **Nguyên nhân cốt lõi:**
+    - Trong [host_agent/terminal_manager.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/terminal_manager.py), hàm `send_input()` trước đây tự động gắn chuỗi `; [Console]::Out.Flush()\n` vào sau mỗi lệnh trên Windows nhằm ép pipeline PowerShell xả đệm.
+    - PowerShell tự động echo toàn bộ dòng lệnh từ `stdin` vào màn hình điều khiển, khiến người dùng nhìn thấy `; [Console]::Out.Flush()` nối đuôi ở mọi câu lệnh (`clear; [Console]::Out.Flush()`, `ls; [Console]::Out.Flush()`).
+  - **Khắc phục triệt để:**
+    - Gỡ bỏ hoàn toàn việc nối `; [Console]::Out.Flush()`. Lệnh được ghi trực tiếp `f"{cmd}\n"` vào pipe `stdin` và flush chuẩn qua Python `process.stdin.flush()`.
+    - Biên dịch lại `dist/MeikovaRelayHost.exe` và đồng bộ sang `relay-server/MeikovaRelayHost.exe`.
+    - Kiểm thử: Toàn bộ 82 bài test pass (`Ran 82 tests in 18.372s - OK (skipped=1)`, Exit Code 0).
+
+---
+
+### Previous Updates (Version 1.0.34)
 - **Sửa Lỗi CI/CD Test Suite & Căn Giữa Modal Soạn Thảo & Chuẩn Hóa Ambient Dialog (CI/CD Fix, Centered File Modal & Native Ambient Dialogs):**
   - **1. Sửa Lỗi CI/CD (GitHub Actions `Run Test Suite` Failed with Exit Code 1):**
     - **Nguyên nhân cốt lõi:**
