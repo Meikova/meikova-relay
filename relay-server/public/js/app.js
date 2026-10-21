@@ -1254,6 +1254,32 @@
 
   initGoogleSignIn();
 
+  function initUniversalSSO() {
+    const btnSso = document.getElementById('btn-sso-gateway');
+    if (btnSso) {
+      btnSso.addEventListener('click', () => {
+        const authGatewayUrl = window.MEIKOVA_AUTH_URL || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:8990' : 'https://meikova-auth.onrender.com');
+        const origin = window.location.origin;
+        const ssoUrl = `${authGatewayUrl}/login?client_id=relay&origin=${encodeURIComponent(origin)}`;
+        const w = 460, h = 640;
+        const left = Math.max(0, (window.screen.width - w) / 2);
+        const top = Math.max(0, (window.screen.height - h) / 2);
+        window.open(ssoUrl, 'meikova_sso', `width=${w},height=${h},left=${left},top=${top},status=no,toolbar=no,menubar=no`);
+      });
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'MEIKOVA_SSO_SUCCESS') {
+        const { token, user } = event.data;
+        if (token) {
+          handleAuthSuccess({ token, user });
+          showToast('Đăng nhập Meikova ID thành công!', 'success');
+        }
+      }
+    });
+  }
+  initUniversalSSO();
+
   // --- AMBIENT INFINITY TELEMETRY CANVAS 2D VISUALIZER (/ambient-instrument-ui) ---
   let landingCanvasAnimId = null;
   let landingCanvasInited = false;
@@ -6856,7 +6882,28 @@
     if (relayClientQr) {
       relayClientQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentOrigin)}`;
     }
-    if (btnCopyHostCmd) {
+    
+  // Winget CLI command toggle between Host and Client & copy on click
+  const txtWingetRelayCmd = document.getElementById('txtWingetRelayCmd');
+  const btnCopyWingetRelay = document.getElementById('btnCopyWingetRelay');
+
+  if (tabBtnHost && tabBtnClient && txtWingetRelayCmd) {
+    tabBtnHost.addEventListener('click', () => {
+      txtWingetRelayCmd.textContent = 'winget install Meikova.Relay.Host';
+    });
+    tabBtnClient.addEventListener('click', () => {
+      txtWingetRelayCmd.textContent = 'winget install Meikova.Relay.Client';
+    });
+  }
+
+  if (btnCopyWingetRelay && txtWingetRelayCmd) {
+    btnCopyWingetRelay.addEventListener('click', () => {
+      const cmd = txtWingetRelayCmd.textContent.trim();
+      copyFeedback(btnCopyWingetRelay, cmd, 'Đã sao chép lệnh Winget!');
+    });
+  }
+
+  if (btnCopyHostCmd) {
       const currentCmd = `irm ${currentOrigin}/api/download/setup.bat | iex`;
       btnCopyHostCmd.setAttribute('data-cmd', currentCmd);
       const codeEl = btnCopyHostCmd.closest('.dl-cmd-box')?.querySelector('code');

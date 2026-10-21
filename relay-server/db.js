@@ -1,20 +1,42 @@
-let DatabaseSync;
-try {
-  ({ DatabaseSync } = require('node:sqlite'));
-} catch (err) {
-  console.error('\n[FATAL] node:sqlite module could not be loaded: ' + err.message);
-  console.error('[FATAL] Node.js 22 requires the flag: node --experimental-sqlite server.js');
-  console.error('[FATAL] Or set env variable: NODE_OPTIONS=--experimental-sqlite\n');
-  throw err;
-}
+const { createClient } = require('@libsql/client');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
 
-const DB_PATH = path.join(__dirname, 'meikova_relay.db');
-const db = new DatabaseSync(DB_PATH);
+// Lightweight zero-dependency .env loader for Node.js
+function loadEnv() {
+  const envCandidates = [
+    path.join(__dirname, '.env'),
+    path.join(process.cwd(), '.env'),
+    path.join(__dirname, '..', '.env')
+  ];
+  for (const envFile of envCandidates) {
+    if (fs.existsSync(envFile)) {
+      try {
+        const content = fs.readFileSync(envFile, 'utf8');
+        for (const line of content.split(/\r?\n/)) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) continue;
+          const eqIdx = trimmed.indexOf('=');
+          if (eqIdx !== -1) {
+            const key = trimmed.slice(0, eqIdx).trim();
+            let val = trimmed.slice(eqIdx + 1).trim();
+            if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+              val = val.slice(1, -1);
+            }
+            if (!(key in process.env)) {
+              process.env[key] = val;
+            }
+          }
+        }
+      } catch (_) {}
+      break;
+    }
+  }
+}
+loadEnv();
 
-// Initialize schema
-db.exec(`
+const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
@@ -71,16 +93,118 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
   CREATE INDEX IF NOT EXISTS idx_audit_room ON audit_logs(room_id);
   CREATE INDEX IF NOT EXISTS idx_sync_user ON user_sync_store(user_id);
-`);
+`;
+
+let client = null;
+let isTurso = false;
+let adapterUrl = '';
+let initPromise = null;
+
+function setupClient(override = {}) {
+  const tursoUrl = (override.url || process.env.TURSO_DATABASE_URL || '').trim();
+  const tursoToken = (override.authToken || process.env.TURSO_AUTH_TOKEN || '').trim();
+
+  if (tursoUrl && (tursoToken || tursoUrl.startsWith('libsql:') || tursoUrl.startsWith('https:'))) {
+    isTurso = true;
+    adapterUrl = tursoUrl;
+    client = createClient({
+      url: tursoUrl,
+      authToken: tursoToken
+    });
+    console.log(`[DB] Connected to Turso Cloud SQLite (${tursoUrl})`);
+  } else {
+    isTurso = false;
+    const DB_DIR = override.dataDir || process.env.DATA_DIR || __dirname;
+    const DB_PATH = override.dbPath || process.env.DB_PATH || path.join(DB_DIR, 'meikova_relay.db');
+    const dbFolder = path.dirname(DB_PATH);
+    if (!fs.existsSync(dbFolder)) {
+      try {
+        fs.mkdirSync(dbFolder, { recursive: true });
+      } catch (err) {
+        console.error('[DB] Failed to create database directory:', err.message);
+      }
+    }
+    const normalized = path.resolve(DB_PATH).replace(/\\/g, '/');
+    adapterUrl = `file:${normalized}`;
+    client = createClient({
+      url: adapterUrl
+    });
+    console.log(`[DB] Fallback to local SQLite WAL database (${adapterUrl})`);
+  }
+  initPromise = null;
+}
+
+// Initial client setup
+setupClient();
+
+async function ensureInit() {
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
+    try {
+      await client.execute('PRAGMA foreign_keys = ON;');
+      if (!isTurso) {
+        await client.execute('PRAGMA journal_mode = WAL;');
+        await client.execute('PRAGMA synchronous = NORMAL;');
+      }
+    } catch (err) {
+      console.warn('[DB] Pragma configuration notice:', err.message);
+    }
+
+    try {
+      await client.executeMultiple(SCHEMA_SQL);
+    } catch (err) {
+      console.error('[DB] Schema initialization error:', err.message);
+      throw err;
+    }
+  })().catch(err => {
+    initPromise = null;
+    throw err;
+  });
+
+  return initPromise;
+}
+
+// Start async initialization in background
+ensureInit().catch(err => {
+  console.error('[DB] Async initialization failed:', err.message);
+});
 
 function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 64).toString('hex');
 }
 
 const DB = {
+  // --- Adapter Lifecycle & Inspection ---
+  init(config) {
+    if (config) {
+      setupClient(config);
+    }
+    return ensureInit();
+  },
+
+  async close() {
+    if (client && typeof client.close === 'function') {
+      await client.close();
+    }
+  },
+
+  getClient() {
+    return client;
+  },
+
+  getAdapterInfo() {
+    return {
+      type: isTurso ? 'turso' : 'local',
+      url: adapterUrl,
+      isTurso
+    };
+  },
+
   // --- User Auth ---
-  registerUser(username, password) {
-    const trimmedUser = String(username).trim().toLowerCase();
+  async registerUser(username, password) {
+    await ensureInit();
+    const trimmedUser = String(username || '').trim().toLowerCase();
     if (!trimmedUser || !password || password.length < 6) {
       throw new Error('Username must not be empty and password must be at least 6 characters');
     }
@@ -91,21 +215,28 @@ const DB = {
     const now = Date.now();
 
     try {
-      const stmt = db.prepare('INSERT INTO users (id, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)');
-      stmt.run(userId, trimmedUser, hash, salt, now);
+      await client.execute({
+        sql: 'INSERT INTO users (id, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)',
+        args: [userId, trimmedUser, hash, salt, now]
+      });
       return { id: userId, username: trimmedUser };
     } catch (err) {
-      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+      const msg = err.message || '';
+      if (msg.includes('UNIQUE constraint failed') || msg.includes('constraint failed') || msg.includes('SQLITE_CONSTRAINT')) {
         throw new Error('Tài khoản đã tồn tại');
       }
       throw err;
     }
   },
 
-  authenticateUser(username, password) {
-    const trimmedUser = String(username).trim().toLowerCase();
-    const stmt = db.prepare('SELECT id, username, password_hash, salt FROM users WHERE username = ?');
-    const user = stmt.get(trimmedUser);
+  async authenticateUser(username, password) {
+    await ensureInit();
+    const trimmedUser = String(username || '').trim().toLowerCase();
+    const res = await client.execute({
+      sql: 'SELECT id, username, password_hash, salt FROM users WHERE username = ?',
+      args: [trimmedUser]
+    });
+    const user = res.rows[0];
     if (!user) {
       return null;
     }
@@ -118,173 +249,255 @@ const DB = {
     // Create session token
     const token = crypto.randomBytes(32).toString('hex');
     const now = Date.now();
-    const sessStmt = db.prepare('INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)');
-    sessStmt.run(token, user.id, now);
+    await client.execute({
+      sql: 'INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)',
+      args: [token, user.id, now]
+    });
 
     return { token, user: { id: user.id, username: user.username } };
   },
 
-  validateSession(token) {
+  async validateSession(token) {
     if (!token) return null;
-    const stmt = db.prepare(`
-      SELECT u.id, u.username 
-      FROM sessions s 
-      JOIN users u ON s.user_id = u.id 
-      WHERE s.token = ?
-    `);
-    return stmt.get(token) || null;
+
+    // Fast-path: Check if token is a Universal SSO Ed25519 Token (offline 0.1ms verification)
+    if (typeof token === 'string' && token.split('.').length === 3) {
+      try {
+        let verifyUniversalToken;
+        try {
+          verifyUniversalToken = require('./universal_sso').verifyUniversalToken;
+        } catch (_) {
+          try {
+            verifyUniversalToken = require('../../shared/universal_sso').verifyUniversalToken;
+          } catch (_2) {}
+        }
+        if (verifyUniversalToken) {
+          const ssoUser = verifyUniversalToken(token);
+          if (ssoUser) {
+            return {
+              id: ssoUser.sub,
+              username: ssoUser.username,
+              email: ssoUser.email || null,
+              display_name: ssoUser.display_name || ssoUser.username,
+              role: ssoUser.role || 'user',
+              provider: 'universal_sso'
+            };
+          }
+        }
+      } catch (_) {}
+    }
+
+    await ensureInit();
+    const res = await client.execute({
+      sql: `
+        SELECT u.id, u.username 
+        FROM sessions s 
+        JOIN users u ON s.user_id = u.id 
+        WHERE s.token = ?
+      `,
+      args: [token]
+    });
+    return res.rows[0] || null;
   },
 
-  deleteSession(token) {
+  async deleteSession(token) {
     if (!token) return false;
-    const stmt = db.prepare('DELETE FROM sessions WHERE token = ?');
-    stmt.run(token);
-    return true;
+    await ensureInit();
+    const res = await client.execute({
+      sql: 'DELETE FROM sessions WHERE token = ?',
+      args: [token]
+    });
+    return (res.rowsAffected || 0) > 0;
   },
 
-  refreshSession(oldToken) {
+  async refreshSession(oldToken) {
     if (!oldToken) return null;
-    const user = this.validateSession(oldToken);
+    await ensureInit();
+    const user = await this.validateSession(oldToken);
     if (!user) return null;
     const newToken = crypto.randomBytes(32).toString('hex');
     const now = Date.now();
-    const updateStmt = db.prepare('UPDATE sessions SET token = ?, created_at = ? WHERE token = ?');
-    updateStmt.run(newToken, now, oldToken);
+    await client.execute({
+      sql: 'UPDATE sessions SET token = ?, created_at = ? WHERE token = ?',
+      args: [newToken, now, oldToken]
+    });
     return { token: newToken, user };
   },
 
-  getUserByUsername(username) {
+  async getUserByUsername(username) {
     if (!username) return null;
+    await ensureInit();
     const trimmedUser = String(username).trim().toLowerCase();
-    const stmt = db.prepare('SELECT id, username FROM users WHERE username = ?');
-    return stmt.get(trimmedUser) || null;
+    const res = await client.execute({
+      sql: 'SELECT id, username FROM users WHERE username = ?',
+      args: [trimmedUser]
+    });
+    return res.rows[0] || null;
   },
 
   // --- Device Management ---
-  getDevices(userId) {
-    this.deduplicateDevices(userId);
-    const stmt = db.prepare(`
-      SELECT id, device_name, room_id, pin, is_online, last_seen, os_info, resolution 
-      FROM devices 
-      WHERE user_id = ? 
-      ORDER BY is_online DESC, last_seen DESC
-    `);
-    return stmt.all(userId);
+  async getDevices(userId) {
+    await ensureInit();
+    await this.deduplicateDevices(userId);
+    const res = await client.execute({
+      sql: `
+        SELECT id, device_name, room_id, pin, is_online, last_seen, os_info, resolution 
+        FROM devices 
+        WHERE user_id = ? 
+        ORDER BY is_online DESC, last_seen DESC
+      `,
+      args: [userId]
+    });
+    return res.rows;
   },
 
-  deduplicateDevices(userId) {
+  async deduplicateDevices(userId) {
     if (!userId) return;
+    await ensureInit();
     try {
-      db.prepare(`
-        DELETE FROM devices 
-        WHERE user_id = ? AND id NOT IN (
-          SELECT id FROM (
-            SELECT id, ROW_NUMBER() OVER (
-              PARTITION BY user_id, device_name 
-              ORDER BY is_online DESC, last_seen DESC
-            ) as rn 
-            FROM devices
-            WHERE user_id = ?
-          ) WHERE rn = 1
-        )
-      `).run(userId, userId);
+      await client.execute({
+        sql: `
+          DELETE FROM devices 
+          WHERE user_id = ? AND id NOT IN (
+            SELECT id FROM (
+              SELECT id, ROW_NUMBER() OVER (
+                PARTITION BY user_id, device_name 
+                ORDER BY is_online DESC, last_seen DESC
+              ) as rn 
+              FROM devices
+              WHERE user_id = ?
+            ) WHERE rn = 1
+          )
+        `,
+        args: [userId, userId]
+      });
     } catch (err) {
-      console.error('[DB] Error deduplicating devices:', err);
+      console.error('[DB] Error deduplicating devices:', err.message);
     }
   },
 
-  deleteDevice(deviceId, userId) {
+  async deleteDevice(deviceId, userId) {
     if (!deviceId || !userId) return false;
-    const stmt = db.prepare('DELETE FROM devices WHERE id = ? AND user_id = ?');
-    const result = stmt.run(deviceId, userId);
-    return result.changes > 0;
+    await ensureInit();
+    const res = await client.execute({
+      sql: 'DELETE FROM devices WHERE id = ? AND user_id = ?',
+      args: [deviceId, userId]
+    });
+    return (res.rowsAffected || 0) > 0;
   },
 
-  upsertDevice({ userId, deviceName, roomId, pin, resolution, osInfo }) {
+  async upsertDevice({ userId, deviceName, roomId, pin, resolution, osInfo }) {
+    await ensureInit();
     const now = Date.now();
     let existing = null;
     if (userId && deviceName) {
-      existing = db.prepare('SELECT id, user_id, room_id FROM devices WHERE user_id = ? AND device_name = ?').get(userId, deviceName);
+      const res = await client.execute({
+        sql: 'SELECT id, user_id, room_id FROM devices WHERE user_id = ? AND device_name = ?',
+        args: [userId, deviceName]
+      });
+      existing = res.rows[0] || null;
     }
     if (!existing && roomId) {
-      existing = db.prepare('SELECT id, user_id, room_id FROM devices WHERE room_id = ?').get(roomId);
+      const res = await client.execute({
+        sql: 'SELECT id, user_id, room_id FROM devices WHERE room_id = ?',
+        args: [roomId]
+      });
+      existing = res.rows[0] || null;
     }
 
     if (existing) {
       // Update existing
-      const updateStmt = db.prepare(`
-        UPDATE devices 
-        SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?, user_id = COALESCE(?, user_id)
-        WHERE id = ?
-      `);
-      updateStmt.run(roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, userId || null, existing.id);
+      await client.execute({
+        sql: `
+          UPDATE devices 
+          SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?, user_id = COALESCE(?, user_id)
+          WHERE id = ?
+        `,
+        args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, userId || null, existing.id]
+      });
       return existing.id;
     } else {
       // Insert new device
       const id = crypto.randomUUID();
-      const insertStmt = db.prepare(`
-        INSERT INTO devices (id, user_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
-        VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
-      `);
-      insertStmt.run(id, userId || null, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080');
+      await client.execute({
+        sql: `
+          INSERT INTO devices (id, user_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
+          VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+        `,
+        args: [id, userId || null, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
+      });
       return id;
     }
   },
 
-  setDeviceOnlineStatus(roomId, isOnline) {
+  async setDeviceOnlineStatus(roomId, isOnline) {
+    await ensureInit();
     const now = Date.now();
-    const stmt = db.prepare('UPDATE devices SET is_online = ?, last_seen = ? WHERE room_id = ?');
-    stmt.run(isOnline ? 1 : 0, now, roomId);
+    await client.execute({
+      sql: 'UPDATE devices SET is_online = ?, last_seen = ? WHERE room_id = ?',
+      args: [isOnline ? 1 : 0, now, roomId]
+    });
   },
 
-  googleAuth(email, displayName) {
-    const trimmedEmail = String(email).trim().toLowerCase();
-    const stmt = db.prepare('SELECT id, username FROM users WHERE username = ?');
-    let user = stmt.get(trimmedEmail);
-    
+  async googleAuth(email, displayName) {
+    await ensureInit();
+    const trimmedEmail = String(email || '').trim().toLowerCase();
+    const res = await client.execute({
+      sql: 'SELECT id, username FROM users WHERE username = ?',
+      args: [trimmedEmail]
+    });
+    let user = res.rows[0] || null;
+
     if (!user) {
       // Auto-register Google user with random password
       const salt = crypto.randomBytes(16).toString('hex');
       const hash = hashPassword(crypto.randomBytes(32).toString('hex'), salt);
       const userId = crypto.randomUUID();
       const now = Date.now();
-      const insertStmt = db.prepare('INSERT INTO users (id, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)');
-      insertStmt.run(userId, trimmedEmail, hash, salt, now);
+      await client.execute({
+        sql: 'INSERT INTO users (id, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)',
+        args: [userId, trimmedEmail, hash, salt, now]
+      });
       user = { id: userId, username: trimmedEmail };
     }
-    
+
     // Create session
     const token = crypto.randomBytes(32).toString('hex');
     const now = Date.now();
-    const sessStmt = db.prepare('INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)');
-    sessStmt.run(token, user.id, now);
-    
+    await client.execute({
+      sql: 'INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)',
+      args: [token, user.id, now]
+    });
+
     return { token, user: { id: user.id, username: user.username, displayName: displayName || user.username } };
   },
 
   // --- Audit Logging ---
-  logAudit({ action, userId, username, clientIp, clientDevice, roomId, targetDevice, targetOs, details }) {
-    const id = crypto.randomUUID();
-    const now = Date.now();
-    const detailsStr = typeof details === 'object' ? JSON.stringify(details) : (details ? String(details) : '{}');
+  async logAudit({ action, userId, username, clientIp, clientDevice, roomId, targetDevice, targetOs, details }) {
     try {
-      const stmt = db.prepare(`
-        INSERT INTO audit_logs (id, timestamp, action, user_id, username, client_ip, client_device, room_id, target_device, target_os, details)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      stmt.run(
-        id,
-        now,
-        String(action || 'UNKNOWN'),
-        userId || null,
-        username || 'Khách (Ẩn danh)',
-        String(clientIp || '127.0.0.1'),
-        String(clientDevice || 'Unknown'),
-        roomId || null,
-        targetDevice || null,
-        targetOs || null,
-        detailsStr
-      );
+      await ensureInit();
+      const id = crypto.randomUUID();
+      const now = Date.now();
+      const detailsStr = typeof details === 'object' ? JSON.stringify(details) : (details ? String(details) : '{}');
+      await client.execute({
+        sql: `
+          INSERT INTO audit_logs (id, timestamp, action, user_id, username, client_ip, client_device, room_id, target_device, target_os, details)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        args: [
+          id,
+          now,
+          String(action || 'UNKNOWN'),
+          userId || null,
+          username || 'Khách (Ẩn danh)',
+          String(clientIp || '127.0.0.1'),
+          String(clientDevice || 'Unknown'),
+          roomId || null,
+          targetDevice || null,
+          targetOs || null,
+          detailsStr
+        ]
+      });
       return id;
     } catch (err) {
       console.error('[DB Audit Error]:', err.message);
@@ -292,7 +505,8 @@ const DB = {
     }
   },
 
-  getAuditLogs({ limit = 50, offset = 0, action = null, roomId = null, search = null } = {}) {
+  async getAuditLogs({ limit = 50, offset = 0, action = null, roomId = null, search = null } = {}) {
+    await ensureInit();
     let whereClauses = [];
     let params = [];
 
@@ -312,27 +526,36 @@ const DB = {
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const countStmt = db.prepare(`SELECT COUNT(*) as count FROM audit_logs ${whereSql}`);
-    const countRow = countStmt.get(...params);
-    const total = countRow ? countRow.count : 0;
+    const countRes = await client.execute({
+      sql: `SELECT COUNT(*) as count FROM audit_logs ${whereSql}`,
+      args: params
+    });
+    const countRow = countRes.rows[0];
+    const total = countRow ? Number(countRow.count) : 0;
 
-    const queryStmt = db.prepare(`
-      SELECT id, timestamp, action, user_id, username, client_ip, client_device, room_id, target_device, target_os, details
-      FROM audit_logs
-      ${whereSql}
-      ORDER BY timestamp DESC
-      LIMIT ? OFFSET ?
-    `);
-    const logs = queryStmt.all(...params, Math.min(Number(limit) || 50, 500), Math.max(Number(offset) || 0, 0));
+    const queryRes = await client.execute({
+      sql: `
+        SELECT id, timestamp, action, user_id, username, client_ip, client_device, room_id, target_device, target_os, details
+        FROM audit_logs
+        ${whereSql}
+        ORDER BY timestamp DESC
+        LIMIT ? OFFSET ?
+      `,
+      args: [...params, Math.min(Number(limit) || 50, 500), Math.max(Number(offset) || 0, 0)]
+    });
 
-    return { logs, total };
+    return { logs: queryRes.rows, total };
   },
 
   // --- Offline-First User Config & Bookmark Sync ---
-  getUserSync(userId) {
+  async getUserSync(userId) {
     if (!userId) return null;
-    const stmt = db.prepare('SELECT preferences, device_bookmarks, quick_history, custom_labels, updated_at FROM user_sync_store WHERE user_id = ?');
-    const row = stmt.get(userId);
+    await ensureInit();
+    const res = await client.execute({
+      sql: 'SELECT preferences, device_bookmarks, quick_history, custom_labels, updated_at FROM user_sync_store WHERE user_id = ?',
+      args: [userId]
+    });
+    const row = res.rows[0];
     if (!row) {
       return {
         preferences: {},
@@ -348,7 +571,7 @@ const DB = {
         device_bookmarks: JSON.parse(row.device_bookmarks || '[]'),
         quick_history: JSON.parse(row.quick_history || '[]'),
         custom_labels: JSON.parse(row.custom_labels || '{}'),
-        updated_at: row.updated_at || 0
+        updated_at: Number(row.updated_at) || 0
       };
     } catch (err) {
       return {
@@ -356,14 +579,15 @@ const DB = {
         device_bookmarks: [],
         quick_history: [],
         custom_labels: {},
-        updated_at: row.updated_at || 0
+        updated_at: Number(row.updated_at) || 0
       };
     }
   },
 
-  saveUserSync(userId, data = {}) {
+  async saveUserSync(userId, data = {}) {
     if (!userId) return null;
-    const current = this.getUserSync(userId);
+    await ensureInit();
+    const current = await this.getUserSync(userId);
     const now = Date.now();
 
     const mergedPrefs = data.preferences !== undefined ? { ...current.preferences, ...data.preferences } : current.preferences;
@@ -371,25 +595,26 @@ const DB = {
     const mergedHistory = data.quick_history !== undefined ? data.quick_history : current.quick_history;
     const mergedLabels = data.custom_labels !== undefined ? { ...current.custom_labels, ...data.custom_labels } : current.custom_labels;
 
-    const stmt = db.prepare(`
-      INSERT INTO user_sync_store (user_id, preferences, device_bookmarks, quick_history, custom_labels, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(user_id) DO UPDATE SET
-        preferences = excluded.preferences,
-        device_bookmarks = excluded.device_bookmarks,
-        quick_history = excluded.quick_history,
-        custom_labels = excluded.custom_labels,
-        updated_at = excluded.updated_at
-    `);
-
-    stmt.run(
-      userId,
-      JSON.stringify(mergedPrefs),
-      JSON.stringify(mergedBookmarks),
-      JSON.stringify(mergedHistory),
-      JSON.stringify(mergedLabels),
-      now
-    );
+    await client.execute({
+      sql: `
+        INSERT INTO user_sync_store (user_id, preferences, device_bookmarks, quick_history, custom_labels, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          preferences = excluded.preferences,
+          device_bookmarks = excluded.device_bookmarks,
+          quick_history = excluded.quick_history,
+          custom_labels = excluded.custom_labels,
+          updated_at = excluded.updated_at
+      `,
+      args: [
+        userId,
+        JSON.stringify(mergedPrefs),
+        JSON.stringify(mergedBookmarks),
+        JSON.stringify(mergedHistory),
+        JSON.stringify(mergedLabels),
+        now
+      ]
+    });
 
     return {
       preferences: mergedPrefs,

@@ -149,9 +149,9 @@ const server = http.createServer(async (req, res) => {
       const clientIp = getClientIp(req);
       const clientDevice = parseClientDevice(req.headers['user-agent']);
       try {
-        const user = DB.registerUser(username, password);
-        const auth = DB.authenticateUser(username, password);
-        DB.logAudit({
+        const user = await DB.registerUser(username, password);
+        const auth = await DB.authenticateUser(username, password);
+        await DB.logAudit({
           action: 'AUTH_REGISTER',
           userId: user.id,
           username: user.username,
@@ -161,7 +161,7 @@ const server = http.createServer(async (req, res) => {
         });
         return jsonResponse(res, 201, { success: true, token: auth.token, user: auth.user });
       } catch (err) {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'AUTH_REGISTER_FAILED',
           username: username || 'Unknown',
           clientIp,
@@ -177,9 +177,9 @@ const server = http.createServer(async (req, res) => {
       const { username, password } = await parseBody(req);
       const clientIp = getClientIp(req);
       const clientDevice = parseClientDevice(req.headers['user-agent']);
-      const auth = DB.authenticateUser(username, password);
+      const auth = await DB.authenticateUser(username, password);
       if (!auth) {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'AUTH_LOGIN_FAILED',
           username: username || 'Unknown',
           clientIp,
@@ -188,7 +188,7 @@ const server = http.createServer(async (req, res) => {
         });
         return jsonResponse(res, 401, { success: false, message: 'Sai tên đăng nhập hoặc mật khẩu' });
       }
-      DB.logAudit({
+      await DB.logAudit({
         action: 'AUTH_LOGIN',
         userId: auth.user.id,
         username: auth.user.username,
@@ -197,6 +197,29 @@ const server = http.createServer(async (req, res) => {
         details: { status: 'success', method: 'password' }
       });
       return jsonResponse(res, 200, { success: true, token: auth.token, user: auth.user });
+    }
+
+    // 2.45 Auth: Universal SSO Callback
+    if (pathname === '/api/auth/sso/callback' && req.method === 'POST') {
+      const { token } = await parseBody(req);
+      const clientIp = getClientIp(req);
+      const clientDevice = parseClientDevice(req.headers['user-agent']);
+      if (!token) {
+        return jsonResponse(res, 400, { success: false, message: 'Missing SSO token' });
+      }
+      const session = await DB.validateSession(token);
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, message: 'SSO token không hợp lệ hoặc đã hết hạn' });
+      }
+      await DB.logAudit({
+        action: 'AUTH_SSO_LOGIN',
+        userId: session.id,
+        username: session.username,
+        clientIp,
+        clientDevice,
+        details: { status: 'success', method: 'universal_sso' }
+      });
+      return jsonResponse(res, 200, { success: true, token, user: session });
     }
 
     // 2.5 Auth: Google Sign-In
@@ -219,8 +242,8 @@ const server = http.createServer(async (req, res) => {
         }
         
         // Auto-register or login by email
-        const auth = DB.googleAuth(email, name);
-        DB.logAudit({
+        const auth = await DB.googleAuth(email, name);
+        await DB.logAudit({
           action: 'AUTH_GOOGLE',
           userId: auth.user.id,
           username: auth.user.username,
@@ -320,7 +343,7 @@ const server = http.createServer(async (req, res) => {
         const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
         const email = payload.email;
         const name = payload.name || email.split('@')[0];
-        const auth = DB.googleAuth(email, name);
+        const auth = await DB.googleAuth(email, name);
         
         const state = ticket || '';
         const is_desktop = state.startsWith('desktop') || state === 'desktop';
@@ -485,7 +508,7 @@ const server = http.createServer(async (req, res) => {
     // Auth Middleware for protected endpoints
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    const session = DB.validateSession(token);
+    const session = await DB.validateSession(token);
 
     // 3. Auth: Current User
     if (pathname === '/api/auth/me' && req.method === 'GET') {
@@ -500,7 +523,7 @@ const server = http.createServer(async (req, res) => {
       if (!session) {
         return jsonResponse(res, 401, { success: false, message: 'Phiên đăng nhập đã hết hạn' });
       }
-      const refreshed = DB.refreshSession(token);
+      const refreshed = await DB.refreshSession(token);
       if (!refreshed) {
         return jsonResponse(res, 401, { success: false, message: 'Không thể làm mới phiên' });
       }
@@ -510,9 +533,9 @@ const server = http.createServer(async (req, res) => {
     // 3.2 Auth: Logout
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
       if (token) {
-        DB.deleteSession(token);
+        await DB.deleteSession(token);
         if (session) {
-          DB.logAudit({
+          await DB.logAudit({
             action: 'AUTH_LOGOUT',
             userId: session.id,
             username: session.username,
@@ -540,7 +563,7 @@ const server = http.createServer(async (req, res) => {
       if (!session) {
         return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
       }
-      const syncData = DB.getUserSync(session.id);
+      const syncData = await DB.getUserSync(session.id);
       return jsonResponse(res, 200, {
         status: 'success',
         data: syncData
@@ -553,7 +576,7 @@ const server = http.createServer(async (req, res) => {
         return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
       }
       const body = await parseBody(req);
-      const result = DB.saveUserSync(session.id, body || {});
+      const result = await DB.saveUserSync(session.id, body || {});
       return jsonResponse(res, 200, {
         status: 'success',
         updated_at: result ? result.updated_at : Date.now(),
@@ -566,7 +589,7 @@ const server = http.createServer(async (req, res) => {
       if (!session) {
         return jsonResponse(res, 401, { success: false, message: 'Yêu cầu đăng nhập' });
       }
-      const rawDevices = DB.getDevices(session.id);
+      const rawDevices = await DB.getDevices(session.id);
       const devices = rawDevices.map(d => {
         const room = rooms.get(d.room_id);
         const isOnline = !!(room && room.hostWs && room.hostWs.readyState === WebSocket.OPEN);
@@ -627,7 +650,7 @@ const server = http.createServer(async (req, res) => {
         return jsonResponse(res, 404, { success: false, message: 'Phiên không tồn tại hoặc đã ngắt kết nối' });
       }
       const target = room.clients.get(sessionId);
-      DB.logAudit({
+      await DB.logAudit({
         action: 'SESSION_KILLED',
         userId: session.id,
         username: session.username || session.email,
@@ -662,13 +685,13 @@ const server = http.createServer(async (req, res) => {
       if (!roomId || !pin) {
         return jsonResponse(res, 400, { success: false, message: 'Thiếu Room ID hoặc PIN' });
       }
-      DB.upsertDevice({
+      await DB.upsertDevice({
         userId: session.id,
         roomId,
         pin,
         deviceName: deviceName || 'Workstation'
       });
-      DB.logAudit({
+      await DB.logAudit({
         action: 'DEVICE_LINKED',
         userId: session.id,
         username: session.username,
@@ -696,9 +719,9 @@ const server = http.createServer(async (req, res) => {
       if (!deviceId) {
         return jsonResponse(res, 400, { success: false, message: 'Thiếu ID thiết bị' });
       }
-      const ok = DB.deleteDevice(deviceId, session.id);
+      const ok = await DB.deleteDevice(deviceId, session.id);
       if (ok) {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'DEVICE_DELETED',
           userId: session.id,
           username: session.username,
@@ -722,7 +745,7 @@ const server = http.createServer(async (req, res) => {
       const roomId = url.searchParams.get('roomId') || null;
       const search = url.searchParams.get('search') || null;
 
-      const result = DB.getAuditLogs({ limit, offset, action, roomId, search });
+      const result = await DB.getAuditLogs({ limit, offset, action, roomId, search });
       return jsonResponse(res, 200, { success: true, ...result });
     }
 
@@ -735,7 +758,7 @@ const server = http.createServer(async (req, res) => {
       const action = url.searchParams.get('action') || null;
       const roomId = url.searchParams.get('roomId') || null;
       const search = url.searchParams.get('search') || null;
-      const { logs } = DB.getAuditLogs({ limit: 5000, offset: 0, action, roomId, search });
+      const { logs } = await DB.getAuditLogs({ limit: 5000, offset: 0, action, roomId, search });
 
       if (format === 'json') {
         res.writeHead(200, {
@@ -1291,10 +1314,14 @@ function broadcastSessionList(room, targetWs = null) {
   }
 }
 
-function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết nối') {
+async function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết nối') {
   if (!roomId || !rooms.has(roomId)) return;
   const room = rooms.get(roomId);
-  DB.setDeviceOnlineStatus(roomId, false);
+  try {
+    await DB.setDeviceOnlineStatus(roomId, false);
+  } catch (err) {
+    console.error(`[DB Error in closeRoomClients]: ${err.message}`);
+  }
   room.hostWs = null;
 
   if (room.clients && room.clients.size > 0) {
@@ -1350,7 +1377,7 @@ wss.on('connection', (ws, req) => {
 
   ws.on('pong', () => { ws.isAlive = true; });
 
-  ws.on('message', (message, isBinary) => {
+  ws.on('message', async (message, isBinary) => {
     // 1. Forward raw binary frames (Screen frames to ALL active clients)
     if (isBinary) {
       if (role === 'host' && currentRoomId) {
@@ -1412,13 +1439,13 @@ wss.on('connection', (ws, req) => {
       // Register device in DB
       let targetUserId = data.user_id || null;
       if (!targetUserId && (data.account || data.user_email)) {
-        const matchedUser = DB.getUserByUsername(data.account || data.user_email);
+        const matchedUser = await DB.getUserByUsername(data.account || data.user_email);
         if (matchedUser) {
           targetUserId = matchedUser.id;
         }
       }
 
-      DB.upsertDevice({
+      await DB.upsertDevice({
         userId: targetUserId,
         deviceName: room.hostMeta.deviceName,
         roomId: roomId,
@@ -1427,7 +1454,7 @@ wss.on('connection', (ws, req) => {
         osInfo: room.hostMeta.osInfo
       });
 
-      DB.logAudit({
+      await DB.logAudit({
         action: 'HOST_ONLINE',
         roomId,
         clientIp: ws.clientIp,
@@ -1464,7 +1491,7 @@ wss.on('connection', (ws, req) => {
       const room = rooms.get(roomId);
 
       if (data.token) {
-        const sess = DB.validateSession(data.token);
+        const sess = await DB.validateSession(data.token);
         if (sess) {
           ws.username = sess.username;
           ws.userId = sess.id;
@@ -1474,7 +1501,7 @@ wss.on('connection', (ws, req) => {
       }
 
       if (!room || !room.hostWs || room.hostWs.readyState !== WebSocket.OPEN) {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'CONNECT_FAILED_OFFLINE',
           userId: ws.userId,
           username: ws.username,
@@ -1488,7 +1515,7 @@ wss.on('connection', (ws, req) => {
       }
 
       if (room.pin && room.pin !== pin) {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'CONNECT_PIN_FAILED',
           userId: ws.userId,
           username: ws.username,
@@ -1519,7 +1546,7 @@ wss.on('connection', (ws, req) => {
       room.clients.set(sessionId, clientInfo);
       room.clientWs = ws; // backward compat reference
 
-      DB.logAudit({
+      await DB.logAudit({
         action: 'SESSION_CONNECTED',
         userId: ws.userId,
         username: ws.username,
@@ -1558,7 +1585,7 @@ wss.on('connection', (ws, req) => {
       const targetSessionId = data.session_id || data.targetSessionId;
       if (room && room.clients && room.clients.has(targetSessionId)) {
         const target = room.clients.get(targetSessionId);
-        DB.logAudit({
+        await DB.logAudit({
           action: 'SESSION_KILLED',
           userId: ws.userId,
           username: ws.username,
@@ -1587,7 +1614,7 @@ wss.on('connection', (ws, req) => {
     if (type === 'host_closing' && role === 'host' && currentRoomId) {
       console.log(`[Host Explicit Close] Room: ${currentRoomId}`);
       const room = rooms.get(currentRoomId);
-      DB.logAudit({
+      await DB.logAudit({
         action: 'HOST_OFFLINE',
         roomId: currentRoomId,
         clientIp: ws.clientIp,
@@ -1596,7 +1623,7 @@ wss.on('connection', (ws, req) => {
         targetOs: room?.hostMeta?.osInfo,
         details: { status: 'stopped_by_user' }
       });
-      closeRoomClients(currentRoomId, 'Máy trạm đã tắt dịch vụ');
+      await closeRoomClients(currentRoomId, 'Máy trạm đã tắt dịch vụ');
       return;
     }
 
@@ -1613,7 +1640,7 @@ wss.on('connection', (ws, req) => {
       const targetOs = room?.hostMeta?.osInfo || 'Windows';
 
       if (type === 'terminal_input') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'CMD_EXEC',
           userId: ws.userId,
           username: ws.username,
@@ -1625,7 +1652,7 @@ wss.on('connection', (ws, req) => {
           details: { command: (data.input || data.cmd || '').trim() }
         });
       } else if (type === 'file_browse_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_BROWSE',
           userId: ws.userId,
           username: ws.username,
@@ -1637,7 +1664,7 @@ wss.on('connection', (ws, req) => {
           details: { path: data.path || '' }
         });
       } else if (type === 'file_download_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_DOWNLOAD',
           userId: ws.userId,
           username: ws.username,
@@ -1649,7 +1676,7 @@ wss.on('connection', (ws, req) => {
           details: { path: data.path || '', filename: data.filename || '' }
         });
       } else if (type === 'file_upload_start') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_UPLOAD',
           userId: ws.userId,
           username: ws.username,
@@ -1661,7 +1688,7 @@ wss.on('connection', (ws, req) => {
           details: { filename: data.filename, size: data.total_size, path: data.dest_path }
         });
       } else if (type === 'file_delete_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_DELETE',
           userId: ws.userId,
           username: ws.username,
@@ -1673,7 +1700,7 @@ wss.on('connection', (ws, req) => {
           details: { path: data.path || '' }
         });
       } else if (type === 'file_create_folder_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_MKDIR',
           userId: ws.userId,
           username: ws.username,
@@ -1685,7 +1712,7 @@ wss.on('connection', (ws, req) => {
           details: { path: data.path || '', folderName: data.name || '' }
         });
       } else if (type === 'file_copy_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_COPY',
           userId: ws.userId,
           username: ws.username,
@@ -1697,7 +1724,7 @@ wss.on('connection', (ws, req) => {
           details: { src: data.src || '', dst: data.dst || '' }
         });
       } else if (type === 'file_move_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_MOVE',
           userId: ws.userId,
           username: ws.username,
@@ -1709,7 +1736,7 @@ wss.on('connection', (ws, req) => {
           details: { src: data.src || '', dst: data.dst || '' }
         });
       } else if (type === 'file_rename_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_RENAME',
           userId: ws.userId,
           username: ws.username,
@@ -1721,7 +1748,7 @@ wss.on('connection', (ws, req) => {
           details: { old_path: data.old_path || '', new_name: data.new_name || '' }
         });
       } else if (type === 'file_read_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_READ',
           userId: ws.userId,
           username: ws.username,
@@ -1733,7 +1760,7 @@ wss.on('connection', (ws, req) => {
           details: { path: data.filepath || '' }
         });
       } else if (type === 'file_save_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'FILE_SAVE',
           userId: ws.userId,
           username: ws.username,
@@ -1745,7 +1772,7 @@ wss.on('connection', (ws, req) => {
           details: { path: data.filepath || '', length: (data.content || '').length }
         });
       } else if (type === 'process_kill_request') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'PROCESS_KILL',
           userId: ws.userId,
           username: ws.username,
@@ -1757,7 +1784,7 @@ wss.on('connection', (ws, req) => {
           details: { pid: data.pid, name: data.name || '' }
         });
       } else if (type === 'power_action') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'POWER_ACTION',
           userId: ws.userId,
           username: ws.username,
@@ -1769,7 +1796,7 @@ wss.on('connection', (ws, req) => {
           details: { action: data.action }
         });
       } else if (type === 'block_input') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'BLOCK_INPUT',
           userId: ws.userId,
           username: ws.username,
@@ -1781,7 +1808,7 @@ wss.on('connection', (ws, req) => {
           details: { blocked: !!data.blocked }
         });
       } else if (type === 'tunnel_open') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'TUNNEL_OPEN',
           userId: ws.userId,
           username: ws.username,
@@ -1793,7 +1820,7 @@ wss.on('connection', (ws, req) => {
           details: { protocol: data.protocol || 'rdp', port: data.port, tunnel_id: data.tunnel_id }
         });
       } else if (type === 'clipboard_sync') {
-        DB.logAudit({
+        await DB.logAudit({
           action: 'CLIPBOARD_SYNC',
           userId: ws.userId,
           username: ws.username,
@@ -1826,12 +1853,12 @@ wss.on('connection', (ws, req) => {
     }
   });
 
-  ws.on('close', () => {
+  ws.on('close', async () => {
     if (currentRoomId && rooms.has(currentRoomId)) {
       const room = rooms.get(currentRoomId);
       if (role === 'host') {
         console.log(`[Host Offline] Room: ${currentRoomId}`);
-        DB.logAudit({
+        await DB.logAudit({
           action: 'HOST_OFFLINE',
           roomId: currentRoomId,
           clientIp: ws.clientIp,
@@ -1840,11 +1867,11 @@ wss.on('connection', (ws, req) => {
           targetOs: room?.hostMeta?.osInfo,
           details: { status: 'offline' }
         });
-        closeRoomClients(currentRoomId, 'Máy trạm đã ngắt kết nối');
+        await closeRoomClients(currentRoomId, 'Máy trạm đã ngắt kết nối');
       } else if (role === 'client') {
         console.log(`[Client Disconnected] Room: ${currentRoomId} | Session: ${ws.sessionId}`);
         const durationSec = Math.round((Date.now() - (ws.connectTime || Date.now())) / 1000);
-        DB.logAudit({
+        await DB.logAudit({
           action: 'SESSION_DISCONNECTED',
           userId: ws.userId,
           username: ws.username,
@@ -1881,12 +1908,13 @@ setInterval(() => {
 }, 30000);
 
 server.listen(PORT, '0.0.0.0', () => {
+  const adapterInfo = DB.getAdapterInfo();
   console.log(`====================================================`);
   console.log(`  MEIKOVA RELAY ENTERPRISE - RELAY & REST API SERVER `);
   console.log(`====================================================`);
   console.log(`* Local Web UI & Relay: http://localhost:${PORT}`);
   console.log(`* Auth REST API:        http://localhost:${PORT}/api/auth`);
   console.log(`* Devices REST API:     http://localhost:${PORT}/api/devices`);
-  console.log(`* Database:             SQLite (meikova_relay.db)`);
+  console.log(`* Database:             ${adapterInfo.isTurso ? 'Turso Cloud SQLite' : 'SQLite WAL (meikova_relay.db)'}`);
   console.log(`====================================================`);
 });

@@ -1,33 +1,35 @@
 {
   "name": "Meikova Relay",
   "short_name": "Relay",
+  "description": "High-performance ambient instrument remote desktop platform",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#11151B",
   "theme_color": "#11151B",
   "icons": [
     {
-      "src": "icon-any-192.png",
+      "src": "/icon-any-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon-maskable-192.png",
+      "src": "/icon-maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icon-any-512.png",
+      "src": "/icon-any-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon-maskable-512.png",
+      "src": "/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
