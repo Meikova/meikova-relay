@@ -11,8 +11,8 @@ Trước khi bắt đầu, hãy lưu lại các thông số Redirect URI và Ori
 | Thông số | Giá trị Local (Chạy thử / Desktop) | Giá trị Production (Deploy Render) |
 | :--- | :--- | :--- |
 | **Loại ứng dụng (Application Type)** | `Web application` | `Web application` |
-| **Authorized JavaScript origins** | `http://localhost:8080` | `https://<ten-app-cua-ban>.onrender.com` |
-| **Authorized redirect URIs** | `http://localhost:8080/api/auth/google/callback` | `https://<ten-app-cua-ban>.onrender.com/api/auth/google/callback` |
+| **Authorized JavaScript origins** | `http://localhost:8080` | `https://meikova-relay.onrender.com` |
+| **Authorized redirect URIs** | `http://localhost:8080/api/auth/google/callback` | `https://meikova-relay.onrender.com/api/auth/google/callback` |
 
 > [!NOTE]
 > Meikova Relay sử dụng kiến trúc **RFC 8252 (Loopback Browser Flow)** cho App Desktop, nên cả phiên bản Web lẫn Desktop đều dùng chung cấu hình **Web application** với redirect URI trỏ về server relay (`/api/auth/google/callback`).
@@ -65,11 +65,11 @@ Trước khi bắt đầu, hãy lưu lại các thông số Redirect URI và Ori
 5. **Authorized JavaScript origins**:
    - Nhấn **+ ADD URI** và thêm:
      - `http://localhost:8080`
-     - `https://<ten-app-cua-ban>.onrender.com` *(nếu đã có domain Render)*
+     - `https://meikova-relay.onrender.com` *(nếu đã có domain Render)*
 6. **Authorized redirect URIs**:
    - Nhấn **+ ADD URI** và thêm:
      - `http://localhost:8080/api/auth/google/callback`
-     - `https://<ten-app-cua-ban>.onrender.com/api/auth/google/callback`
+     - `https://meikova-relay.onrender.com/api/auth/google/callback`
 7. Nhấn **Create**.
 
 ### Bước 5: Tải file Credentials về máy
@@ -101,10 +101,10 @@ Nếu bạn đã có sẵn một Google Cloud Project từ trước:
 5. Thêm các URL:
    - **Authorized JavaScript origins**:
      - `http://localhost:8080`
-     - `https://<ten-app-cua-ban>.onrender.com`
+     - `https://meikova-relay.onrender.com`
    - **Authorized redirect URIs**:
      - `http://localhost:8080/api/auth/google/callback`
-     - `https://<ten-app-cua-ban>.onrender.com/api/auth/google/callback`
+     - `https://meikova-relay.onrender.com/api/auth/google/callback`
 6. Nhấn **Create**.
 7. Nhấn **DOWNLOAD JSON** để tải file về, đổi tên thành `client_secret.json`.
 
