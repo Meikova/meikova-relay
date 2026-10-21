@@ -86,6 +86,11 @@ def _render_menu_icon(name: str) -> Optional[Any]:
         d.rounded_rectangle([18, 8, 54, 44], radius=6, outline=CYAN, width=4)
         d.rounded_rectangle([10, 18, 44, 56], radius=6, outline=WHITE, width=4)
 
+    elif name == "chat":
+        # Speech bubble
+        d.rounded_rectangle([10, 14, 54, 44], radius=8, outline=CYAN, width=4)
+        d.polygon([(18, 44), (18, 54), (28, 44)], fill=CYAN)
+
     elif name == "browser":
         # Web globe with equator and central meridian
         d.ellipse([8, 8, 56, 56], outline=CYAN, width=4)
@@ -333,6 +338,11 @@ def build_tray_menu(api, on_restore, on_exit):
             dashboard_url = f"{http_url}/dashboard"
             webbrowser.open(dashboard_url)
 
+        def _do_open_chat():
+            chat_win = getattr(api, "chat_window", None)
+            if chat_win:
+                chat_win.show()
+
         def _t(k):
             if hasattr(api, "t"):
                 return api.t(k)
@@ -346,6 +356,7 @@ def build_tray_menu(api, on_restore, on_exit):
             pystray.Menu.SEPARATOR,
             # 3. Main actions
             CustomMenuItem(_t("tray_open"), on_restore, icon_name="window", default=True),
+            CustomMenuItem("Mở cửa sổ Chat", _do_open_chat, icon_name="chat"),
             CustomMenuItem(_t("tray_copy"), _do_copy, icon_name="copy"),
             CustomMenuItem("Mở Dashboard trên Web", _do_open_web, icon_name="browser"),
             pystray.Menu.SEPARATOR,

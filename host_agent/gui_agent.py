@@ -160,6 +160,14 @@ except ModuleNotFoundError:
         is_current_user_admin,
     )
 
+try:
+    from host_agent.chat_window import HostChatWindow
+except ModuleNotFoundError:
+    try:
+        from chat_window import HostChatWindow
+    except ModuleNotFoundError:
+        HostChatWindow = None
+
 # Optional System Tray Support via pystray & PIL
 try:
     import pystray
@@ -482,6 +490,15 @@ class MeikovaRelayHostGUI:
         self.current_tab = "ultra"  # "ultra" | "chrome" | "settings"
         self.connected_client_info: Optional[str] = None
         self.tray_icon = None
+        self.chat_window: Optional[HostChatWindow] = None
+        if HostChatWindow:
+            try:
+                self.chat_window = HostChatWindow(
+                    on_send_reply=lambda text: self.host_service.send_chat_message(text) if self.host_service else None,
+                    parent=self.root
+                )
+            except Exception:
+                self.chat_window = None
 
         # Windows taskbar grouping AppUserModelID for custom icon display
         try:
@@ -925,6 +942,22 @@ class MeikovaRelayHostGUI:
         )
         self.active_session_label.pack(side="left")
 
+        self.btn_open_chat = tk.Button(
+            self.active_session_card,
+            text="💬 Chat",
+            font=("Segoe UI", 7, "bold"),
+            bg=COLORS["btn_surface"],
+            fg=COLORS["accent_cyan"],
+            activebackground=COLORS["btn_surface_hover"],
+            activeforeground="#FFFFFF",
+            relief="flat",
+            bd=0,
+            padx=8,
+            pady=3,
+            cursor="hand2",
+            command=lambda: self.chat_window.show() if self.chat_window else None
+        )
+
         self.btn_disconnect_client = tk.Button(
             self.active_session_card,
             text=self.t("btn_disconnect"),
@@ -1277,7 +1310,12 @@ class MeikovaRelayHostGUI:
         self.host_service.on_status_change = lambda st: self.root.after(0, lambda: self._on_service_status(st))
         self.host_service.on_client_connect = lambda ev: self.root.after(0, lambda: self._on_client_connected(ev))
         self.host_service.on_client_disconnect = lambda: self.root.after(0, self._on_client_disconnected)
-        self.host_service.on_chat_message = lambda sender, text: self.root.after(0, lambda: self._log(f"[CHAT] [{sender}]: {text}"))
+        def _on_chat(sender, text):
+            self._log(f"[CHAT] [{sender}]: {text}")
+            if self.chat_window:
+                self.chat_window.add_message(sender, text, is_local=False)
+
+        self.host_service.on_chat_message = lambda sender, text: self.root.after(0, lambda: _on_chat(sender, text))
 
         def runner():
             loop = asyncio.new_event_loop()
@@ -1309,6 +1347,8 @@ class MeikovaRelayHostGUI:
         self.status_pill.config(text=self.t("status_stopped"), fg=COLORS["accent_red"], bg=COLORS["accent_red_bg"])
         self.btn_master_toggle.config(text=self.t("btn_start_service"), bg=COLORS["accent_green"], fg=COLORS["bg_main"], activebackground="#16A34A")
         self.active_session_label.config(text=self.t("session_stopped"), fg=COLORS["text_muted"])
+        if hasattr(self, "btn_open_chat"):
+            self.btn_open_chat.pack_forget()
         self.btn_disconnect_client.pack_forget()
         self._log(self.t("log_service_stopped"))
 
@@ -1330,11 +1370,15 @@ class MeikovaRelayHostGUI:
         self.connected_client_info = f"{client_user} ({client_ip})"
         self.status_pill.config(text=self.t("status_connected"), fg=COLORS["accent_cyan"], bg=COLORS["accent_cyan_bg"])
         self.active_session_label.config(text=self.t("session_active", client=self.connected_client_info), fg=COLORS["accent_cyan"])
+        if self.chat_window:
+            self.btn_open_chat.pack(side="right", padx=(0, 6))
         self.btn_disconnect_client.pack(side="right")
         self._log(self.t("log_new_connection", client=self.connected_client_info))
 
     def _on_client_disconnected(self):
         self.connected_client_info = None
+        if hasattr(self, "btn_open_chat"):
+            self.btn_open_chat.pack_forget()
         self.btn_disconnect_client.pack_forget()
         if self.is_running:
             self.status_pill.config(text=self.t("status_ready"), fg=COLORS["accent_green"], bg=COLORS["accent_green_bg"])
@@ -1707,6 +1751,15 @@ class HostApi:
         self._connected_client_info: Optional[str] = None
         self._tray_icon = None
         self._is_quitting = False
+        self.chat_window: Optional[HostChatWindow] = None
+        if HostChatWindow:
+            try:
+                self.chat_window = HostChatWindow(
+                    on_send_reply=lambda text: self._host_service.send_chat_message(text) if self._host_service else None,
+                    parent=None
+                )
+            except Exception:
+                self.chat_window = None
 
     def set_window(self, window):
         self._window = window
@@ -1878,7 +1931,12 @@ class HostApi:
             self._host_service.on_status_change = self._on_service_status
             self._host_service.on_client_connect = self._on_client_connected
             self._host_service.on_client_disconnect = self._on_client_disconnected
-            self._host_service.on_chat_message = lambda sender, text: self._log(f"[CHAT] [{sender}]: {text}")
+            def _on_webview_chat(sender, text):
+                self._log(f"[CHAT] [{sender}]: {text}")
+                if self.chat_window:
+                    self.chat_window.add_message(sender, text, is_local=False)
+
+            self._host_service.on_chat_message = _on_webview_chat
         except Exception as e:
             self._log(f"Service Init Error: {e}")
             return
@@ -1951,6 +2009,13 @@ class HostApi:
         self._save_config()
         self._log(self.t("log_new_pin", pin=rand_pin))
         return rand_pin
+
+    def open_chat_window(self):
+        """Opens/raises host chat window."""
+        if self.chat_window:
+            self.chat_window.show()
+            return {"status": "ok"}
+        return {"status": "error", "message": "Chat window not available"}
 
     def copy_text(self, text: str, name: str):
         set_clipboard_text(text)

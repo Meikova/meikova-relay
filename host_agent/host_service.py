@@ -251,6 +251,20 @@ class HostService:
                 self.loop
             )
 
+    def send_chat_message(self, text: str):
+        """Sends a chat message from host to remote client."""
+        if not text:
+            return
+        if self.ws and self.loop and self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(
+                self.ws.send(json.dumps({
+                    "type": "chat_message",
+                    "sender": self.device_name or "Máy trạm",
+                    "message": text
+                })),
+                self.loop
+            )
+
     def apply_quality_preset(self, preset: str) -> str:
         """Applies streaming frame rate, quality, and compression parameters."""
         # ponytail: deterministic preset mapping, single source of truth

@@ -768,16 +768,25 @@ body.is-desktop-app .topbar {
   border-radius: 10px;
   padding: 10px 14px;
   color: var(--text);
-  outline: none;
+  outline: none !important;
   font-size: var(--step-0);
   transition:
     border-color var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-fast) var(--ease-out);
 }
 
+/* Universal Zero-Double-Border Standard */
+input, textarea, select {
+  outline: none !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
 .instrument-input:focus {
-  border-color: var(--accent);
-  box-shadow: var(--focus);
+  outline: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow) !important;
 }
 
 /* Universal Dark Autofill Reset: Preserves clean dark backgrounds on browser autofill */
@@ -3150,12 +3159,12 @@ input:-webkit-autofill:active {
 }
 
 .cockpit-input-wrap:focus-within {
-  border-color: var(--accent);
+  border-color: var(--accent) !important;
   background: #050a12;
   box-shadow:
     0 0 0 1px var(--accent),
-    0 0 20px rgba(34, 197, 94, 0.22),
-    inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    0 0 14px -2px var(--accent-glow),
+    inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;
 }
 
 .cockpit-input-icon {

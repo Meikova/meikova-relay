@@ -1,5 +1,28 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.39)
+- **Cửa Sổ Trò Chuyện Trực Tiếp Trên Máy Trạm (Host Floating Chat) & Khắc Phục Lỗi Double-Border Focus Input:**
+  - **1. Cửa sổ Chat nổi thời gian thực trên máy trạm (Host Floating Chat Window):**
+    - **Vấn đề:** Khi kỹ thuật viên từ xa gửi tin nhắn chat qua Side Shelf Chat, phía máy trạm chỉ ghi log ngầm vào file/console, không có giao diện hiển thị hay trả lời cho người dùng máy trạm.
+    - **Khắc phục:**
+      - [host_agent/chat_window.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/chat_window.py): Xây dựng HostChatWindow thuần stdlib Tkinter chuẩn phong cách Ambient Dark (#070D17, #0B132B, #22C55E), kích thước 360x420px nổi góc dưới cùng bên phải màn hình (trên thanh Taskbar), thuộc tính -topmost True, âm thanh báo nhận tin (winsound.MessageBeep), quản lý đóng ẩn (hide/restore) bảo toàn lịch sử hội thoại, ô nhập tin nhắn và nút gửi phản hồi.
+      - Hỗ trợ đa luồng an toàn (Thread-Safe): Tự động tương thích cả khi gắn vào mainloop của Tkinter GUI hoặc chạy trên luồng ngầm daemon khi chạy cùng PyWebView (HostApi) hay chạy khay hệ thống (System Tray).
+      - [host_agent/host_service.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/host_service.py): Bổ sung send_chat_message(text) gửi gói tin chat_message 2 chiều qua WebSocket.
+      - [host_agent/gui_agent.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_agent.py): Tích hợp HostChatWindow vào cả MeikovaRelayHostGUI và HostApi. Thêm nút 'Chat' trên thanh phiên làm việc đang hoạt động và trên titlebar WebView2.
+      - [host_agent/tray_menu.py](file:///D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_menu.py): Thêm icon vector chat và mục 'Mở cửa sổ Chat' trong menu chuột phải khay hệ thống.
+  - **2. Khắc phục triệt để lỗi viền kép khi focus ô nhập liệu (Zero-Double-Border Standard & Cache-Buster):**
+    - **Vấn đề:** Trình duyệt lưu cache cũ của tokens.css?v=1.0.16 có chứa 0 0 0 2px var(--ink-0), 0 0 0 4px var(--accent) gây rãnh đen ngăn cách giữa 2 viền xanh neon khi focus input (vi phạm quy chuẩn Zero-Double-Border).
+    - **Khắc phục:**
+      - [web-client/css/tokens.css](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/css/tokens.css): Khai báo token chuẩn --accent-glow: oklch(var(--acc) / 0.35); và --focus: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow);.
+      - [web-client/css/style.css](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/css/style.css): Thiết lập reset phổ quát cho mọi input, textarea, select: outline: none !important; border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow) !important;. Đồng thời chỉnh .cockpit-input-wrap:focus-within đơn viền liền khối.
+      - [web-client/index.html](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/index.html) & [web-client/sw.js](file:///D:/JOB/DEV/meikova/meikova-relay/web-client/sw.js): Nâng phiên bản cache-buster lên ?v=1.0.39 và CACHE_NAME = 'meikova-relay-cache-v1.0.39', làm mới toàn bộ bộ nhớ đệm trình duyệt và Service Worker. Đồng bộ toàn bộ sang relay-server/public/.
+  - **3. Kiểm thử & Đóng gói:**
+    - [tests/test_host_chat.py](file:///D:/JOB/DEV/meikova/meikova-relay/tests/test_host_chat.py): Bổ sung kiểm thử tự động cho HostChatWindow, send_chat_message và bộ điều phối sự kiện chat.
+    - Toàn bộ 90/90 bài kiểm thử vượt qua (Ran 90 tests in 18.218s - OK (skipped=1), Exit Code 0).
+    - Biên dịch và đóng gói hoàn tất dist/MeikovaRelayHost.exe và đồng bộ sang relay-server/MeikovaRelayHost.exe (Exit Code 0).
+
+---
+
 ### Recent Updates (Version 1.0.38)
 - **Chuẩn Hóa UI Nút Bấm Side Shelf & Khắc Phục Triệt Để Đồng Bộ 'Đẩy Clipboard':**
   - **1. Chuẩn hóa giao diện nút bấm Side Shelf (Equalized Pill Button Styling):**
