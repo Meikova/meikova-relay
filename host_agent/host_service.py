@@ -7,9 +7,77 @@ import asyncio
 import logging
 import argparse
 import unicodedata
+import socket
+import ssl
+import urllib.request
+import urllib.parse
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 import websockets
+
+# --- Resilient Network Infrastructure: DNS Bypass, Corporate Proxy, and Resilient SSL ---
+_ORIGINAL_GETADDRINFO = socket.getaddrinfo
+
+@lru_cache(maxsize=1024)
+def _resolve_doh(domain: str) -> Optional[str]:
+    """Resolves IP via DNS-over-HTTPS (DoH) if local system/corporate DNS fails or is censored."""
+    endpoints = [
+        f"https://dns.google/resolve?name={domain}&type=A",
+        f"https://cloudflare-dns.com/dns-query?name={domain}&type=A"
+    ]
+    for ep in endpoints:
+        try:
+            req = urllib.request.Request(ep, headers={"Accept": "application/dns-json", "User-Agent": "TitanRemoteDNS"})
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                data = json.loads(resp.read().decode())
+                for ans in data.get("Answer", []):
+                    if ans.get("type") == 1:
+                        return ans.get("data")
+        except Exception:
+            continue
+    return None
+
+def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    try:
+        return _ORIGINAL_GETADDRINFO(host, port, family, type, proto, flags)
+    except socket.gaierror:
+        # Fallback to DoH if system DNS fails (corporate firewall or ISP block)
+        ip = _resolve_doh(host)
+        if ip:
+            return _ORIGINAL_GETADDRINFO(ip, port, family, type, proto, flags)
+        raise
+
+socket.getaddrinfo = _patched_getaddrinfo
+
+def configure_system_proxies() -> Optional[str]:
+    """Inspects Windows Registry / WinINet proxy settings and exports to environment."""
+    try:
+        proxies = urllib.request.getproxies()
+        for proto in ("http", "https"):
+            p_url = proxies.get(proto)
+            env_key = f"{proto.upper()}_PROXY"
+            if p_url and env_key not in os.environ:
+                os.environ[env_key] = p_url
+        return proxies.get("https") or proxies.get("http")
+    except Exception:
+        return None
+
+def create_relay_ssl_context(allow_insecure: bool = False):
+    """Creates SSL context trusting Windows CA store with automatic fallback for corporate MITM proxies."""
+    if allow_insecure:
+        ctx = ssl._create_unverified_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+
+    ctx = ssl.create_default_context()
+    if sys.platform == "win32":
+        try:
+            ctx.load_default_certs(ssl.Purpose.SERVER_AUTH)
+        except Exception:
+            pass
+    return ctx
 
 # Ensure package is resolvable whether run as module or standalone directory
 current_dir = Path(__file__).resolve().parent
@@ -62,6 +130,7 @@ class HostService:
         self.file_manager = FileManager()
         self.running = True
         self.has_active_client = False
+        self._allow_insecure_ssl = False
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -650,16 +719,34 @@ class HostService:
         logger.info(f"Starting Host Agent for Room [{self.room_id}] (Res: {w}x{h})")
         PowerManager.prevent_sleep(True)
 
+        system_proxy = configure_system_proxies()
+        parsed_url = urllib.parse.urlparse(self.relay_url)
+        origin_scheme = "https" if parsed_url.scheme == "wss" else "http"
+        origin_header = f"{origin_scheme}://{parsed_url.netloc}"
+        browser_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
         try:
             while self.running:
+                ssl_context = None
+                if self.relay_url.startswith("wss://"):
+                    ssl_context = create_relay_ssl_context(allow_insecure=self._allow_insecure_ssl)
+
                 try:
-                    logger.info(f"Connecting to Relay Server at {self.relay_url} ...")
-                    async with websockets.connect(
-                        self.relay_url,
-                        ping_interval=20,
-                        ping_timeout=15,
-                        max_size=20 * 1024 * 1024
-                    ) as ws:
+                    logger.info(f"Connecting to Relay Server at {self.relay_url} (insecure_ssl={self._allow_insecure_ssl}) ...")
+                    connect_kwargs = {
+                        "ping_interval": 20,
+                        "ping_timeout": 15,
+                        "max_size": 20 * 1024 * 1024,
+                        "user_agent_header": browser_ua,
+                        "origin": origin_header,
+                        "additional_headers": {"Origin": origin_header, "User-Agent": browser_ua},
+                    }
+                    if ssl_context:
+                        connect_kwargs["ssl"] = ssl_context
+                    if system_proxy:
+                        connect_kwargs["proxy"] = system_proxy
+
+                    async with websockets.connect(self.relay_url, **connect_kwargs) as ws:
                         self.ws = ws
                         init_pkt = json.dumps({
                             "type": "init_host",
@@ -677,7 +764,13 @@ class HostService:
                         ack_raw = await ws.recv()
                         ack = json.loads(ack_raw) if isinstance(ack_raw, str) else {}
                         if ack.get("status") != "ok":
-                            logger.error(f"Relay authentication rejected: {ack.get('message')}")
+                            err_msg = ack.get("message", "Authentication rejected")
+                            logger.error(f"Relay authentication rejected: {err_msg}")
+                            if self.on_status_change:
+                                try:
+                                    self.on_status_change("reconnecting", detail=err_msg)
+                                except Exception:
+                                    pass
                             await asyncio.sleep(5)
                             continue
 
@@ -702,16 +795,36 @@ class HostService:
                         self.audio_capture.stop()
                         self.audio_playback.stop()
 
-                except (websockets.ConnectionClosed, ConnectionRefusedError, OSError) as e:
-                    logger.warning(f"Connection lost ({e}). Reconnecting in 3s...")
+                except (websockets.ConnectionClosed, ConnectionRefusedError, OSError, ssl.SSLError) as e:
+                    err_str = str(e) or type(e).__name__
+                    # Detect corporate SSL Inspection and auto-switch to enterprise bypass
+                    is_ssl_err = isinstance(e, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in err_str or "self-signed certificate" in err_str or "certificate verify failed" in err_str
+                    if is_ssl_err and not self._allow_insecure_ssl:
+                        logger.warning(f"Corporate SSL inspection detected ({err_str}). Switching to enterprise TLS bypass mode...")
+                        self._allow_insecure_ssl = True
+                        if self.on_status_change:
+                            try:
+                                self.on_status_change("reconnecting", detail="Phát hiện SSL Firewall công ty. Đang tự động chuyển sang chế độ vượt bảo mật...")
+                            except Exception:
+                                pass
+                        await asyncio.sleep(1)
+                        continue
+
+                    logger.warning(f"Connection lost ({err_str}). Reconnecting in 3s...")
                     if self.on_status_change:
                         try:
-                            self.on_status_change("reconnecting")
+                            self.on_status_change("reconnecting", detail=err_str)
                         except Exception:
                             pass
                     await asyncio.sleep(3)
                 except Exception as e:
-                    logger.error(f"Unexpected error: {e}. Reconnecting in 5s...")
+                    err_str = str(e) or type(e).__name__
+                    logger.error(f"Unexpected error: {err_str}. Reconnecting in 5s...")
+                    if self.on_status_change:
+                        try:
+                            self.on_status_change("reconnecting", detail=err_str)
+                        except Exception:
+                            pass
                     await asyncio.sleep(5)
         finally:
             PowerManager.prevent_sleep(False)

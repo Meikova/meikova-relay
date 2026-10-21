@@ -443,8 +443,10 @@ def resolve_config_path() -> Path:
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data:
             candidates.append(Path(local_app_data) / "MeikovaRelayHost" / "config.json")
+            candidates.append(Path(local_app_data) / "TitanRemoteHost" / "config.json")
     else:
         candidates.append(Path.home() / ".meikova-relay" / "config.json")
+        candidates.append(Path.home() / ".titan-remote" / "config.json")
 
     # 3. Current Working Directory
     candidates.append(Path.cwd() / "config.json")
@@ -454,6 +456,7 @@ def resolve_config_path() -> Path:
 
     # 5. User profile fallback
     candidates.append(Path.home() / ".meikova_relay_config.json")
+    candidates.append(Path.home() / ".titan_remote_config.json")
 
     for c in candidates:
         if c.exists() and c.is_file():
@@ -1311,14 +1314,17 @@ class TitanHostGUI:
         self.btn_disconnect_client.pack_forget()
         self._log(self.t("log_service_stopped"))
 
-    def _on_service_status(self, status: str):
+    def _on_service_status(self, status: str, detail: str = ""):
         if status == "ready":
             self.status_pill.config(text=self.t("status_ready"), fg=COLORS["accent_green"], bg=COLORS["accent_green_bg"])
             self.active_session_label.config(text=self.t("session_waiting"), fg=COLORS["accent_green"])
             self._log(self.t("log_room_registered", room_id=self.config['room_id']))
         elif status == "reconnecting":
             self.status_pill.config(text=self.t("status_reconnecting"), fg=COLORS["accent_amber"], bg=COLORS["accent_amber_bg"])
-            self._log(self.t("log_reconnecting"))
+            msg = self.t("log_reconnecting")
+            if detail:
+                msg = f"{msg} (Chi tiết: {detail})"
+            self._log(msg)
 
     def _on_client_connected(self, event: dict):
         client_user = event.get("clientUser") or event.get("username") or ("Người điều khiển từ xa" if self.lang == "vi" else "Remote Operator")
@@ -1909,13 +1915,16 @@ class HostApi:
         self._eval_js("window.__onServiceStatus && window.__onServiceStatus('stopped');")
         self._log(self.t("log_service_stopped"))
 
-    def _on_service_status(self, status: str):
+    def _on_service_status(self, status: str, detail: str = ""):
         safe_st = json.dumps(status)
         self._eval_js(f"window.__onServiceStatus && window.__onServiceStatus({safe_st});")
         if status == "ready":
             self._log(self.t("log_room_registered", room_id=self._config.get("room_id", "")))
         elif status == "reconnecting":
-            self._log(self.t("log_reconnecting"))
+            msg = self.t("log_reconnecting")
+            if detail:
+                msg = f"{msg} (Chi tiết: {detail})"
+            self._log(msg)
 
     def _on_client_connected(self, event: dict):
         client_user = event.get("clientUser") or event.get("username") or ("Người điều khiển từ xa" if self._lang == "vi" else "Remote Operator")

@@ -25,7 +25,7 @@ except ImportError:
 try:
     import pystray
     HAS_PYSTRAY = True
-except ImportError:
+except Exception:
     HAS_PYSTRAY = False
 
 # Palette constants

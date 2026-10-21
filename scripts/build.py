@@ -344,6 +344,12 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
             exe_path = run_pyinstaller("windows", dist_dir)
         zip_path = dist_dir / "MeikovaRelayHost-windows-x64.zip"
         create_windows_zip(exe_path, zip_path)
+        # Backward compatibility aliases for Titan Remote
+        try:
+            shutil.copy2(exe_path, dist_dir / "TitanRemoteHost.exe")
+            shutil.copy2(zip_path, dist_dir / "TitanRemoteHost-windows-x64.zip")
+        except Exception:
+            pass
         print(f"[+] Windows artifacts: {exe_path.name}, {zip_path.name}")
 
     elif target == "linux":

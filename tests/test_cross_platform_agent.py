@@ -85,8 +85,9 @@ class TestCrossPlatformAgent(unittest.TestCase):
             target_cfg.parent.mkdir(parents=True, exist_ok=True)
             target_cfg.write_text('{"account": "test@domain.com"}', encoding="utf-8")
             with patch.dict(os.environ, {"LOCALAPPDATA": str(fake_appdata)}):
-                found_path = resolve_config_path()
-                self.assertEqual(found_path.resolve(), target_cfg.resolve())
+                with patch('sys.platform', 'win32'):
+                    found_path = resolve_config_path()
+                    self.assertEqual(found_path.resolve(), target_cfg.resolve())
 
     def test_host_api_private_state_hygiene(self):
         """HostApi must not expose internal native/COM objects without leading underscore."""

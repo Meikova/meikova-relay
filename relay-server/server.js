@@ -698,14 +698,20 @@ set "TARGET_DIR=%LOCALAPPDATA%\\TitanRemoteHost"
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 cd /d "%TARGET_DIR%"
 
-echo [1/3] Kiem tra phan mem Standalone Desktop (.exe)...
-if not exist "TitanRemoteHost.exe" goto :DOWNLOAD_EXE
-for %%I in ("TitanRemoteHost.exe") do if %%~zI LSS 5000000 del /f /q "TitanRemoteHost.exe" >nul 2>&1
+echo [1/3] Kiem tra va cap nhat ban Standalone Desktop (.exe)...
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe.new') } catch {}"
+if exist "TitanRemoteHost.exe.new" (
+    for %%I in ("TitanRemoteHost.exe.new") do if %%~zI GTR 5000000 (
+        taskkill /f /im TitanRemoteHost.exe >nul 2>&1
+        move /y "TitanRemoteHost.exe.new" "TitanRemoteHost.exe" >nul 2>&1
+    )
+    if exist "TitanRemoteHost.exe.new" del /f /q "TitanRemoteHost.exe.new" >nul 2>&1
+)
 
-:DOWNLOAD_EXE
-if exist "TitanRemoteHost.exe" goto :CHECK_STANDALONE
-echo Dang tai TitanRemoteHost.exe tu Relay Server...
-powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe')"
+if not exist "TitanRemoteHost.exe" (
+    echo Dang tai TitanRemoteHost.exe tu Relay Server...
+    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/TitanRemoteHost.exe', 'TitanRemoteHost.exe')"
+)
 
 :CHECK_STANDALONE
 set "USE_STANDALONE=0"

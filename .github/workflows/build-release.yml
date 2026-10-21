@@ -72,6 +72,8 @@ jobs:
           files: |
             dist/MeikovaRelayHost.exe
             dist/MeikovaRelayHost-windows-x64.zip
+            dist/TitanRemoteHost.exe
+            dist/TitanRemoteHost-windows-x64.zip
             dist/SHA256SUMS.txt
           draft: false
           prerelease: false
@@ -91,7 +93,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxtst-dev libpng-dev python3-tk
+          sudo apt-get install -y libx11-dev libxtst-dev libpng-dev python3-tk xvfb
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
@@ -117,7 +119,7 @@ jobs:
 
       - name: Run Test Suite
         run: |
-          python -m unittest discover tests
+          xvfb-run -a python -m unittest discover tests
 
       - name: Build Linux Standalone Binary, Debian Package & Tarball
         run: |
