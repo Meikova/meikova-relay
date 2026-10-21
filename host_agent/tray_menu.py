@@ -58,11 +58,14 @@ def _render_menu_icon(name: str) -> Optional[Any]:
             _icon_cache[name] = master
             return master
         except Exception:
-            # Fallback mathematical infinity
-            d.rounded_rectangle([0, 0, size, size], radius=14, fill=BG_DARK)
-            d.ellipse([14, 22, 34, 42], outline=EMERALD, width=6)
-            d.ellipse([30, 22, 50, 42], outline=EMERALD, width=6)
-            d.ellipse([46, 25, 51, 30], fill=WHITE)
+            try:
+                from host_agent.make_icon import draw_duplex_bridge
+                master = draw_duplex_bridge(size)
+                _icon_cache[name] = master
+                return master
+            except Exception:
+                d.rounded_rectangle([0, 0, size, size], radius=14, fill=(17, 21, 27, 255))
+                return img
 
     elif name == "status_online":
         # Glowing green status beacon

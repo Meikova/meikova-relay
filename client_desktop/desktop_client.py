@@ -619,12 +619,17 @@ class ClientTray:
 
     def quit(self):
         self.is_quitting = True
+        self.stop()
+        if self.window:
+            try:
+                self.window.hide()
+            except Exception:
+                pass
         if self.server:
             try:
                 self.server.stop_local_relay()
             except Exception:
                 pass
-        self.stop()
         if self.window:
             try:
                 self.window.destroy()
@@ -874,8 +879,13 @@ class ClientTray:
                 if hasattr(self._tray, "Visible"):
                     self._tray.Visible = False
                     self._tray.Dispose()
-                elif hasattr(self._tray, "stop"):
-                    self._tray.stop()
+                else:
+                    if hasattr(self._tray, "_hide"):
+                        self._tray._hide()
+                    if hasattr(self._tray, "visible"):
+                        self._tray.visible = False
+                    if hasattr(self._tray, "stop"):
+                        self._tray.stop()
             except Exception:
                 pass
             self._tray = None

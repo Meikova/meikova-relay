@@ -1,5 +1,66 @@
 # PROJECT SESSION HANDOFF LOG
 
+### Recent Updates (Version 1.0.48 - Complete Brand Harmonization, Instant Tray Exit & Render Deploy Fix)
+- **1. Đồng Bộ Triệt Để Nhận Diện Thương Hiệu Meikova Relay (Duplex Bridge):**
+  - **Tài sản thương hiệu chuẩn (`D:\JOB\DEV\meikova\assets\logos\products\meikova-relay` & `docs/BRAND-AND-LOGOS.md`):**
+    * Cấu trúc: Duplex Bridge (hai cầu điều khiển chéo lồng nhau, mã nhận diện `#83E8AC` trên nền squircle `#11151B` rx=22%).
+    * Thay thế toàn bộ biểu tượng vô cực xanh Meikova Loop cũ (`M16 16 C 19.5 10.5...`).
+  - **Cập nhật mã nguồn và giao diện:**
+    * `host_agent/gui_view.html`: Thay thế thẻ titlebar-logo bằng inline SVG Duplex Bridge chuẩn.
+    * `host_agent/make_icon.py`: Tái cấu trúc hàm `draw_duplex_bridge()` và `render_unified_icon()` theo hình học vector Duplex Bridge chính xác, supersampling 4x anti-aliasing.
+    * `host_agent/gui_agent.py`: Cập nhật `get_tray_icon_image()` nạp file `tray_icon.png` / `icon.png` và fallback về `draw_duplex_bridge(32)`.
+    * `host_agent/tray_menu.py`: Fallback logo menu nạp `draw_duplex_bridge(size)`.
+    * `scripts/build.py`: Bổ sung `--icon host_agent/icon.ico` và đóng gói `tray_icon.png` vào PyInstaller data bundle.
+  - **Sao chép các file tài sản chuẩn từ Brand Kit:**
+    * `windows/app.ico` -> `host_agent/icon.ico`, `client_desktop/icon.ico`, `icon.ico`, `web-client/favicon.ico`, `relay-server/public/favicon.ico`.
+    * `app-icons/rounded/icon-512.png` -> `host_agent/icon.png`, `web-client/icon-512.png`, `relay-server/public/icon-512.png`.
+    * `app-icons/rounded/icon-192.png` -> `web-client/icon-192.png`, `relay-server/public/icon-192.png`.
+    * `app-icons/rounded/icon-32.png` -> `host_agent/tray_icon.png`, `client_desktop/tray_icons/logo.png`.
+    * `web/apple-touch-icon.png` -> `web-client/apple-touch-icon.png`, `relay-server/public/apple-touch-icon.png`.
+    * `svg/meikova-relay-app.svg` -> `web-client/favicon.svg`, `relay-server/public/favicon.svg`.
+
+- **2. Tối Ưu Hóa Thoát Ứng Dụng: Biến Mất Tray Icon Ngay Lập Tức (0ms Latency):**
+  - **Phân tích nguyên nhân gốc rễ:**
+    * Khi bấm "Thoát", hàm `tray_exit` gọi `api.stop_service()` trước. Hàm này đợi đóng WebSocket và audio captures mất 1-1.5s trong khi tray icon vẫn hiển thị.
+    * Tiếp theo, `pystray.Icon.stop()` chỉ bắn thông điệp bất đồng bộ `WM_STOP` sang worker thread của pystray mà không gọi `_hide()`.
+    * Luồng chính ngay lập tức gọi `os._exit(0)` trước khi pystray kịp xử lý `WM_STOP` và gọi `Shell_NotifyIconW(NIM_DELETE)`. Hậu quả: tiến trình chết nhưng để lại "icon bóng ma" (phantom/zombie icon) trên thanh taskbar Windows, chỉ biến mất khi di chuột qua hoặc sau khi Windows Explorer tự quét rác.
+  - **Khắc phục:**
+    * Bổ sung helper `safely_remove_tray_icon(tray_icon)`: Gọi đồng bộ `tray_icon._hide()` (`Shell_NotifyIconW(NIM_DELETE)`) + `visible = False` + `stop()` ngay dòng đầu tiên khi bấm Thoát.
+    * Ẩn ngay cửa sổ (`window.hide()` / `root.withdraw()`).
+    * Sau khi icon và window đã biến mất tức thì trên màn hình (0ms), tiến trình mới chạy ngầm thu dọn service và thoát sạch sẽ.
+    * Áp dụng đồng bộ cho cả Edge WebView2, Tkinter GUI, IPC command `STOP`, và `client_desktop`.
+
+- **3. Điều Tra & Xử Lý Triệt Để Lỗi Render Không Auto-Redeploy Khi Có Commit Mới:**
+  - **Nguyên nhân chính 1 (Xung đột phiên bản Node.js khiến Render crash & rollback về v1.0.17):**
+    * Thực tế kiểm tra trực tiếp qua endpoint Render: Server Render đang bị kẹt ở bản commit cũ ngày 20/10 (`tokens.css?v=1.0.16` & `app.js?v=1.0.17`).
+    * Từ commit `d573408`, file `relay-server/db.js` bắt đầu dùng `const { DatabaseSync } = require('node:sqlite');`. Thư viện này **bắt buộc Node.js >= 22.5.0**.
+    * Môi trường mặc định của Render là **Node 18 hoặc 20**. Khi deploy bản mới, `node server.js` crash ngay khi khởi động (`Cannot find module 'node:sqlite'`). Render coi deploy thất bại và tiếp tục giữ bản chạy được trước đó.
+    * *Đã khắc phục trong codebase:* Khai báo `"engines": { "node": ">=22.5.0" }` trong `relay-server/package.json`, bổ sung file `.node-version` (`22.12.0`) tại root và `relay-server/`, và tạo file hạ tầng `render.yaml` chuẩn hóa `NODE_VERSION: 22.12.0`.
+  - **Nguyên nhân 2 (Render Dashboard Settings):**
+    * Cài đặt `Auto-Deploy` trong Render Dashboard có thể đang tắt (`No`). Cần bật sang `Yes`.
+    * Cần kiểm tra quyền truy cập Webhook của Render GitHub App nếu repository nằm trong GitHub Organization `Meikova`.
+
+- **4. Đóng gói & Kiểm thử:**
+  - Đóng gói lại `agent-package.zip` (bao gồm `gui_view.html`, `icon.ico`, `tray_icon.png`, `icon.png` mới) vào `relay-server/` và `dist/`.
+  - Biên dịch lại `MeikovaRelayHost.exe` nhúng trực tiếp icon PE mới.
+  - Test suite: Chạy `112/112 tests` thành công (`Ran 112 tests in 29.597s - OK (skipped=1)`, Exit Code 0).
+
+---
+
+### Recent Updates (Version 1.0.47 - Cross-Platform Modal Harmonization & Role Separation)
+- **Đồng Bộ Hóa Modal "Cài đặt & Thiết bị" (Host Agent vs Viewer Client):**
+  - Nâng cấp Modal `#modalDownloadApps` chuẩn Ambient Dark:
+    * Header với SVG icon badge, title `Cài đặt & Thiết bị`, subtitle `MEIKOVA RELAY // CROSS-PLATFORM ECOSYSTEM`.
+    * Phân tách 2 Tab cấp cao qua Segmented Switcher:
+      - **Tab 1: Máy trạm phát sóng (Host Agent)** (máy bị điều khiển): Dải Server URL + Sao chép, Role Hint, Lưới thẻ tải (Windows Host EXE, Win Portable ZIP, Setup 1-Click BAT, Linux DEB, Linux Tarball, macOS Host DMG), Khung lệnh PowerShell 1-Click, và 2 bước hướng dẫn cài đặt chạy nền headless service.
+      - **Tab 2: Máy điều khiển (Viewer Client)** (máy điều khiển): Dải Gateway URL + Sao chép, Role Hint, Lưới 6 thẻ tải (Windows Client EXE WebView2 60fps, Win Portable ZIP, macOS Client DMG, Linux Client Tarball, Android Viewer APK, Web App PWA), Khối QR Code mở nhanh trên Camera điện thoại, và 3 Tab hướng dẫn nền tảng (Desktop, iOS, Android) với Micro Steps 01 & 02.
+    * Auto-detect thiết bị người dùng qua `navigator.userAgent` để chọn sẵn tab Desktop/iOS/Android cho Viewer.
+  - Đồng bộ giữa `relay-server/public/` và `web-client/` (`index.html`, `style.css`, `app.js`).
+  - Kiểm thử: Toàn bộ 112/112 tests pass (Exit Code 0).
+  - Trạng thái Git: Giữ nguyên cục bộ, KHÔNG commit/push theo quy định.
+
+---
+
 ### Recent Updates (Version 1.0.46)
 - **Nâng Cấp Toàn Diện: Native Protocol First & Seamless Bypass Fallback Engine:**
   - **1. Mục tiêu kiến trúc & Yêu cầu:**

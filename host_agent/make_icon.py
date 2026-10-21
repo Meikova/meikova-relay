@@ -1,83 +1,98 @@
-import math
+# -*- coding: utf-8 -*-
+"""
+Unified Brand Icon Generator for Meikova Relay.
+Renders official Meikova Relay 'Duplex Bridge' brand identity:
+- Dark squircle #11151B (rx=22% on 100x100 canvas)
+- Duplex bridge polygons in luminescent neon green #83E8AC
+- 4x supersampled anti-aliased vector rendering
+"""
+
 import os
+import sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
-def bezier_point(p0, p1, p2, p3, u):
-    u1 = 1.0 - u
-    return (
-        u1**3 * p0[0] + 3 * u1**2 * u * p1[0] + 3 * u1 * u**2 * p2[0] + u**3 * p3[0],
-        u1**3 * p0[1] + 3 * u1**2 * u * p1[1] + 3 * u1 * u**2 * p2[1] + u**3 * p3[1]
-    )
 
-def generate_curve_points(s, steps=400):
-    """Cubic Bezier curve matching Meikova Loop & Meikova Harvest."""
-    segs = [
-        ((16*s, 16*s), (19.5*s, 10.5*s), (27*s, 10.5*s), (27*s, 16*s)),
-        ((27*s, 16*s), (27*s, 21.5*s), (19.5*s, 21.5*s), (16*s, 16*s)),
-        ((16*s, 16*s), (12.5*s, 10.5*s), (5*s, 10.5*s), (5*s, 16*s)),
-        ((5*s, 16*s), (5*s, 21.5*s), (12.5*s, 21.5*s), (16*s, 16*s)),
-    ]
-    points = []
-    for p0, p1, p2, p3 in segs:
-        for i in range(steps):
-            points.append(bezier_point(p0, p1, p2, p3, i / float(steps)))
-    return points
-
-def render_unified_icon(size=512):
-    """
-    Renders unified brand icon:
-    1. Nền đen sâu (Dark squircle #070D17, rx=7 on 32 scale)
-    2. Vô cực màu xanh (#22C55E, stroke 2.8 on 32 scale)
-    3. Chấm trắng (#FFFFFF, cx=23.2, cy=12.4, r=2.1 on 32 scale)
-    """
-    s = size / 32.0
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+def draw_duplex_bridge(size: int = 512) -> Image.Image:
+    """Renders the official Meikova Relay Duplex Bridge icon at specified size."""
+    scale = size / 100.0
+    ss = 4
+    canvas_size = size * ss
+    img = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
-    # 1. Nền đen squircle
-    rx = int(7 * s)
-    d.rounded_rectangle((0, 0, size, size), radius=rx, fill="#070D17")
+    # 1. Dark squircle background (#11151B, rx=22)
+    rx = int(22 * scale * ss)
+    d.rounded_rectangle((0, 0, canvas_size, canvas_size), radius=rx, fill="#11151B")
 
-    # 2. Vô cực xanh
-    points = generate_curve_points(s)
-    w = int(2.8 * s)
-    for i in range(len(points)):
-        p1 = points[i]
-        p2 = points[(i + 1) % len(points)]
-        d.line([p1, p2], fill="#22C55E", width=w)
+    # 2. Vector transform: translate(7, 7) scale(0.86)
+    def t(pt):
+        x, y = pt
+        tx = (7.0 + 0.86 * x) * scale * ss
+        ty = (7.0 + 0.86 * y) * scale * ss
+        return (tx, ty)
 
-    r_cap = w / 2.0
-    for x, y in points[::10]:
-        d.ellipse([x - r_cap, y - r_cap, x + r_cap, y + r_cap], fill="#22C55E")
+    # Path 1: M12 29H45L57 41L45 53H30V41H40L43 38H24V62H40V74H12Z
+    p1 = [
+        (12, 29), (45, 29), (57, 41), (45, 53), (30, 53), (30, 41),
+        (40, 41), (43, 38), (24, 38), (24, 62), (40, 62), (40, 74), (12, 74)
+    ]
+    # Path 2: M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z
+    p2 = [
+        (88, 71), (55, 71), (43, 59), (55, 47), (70, 47), (70, 59),
+        (60, 59), (57, 62), (76, 62), (76, 38), (60, 38), (60, 26), (88, 26)
+    ]
 
-    # 3. Chấm trắng tại (23.2, 12.4)
-    cx, cy = 23.2 * s, 12.4 * s
-    cr = 2.1 * s
-    d.ellipse([cx - cr, cy - cr, cx + cr, cy + cr], fill="#FFFFFF")
+    d.polygon([t(pt) for pt in p1], fill="#83E8AC")
+    d.polygon([t(pt) for pt in p2], fill="#83E8AC")
 
-    return img
+    return img.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def render_unified_icon(size: int = 512) -> Image.Image:
+    """
+    Returns the unified brand icon for Meikova Relay (Duplex Bridge).
+    Attempts to read from existing asset or renders procedurally.
+    """
+    base_dirs = [
+        Path(__file__).resolve().parent,
+        Path.cwd(),
+    ]
+    for b in base_dirs:
+        for fname in ("icon.png", "tray_icon.png"):
+            candidate = b / fname
+            if candidate.is_file():
+                try:
+                    with Image.open(candidate) as im:
+                        if im.size == (size, size):
+                            return im.copy()
+                        return im.resize((size, size), Image.Resampling.LANCZOS)
+                except Exception:
+                    pass
+
+    return draw_duplex_bridge(size)
+
 
 def main():
     root = Path(__file__).resolve().parent
-    out_dir = root
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(root, exist_ok=True)
 
-    master = render_unified_icon(512)
+    master = draw_duplex_bridge(512)
 
-    # 1. App Icon PNG
-    master.save(out_dir / "icon.png", format="PNG")
-    print(f"Generated {out_dir / 'icon.png'}")
+    # 1. App Icon PNG (512x512)
+    master.save(root / "icon.png", format="PNG")
+    print(f"Generated {root / 'icon.png'}")
 
     # 2. Tray Icon PNG (32x32 Lanczos)
     tray_img = master.resize((32, 32), Image.Resampling.LANCZOS)
-    tray_img.save(out_dir / "tray_icon.png", format="PNG")
-    print(f"Generated {out_dir / 'tray_icon.png'}")
+    tray_img.save(root / "tray_icon.png", format="PNG")
+    print(f"Generated {root / 'tray_icon.png'}")
 
-    # 3. Multi-resolution ICO for Windows PE and titlebar
+    # 3. Multi-resolution ICO
     sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
-    master.save(out_dir / "icon.ico", format="ICO", sizes=sizes)
-    print(f"Generated {out_dir / 'icon.ico'}")
+    master.save(root / "icon.ico", format="ICO", sizes=sizes)
+    print(f"Generated {root / 'icon.ico'}")
+
 
 if __name__ == "__main__":
     main()

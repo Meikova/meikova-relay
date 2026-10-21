@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: meikova-relay
+    runtime: node
+    rootDir: relay-server
+    buildCommand: npm install
+    startCommand: node server.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0

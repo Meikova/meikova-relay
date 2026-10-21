@@ -1,11 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent
 
 a = Analysis(
-    ['D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_agent.py'],
-    pathex=[],
+    [str(ROOT / 'host_agent' / 'gui_agent.py')],
+    pathex=[str(ROOT)],
     binaries=[],
-    datas=[('D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_view.html', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_view.html', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.png', '.')],
+    datas=[
+        (str(ROOT / 'host_agent' / 'gui_view.html'), 'host_agent'),
+        (str(ROOT / 'host_agent' / 'gui_view.html'), '.'),
+        (str(ROOT / 'host_agent' / 'icon.ico'), 'host_agent'),
+        (str(ROOT / 'host_agent' / 'icon.ico'), '.'),
+        (str(ROOT / 'host_agent' / 'icon.png'), 'host_agent'),
+        (str(ROOT / 'host_agent' / 'icon.png'), '.'),
+        (str(ROOT / 'host_agent' / 'tray_icon.png'), 'host_agent'),
+        (str(ROOT / 'host_agent' / 'tray_icon.png'), '.'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,4 +46,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=[str(ROOT / 'host_agent' / 'icon.ico')],
 )

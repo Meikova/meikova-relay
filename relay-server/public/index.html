@@ -2044,29 +2044,27 @@
 
   <!-- Multi-platform Download Apps Modal (Host Agent vs Remote Viewer) -->
   <div id="modalDownloadApps" class="auth-container modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalDownloadAppsTitle">
-    <div class="instrument-card dl-apps-card" style="max-width: 680px; width: 100%;">
+    <div class="instrument-card dl-apps-card mobile-modal" style="max-width: 720px; width: 100%;">
       <!-- Header -->
-      <div class="card-hero dl-apps-hero">
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="dl-apps-icon-badge" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="3" width="12" height="9" rx="1.5"/>
-                <rect x="15" y="8" width="7" height="13" rx="1.5"/>
-                <line x1="6" y1="12" x2="6" y2="15"/>
-                <line x1="4" y1="15" x2="8" y2="15"/>
-                <circle cx="18.5" cy="18" r="0.5" fill="currentColor"/>
-              </svg>
-            </div>
-            <div>
-              <h2 id="modalDownloadAppsTitle" class="card-title brand-font" style="margin: 0; font-size: 1.15rem;" data-i18n="dl_modal.title">Cài đặt & Tải ứng dụng</h2>
-              <p class="card-subtitle mono-font" style="margin: 2px 0 0 0; font-size: 0.68rem; color: var(--text-faint);" data-i18n="dl_modal.subtitle">MEIKOVA RELAY // CROSS-PLATFORM ECOSYSTEM</p>
-            </div>
+      <div class="mobile-modal__head">
+        <div class="mobile-modal__title-wrap">
+          <div class="dl-apps-icon-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="12" height="9" rx="1.5"/>
+              <rect x="15" y="8" width="7" height="13" rx="1.5"/>
+              <line x1="6" y1="12" x2="6" y2="15"/>
+              <line x1="4" y1="15" x2="8" y2="15"/>
+              <circle cx="18.5" cy="18" r="0.5" fill="currentColor"/>
+            </svg>
           </div>
-          <button type="button" id="btnCloseDownloadApps" class="btn-pill" style="padding: 6px; width: 32px; height: 32px; justify-content: center;" title="Đóng" data-i18n-title="dl_modal.close_title">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+          <div class="mobile-modal__headings">
+            <h2 id="modalDownloadAppsTitle" class="card-title brand-font" data-i18n="dl_modal.title">Cài đặt &amp; Thiết bị</h2>
+            <span class="mobile-modal__subtitle mono-font" data-i18n="dl_modal.subtitle">MEIKOVA RELAY // CROSS-PLATFORM ECOSYSTEM</span>
+          </div>
         </div>
+        <button type="button" id="btnCloseDownloadApps" class="mobile-modal__close" title="Đóng" data-i18n-title="dl_modal.close_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
 
       <!-- Segmented Tab Switcher (Host Agent vs Remote Viewer) -->
@@ -2085,6 +2083,19 @@
 
       <!-- Tab 1: Máy trạm phát sóng (Host Agent) -->
       <div id="dlTabPaneHost" class="dl-tab-pane">
+        <!-- Dải Telemetry Relay Server URL -->
+        <div class="mobile-modal__sub-box" id="relay-host-sub-box">
+          <div class="mobile-modal__sub-meta">
+            <span class="mobile-modal__led" aria-hidden="true"></span>
+            <span class="mobile-modal__sub-tag" id="relayHostServerTag">Relay Server</span>
+            <span class="mobile-modal__ip mono-font" id="relayHostServerIp">https://meikova-relay.onrender.com</span>
+          </div>
+          <button type="button" class="mobile-modal__sub-btn btn-pill" id="btnCopyHostServerUrl" title="Sao chép địa chỉ máy chủ">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Sao chép</span>
+          </button>
+        </div>
+
         <div class="dl-role-hint mono-font">
           <span class="dl-led-pulse" aria-hidden="true"></span>
           <span data-i18n="dl_modal.host_role_hint">MÁY BỊ ĐIỀU KHIỂN: Cài đặt trên máy tính cần truy cập hoặc hỗ trợ từ xa.</span>
@@ -2160,7 +2171,7 @@
               <span class="dl-box-card__badge mono-font">.DMG</span>
             </div>
             <strong class="dl-box-card__title">macOS Host</strong>
-            <span class="dl-box-card__sub mono-font">Apple Silicon & Intel</span>
+            <span class="dl-box-card__sub mono-font">Apple Silicon &amp; Intel</span>
           </a>
         </div>
 
@@ -2175,10 +2186,51 @@
           </div>
           <code>irm https://meikova-relay.onrender.com/api/download/setup.bat | iex</code>
         </div>
+
+        <!-- Host Micro Steps -->
+        <div class="mobile-modal__guide" style="margin-top: 14px;">
+          <div class="platform-panes" style="padding: 12px 14px;">
+            <div class="platform-pane is-active">
+              <div class="platform-steps">
+                <div class="platform-step">
+                  <span class="step-num mono-font">01</span>
+                  <div class="step-content">
+                    <strong>Khởi chạy Host Agent trên máy tính cần điều khiển</strong>
+                    <p>Chạy file .EXE hoặc dán lệnh PowerShell để tự động kết nối máy trạm tới server.</p>
+                  </div>
+                </div>
+                <div class="platform-step">
+                  <span class="step-num mono-font">02</span>
+                  <div class="step-content">
+                    <strong>Truyền hình ảnh 60fps &amp; âm thanh thời gian thực</strong>
+                    <p>Hỗ trợ Headless Service không cần màn hình ngoài, tự động hồi phục khi rớt mạng.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="platform-note mono-font">
+                <span class="note-led" aria-hidden="true"></span>
+                <span>Mã hóa E2E · WebRTC Datachannel · Độ trễ &lt; 30ms · Chạy ngầm Service Windows/Linux</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Tab 2: Máy điều khiển (Viewer Client) -->
       <div id="dlTabPaneClient" class="dl-tab-pane hidden">
+        <!-- Dải Telemetry Viewer URL -->
+        <div class="mobile-modal__sub-box" id="relay-client-sub-box">
+          <div class="mobile-modal__sub-meta">
+            <span class="mobile-modal__led" style="background: #38BDF8; box-shadow: 0 0 8px #38BDF8;" aria-hidden="true"></span>
+            <span class="mobile-modal__sub-tag" id="relayClientGatewayTag" style="color: #38BDF8; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.1);">Web Gateway</span>
+            <span class="mobile-modal__ip mono-font" id="relayClientGatewayIp">https://meikova-relay.onrender.com</span>
+          </div>
+          <button type="button" class="mobile-modal__sub-btn btn-pill" id="btnCopyClientGatewayUrl" title="Sao chép liên kết điều khiển">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Sao chép</span>
+          </button>
+        </div>
+
         <div class="dl-role-hint mono-font" style="background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); color: #38BDF8;">
           <span class="dl-led-pulse" style="background: #38BDF8; box-shadow: 0 0 8px #38BDF8;" aria-hidden="true"></span>
           <span data-i18n="dl_modal.client_role_hint">MÁY ĐIỀU KHIỂN: Cài đặt trên máy của bạn để kết nối, xem và điều khiển các máy trạm khác.</span>
@@ -2233,6 +2285,18 @@
             <span class="dl-box-card__sub mono-font">Gói nén độc lập</span>
           </a>
 
+          <!-- Android APK / Viewer -->
+          <a href="/api/download/MeikovaRelayClient.apk" class="dl-box-card" title="Tải Meikova Relay Viewer cho Android (.apk)">
+            <div class="dl-box-card__head">
+              <span class="dl-box-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4111 13.8533 8.0805 12 8.0805c-1.8534 0-3.5902.3306-5.1368.8692L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+              </span>
+              <span class="dl-box-card__badge mono-font">.APK</span>
+            </div>
+            <strong class="dl-box-card__title">Android Viewer</strong>
+            <span class="dl-box-card__sub mono-font">Mobile Touch Viewer</span>
+          </a>
+
           <!-- Web Remote Client (PWA) -->
           <button type="button" class="dl-box-card dl-box-card--btn" id="btnPwaInstallRelay" title="Cài đặt Meikova Relay làm ứng dụng Web (PWA)">
             <div class="dl-box-card__head">
@@ -2244,6 +2308,128 @@
             <strong class="dl-box-card__title">Web App (PWA)</strong>
             <span class="dl-box-card__sub mono-font" id="pwaDescRelay">Không cần cài file exe</span>
           </button>
+        </div>
+
+        <!-- Khối QR Code kết nối nhanh Viewer -->
+        <div class="mobile-modal__qr-card" style="margin-bottom: 14px;">
+          <div class="mobile-modal__qr-frame">
+            <img
+              id="relay-client-qr"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&amp;data=https%3A%2F%2Fmeikova-relay.onrender.com"
+              alt="Mã QR kết nối nhanh Viewer"
+              width="112"
+              height="112"
+            />
+          </div>
+          <div class="mobile-modal__qr-info">
+            <div class="mobile-modal__qr-heading">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              <strong>Quét mở ngay trên điện thoại</strong>
+            </div>
+            <p class="mobile-modal__qr-desc">
+              Dùng Camera iPhone / Android quét mã QR để mở bảng điều khiển từ xa trực tiếp trên điện thoại.
+            </p>
+            <a
+              id="relay-client-link"
+              href="https://meikova-relay.onrender.com"
+              target="_blank"
+              class="mobile-modal__link mono-font"
+              title="Mở trong tab mới"
+              >https://meikova-relay.onrender.com ↗</a
+            >
+          </div>
+        </div>
+
+        <!-- Viewer Segmented Platform Tabs & High-Signal Micro Steps -->
+        <div class="mobile-modal__guide">
+          <div class="platform-tabs" role="tablist" aria-label="Hướng dẫn Viewer theo nền tảng">
+            <button type="button" class="platform-tab relay-viewer-platform-tab is-active" data-viewer-platform="desktop" role="tab" aria-selected="true">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <span>Máy tính (Desktop)</span>
+            </button>
+            <button type="button" class="platform-tab relay-viewer-platform-tab" data-viewer-platform="ios" role="tab" aria-selected="false">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.84.94-2.91-1 .04-2.18.67-2.88 1.49-.6.69-1.13 1.79-.99 2.85 1.11.09 2.24-.59 2.93-1.43z"/></svg>
+              <span>iOS (iPhone / iPad)</span>
+            </button>
+            <button type="button" class="platform-tab relay-viewer-platform-tab" data-viewer-platform="android" role="tab" aria-selected="false">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4111 13.8533 8.0805 12 8.0805c-1.8534 0-3.5902.3306-5.1368.8692L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+              <span>Android</span>
+            </button>
+          </div>
+
+          <div class="platform-panes" style="padding: 12px 14px;">
+            <!-- Desktop Pane -->
+            <div class="platform-pane relay-viewer-platform-pane is-active" data-viewer-pane="desktop">
+              <div class="platform-steps">
+                <div class="platform-step">
+                  <span class="step-num mono-font">01</span>
+                  <div class="step-content">
+                    <strong>Tải Client tương ứng hệ điều hành hoặc mở PWA</strong>
+                    <p>Khuyên dùng Windows Client .EXE (WebView2) hoặc macOS .DMG để tận hưởng độ trễ 60fps.</p>
+                  </div>
+                </div>
+                <div class="platform-step">
+                  <span class="step-num mono-font">02</span>
+                  <div class="step-content">
+                    <strong>Nhập ID phiên hoặc quét mã để kết nối tức thì</strong>
+                    <p>Điều khiển mượt mà, hỗ trợ truyền tệp đa luồng, clipboard 2 chiều và chuyển âm thanh stereo.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="platform-note mono-font">
+                <span class="note-led" aria-hidden="true"></span>
+                <span>Direct WebRTC · WebView2 Hardware Acceleration · Fullscreen &amp; Multi-monitor</span>
+              </div>
+            </div>
+
+            <!-- iOS Pane -->
+            <div class="platform-pane relay-viewer-platform-pane" data-viewer-pane="ios">
+              <div class="platform-steps">
+                <div class="platform-step">
+                  <span class="step-num mono-font">01</span>
+                  <div class="step-content">
+                    <strong>Mở Safari hoặc quét mã QR</strong>
+                    <p>Bấm nút <b>Chia sẻ</b> (mũi tên hướng lên) ở thanh dưới cùng của Safari.</p>
+                  </div>
+                </div>
+                <div class="platform-step">
+                  <span class="step-num mono-font">02</span>
+                  <div class="step-content">
+                    <strong>Thêm vào MH chính (PWA)</strong>
+                    <p>Dùng như ứng dụng gốc với cử chỉ chạm vuốt cảm ứng mượt mà và bàn phím ảo.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="platform-note mono-font">
+                <span class="note-led" aria-hidden="true"></span>
+                <span>Hỗ trợ Touch Trackpad ảo · Pinch to zoom · Bàn phím điều khiển từ xa</span>
+              </div>
+            </div>
+
+            <!-- Android Pane -->
+            <div class="platform-pane relay-viewer-platform-pane" data-viewer-pane="android">
+              <div class="platform-steps">
+                <div class="platform-step">
+                  <span class="step-num mono-font">01</span>
+                  <div class="step-content">
+                    <strong>Tải file APK trực tiếp hoặc cài PWA</strong>
+                    <p>Tải .APK ở trên hoặc mở Chrome bấm menu <b>⋮</b> → <b>Cài đặt ứng dụng</b>.</p>
+                  </div>
+                </div>
+                <div class="platform-step">
+                  <span class="step-num mono-font">02</span>
+                  <div class="step-content">
+                    <strong>Quản trị máy trạm toàn màn hình</strong>
+                    <p>Không có thanh địa chỉ duyệt web, hỗ trợ phím chức năng ảo và chuột cảm ứng.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="platform-note mono-font">
+                <span class="note-led" aria-hidden="true"></span>
+                <span>Chế độ Immersive Fullscreen · Hỗ trợ phím Ctrl/Alt/Del ảo · Low-latency streaming</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

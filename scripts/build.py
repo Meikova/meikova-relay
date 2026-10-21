@@ -289,6 +289,8 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'icon.ico'}{sep}.",
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'icon.png'}{sep}host_agent",
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'icon.png'}{sep}.",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icon.png'}{sep}host_agent",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icon.png'}{sep}.",
     ]
 
     if target_os == "windows":
@@ -297,6 +299,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
             sys.executable, "-m", "PyInstaller",
             "--noconfirm", "--onefile", "--windowed",
             "--name", name,
+            "--icon", str(REPO_ROOT / "host_agent" / "icon.ico"),
             "--distpath", str(dist_dir),
             "--workpath", str(REPO_ROOT / "build"),
             "--clean",

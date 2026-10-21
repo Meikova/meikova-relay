@@ -6817,26 +6817,116 @@
   const dlTabPaneHost = document.getElementById('dlTabPaneHost');
   const dlTabPaneClient = document.getElementById('dlTabPaneClient');
   const btnCopyHostCmd = document.getElementById('btnCopyHostCmd');
+  const btnCopyHostServerUrl = document.getElementById('btnCopyHostServerUrl');
+  const btnCopyClientGatewayUrl = document.getElementById('btnCopyClientGatewayUrl');
+  const relayHostServerIp = document.getElementById('relayHostServerIp');
+  const relayClientGatewayIp = document.getElementById('relayClientGatewayIp');
+  const relayClientQr = document.getElementById('relay-client-qr');
+  const relayClientLink = document.getElementById('relay-client-link');
   const btnPwaInstallRelay = document.getElementById('btnPwaInstallRelay');
   const pwaBadgeRelay = document.getElementById('pwaBadgeRelay');
   const pwaDescRelay = document.getElementById('pwaDescRelay');
+
+  function setRelayViewerPlatformTab(platform) {
+    document.querySelectorAll('.relay-viewer-platform-tab').forEach((b) => {
+      const isActive = b.getAttribute('data-viewer-platform') === platform;
+      b.classList.toggle('is-active', isActive);
+      b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    document.querySelectorAll('.relay-viewer-platform-pane').forEach((p) => {
+      p.classList.toggle('is-active', p.getAttribute('data-viewer-pane') === platform);
+    });
+  }
+
+  document.querySelectorAll('.relay-viewer-platform-tab').forEach((tabBtn) => {
+    tabBtn.addEventListener('click', () => {
+      const platform = tabBtn.getAttribute('data-viewer-platform');
+      if (platform) setRelayViewerPlatformTab(platform);
+    });
+  });
+
+  function updateRelayModalData() {
+    const currentOrigin = window.location.origin;
+    if (relayHostServerIp) relayHostServerIp.textContent = currentOrigin;
+    if (relayClientGatewayIp) relayClientGatewayIp.textContent = currentOrigin;
+    if (relayClientLink) {
+      relayClientLink.href = currentOrigin;
+      relayClientLink.textContent = `${currentOrigin} ↗`;
+    }
+    if (relayClientQr) {
+      relayClientQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentOrigin)}`;
+    }
+    if (btnCopyHostCmd) {
+      const currentCmd = `irm ${currentOrigin}/api/download/setup.bat | iex`;
+      btnCopyHostCmd.setAttribute('data-cmd', currentCmd);
+      const codeEl = btnCopyHostCmd.closest('.dl-cmd-box')?.querySelector('code');
+      if (codeEl) codeEl.textContent = currentCmd;
+    }
+
+    // Auto-detect viewer device
+    const ua = navigator.userAgent || '';
+    let targetPlatform = 'desktop';
+    if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+      targetPlatform = 'ios';
+    } else if (/Android/.test(ua)) {
+      targetPlatform = 'android';
+    }
+    setRelayViewerPlatformTab(targetPlatform);
+  }
+
+  const copyFeedback = async (btn, text, successMsg) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (typeof showToast === 'function') {
+        showToast(successMsg, 'success');
+      }
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg><span>Đã chép ✓</span>`;
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+      }
+    } catch {
+      const input = document.createElement('textarea');
+      input.value = text;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      if (typeof showToast === 'function') {
+        showToast(successMsg, 'success');
+      }
+    }
+  };
+
+  if (btnCopyHostServerUrl) {
+    btnCopyHostServerUrl.addEventListener('click', () => {
+      copyFeedback(btnCopyHostServerUrl, window.location.origin, 'Đã sao chép địa chỉ máy chủ Relay!');
+    });
+  }
+
+  if (btnCopyClientGatewayUrl) {
+    btnCopyClientGatewayUrl.addEventListener('click', () => {
+      copyFeedback(btnCopyClientGatewayUrl, window.location.origin, 'Đã sao chép liên kết điều khiển!');
+    });
+  }
 
   let relayPwaPrompt = null;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     relayPwaPrompt = e;
-    if (pwaBadgeRelay) pwaBadgeRelay.textContent = 'SẴN SÀNG';
-    if (pwaDescRelay) pwaDescRelay.textContent = 'Bấm để cài đặt PWA';
+    if (pwaBadgeRelay) pwaBadgeRelay.textContent = '1-CLICK';
+    if (pwaDescRelay) pwaDescRelay.textContent = 'Cài đặt ngay';
   });
 
   window.addEventListener('appinstalled', () => {
     relayPwaPrompt = null;
-    if (pwaBadgeRelay) pwaBadgeRelay.textContent = 'ĐÃ CÀI ĐẶT';
+    if (pwaBadgeRelay) pwaBadgeRelay.textContent = 'INSTALLED';
     if (pwaDescRelay) pwaDescRelay.textContent = 'Đã cài làm App';
   });
 
   if (btnNavDownloadApps && modalDownloadApps) {
     const openDownloadModal = () => {
+      updateRelayModalData();
       modalDownloadApps.classList.remove('hidden');
     };
     const closeDownloadModal = () => {
@@ -6884,25 +6974,9 @@
 
   // Copy 1-liner command
   if (btnCopyHostCmd) {
-    btnCopyHostCmd.addEventListener('click', async () => {
-      const cmd = btnCopyHostCmd.getAttribute('data-cmd');
-      if (!cmd) return;
-      try {
-        await navigator.clipboard.writeText(cmd);
-        if (typeof showToast === 'function') {
-          showToast('Đã sao chép lệnh cài đặt!', 'success');
-        }
-      } catch {
-        const input = document.createElement('textarea');
-        input.value = cmd;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-        if (typeof showToast === 'function') {
-          showToast('Đã sao chép lệnh cài đặt!', 'success');
-        }
-      }
+    btnCopyHostCmd.addEventListener('click', () => {
+      const cmd = btnCopyHostCmd.getAttribute('data-cmd') || `irm ${window.location.origin}/api/download/setup.bat | iex`;
+      copyFeedback(btnCopyHostCmd, cmd, 'Đã sao chép lệnh cài đặt Host Agent!');
     });
   }
 

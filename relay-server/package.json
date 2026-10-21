@@ -1,10 +1,13 @@
 {
   "name": "meikova-relay-server",
-  "version": "1.0.22",
+  "version": "1.0.48",
   "description": "High-performance WebSocket Relay Server and Static File Host for Meikova Relay",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
   },
   "dependencies": {
     "ws": "^8.18.0"

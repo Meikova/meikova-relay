@@ -205,7 +205,7 @@ except Exception:
 
 def get_tray_icon_image():
     """Returns unified brand icon:
-    Black squircle (#070D17), green infinity (#22C55E), and white dot (#FFFFFF).
+    Meikova Relay Duplex Bridge (#83E8AC on #11151B squircle).
     """
     if not HAS_TRAY:
         return None
@@ -217,63 +217,50 @@ def get_tray_icon_image():
             Path(getattr(sys, "_MEIPASS", current_dir)) / "host_agent",
         ]
         for b in base_dirs:
-            candidate = b / "tray_icon.png"
-            if candidate.is_file():
-                return Image.open(candidate)
+            for fname in ("tray_icon.png", "icon.png"):
+                candidate = b / fname
+                if candidate.is_file():
+                    with Image.open(candidate) as im:
+                        if im.size == (32, 32):
+                            return im.copy()
+                        return im.resize((32, 32), Image.Resampling.LANCZOS)
     except Exception:
         pass
 
     try:
-        size = 256
-        s = size / 32.0
-        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        d = ImageDraw.Draw(img)
-
-        # 1. Nền đen squircle (#070D17, rx=7 on 32 scale)
-        rx = int(7 * s)
-        d.rounded_rectangle((0, 0, size, size), radius=rx, fill="#070D17")
-
-        def bpt(p0, p1, p2, p3, u):
-            u1 = 1.0 - u
-            return (
-                u1**3 * p0[0] + 3 * u1**2 * u * p1[0] + 3 * u1 * u**2 * p2[0] + u**3 * p3[0],
-                u1**3 * p0[1] + 3 * u1**2 * u * p1[1] + 3 * u1 * u**2 * p2[1] + u**3 * p3[1]
-            )
-
-        segs = [
-            ((16*s, 16*s), (19.5*s, 10.5*s), (27*s, 10.5*s), (27*s, 16*s)),
-            ((27*s, 16*s), (27*s, 21.5*s), (19.5*s, 21.5*s), (16*s, 16*s)),
-            ((16*s, 16*s), (12.5*s, 10.5*s), (5*s, 10.5*s), (5*s, 16*s)),
-            ((5*s, 16*s), (5*s, 21.5*s), (12.5*s, 21.5*s), (16*s, 16*s)),
-        ]
-        points = []
-        for p0, p1, p2, p3 in segs:
-            for i in range(240):
-                points.append(bpt(p0, p1, p2, p3, i / 240.0))
-
-        # 2. Vô cực màu xanh
-        w = int(2.8 * s)
-        for i in range(len(points)):
-            p1 = points[i]
-            p2 = points[(i + 1) % len(points)]
-            d.line([p1, p2], fill="#22C55E", width=w)
-
-        r_cap = w / 2.0
-        for x, y in points[::10]:
-            d.ellipse([x - r_cap, y - r_cap, x + r_cap, y + r_cap], fill="#22C55E")
-
-        # 3. Chấm trắng tại (23.2, 12.4)
-        cx, cy = 23.2 * s, 12.4 * s
-        cr = 2.1 * s
-        d.ellipse([cx - cr, cy - cr, cx + cr, cy + cr], fill="#FFFFFF")
-
-        return img.resize((32, 32), Image.Resampling.LANCZOS)
+        from host_agent.make_icon import draw_duplex_bridge
+        return draw_duplex_bridge(32)
     except Exception:
-        fallback = Image.new("RGBA", (32, 32), (7, 13, 23, 255))
-        d = ImageDraw.Draw(fallback)
-        d.ellipse([4, 4, 28, 28], outline="#22C55E", width=3)
-        d.ellipse([21, 10, 25, 14], fill="#FFFFFF")
-        return fallback
+        pass
+
+    try:
+        from make_icon import draw_duplex_bridge
+        return draw_duplex_bridge(32)
+    except Exception:
+        pass
+
+    fallback = Image.new("RGBA", (32, 32), (17, 21, 27, 255))
+    d = ImageDraw.Draw(fallback)
+    d.rounded_rectangle([0, 0, 32, 32], radius=7, fill="#11151B")
+    return fallback
+
+def safely_remove_tray_icon(tray_icon):
+    """Synchronously unregisters and deletes notification area icon from Windows Explorer with 0 latency."""
+    if not tray_icon:
+        return
+    try:
+        if hasattr(tray_icon, "_hide"):
+            tray_icon._hide()
+    except Exception:
+        pass
+    try:
+        tray_icon.visible = False
+    except Exception:
+        pass
+    try:
+        tray_icon.stop()
+    except Exception:
+        pass
 
 REG_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 APP_REG_NAME = "MeikovaRelayHost"
@@ -1571,13 +1558,16 @@ class MeikovaRelayHostGUI:
             self._exit_application()
 
     def _exit_application(self, icon=None, item=None):
+        safely_remove_tray_icon(self.tray_icon or icon)
+        try:
+            self.root.withdraw()
+        except Exception:
+            pass
         self._stop_service()
-        if self.tray_icon:
-            try:
-                self.tray_icon.stop()
-            except Exception:
-                pass
-        self.root.after(0, self.root.destroy)
+        try:
+            self.root.destroy()
+        except Exception:
+            pass
         sys.exit(0)
 
     def _log(self, msg: str):
@@ -2350,12 +2340,16 @@ def launch_webview_app(autostart: bool = False):
 
         def tray_exit(icon=None, item=None):
             api._is_quitting = True
-            api.stop_service()
-            if api._tray_icon:
+            safely_remove_tray_icon(api._tray_icon or icon)
+            if window:
                 try:
-                    api._tray_icon.stop()
+                    window.hide()
                 except Exception:
                     pass
+            try:
+                api.stop_service()
+            except Exception:
+                pass
             if window:
                 try:
                     window.destroy()
@@ -2399,12 +2393,16 @@ def launch_webview_app(autostart: bool = False):
             return "OK:SHOWN"
         elif c == "STOP":
             api._is_quitting = True
-            api.stop_service()
-            if api._tray_icon:
+            safely_remove_tray_icon(api._tray_icon)
+            if window:
                 try:
-                    api._tray_icon.stop()
+                    window.hide()
                 except Exception:
                     pass
+            try:
+                api.stop_service()
+            except Exception:
+                pass
             if window:
                 try:
                     window.destroy()
