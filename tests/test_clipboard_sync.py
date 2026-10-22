@@ -1,3 +1,4 @@
+import sys
 import unittest
 import json
 import time
@@ -8,6 +9,7 @@ from host_agent.host_service import HostService
 from host_agent.clipboard_manager import ClipboardManager
 
 class TestClipboardSync(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == "win32", "Windows ctypes native only")
     def test_clipboard_manager_native_windows(self):
         """Test Windows ctypes/win32 clipboard read and write."""
         mgr = ClipboardManager(None)
@@ -25,6 +27,19 @@ class TestClipboardSync(unittest.TestCase):
             pin="123456",
             device_name="TestHost"
         )
+        # Isolate from background terminal and cursor listeners
+        if hasattr(service, "terminal") and service.terminal:
+            try:
+                service.terminal.stop()
+            except Exception:
+                pass
+        service.terminal = MagicMock()
+        if hasattr(service, "cursor_manager") and service.cursor_manager:
+            try:
+                service.cursor_manager.stop_listener()
+            except Exception:
+                pass
+
         loop = asyncio.new_event_loop()
         t = threading.Thread(target=loop.run_forever, daemon=True)
         t.start()
@@ -37,12 +52,16 @@ class TestClipboardSync(unittest.TestCase):
             test_text = "local_copy_content_abc"
             service._on_local_clipboard_change(test_text)
 
-            time.sleep(0.05)
+            time.sleep(0.08)
             self.assertTrue(service.ws.send.called)
-            sent_data = json.loads(service.ws.send.call_args[0][0])
-            self.assertEqual(sent_data.get("type"), "clipboard_sync")
-            self.assertEqual(sent_data.get("text"), test_text)
+
+            # Filter calls for clipboard_sync to prevent interference from other subsystems
+            sent_packets = [json.loads(c[0][0]) for c in service.ws.send.call_args_list]
+            clip_packets = [p for p in sent_packets if p.get("type") == "clipboard_sync"]
+            self.assertTrue(len(clip_packets) > 0, f"Expected clipboard_sync packet, got: {sent_packets}")
+            self.assertEqual(clip_packets[0].get("text"), test_text)
         finally:
+            service.stop()
             loop.call_soon_threadsafe(loop.stop)
 
     def test_clipboard_manager_ignore_duplicate_echo(self):

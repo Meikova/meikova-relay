@@ -49,16 +49,20 @@ class ScreenCapture:
         self._last_frame_hash: Optional[int] = None
 
     def _attach_window_station(self) -> bool:
-        """Attaches current thread to winsta0\\default to ensure desktop capture works in all sessions."""
+        """Attaches current thread to active input desktop (handles Winlogon, default, screensaver)."""
         if not user32 or self._attached:
             return True
         try:
             hwinsta = user32.OpenWindowStationW('winsta0', False, 0x000F037F)
             if hwinsta:
                 user32.SetProcessWindowStation(hwinsta)
-            hdesk = user32.OpenDesktopW('default', 0, False, 0x000F01FF)
+            # Try active input desktop first (supports Winlogon/Lock Screen if process has privileges)
+            hdesk = user32.OpenInputDesktop(0, False, 0x01FF)
+            if not hdesk:
+                hdesk = user32.OpenDesktopW('default', 0, False, 0x01FF)
             if hdesk:
                 user32.SetThreadDesktop(hdesk)
+                user32.CloseDesktop(hdesk)
             self._attached = True
             return True
         except Exception:
@@ -213,6 +217,7 @@ class ScreenCapture:
             return buffer.getvalue()
 
         except Exception:
+            self._attached = False
             self._attach_window_station()
             if getattr(self, 'is_headless', False):
                 try:
