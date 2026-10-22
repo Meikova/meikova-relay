@@ -61,6 +61,7 @@ jobs:
           npm install
 
       - name: Run Test Suite
+        timeout-minutes: 5
         run: |
           python -m unittest discover tests
 
@@ -140,6 +141,7 @@ jobs:
           npm install
 
       - name: Run Test Suite
+        timeout-minutes: 5
         run: |
           xvfb-run -a python -m unittest discover tests
 
@@ -208,6 +210,7 @@ jobs:
           npm install
 
       - name: Run Test Suite
+        timeout-minutes: 5
         run: |
           python -m unittest discover tests
 

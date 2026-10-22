@@ -166,9 +166,8 @@ class HostService:
         self.cursor_manager = CursorManager(on_cursor_change=self._on_local_cursor_change)
         self.cursor_manager.start_listener()
 
-        # Terminal Session
+        # Terminal Session (started on demand)
         self.terminal = TerminalManager(on_output=self._on_terminal_output)
-        self.terminal.start()
         # Protocol Negotiation Matrix & TCP Tunnel Manager
         self.protocol_matrix = {}
         self.tunnel_manager = TcpTunnelManager(send_ws_fn=self._send_ws_tunnel_msg)
@@ -176,20 +175,27 @@ class HostService:
     def stop(self):
         """Gracefully stop HostService, notifying relay server and tearing down connections."""
         # ponytail: explicit host_closing packet + ws.close prevents ghost sessions on cloud relay
-        if not self.running:
-            return
         self.running = False
         self.has_active_client = False
         self.audio_enabled = False
 
         try:
-            self.audio_capture.stop()
-            self.audio_playback.stop()
-            self.cursor_manager.stop_listener()
+            if hasattr(self, "audio_capture") and self.audio_capture:
+                self.audio_capture.stop()
+            if hasattr(self, "audio_playback") and self.audio_playback:
+                self.audio_playback.stop()
+            if hasattr(self, "cursor_manager") and self.cursor_manager:
+                self.cursor_manager.stop_listener()
             if hasattr(self, "clipboard") and self.clipboard:
                 self.clipboard.stop_listener()
             if hasattr(self, "terminal") and self.terminal:
                 self.terminal.stop()
+        except Exception:
+            pass
+
+    def __del__(self):
+        try:
+            self.stop()
         except Exception:
             pass
 

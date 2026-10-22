@@ -11,9 +11,7 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         self.service = HostService(relay_url="ws://localhost:8080", room_id="TEST-ROOM", pin="123456")
 
     def tearDown(self):
-        self.service.running = False
-        if hasattr(self.service, "clipboard"):
-            self.service.clipboard.stop_listener()
+        self.service.stop()
 
     def test_apply_quality_presets(self):
         # 1. Native 1:1 Pixel-Perfect

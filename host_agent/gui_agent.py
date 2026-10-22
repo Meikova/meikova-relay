@@ -522,9 +522,10 @@ class MeikovaRelayHostGUI:
 
         if png_path:
             try:
-                from PIL import ImageTk
-                self._app_icon_img = ImageTk.PhotoImage(file=str(png_path))
-                self.root.iconphoto(True, self._app_icon_img)
+                from PIL import Image, ImageTk
+                with Image.open(png_path) as im:
+                    self._app_icon_img = ImageTk.PhotoImage(im)
+                    self.root.iconphoto(True, self._app_icon_img)
             except Exception:
                 pass
 
@@ -797,7 +798,7 @@ class MeikovaRelayHostGUI:
         id_row = tk.Frame(id_card, bg=COLORS["bg_card"])
         id_row.pack(fill="x", pady=(6, 0))
 
-        self.room_var = tk.StringVar(value=self.config.get("room_id", "RD-8888"))
+        self.room_var = tk.StringVar(master=self.root, value=self.config.get("room_id", "RD-8888"))
         self.lbl_room_display = tk.Label(
             id_row,
             textvariable=self.room_var,
@@ -854,7 +855,7 @@ class MeikovaRelayHostGUI:
         pin_row = tk.Frame(pin_card, bg=COLORS["bg_card"])
         pin_row.pack(fill="x", pady=(6, 0))
 
-        self.pin_var = tk.StringVar(value=self.config.get("pin", "123456"))
+        self.pin_var = tk.StringVar(master=self.root, value=self.config.get("pin", "123456"))
         self.lbl_pin_display = tk.Label(
             pin_row,
             textvariable=self.pin_var,
@@ -985,8 +986,8 @@ class MeikovaRelayHostGUI:
         )
         self.lbl_chrome_desc.pack(anchor="w", pady=(2, 10))
 
-        self.account_var = tk.StringVar(value=self.config.get("account", ""))
-        self.name_var = tk.StringVar(value=self.config.get("device_name", os.environ.get("COMPUTERNAME", "Workstation")))
+        self.account_var = tk.StringVar(master=self.root, value=self.config.get("account", ""))
+        self.name_var = tk.StringVar(master=self.root, value=self.config.get("device_name", os.environ.get("COMPUTERNAME", "Workstation")))
 
         card = tk.Frame(self.panel_chrome, bg=COLORS["bg_card"], padx=14, pady=12, highlightthickness=1, highlightbackground=COLORS["line"])
         card.pack(fill="x", pady=(0, 8))
@@ -1044,7 +1045,7 @@ class MeikovaRelayHostGUI:
         chk_card = tk.Frame(self.panel_chrome, bg=COLORS["bg_card"], padx=14, pady=10, highlightthickness=1, highlightbackground=COLORS["line"])
         chk_card.pack(fill="x", pady=(0, 8))
 
-        self.autostart_var = tk.BooleanVar(value=False)
+        self.autostart_var = tk.BooleanVar(master=self.root, value=False)
         self.chk_autostart = tk.Checkbutton(
             chk_card,
             text=self.t("autostart_label"),
@@ -1059,7 +1060,7 @@ class MeikovaRelayHostGUI:
         )
         self.chk_autostart.pack(anchor="w", pady=2)
 
-        self.keepawake_var = tk.BooleanVar(value=self.config.get("keep_awake", True))
+        self.keepawake_var = tk.BooleanVar(master=self.root, value=self.config.get("keep_awake", True))
         self.chk_keepawake = tk.Checkbutton(
             chk_card,
             text=self.t("keepawake_label"),
@@ -1104,7 +1105,7 @@ class MeikovaRelayHostGUI:
         relay_row = tk.Frame(card, bg=COLORS["bg_card"])
         relay_row.pack(fill="x")
 
-        self.relay_var = tk.StringVar(value=self.config.get("relay", "wss://meikova-relay.onrender.com"))
+        self.relay_var = tk.StringVar(master=self.root, value=self.config.get("relay", "wss://meikova-relay.onrender.com"))
         entry_relay = tk.Entry(
             relay_row,
             textvariable=self.relay_var,
@@ -1741,15 +1742,37 @@ class HostApi:
         self._connected_client_info: Optional[str] = None
         self._tray_icon = None
         self._is_quitting = False
-        self.chat_window: Optional[HostChatWindow] = None
-        if HostChatWindow:
+        self._chat_window: Optional[HostChatWindow] = None
+
+    @property
+    def chat_window(self) -> Optional[HostChatWindow]:
+        if self._chat_window is None and HostChatWindow:
             try:
-                self.chat_window = HostChatWindow(
+                self._chat_window = HostChatWindow(
                     on_send_reply=lambda text: self._host_service.send_chat_message(text) if self._host_service else None,
                     parent=None
                 )
             except Exception:
-                self.chat_window = None
+                self._chat_window = None
+        return self._chat_window
+
+    @chat_window.setter
+    def chat_window(self, val):
+        self._chat_window = val
+
+    def destroy(self):
+        if getattr(self, '_chat_window', None):
+            try:
+                self._chat_window.destroy()
+            except Exception:
+                pass
+            self._chat_window = None
+
+    def __del__(self):
+        try:
+            self.destroy()
+        except Exception:
+            pass
 
     def set_window(self, window):
         self._window = window

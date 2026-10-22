@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import threading
+import atexit
 from typing import Callable, Optional
 
 class TerminalManager:
@@ -45,6 +46,7 @@ class TerminalManager:
             )
             self._reader_thread = threading.Thread(target=self._read_output_loop, daemon=True)
             self._reader_thread.start()
+            atexit.register(self.stop)
             self.on_output(ready_msg)
         except Exception as e:
             self.on_output(f"Failed to start terminal: {e}\n")
@@ -60,6 +62,8 @@ class TerminalManager:
                 break
 
     def send_input(self, text: str):
+        if not self._running or not self.process:
+            self.start()
         if self.process and self.process.stdin:
             try:
                 cmd = text.strip()
@@ -81,14 +85,37 @@ class TerminalManager:
 
     def stop(self):
         self._running = False
+        try:
+            atexit.unregister(self.stop)
+        except Exception:
+            pass
         if self.process:
             try:
                 if self.process.stdin:
-                    self.process.stdin.close()
+                    try:
+                        self.process.stdin.close()
+                    except Exception:
+                        pass
                 if self.process.stdout:
-                    self.process.stdout.close()
-                self.process.terminate()
-                self.process.wait(timeout=1)
+                    try:
+                        self.process.stdout.close()
+                    except Exception:
+                        pass
+                self.process.kill()
+                self.process.wait(timeout=1.0)
             except Exception:
                 pass
             self.process = None
+
+        if self._reader_thread and self._reader_thread.is_alive():
+            try:
+                self._reader_thread.join(timeout=0.5)
+            except Exception:
+                pass
+            self._reader_thread = None
+
+    def __del__(self):
+        try:
+            self.stop()
+        except Exception:
+            pass

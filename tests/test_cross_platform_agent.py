@@ -93,10 +93,13 @@ class TestCrossPlatformAgent(unittest.TestCase):
         """HostApi must not expose internal native/COM objects without leading underscore."""
         from host_agent.gui_agent import HostApi
         api = HostApi({}, Path("config.json"))
-        exposed = [m for m in dir(api) if not m.startswith("_")]
-        forbidden = ["window", "hwnd", "host_service", "service_thread", "tray_icon"]
-        for f in forbidden:
-            self.assertNotIn(f, exposed, f"Attribute '{f}' must be private to prevent pywebview deadlock")
+        try:
+            exposed = [m for m in dir(api) if not m.startswith("_")]
+            forbidden = ["window", "hwnd", "host_service", "service_thread", "tray_icon"]
+            for f in forbidden:
+                self.assertNotIn(f, exposed, f"Attribute '{f}' must be private to prevent pywebview deadlock")
+        finally:
+            api.destroy()
 
     def test_force_window_foreground_cross_platform(self):
         from host_agent.gui_agent import force_window_foreground

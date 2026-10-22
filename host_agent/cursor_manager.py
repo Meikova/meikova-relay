@@ -166,3 +166,6 @@ class CursorManager:
             except Exception:
                 pass
             time.sleep(0.05) # 50ms polling loop
+
+    def __del__(self):
+        self.stop_listener()

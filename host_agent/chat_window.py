@@ -249,3 +249,26 @@ class HostChatWindow:
                 self.on_send_reply(text)
             except Exception as e:
                 print(f"[Chat Error] Failed to send reply: {e}", file=sys.stderr)
+
+
+    def destroy(self):
+        if self.root:
+            try:
+                self.root.after(0, self.root.quit)
+            except Exception:
+                try:
+                    self.root.quit()
+                except Exception:
+                    pass
+        if hasattr(self, "_thread") and self._thread and self._thread.is_alive():
+            try:
+                self._thread.join(timeout=1.0)
+            except Exception:
+                pass
+        self.root = None
+
+    def __del__(self):
+        try:
+            self.destroy()
+        except Exception:
+            pass

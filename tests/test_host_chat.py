@@ -78,39 +78,39 @@ class TestHostChat(unittest.TestCase):
         config = {"room_id": "RD-TEST", "pin": "123456", "device_name": "TestPC"}
         cfg_path = Path(".test_config.json")
         api = HostApi(config, cfg_path)
+        try:
+            # Mock host service
+            mock_service = MagicMock()
+            mock_service.send_chat_message = MagicMock(return_value=True)
+            api._host_service = mock_service
 
-        # Mock host service
-        mock_service = MagicMock()
-        mock_service.send_chat_message = MagicMock(return_value=True)
-        api._host_service = mock_service
+            res = api.send_host_chat("Xin chào kỹ thuật viên!")
+            self.assertEqual(res["status"], "ok")
+            mock_service.send_chat_message.assert_called_with("Xin chào kỹ thuật viên!")
 
-        res = api.send_host_chat("Xin chào kỹ thuật viên!")
-        self.assertEqual(res["status"], "ok")
-        mock_service.send_chat_message.assert_called_with("Xin chào kỹ thuật viên!")
+            # Verify chat history
+            hist = api.get_chat_history()
+            self.assertIsInstance(hist, list)
 
-        # Verify chat history
-        hist = api.get_chat_history()
-        self.assertIsInstance(hist, list)
-
-        # Empty message check
-        empty_res = api.send_host_chat("   ")
-        self.assertEqual(empty_res["status"], "error")
+            # Empty message check
+            empty_res = api.send_host_chat("   ")
+            self.assertEqual(empty_res["status"], "error")
+        finally:
+            api.destroy()
 
     def test_chat_window_headless(self):
         import sys
+        import os
         import tkinter as tk
         replies = []
 
-        if sys.platform == "darwin":
-            try:
-                root = tk.Tk()
-                root.withdraw()
-                chat = HostChatWindow(on_send_reply=lambda t: replies.append(t), parent=root)
-            except Exception:
-                self.skipTest("Tkinter display unavailable in test environment on macOS")
-                return
-        else:
-            chat = HostChatWindow(on_send_reply=lambda t: replies.append(t))
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            chat = HostChatWindow(on_send_reply=lambda t: replies.append(t), parent=root)
+        except Exception:
+            self.skipTest("Tkinter display unavailable in test environment")
+            return
 
         try:
             chat.add_message("Client", "Xin chào máy trạm tiếng Việt", is_local=False)
@@ -122,11 +122,10 @@ class TestHostChat(unittest.TestCase):
             self.assertTrue(len(chat.history) >= 1)
             self.assertEqual(chat.history[0]["sender"], "Client")
         finally:
-            if chat.root:
-                try:
-                    chat.root.after(0, chat.root.destroy)
-                except Exception:
-                    pass
+            try:
+                root.destroy()
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     unittest.main()

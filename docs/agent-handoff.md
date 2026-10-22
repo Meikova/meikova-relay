@@ -1,3 +1,29 @@
+# Session Handoff: Meikova Relay - Khắc Phục Triệt Để Deadlock / Hang Bước Run Test Suite Trên Windows CI/CD
+
+## 1. Mục tiêu hoàn thành
+- [x] **Tìm nguyên nhân gốc rễ bước `Run Test Suite` bị treo/deadlock vô tận trên Windows runner của GitHub Actions:**
+  - Qua phân tích stack trace và trace handle tiến trình chạy kiểm thử:
+    1. **PowerShell subprocess & pipe leaks (`_io.BufferedReader`):** `HostService` gọi `self.terminal.start()` ngay trong `__init__`. Các bài test tạo `HostService` nhưng không gọi `stop()` dẫn đến 5 tiến trình con `powershell.exe` vẫn chạy ngầm và giữ mở các pipe stdout/stdin (gây ra 12 cảnh báo `ResourceWarning: unclosed file <_io.BufferedReader name=...>`). Các luồng đọc `_read_output_loop` bị block trong `readline()`, khiến tiến trình Python bị kẹt không thể shutdown trên Windows.
+    2. **Tkinter Mainloop Thread Deadlock (`_standalone_worker`):** `HostApi` trong `gui_agent.py` khởi tạo `HostChatWindow(..., parent=None)` trong `__init__`, kích hoạt luồng background chạy `root = tk.Tk(); root.mainloop()`. Tcl/Tk không thread-safe khi gọi `destroy()` từ luồng khác, dẫn đến deadlock trong Win32 message pump khi Python dọn dẹp bộ nhớ lúc exit.
+    3. **Tkinter Variable Root Affinity:** `StringVar` và `BooleanVar` trong `gui_agent.py` không truyền `master=self.root`, dẫn đến gán nhầm vào root cũ bị hủy và phát sinh `RuntimeError: main thread is not in main loop`.
+- [x] **Khắc phục triệt để:**
+  - `host_agent/terminal_manager.py`: Chuyển sang buộc kết thúc tiến trình con bằng `self.process.kill()` và `wait(timeout=1.0)`, join reader thread an toàn, đồng thời đăng ký `atexit.register(self.stop)` và `__del__` tự động thu hồi.
+  - `host_agent/host_service.py`: Chuyển `terminal` sang lazy start (chỉ start khi có input/yêu cầu), cập nhật `stop()` dọn dẹp vô điều kiện toàn bộ child threads/processes (terminal, cursor_manager, clipboard, audio) mà không return sớm nếu `not self.running`.
+  - `host_agent/gui_agent.py`: Chuyển `HostApi.chat_window` thành lazy property (chỉ tạo khi thật sự cần), bổ sung `destroy()` và `__del__`. Truyền tường minh `master=self.root` cho toàn bộ `StringVar` và `BooleanVar`. Đóng file hình ảnh `icon.png` bằng `with Image.open(...)`.
+  - `host_agent/cursor_manager.py`: Bổ sung `__del__` tự động gọi `stop_listener()`.
+  - `tests/test_host_chat.py` & `tests/test_screen_sync.py`: Đảm bảo 100% teardown gọi `service.stop()` và truyền `parent=root` khi test chat window, tránh spawn secondary GUI thread.
+  - `.github/workflows/build-release.yml`: Thêm `timeout-minutes: 5` cho bước `Run Test Suite` trên cả 3 runner để chống treo ngốn runner quota.
+  - Đóng gói lại `relay-server/agent-package.zip`.
+
+## 2. Lệnh kiểm tra đã chạy & Exit Code
+- `python -m unittest tests/test_cross_platform_agent.py tests/test_host_chat.py tests/test_gui_i18n.py`: **Exit Code 0** (21/21 tests pass trong 2.1s).
+- `python -m unittest discover tests`: **Exit Code 0** (Toàn bộ 131 tests pass trong 62.4s, process tự động thoát sạch sẽ không còn treo, không còn ResourceWarning).
+
+## 3. Các phần còn tồn đọng và cảnh báo kỹ thuật
+- Tiến trình test trên Windows CI giờ đây đảm bảo hoàn thành và tự thoát trong ~1 phút.
+
+---
+
 # Session Handoff: Meikova Platform - Đồng Bộ Hóa Phong Cách Tray Icon Sang Brand Squircle Trên Toàn Bộ Hệ Sinh Thái
 
 ## 1. Mục tiêu hoàn thành

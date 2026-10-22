@@ -62,7 +62,11 @@ class TestGuiI18n(unittest.TestCase):
             self.assertEqual(app.lang, "vi")
             self.assertEqual(app.btn_tab_ultra.cget("text"), TRANSLATIONS["vi"]["tab_ultra"])
         finally:
-            root.destroy()
+            try:
+                root.destroy()
+            except Exception:
+                pass
+            tk._default_root = None
 
 if __name__ == "__main__":
     unittest.main()
