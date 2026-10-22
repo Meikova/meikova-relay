@@ -14,17 +14,18 @@
     - Tự động gửi `clipboard_pull` khi người dùng chuyển sang tab clipboard (`shelfClipboardTab`).
     - Tự động gửi `clipboard_pull` ngay khi hoàn tất bắt tay kết nối phiên (`init_client`).
     - Khắc phục race condition phím tắt `Ctrl+V` trên Remote Desktop: Khi nhấn `Ctrl+V`, chặn sự kiện phím thô `KeyV` gửi lên máy trạm để cho phép sự kiện `paste` của trình duyệt thu nhận clipboard mới nhất, gửi `clipboard_sync` tới host và kích hoạt dán từ xa mượt mà.
-- [x] **Viết bộ kiểm thử tự động `tests/test_clipboard_sync.py`:**
-  - Kiểm thử đọc/ghi clipboard native trên Windows qua ctypes 64-bit.
-  - Kiểm thử luồng phát sóng `_on_local_clipboard_change`.
-  - Kiểm thử cơ chế loại bỏ trùng lặp echo loop.
-  - Kiểm thử xử lý gói tin `clipboard_pull` và `clipboard_sync`.
+- [x] **Viết bộ kiểm thử tự động `tests/test_clipboard_sync.py` & Sửa lỗi CI/CD runner:**
+  - Cô lập test khỏi background `terminal` và `cursor_manager` của `HostService` để tránh race condition trên môi trường Linux/macOS runner khiến `terminal_output` chèn vào kiểm tra `clipboard_sync`.
+  - Bổ sung `@unittest.skipUnless(sys.platform == 'win32')` cho test ctypes native Windows.
+- [x] **Nâng cấp `screen_capture.py` hỗ trợ Desktop Swapping:**
+  - Chuyển `_attach_window_station()` sang ưu tiên gọi `OpenInputDesktop(0, False, 0x01FF)` thay vì hardcode `OpenDesktopW('default')`, tự động bắt vào desktop `Winlogon` / Lock Screen khi tiến trình có quyền quản trị/service.
 - [x] **Đồng bộ hóa 100% giữa `relay-server/public` và `web-client`.**
 
 ## 2. Lệnh kiểm tra đã chạy & Exit Code
 - `python -m unittest tests/test_clipboard_sync.py`: **Exit Code 0** (4/4 tests pass).
 - `python -m unittest tests/test_host_chat.py tests/test_i18n.py tests/test_download_endpoints.py`: **Exit Code 0** (20/20 tests pass).
 - `python -m unittest tests/test_auth_sync_and_linking.py`: **Exit Code 0** (5/5 tests pass).
+- `python -m unittest discover tests`: **Exit Code 0** (131/131 tests pass, 1 skipped).
 - `node -c relay-server/public/js/app.js` & `web-client/js/app.js`: **Exit Code 0** (Syntax valid).
 - `node -c relay-server/public/js/i18n.js` & `web-client/js/i18n.js`: **Exit Code 0** (Syntax valid).
 
