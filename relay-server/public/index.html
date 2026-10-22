@@ -1069,7 +1069,7 @@
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
-          <span id="protocolCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700; color: var(--accent);">AUTO</span>
+          <span id="protocolCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700;">AUTO</span>
           <svg class="deck-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
 
@@ -1081,7 +1081,7 @@
             <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
             <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>
           </svg>
-          <span id="qualityCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700; color: var(--accent);">30 FPS</span>
+          <span id="qualityCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700;">30 FPS</span>
           <svg class="deck-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
 
@@ -1240,15 +1240,17 @@
         <div class="protocol-mode-switch">
           <div class="protocol-mode-title" data-i18n="deck.proto_routing">CHẾ ĐỘ ĐIỀU HƯỚNG</div>
           <div class="protocol-pills">
-            <button type="button" class="protocol-pill active" data-mode="auto" id="protoModeAuto">
-              <span class="pill-dot"></span>
-              <span data-i18n="deck.proto_auto">Tự động (Native First)</span>
+            <button type="button" class="protocol-pill active" data-mode="auto" id="protoModeAuto" title="Tự động (Native First)" data-i18n-title="deck.proto_auto_title">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              <span data-i18n="deck.proto_auto">Tự động</span>
             </button>
-            <button type="button" class="protocol-pill" data-mode="bypass" id="protoModeBypass">
-              <span data-i18n="deck.proto_force_bypass">Ép Meikova Bypass</span>
+            <button type="button" class="protocol-pill" data-mode="bypass" id="protoModeBypass" title="Ép Meikova Bypass" data-i18n-title="deck.proto_force_bypass_title">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span data-i18n="deck.proto_force_bypass">Bypass</span>
             </button>
-            <button type="button" class="protocol-pill" data-mode="native" id="protoModeNative">
-              <span data-i18n="deck.proto_force_native">Ép Native (RDP/SSH)</span>
+            <button type="button" class="protocol-pill" data-mode="native" id="protoModeNative" title="Ép Native (RDP/SSH)" data-i18n-title="deck.proto_force_native_title">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+              <span data-i18n="deck.proto_force_native">Native</span>
             </button>
           </div>
         </div>
@@ -1369,51 +1371,93 @@
       <!-- Virtual On-Screen Keyboard (OSK) -->
       <div id="oskOverlay" class="osk-overlay hidden">
         <div class="osk-row">
-          <button class="osk-key" data-key="Escape">Esc</button>
-          <button class="osk-key" data-key="F1">F1</button>
-          <button class="osk-key" data-key="F2">F2</button>
-          <button class="osk-key" data-key="F5">F5</button>
-          <button class="osk-key" data-key="F11">F11</button>
-          <button class="osk-key" data-key="F12">F12</button>
-          <button class="osk-key" data-key="Delete">Del</button>
+          <button type="button" class="osk-key" data-key="Escape">Esc</button>
+          <button type="button" class="osk-key" data-key="F1">F1</button>
+          <button type="button" class="osk-key" data-key="F2">F2</button>
+          <button type="button" class="osk-key" data-key="F3">F3</button>
+          <button type="button" class="osk-key" data-key="F4">F4</button>
+          <button type="button" class="osk-key" data-key="F5">F5</button>
+          <button type="button" class="osk-key" data-key="F6">F6</button>
+          <button type="button" class="osk-key" data-key="F7">F7</button>
+          <button type="button" class="osk-key" data-key="F8">F8</button>
+          <button type="button" class="osk-key" data-key="F9">F9</button>
+          <button type="button" class="osk-key" data-key="F10">F10</button>
+          <button type="button" class="osk-key" data-key="F11">F11</button>
+          <button type="button" class="osk-key" data-key="F12">F12</button>
+          <button type="button" class="osk-key" data-key="Delete">Del</button>
         </div>
         <div class="osk-row">
-          <button class="osk-key" data-key="Backquote">`</button>
-          <button class="osk-key" data-key="Digit1">1</button>
-          <button class="osk-key" data-key="Digit2">2</button>
-          <button class="osk-key" data-key="Digit3">3</button>
-          <button class="osk-key" data-key="Digit4">4</button>
-          <button class="osk-key" data-key="Digit5">5</button>
-          <button class="osk-key" data-key="Digit6">6</button>
-          <button class="osk-key" data-key="Digit7">7</button>
-          <button class="osk-key" data-key="Digit8">8</button>
-          <button class="osk-key" data-key="Digit9">9</button>
-          <button class="osk-key" data-key="Digit0">0</button>
-          <button class="osk-key wide" data-key="Backspace">Back</button>
+          <button type="button" class="osk-key" data-key="Backquote">`</button>
+          <button type="button" class="osk-key" data-key="Digit1">1</button>
+          <button type="button" class="osk-key" data-key="Digit2">2</button>
+          <button type="button" class="osk-key" data-key="Digit3">3</button>
+          <button type="button" class="osk-key" data-key="Digit4">4</button>
+          <button type="button" class="osk-key" data-key="Digit5">5</button>
+          <button type="button" class="osk-key" data-key="Digit6">6</button>
+          <button type="button" class="osk-key" data-key="Digit7">7</button>
+          <button type="button" class="osk-key" data-key="Digit8">8</button>
+          <button type="button" class="osk-key" data-key="Digit9">9</button>
+          <button type="button" class="osk-key" data-key="Digit0">0</button>
+          <button type="button" class="osk-key" data-key="Minus">-</button>
+          <button type="button" class="osk-key" data-key="Equal">=</button>
+          <button type="button" class="osk-key wide" data-key="Backspace">Back</button>
         </div>
         <div class="osk-row">
-          <button class="osk-key wide" data-key="Tab">Tab</button>
-          <button class="osk-key" data-key="KeyQ">Q</button>
-          <button class="osk-key" data-key="KeyW">W</button>
-          <button class="osk-key" data-key="KeyE">E</button>
-          <button class="osk-key" data-key="KeyR">R</button>
-          <button class="osk-key" data-key="KeyT">T</button>
-          <button class="osk-key" data-key="KeyY">Y</button>
-          <button class="osk-key" data-key="KeyU">U</button>
-          <button class="osk-key" data-key="KeyI">I</button>
-          <button class="osk-key" data-key="KeyO">O</button>
-          <button class="osk-key" data-key="KeyP">P</button>
-          <button class="osk-key wide" data-key="Enter">Enter</button>
+          <button type="button" class="osk-key wide" data-key="Tab">Tab</button>
+          <button type="button" class="osk-key" data-key="KeyQ">Q</button>
+          <button type="button" class="osk-key" data-key="KeyW">W</button>
+          <button type="button" class="osk-key" data-key="KeyE">E</button>
+          <button type="button" class="osk-key" data-key="KeyR">R</button>
+          <button type="button" class="osk-key" data-key="KeyT">T</button>
+          <button type="button" class="osk-key" data-key="KeyY">Y</button>
+          <button type="button" class="osk-key" data-key="KeyU">U</button>
+          <button type="button" class="osk-key" data-key="KeyI">I</button>
+          <button type="button" class="osk-key" data-key="KeyO">O</button>
+          <button type="button" class="osk-key" data-key="KeyP">P</button>
+          <button type="button" class="osk-key" data-key="BracketLeft">[</button>
+          <button type="button" class="osk-key" data-key="BracketRight">]</button>
+          <button type="button" class="osk-key" data-key="Backslash">\</button>
         </div>
         <div class="osk-row">
-          <button class="osk-key wide" data-key="ControlLeft">Ctrl</button>
-          <button class="osk-key" data-key="MetaLeft">Win</button>
-          <button class="osk-key" data-key="AltLeft">Alt</button>
-          <button class="osk-key space" data-key="Space">Space</button>
-          <button class="osk-key" data-key="ArrowLeft">←</button>
-          <button class="osk-key" data-key="ArrowUp">↑</button>
-          <button class="osk-key" data-key="ArrowDown">↓</button>
-          <button class="osk-key" data-key="ArrowRight">→</button>
+          <button type="button" class="osk-key wide" data-key="CapsLock">Caps</button>
+          <button type="button" class="osk-key" data-key="KeyA">A</button>
+          <button type="button" class="osk-key" data-key="KeyS">S</button>
+          <button type="button" class="osk-key" data-key="KeyD">D</button>
+          <button type="button" class="osk-key" data-key="KeyF">F</button>
+          <button type="button" class="osk-key" data-key="KeyG">G</button>
+          <button type="button" class="osk-key" data-key="KeyH">H</button>
+          <button type="button" class="osk-key" data-key="KeyJ">J</button>
+          <button type="button" class="osk-key" data-key="KeyK">K</button>
+          <button type="button" class="osk-key" data-key="KeyL">L</button>
+          <button type="button" class="osk-key" data-key="Semicolon">;</button>
+          <button type="button" class="osk-key" data-key="Quote">'</button>
+          <button type="button" class="osk-key wide" data-key="Enter">Enter</button>
+        </div>
+        <div class="osk-row">
+          <button type="button" class="osk-key wide" data-key="ShiftLeft">Shift</button>
+          <button type="button" class="osk-key" data-key="KeyZ">Z</button>
+          <button type="button" class="osk-key" data-key="KeyX">X</button>
+          <button type="button" class="osk-key" data-key="KeyC">C</button>
+          <button type="button" class="osk-key" data-key="KeyV">V</button>
+          <button type="button" class="osk-key" data-key="KeyB">B</button>
+          <button type="button" class="osk-key" data-key="KeyN">N</button>
+          <button type="button" class="osk-key" data-key="KeyM">M</button>
+          <button type="button" class="osk-key" data-key="Comma">,</button>
+          <button type="button" class="osk-key" data-key="Period">.</button>
+          <button type="button" class="osk-key" data-key="Slash">/</button>
+          <button type="button" class="osk-key wide" data-key="ShiftRight">Shift</button>
+        </div>
+        <div class="osk-row">
+          <button type="button" class="osk-key wide" data-key="ControlLeft">Ctrl</button>
+          <button type="button" class="osk-key" data-key="MetaLeft">Win</button>
+          <button type="button" class="osk-key" data-key="AltLeft">Alt</button>
+          <button type="button" class="osk-key space" data-key="Space">Space</button>
+          <button type="button" class="osk-key" data-key="AltRight">Alt</button>
+          <button type="button" class="osk-key" data-key="ControlRight">Ctrl</button>
+          <button type="button" class="osk-key" data-key="ArrowLeft" title="Mũi tên trái" aria-label="Mũi tên trái"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowUp" title="Mũi tên lên" aria-label="Mũi tên lên"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowDown" title="Mũi tên xuống" aria-label="Mũi tên xuống"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowRight" title="Mũi tên phải" aria-label="Mũi tên phải"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
         </div>
       </div>
     </section>

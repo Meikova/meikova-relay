@@ -724,7 +724,11 @@
     KeyS: 0x53, KeyT: 0x54, KeyU: 0x55, KeyV: 0x56, KeyW: 0x57, KeyX: 0x58,
     KeyY: 0x59, KeyZ: 0x5A,
     F1: 0x70, F2: 0x71, F3: 0x72, F4: 0x73, F5: 0x74, F6: 0x75,
-    F7: 0x76, F8: 0x77, F9: 0x78, F10: 0x79, F11: 0x7A, F12: 0x7B
+    F7: 0x76, F8: 0x77, F9: 0x78, F10: 0x79, F11: 0x7A, F12: 0x7B,
+    Backquote: 0xC0, Minus: 0xBD, Equal: 0xBB,
+    BracketLeft: 0xDB, BracketRight: 0xDD, Backslash: 0xDC,
+    Semicolon: 0xBA, Quote: 0xDE,
+    Comma: 0xBC, Period: 0xBE, Slash: 0xBF
   };
 
   // Default server URLs
@@ -3932,6 +3936,56 @@
     });
   }
 
+  // Helper to dynamically position deck popovers directly aligned with their trigger button
+  function positionDeckDropdown(triggerBtn, dropdownEl) {
+    if (!triggerBtn || !dropdownEl) return;
+    const btnRect = triggerBtn.getBoundingClientRect();
+    const isDeckAtTop = document.body.classList.contains('deck-at-top') ||
+                         (floatingDeck && (floatingDeck.classList.contains('deck--top-pinned') || floatingDeck.classList.contains('deck--top-unpinned')));
+
+    const wasHidden = dropdownEl.classList.contains('hidden');
+    if (wasHidden) {
+      dropdownEl.style.visibility = 'hidden';
+      dropdownEl.classList.remove('hidden');
+    }
+    const menuWidth = dropdownEl.offsetWidth || 340;
+    if (wasHidden) {
+      dropdownEl.classList.add('hidden');
+      dropdownEl.style.visibility = '';
+    }
+
+    let left = btnRect.left + (btnRect.width / 2) - (menuWidth / 2);
+    const maxLeft = window.innerWidth - menuWidth - 12;
+    left = Math.max(12, Math.min(left, maxLeft));
+
+    dropdownEl.style.left = `${Math.round(left)}px`;
+    dropdownEl.style.right = 'auto';
+    dropdownEl.style.transform = 'none';
+
+    if (isDeckAtTop) {
+      dropdownEl.style.top = `${Math.round(btnRect.bottom + 8)}px`;
+      dropdownEl.style.bottom = 'auto';
+    } else {
+      dropdownEl.style.bottom = `${Math.round(window.innerHeight - btnRect.top + 8)}px`;
+      dropdownEl.style.top = 'auto';
+    }
+  }
+
+  window.addEventListener('resize', () => {
+    if (protocolMenuDropdown && !protocolMenuDropdown.classList.contains('hidden') && btnProtocolMenu) {
+      positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
+    }
+    if (qualityMenuDropdown && !qualityMenuDropdown.classList.contains('hidden') && btnQualityMenu) {
+      positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
+    }
+    if (deckModeDropdown && !deckModeDropdown.classList.contains('hidden') && btnDeckDisplayMode) {
+      positionDeckDropdown(btnDeckDisplayMode, deckModeDropdown);
+    }
+    if (powerMenuDropdown && !powerMenuDropdown.classList.contains('hidden') && btnPowerMenu) {
+      positionDeckDropdown(btnPowerMenu, powerMenuDropdown);
+    }
+  });
+
   // Toggle Quality Popover Menu
   if (btnQualityMenu) {
     btnQualityMenu.addEventListener('click', (e) => {
@@ -3940,9 +3994,22 @@
         const isOpening = qualityMenuDropdown.classList.contains('hidden');
         qualityMenuDropdown.classList.toggle('hidden');
         btnQualityMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
+          if (protocolMenuDropdown) {
+            protocolMenuDropdown.classList.add('hidden');
+            if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
+          }
+        }
       }
-      if (powerMenuDropdown) powerMenuDropdown.classList.add('hidden');
-      if (deckModeDropdown) deckModeDropdown.classList.add('hidden');
+      if (powerMenuDropdown) {
+        powerMenuDropdown.classList.add('hidden');
+        if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
+      }
+      if (deckModeDropdown) {
+        deckModeDropdown.classList.add('hidden');
+        if (btnDeckDisplayMode) btnDeckDisplayMode.classList.remove('btn-active');
+      }
     });
   }
 
@@ -4862,16 +4929,24 @@
     btnDeckDisplayMode.addEventListener('click', (e) => {
       e.stopPropagation();
       if (deckModeDropdown) {
+        const isOpening = deckModeDropdown.classList.contains('hidden');
         deckModeDropdown.classList.toggle('hidden');
+        btnDeckDisplayMode.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnDeckDisplayMode, deckModeDropdown);
+        }
       }
       if (powerMenuDropdown) {
         powerMenuDropdown.classList.add('hidden');
+        if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
       }
       if (qualityMenuDropdown) {
         qualityMenuDropdown.classList.add('hidden');
+        if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
       }
-      if (btnQualityMenu) {
-        btnQualityMenu.classList.remove('btn-active');
+      if (protocolMenuDropdown) {
+        protocolMenuDropdown.classList.add('hidden');
+        if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
       }
     });
   }
@@ -5061,9 +5136,20 @@
         const isOpening = protocolMenuDropdown.classList.contains('hidden');
         protocolMenuDropdown.classList.toggle('hidden');
         btnProtocolMenu.classList.toggle('btn-active', isOpening);
-        if (isOpening && qualityMenuDropdown) {
-          qualityMenuDropdown.classList.add('hidden');
-          if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
+        if (isOpening) {
+          positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
+          if (qualityMenuDropdown) {
+            qualityMenuDropdown.classList.add('hidden');
+            if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
+          }
+          if (powerMenuDropdown) {
+            powerMenuDropdown.classList.add('hidden');
+            if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
+          }
+          if (deckModeDropdown) {
+            deckModeDropdown.classList.add('hidden');
+            if (btnDeckDisplayMode) btnDeckDisplayMode.classList.remove('btn-active');
+          }
         }
       }
     });
@@ -5139,18 +5225,36 @@
   // --- POWER ACTIONS MENU ---
   btnPowerMenu.addEventListener('click', (e) => {
     e.stopPropagation();
-    powerMenuDropdown.classList.toggle('hidden');
-    if (deckModeDropdown) deckModeDropdown.classList.add('hidden');
-    if (qualityMenuDropdown) qualityMenuDropdown.classList.add('hidden');
-    if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
+    if (powerMenuDropdown) {
+      const isOpening = powerMenuDropdown.classList.contains('hidden');
+      powerMenuDropdown.classList.toggle('hidden');
+      btnPowerMenu.classList.toggle('btn-active', isOpening);
+      if (isOpening) {
+        positionDeckDropdown(btnPowerMenu, powerMenuDropdown);
+      }
+    }
+    if (deckModeDropdown) {
+      deckModeDropdown.classList.add('hidden');
+      if (btnDeckDisplayMode) btnDeckDisplayMode.classList.remove('btn-active');
+    }
+    if (qualityMenuDropdown) {
+      qualityMenuDropdown.classList.add('hidden');
+      if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
+    }
+    if (protocolMenuDropdown) {
+      protocolMenuDropdown.classList.add('hidden');
+      if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
+    }
   });
 
   document.addEventListener('click', (e) => {
-    if (powerMenuDropdown && !powerMenuDropdown.contains(e.target) && e.target !== btnPowerMenu) {
+    if (powerMenuDropdown && !powerMenuDropdown.contains(e.target) && e.target !== btnPowerMenu && (!btnPowerMenu || !btnPowerMenu.contains(e.target))) {
       powerMenuDropdown.classList.add('hidden');
+      if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
     }
     if (deckModeDropdown && !deckModeDropdown.contains(e.target) && e.target !== btnDeckDisplayMode && (!btnDeckDisplayMode || !btnDeckDisplayMode.contains(e.target))) {
       deckModeDropdown.classList.add('hidden');
+      if (btnDeckDisplayMode) btnDeckDisplayMode.classList.remove('btn-active');
     }
     if (protocolMenuDropdown && !protocolMenuDropdown.contains(e.target) && e.target !== btnProtocolMenu && (!btnProtocolMenu || !btnProtocolMenu.contains(e.target))) {
       protocolMenuDropdown.classList.add('hidden');
@@ -5201,6 +5305,10 @@
   });
 
   // --- ON-SCREEN KEYBOARD (OSK) ---
+  let oskShift = false;
+  let oskCtrl = false;
+  let oskAlt = false;
+
   btnToggleOSK.addEventListener('click', () => {
     oskOverlay.classList.toggle('hidden');
     btnToggleOSK.classList.toggle('btn-active', !oskOverlay.classList.contains('hidden'));
@@ -5210,9 +5318,54 @@
     const keyBtn = e.target.closest('.osk-key');
     if (!keyBtn || !isConnected) return;
     const key = keyBtn.dataset.key;
+
+    if (key === 'ShiftLeft' || key === 'ShiftRight') {
+      oskShift = !oskShift;
+      oskOverlay.querySelectorAll('[data-key="ShiftLeft"], [data-key="ShiftRight"]').forEach(b => b.classList.toggle('active', oskShift));
+      return;
+    }
+    if (key === 'ControlLeft' || key === 'ControlRight') {
+      oskCtrl = !oskCtrl;
+      oskOverlay.querySelectorAll('[data-key="ControlLeft"], [data-key="ControlRight"]').forEach(b => b.classList.toggle('active', oskCtrl));
+      return;
+    }
+    if (key === 'AltLeft' || key === 'AltRight') {
+      oskAlt = !oskAlt;
+      oskOverlay.querySelectorAll('[data-key="AltLeft"], [data-key="AltRight"]').forEach(b => b.classList.toggle('active', oskAlt));
+      return;
+    }
+    if (key === 'CapsLock') {
+      sendKeySequence([0x14]);
+      keyBtn.classList.toggle('active');
+      return;
+    }
+
     const vk = JS_TO_VK[key] || 0;
     if (vk > 0) {
-      sendKeySequence([vk]);
+      const combo = [];
+      if (oskCtrl) combo.push(0x11);
+      if (oskAlt) combo.push(0x12);
+      if (oskShift) combo.push(0x10);
+      combo.push(vk);
+
+      if (combo.length > 1) {
+        sendHotKeyCombo(combo);
+      } else {
+        sendKeySequence([vk]);
+      }
+
+      if (oskShift) {
+        oskShift = false;
+        oskOverlay.querySelectorAll('[data-key="ShiftLeft"], [data-key="ShiftRight"]').forEach(b => b.classList.remove('active'));
+      }
+      if (oskCtrl) {
+        oskCtrl = false;
+        oskOverlay.querySelectorAll('[data-key="ControlLeft"], [data-key="ControlRight"]').forEach(b => b.classList.remove('active'));
+      }
+      if (oskAlt) {
+        oskAlt = false;
+        oskOverlay.querySelectorAll('[data-key="AltLeft"], [data-key="AltRight"]').forEach(b => b.classList.remove('active'));
+      }
     }
   });
 

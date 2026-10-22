@@ -1388,12 +1388,23 @@ input:-webkit-autofill:active {
   border-color: var(--accent);
 }
 
-.deck__btn.btn-active {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
+.deck__btn.btn-active,
+.deck__btn.active {
+  background: oklch(var(--acc) / 0.18) !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
   font-weight: 600;
-  box-shadow: var(--glow);
+  box-shadow: 0 0 14px -2px var(--accent-glow) !important;
+}
+
+.deck__btn.btn-active span,
+.deck__btn.active span {
+  color: var(--accent) !important;
+}
+
+.deck__btn.btn-active svg,
+.deck__btn.active svg {
+  stroke: var(--accent) !important;
 }
 
 .deck__btn.danger:hover {

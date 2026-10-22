@@ -305,3 +305,28 @@
   - `dist/MeikovaRelayHost-windows-x64.zip`
   - `relay-server/agent-package.zip`
   - Version: `meikova-relay-server` v1.0.52.
+
+
+---
+
+## 4. UI/UX Viewer Refinement: Bypass Menu, Pill Deck Alignment & Complete OSK
+- **Mục tiêu hoàn thành:**
+  - Sửa lỗi Menu Bypass (#protocolMenuDropdown) & Menu Chế độ / Preset (#qualityMenuDropdown) bị lệch sang 1 phía:
+    - Bổ sung helper positionDeckDropdown(triggerBtn, dropdownEl) trong pp.js tính toán dynamically bounding box của nút bấm và căn giữa dropdown ngay phía trên/dưới nút, tự động clamp trong phạm vi màn hình và re-position khi resize.
+    - Áp dụng đồng bộ cho cả 4 floating menus: Bypass/Protocol Matrix, Quality/Preset, Deck Display Mode, và Power Actions.
+  - Tối giản số lượng chữ trong menu Bypass & thay bằng Vector SVG:
+    - Rút gọn 3 nút điều hướng: Tự động (Native First) -> Tự động, Ép Meikova Bypass -> Bypass, Ép Native (RDP/SSH) -> Native.
+    - Tích hợp 100% Inline Vector SVG optical center cho cả 3 nút, đưa mô tả chi tiết vào tooltip.
+  - Sửa lỗi hình thái lệch và lỗi CSS hover/active:
+    - Đồng bộ .deck__btn--protocol thành 36px pill (order-radius: var(--round)), xóa bỏ kiểu dáng chữ nhật 32px góc nhọn gây khập khiễng.
+    - Sửa triệt để lỗi active biến thành khối màu xanh đặc chói lóa làm biến mất chữ: chuẩn hóa theo Meikova Ambient Dark (ackground: oklch(var(--acc) / 0.18), viền neon glow, chữ và icon giữ màu sáng neon rõ nét).
+    - Đồng bộ màu sắc chuyên biệt cho ypass-active (#38BDF8 / cyan glow) và 
+ative-active (#34D399 / emerald glow).
+  - Cải thiện bàn phím ảo (OSK):
+    - Bổ sung đầy đủ layout 6 hàng tiêu chuẩn: hàng Function F1-F12, hàng số & ký tự (- = ), hàng QWERTY kèm ngoặc vuông [ ], hàng Home row kèm dấu chấm phẩy và nháy kép (; '), hàng ZXCV kèm Shift và dấu chấm phẩy, hàng Điều hướng với 4 nút mũi tên SVG sắc nét.
+    - Mở rộng bảng ánh xạ JS_TO_VK với đầy đủ OEM Virtual Keys (Backquote, Minus, Equal, BracketLeft, BracketRight, Backslash, Semicolon, Quote, Comma, Period, Slash).
+    - Bổ sung logic giữ phím điều khiển (Modifier Latching) cho Shift, Ctrl, Alt và Caps Lock.
+  - Đồng bộ toàn bộ tài nguyên sang thư mục mirror web-client/.
+- **Lệnh kiểm tra đã chạy & Exit Code:**
+  - python -m unittest discover tests: **121 tests passed (OK, skipped=1, Exit Code 0)**.
+- **Tình trạng:** Sẵn sàng commit và deploy.
