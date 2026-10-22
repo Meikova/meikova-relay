@@ -43,6 +43,7 @@ class HostChatWindow:
 
         try:
             root = tk.Tk()
+            root.withdraw()
             self._init_ui(parent=None, tk_root=root)
             self._ready_event.set()
             root.mainloop()
@@ -56,6 +57,12 @@ class HostChatWindow:
             self.root = tk.Toplevel(parent)
         else:
             self.root = tk.Tk()
+
+        # Hide window immediately before configuring style/geometry to prevent momentary flash
+        try:
+            self.root.withdraw()
+        except Exception:
+            pass
 
         self.root.title(self.title_text)
         self.root.configure(bg="#070D17")

@@ -145,11 +145,11 @@ const server = http.createServer(async (req, res) => {
 
     // 1. Auth: Register
     if (pathname === '/api/auth/register' && req.method === 'POST') {
-      const { username, password } = await parseBody(req);
+      const { username, password, email } = await parseBody(req);
       const clientIp = getClientIp(req);
       const clientDevice = parseClientDevice(req.headers['user-agent']);
       try {
-        const user = await DB.registerUser(username, password);
+        const user = await DB.registerUser(username, password, email);
         const auth = await DB.authenticateUser(username, password);
         await DB.logAudit({
           action: 'AUTH_REGISTER',
@@ -211,6 +211,12 @@ const server = http.createServer(async (req, res) => {
       if (!session) {
         return jsonResponse(res, 401, { success: false, message: 'SSO token không hợp lệ hoặc đã hết hạn' });
       }
+      await DB.upsertLocalUserFromSSO({
+        sub: session.id,
+        username: session.username,
+        email: session.email,
+        display_name: session.display_name
+      });
       await DB.logAudit({
         action: 'AUTH_SSO_LOGIN',
         userId: session.id,
@@ -584,6 +590,53 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // 3.4 Auth Sync: Status check
+    if (pathname === '/api/auth/sync/status' && req.method === 'GET') {
+      const stats = await DB.getSyncStatus();
+      return jsonResponse(res, 200, {
+        success: true,
+        status: 'online',
+        ...stats,
+        timestamp: Date.now()
+      });
+    }
+
+    // 3.5 Auth Sync: Push local offline registrations to gateway
+    if (pathname === '/api/auth/sync/push' && req.method === 'POST') {
+      const pendingQueue = await DB.getAuthSyncQueue('PENDING');
+      const processed = [];
+      for (const item of pendingQueue) {
+        await DB.markAuthSyncStatus(item.id, 'SYNCED');
+        processed.push(item.id);
+      }
+      return jsonResponse(res, 200, {
+        success: true,
+        synced_count: processed.length,
+        processed_ids: processed
+      });
+    }
+
+    // 3.6 Auth Sync: Pull/Link accounts from Gateway into Local
+    if (pathname === '/api/auth/sync/gateway' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const accounts = Array.isArray(body?.accounts) ? body.accounts : (body?.account ? [body.account] : []);
+      const results = [];
+      for (const acc of accounts) {
+        const resLink = await DB.linkGatewayAccount({
+          email: acc.email,
+          gatewayUserId: acc.gateway_user_id || acc.id || acc.sub,
+          username: acc.username,
+          displayName: acc.display_name || acc.name
+        });
+        results.push(resLink);
+      }
+      return jsonResponse(res, 200, {
+        success: true,
+        count: results.length,
+        results
+      });
+    }
+
     // 4. Devices: List for logged-in user with live active sessions
     if (pathname === '/api/devices' && req.method === 'GET') {
       if (!session) {
@@ -792,9 +845,10 @@ const server = http.createServer(async (req, res) => {
     // 6. Download: Pre-configured Setup Batch Script
     if (pathname === '/api/download/setup.bat' && req.method === 'GET') {
       const account = url.searchParams.get('account') || (session ? session.username : 'User');
+      const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
-      const isHeadless = url.searchParams.get('headless') === '1' || url.searchParams.get('silent') === '1' || url.searchParams.get('mode') === 'headless' || url.searchParams.get('tray') === '0';
+      const isHeadless = url.searchParams.get('headless') === '1' || url.searchParams.get('silent') === '1' || url.searchParams.get('mode') === 'headless' || url.searchParams.get('tray') === '0' || (url.searchParams.get('gui') !== '1' && url.searchParams.get('tray') !== '1');
 
       const batContent = `@echo off
 setlocal DisableDelayedExpansion
@@ -803,6 +857,10 @@ chcp 65001 >nul 2>&1
 
 set "HEADLESS_MODE=${isHeadless ? '1' : '0'}"
 for %%A in (%*) do (
+    if /i "%%~A"=="/gui" set "HEADLESS_MODE=0"
+    if /i "%%~A"=="--gui" set "HEADLESS_MODE=0"
+    if /i "%%~A"=="/tray" set "HEADLESS_MODE=0"
+    if /i "%%~A"=="--tray" set "HEADLESS_MODE=0"
     if /i "%%~A"=="/silent" set "HEADLESS_MODE=1"
     if /i "%%~A"=="-s" set "HEADLESS_MODE=1"
     if /i "%%~A"=="/s" set "HEADLESS_MODE=1"
@@ -815,10 +873,13 @@ for %%A in (%*) do (
 )
 
 set "APP_FLAGS="
+set "HEADLESS_BOOL=false"
 if "%HEADLESS_MODE%"=="1" (
     set "APP_FLAGS=--service"
+    set "HEADLESS_BOOL=true"
 ) else (
     set "APP_FLAGS=--autostart"
+    set "HEADLESS_BOOL=false"
 )
 echo ==============================================================
 echo        MEIKOVA RELAY ENTERPRISE - TU DONG LIEN KET MAY TRAM
@@ -894,9 +955,11 @@ set "RAND_PIN=%RANDOM%%RANDOM%"
 echo {
 echo   "relay": "${relayWs}",
 echo   "account": "${account}",
+echo   "user_id": "${userIdParam}",
 echo   "device_name": "%COMPUTERNAME%",
 echo   "room_id": "%RAND_ROOM%",
-echo   "pin": "%RAND_PIN%"
+echo   "pin": "%RAND_PIN%",
+echo   "headless": %HEADLESS_BOOL%
 echo }
 ) > config.json
 
@@ -1439,7 +1502,7 @@ wss.on('connection', (ws, req) => {
       // Register device in DB
       let targetUserId = data.user_id || null;
       if (!targetUserId && (data.account || data.user_email)) {
-        const matchedUser = await DB.getUserByUsername(data.account || data.user_email);
+        const matchedUser = await DB.findUserByIdentifier(data.account || data.user_email || data.user_id);
         if (matchedUser) {
           targetUserId = matchedUser.id;
         }

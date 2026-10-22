@@ -42,7 +42,13 @@ const SCHEMA_SQL = `
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     salt TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    email TEXT,
+    display_name TEXT,
+    gateway_user_id TEXT,
+    auth_provider TEXT DEFAULT 'local',
+    sync_status TEXT DEFAULT 'synced',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS devices (
@@ -89,10 +95,23 @@ const SCHEMA_SQL = `
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS auth_sync_queue (
+    id TEXT PRIMARY KEY,
+    action TEXT NOT NULL,
+    user_id TEXT,
+    payload TEXT NOT NULL,
+    status TEXT DEFAULT 'PENDING',
+    retry_count INTEGER DEFAULT 0,
+    error_message TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_logs(timestamp DESC);
   CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
   CREATE INDEX IF NOT EXISTS idx_audit_room ON audit_logs(room_id);
   CREATE INDEX IF NOT EXISTS idx_sync_user ON user_sync_store(user_id);
+  CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON auth_sync_queue(status);
 `;
 
 let client = null;
@@ -157,6 +176,24 @@ async function ensureInit() {
       console.error('[DB] Schema initialization error:', err.message);
       throw err;
     }
+
+    // Safe incremental migrations for existing DBs
+    const migrations = [
+      'ALTER TABLE users ADD COLUMN email TEXT;',
+      'ALTER TABLE users ADD COLUMN display_name TEXT;',
+      'ALTER TABLE users ADD COLUMN gateway_user_id TEXT;',
+      'ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT "local";',
+      'ALTER TABLE users ADD COLUMN sync_status TEXT DEFAULT "synced";',
+      'ALTER TABLE users ADD COLUMN updated_at INTEGER;',
+      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);',
+      'CREATE INDEX IF NOT EXISTS idx_users_gateway ON users(gateway_user_id);',
+      'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON auth_sync_queue(status);'
+    ];
+    for (const sql of migrations) {
+      try {
+        await client.execute(sql);
+      } catch (_) {}
+    }
   })().catch(err => {
     initPromise = null;
     throw err;
@@ -202,9 +239,10 @@ const DB = {
   },
 
   // --- User Auth ---
-  async registerUser(username, password) {
+  async registerUser(username, password, email = null) {
     await ensureInit();
     const trimmedUser = String(username || '').trim().toLowerCase();
+    const trimmedEmail = email ? String(email).trim().toLowerCase() : null;
     if (!trimmedUser || !password || password.length < 6) {
       throw new Error('Username must not be empty and password must be at least 6 characters');
     }
@@ -216,10 +254,20 @@ const DB = {
 
     try {
       await client.execute({
-        sql: 'INSERT INTO users (id, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)',
-        args: [userId, trimmedUser, hash, salt, now]
+        sql: `INSERT INTO users (id, username, password_hash, salt, email, display_name, auth_provider, sync_status, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, 'local', 'pending_gateway', ?, ?)`,
+        args: [userId, trimmedUser, hash, salt, trimmedEmail, trimmedUser, now, now]
       });
-      return { id: userId, username: trimmedUser };
+
+      // Enqueue for gateway synchronization
+      await this.queueAuthSync('REGISTER', userId, {
+        id: userId,
+        username: trimmedUser,
+        email: trimmedEmail,
+        created_at: now
+      });
+
+      return { id: userId, username: trimmedUser, email: trimmedEmail };
     } catch (err) {
       const msg = err.message || '';
       if (msg.includes('UNIQUE constraint failed') || msg.includes('constraint failed') || msg.includes('SQLITE_CONSTRAINT')) {
@@ -274,6 +322,12 @@ const DB = {
         if (verifyUniversalToken) {
           const ssoUser = verifyUniversalToken(token);
           if (ssoUser) {
+            // JIT Provisioning / Mirror into local users table
+            try {
+              await this.upsertLocalUserFromSSO(ssoUser);
+            } catch (err) {
+              console.warn('[DB] SSO JIT provisioning notice:', err.message);
+            }
             return {
               id: ssoUser.sub,
               username: ssoUser.username,
@@ -290,7 +344,7 @@ const DB = {
     await ensureInit();
     const res = await client.execute({
       sql: `
-        SELECT u.id, u.username 
+        SELECT u.id, u.username, u.email, u.display_name
         FROM sessions s 
         JOIN users u ON s.user_id = u.id 
         WHERE s.token = ?
@@ -325,14 +379,216 @@ const DB = {
   },
 
   async getUserByUsername(username) {
-    if (!username) return null;
+    return this.findUserByIdentifier(username);
+  },
+
+  async findUserByIdentifier(identifier) {
+    if (!identifier) return null;
     await ensureInit();
-    const trimmedUser = String(username).trim().toLowerCase();
-    const res = await client.execute({
-      sql: 'SELECT id, username FROM users WHERE username = ?',
-      args: [trimmedUser]
+    const raw = String(identifier).trim();
+    const lower = raw.toLowerCase();
+    const prefix = lower.includes('@') ? lower.split('@')[0] : lower;
+
+    // 1. Direct ID / gateway_user_id match
+    let res = await client.execute({
+      sql: 'SELECT id, username, email, display_name, gateway_user_id, auth_provider, sync_status FROM users WHERE id = ? OR gateway_user_id = ?',
+      args: [raw, raw]
     });
-    return res.rows[0] || null;
+    if (res.rows[0]) return res.rows[0];
+
+    // 2. Exact username or exact email match
+    res = await client.execute({
+      sql: 'SELECT id, username, email, display_name, gateway_user_id, auth_provider, sync_status FROM users WHERE lower(username) = ? OR lower(email) = ?',
+      args: [lower, lower]
+    });
+    if (res.rows[0]) return res.rows[0];
+
+    // 3. Smart prefix matching (e.g. host sends 'kiempham1256', email is 'kiempham1256@gmail.com')
+    res = await client.execute({
+      sql: `SELECT id, username, email, display_name, gateway_user_id, auth_provider, sync_status FROM users 
+            WHERE lower(username) = ? OR lower(email) LIKE ?`,
+      args: [prefix, `${prefix}@%`]
+    });
+    if (res.rows[0]) return res.rows[0];
+
+    return null;
+  },
+
+  async upsertLocalUserFromSSO(ssoUser) {
+    if (!ssoUser || !ssoUser.sub) return null;
+    await ensureInit();
+    const sub = String(ssoUser.sub).trim();
+    const username = String(ssoUser.username || ssoUser.sub).trim().toLowerCase();
+    const email = ssoUser.email ? String(ssoUser.email).trim().toLowerCase() : null;
+    const displayName = ssoUser.display_name || ssoUser.displayName || ssoUser.username || username;
+    const now = Date.now();
+
+    // 1. Search existing user by sub / gateway_user_id
+    let existing = null;
+    let res = await client.execute({
+      sql: 'SELECT id, username, email, gateway_user_id FROM users WHERE id = ? OR gateway_user_id = ?',
+      args: [sub, sub]
+    });
+    existing = res.rows[0];
+
+    // 2. Search by email if not found
+    if (!existing && email) {
+      res = await client.execute({
+        sql: 'SELECT id, username, email, gateway_user_id FROM users WHERE lower(email) = ?',
+        args: [email]
+      });
+      existing = res.rows[0];
+    }
+
+    // 3. Search by username if not found
+    if (!existing) {
+      res = await client.execute({
+        sql: 'SELECT id, username, email, gateway_user_id FROM users WHERE lower(username) = ?',
+        args: [username]
+      });
+      existing = res.rows[0];
+    }
+
+    if (existing) {
+      // Conflict / Account Linking: Match found
+      await client.execute({
+        sql: `UPDATE users 
+              SET gateway_user_id = ?, email = COALESCE(?, email), display_name = ?, 
+                  auth_provider = 'universal_sso', sync_status = 'synced', updated_at = ?
+              WHERE id = ?`,
+        args: [sub, email, displayName, now, existing.id]
+      });
+
+      return { id: existing.id, gateway_user_id: sub, username, email, display_name: displayName };
+    }
+
+    // Insert new mirrored user
+    const dummySalt = crypto.randomBytes(16).toString('hex');
+    const dummyHash = hashPassword(crypto.randomBytes(32).toString('hex'), dummySalt);
+    await client.execute({
+      sql: `INSERT INTO users (id, username, password_hash, salt, email, display_name, gateway_user_id, auth_provider, sync_status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'universal_sso', 'synced', ?, ?)`,
+      args: [sub, username, dummyHash, dummySalt, email, displayName, sub, now, now]
+    });
+
+    return { id: sub, username, email, display_name: displayName };
+  },
+
+  // --- Auth Sync Queue & Conflict Resolution ---
+  async queueAuthSync(action, userId, payload) {
+    await ensureInit();
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    const payloadStr = typeof payload === 'object' ? JSON.stringify(payload) : String(payload);
+    await client.execute({
+      sql: `INSERT INTO auth_sync_queue (id, action, user_id, payload, status, retry_count, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'PENDING', 0, ?, ?)`,
+      args: [id, action, userId || null, payloadStr, now, now]
+    });
+    return id;
+  },
+
+  async getAuthSyncQueue(status = 'PENDING') {
+    await ensureInit();
+    const res = await client.execute({
+      sql: 'SELECT id, action, user_id, payload, status, retry_count, created_at FROM auth_sync_queue WHERE status = ? ORDER BY created_at ASC',
+      args: [status]
+    });
+    return res.rows.map(row => ({
+      ...row,
+      payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload
+    }));
+  },
+
+  async markAuthSyncStatus(id, status, errorMsg = null) {
+    await ensureInit();
+    const now = Date.now();
+    await client.execute({
+      sql: 'UPDATE auth_sync_queue SET status = ?, error_message = ?, updated_at = ? WHERE id = ?',
+      args: [status, errorMsg, now, id]
+    });
+  },
+
+  async getSyncStatus() {
+    await ensureInit();
+    const pendingRes = await client.execute({
+      sql: "SELECT COUNT(*) as count FROM auth_sync_queue WHERE status = 'PENDING'"
+    });
+    const syncedRes = await client.execute({
+      sql: "SELECT COUNT(*) as count FROM auth_sync_queue WHERE status = 'SYNCED'"
+    });
+    const failedRes = await client.execute({
+      sql: "SELECT COUNT(*) as count FROM auth_sync_queue WHERE status = 'FAILED'"
+    });
+    const usersRes = await client.execute({
+      sql: "SELECT COUNT(*) as count FROM users WHERE sync_status = 'pending_gateway'"
+    });
+    return {
+      queue_count: Number(pendingRes.rows[0]?.count || 0),
+      synced_count: Number(syncedRes.rows[0]?.count || 0),
+      failed_count: Number(failedRes.rows[0]?.count || 0),
+      pending_users: Number(usersRes.rows[0]?.count || 0)
+    };
+  },
+
+  async linkGatewayAccount({ email, gatewayUserId, username, displayName }) {
+    await ensureInit();
+    const now = Date.now();
+    const cleanEmail = email ? String(email).trim().toLowerCase() : null;
+    const cleanUser = String(username || '').trim().toLowerCase();
+    const sub = String(gatewayUserId).trim();
+
+    // Check Case 1: Same Email -> Account Linking (Merge into Gateway identity)
+    if (cleanEmail) {
+      const emailRes = await client.execute({
+        sql: 'SELECT id, username, email FROM users WHERE lower(email) = ?',
+        args: [cleanEmail]
+      });
+      const localWithEmail = emailRes.rows[0];
+      if (localWithEmail) {
+        await client.execute({
+          sql: `UPDATE users 
+                SET gateway_user_id = ?, auth_provider = 'universal_sso', sync_status = 'synced', updated_at = ?
+                WHERE id = ?`,
+          args: [sub, now, localWithEmail.id]
+        });
+        return { action: 'LINKED', userId: sub, localId: localWithEmail.id };
+      }
+    }
+
+    // Check Case 2: Same Username, different Email -> Namespace Resolution (Rename local to username_local_<hash>)
+    const userRes = await client.execute({
+      sql: 'SELECT id, username, email FROM users WHERE lower(username) = ?',
+      args: [cleanUser]
+    });
+    const localWithUser = userRes.rows[0];
+    if (localWithUser && (!cleanEmail || localWithUser.email !== cleanEmail)) {
+      const suffix = crypto.randomBytes(3).toString('hex');
+      const renamedUsername = `${localWithUser.username}_local_${suffix}`;
+      await client.execute({
+        sql: `UPDATE users 
+              SET username = ?, sync_status = 'conflict', updated_at = ?
+              WHERE id = ?`,
+        args: [renamedUsername, now, localWithUser.id]
+      });
+
+      const dummySalt = crypto.randomBytes(16).toString('hex');
+      const dummyHash = hashPassword(crypto.randomBytes(32).toString('hex'), dummySalt);
+      await client.execute({
+        sql: `INSERT INTO users (id, username, password_hash, salt, email, display_name, gateway_user_id, auth_provider, sync_status, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, 'universal_sso', 'synced', ?, ?)`,
+        args: [sub, cleanUser, dummyHash, dummySalt, cleanEmail, displayName || cleanUser, sub, now, now]
+      });
+      return { action: 'RESOLVED_NAMESPACE', localRenamedTo: renamedUsername, userId: sub };
+    }
+
+    // Case 3: Fresh insert
+    return this.upsertLocalUserFromSSO({
+      sub,
+      username: cleanUser,
+      email: cleanEmail,
+      display_name: displayName
+    });
   },
 
   // --- Device Management ---
@@ -344,9 +600,11 @@ const DB = {
         SELECT id, device_name, room_id, pin, is_online, last_seen, os_info, resolution 
         FROM devices 
         WHERE user_id = ? 
+           OR user_id IN (SELECT id FROM users WHERE gateway_user_id = ? OR id = ?)
+           OR user_id IN (SELECT gateway_user_id FROM users WHERE id = ?)
         ORDER BY is_online DESC, last_seen DESC
       `,
-      args: [userId]
+      args: [userId, userId, userId, userId]
     });
     return res.rows;
   },
@@ -442,11 +700,7 @@ const DB = {
   async googleAuth(email, displayName) {
     await ensureInit();
     const trimmedEmail = String(email || '').trim().toLowerCase();
-    const res = await client.execute({
-      sql: 'SELECT id, username FROM users WHERE username = ?',
-      args: [trimmedEmail]
-    });
-    let user = res.rows[0] || null;
+    let user = await this.findUserByIdentifier(trimmedEmail);
 
     if (!user) {
       // Auto-register Google user with random password
@@ -455,10 +709,17 @@ const DB = {
       const userId = crypto.randomUUID();
       const now = Date.now();
       await client.execute({
-        sql: 'INSERT INTO users (id, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)',
-        args: [userId, trimmedEmail, hash, salt, now]
+        sql: `INSERT INTO users (id, username, password_hash, salt, email, display_name, auth_provider, sync_status, created_at, updated_at) 
+              VALUES (?, ?, ?, ?, ?, ?, 'google', 'synced', ?, ?)`,
+        args: [userId, trimmedEmail, hash, salt, trimmedEmail, displayName || trimmedEmail, now, now]
       });
-      user = { id: userId, username: trimmedEmail };
+      user = { id: userId, username: trimmedEmail, email: trimmedEmail, display_name: displayName || trimmedEmail };
+    } else {
+      // Update display name / provider if needed
+      await client.execute({
+        sql: `UPDATE users SET display_name = COALESCE(?, display_name), email = COALESCE(?, email), updated_at = ? WHERE id = ?`,
+        args: [displayName || user.username, trimmedEmail, Date.now(), user.id]
+      });
     }
 
     // Create session

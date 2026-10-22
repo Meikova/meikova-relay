@@ -268,3 +268,40 @@
   - Không push repo `meikova-relay` lên GitHub theo chỉ đạo bảo mật.
   - File `.env` chứa token được tự động bảo vệ qua `.gitignore`.
 
+
+
+---
+
+## 15. Khắc Phục Bug Liên Kết Máy Trạm & Cơ Chế Đồng Bộ Xác Thực 2 Chiều (Fault-Tolerant Auth Sync)
+
+### 1. Phân Tích & Khắc Phục Nguyên Nhân Gốc Rễ Bug Liên Kết Máy Trạm:
+- **Nguyên nhân gốc rễ:**
+  1. Khi người dùng xác thực qua Universal SSO (Cổng xác thực Ed25519) hoặc Google OAuth, Relay Server chỉ thẩm định chữ ký token mà không mirror/lưu bản ghi vào bảng `users` cục bộ (thiếu JIT Provisioning).
+  2. Lệch định danh giữa các phiên: người dùng đăng nhập email `kiempham1256@gmail.com`, máy trạm gửi `account: "kiempham1256"`. Hàm `getUserByUsername` chỉ tìm exact match `username`, trả về `null` dẫn đến máy trạm được gán `user_id = NULL`.
+  3. Khi Web Client gọi `GET /api/devices`: query `WHERE user_id = ?` với ID của token SSO không tìm thấy máy trạm nào.
+- **Giải pháp triển khai:**
+  1. **JIT Provisioning (`DB.upsertLocalUserFromSSO`):** Tự động tạo hoặc cập nhật bản ghi local user khi đăng nhập qua SSO/Gateway, đánh dấu `auth_provider = 'universal_sso'` và `sync_status = 'synced'`.
+  2. **Smart Identifier Matching (`DB.findUserByIdentifier`):** Hỗ trợ khớp đa định danh: `user_id`, `gateway_user_id`, `username`, `email` đầy đủ, hoặc prefix email trước dấu `@`. Khớp chính xác 100% dù máy trạm gửi username hay email.
+  3. **Universal Fleet Query (`DB.getDevices`):** Mở rộng truy vấn thiết bị hỗ trợ cả `local_user_id` và `gateway_user_id`, đảm bảo thiết bị luôn hiển thị đúng cho tài khoản chủ sở hữu.
+
+### 2. Nghiên Cứu & Phát Triển Cơ Chế Đồng Bộ Xác Thực 2 Chiều (Offline-First):
+- **Bảng hàng đợi `auth_sync_queue`:** Ghi nhận mọi giao dịch đăng ký offline (`sync_status = 'pending_gateway'`).
+- **Endpoint đồng bộ:**
+  - `GET /api/auth/sync/status`: Báo cáo số lượng pending, synced, failed.
+  - `POST /api/auth/sync/push`: Đẩy các tài khoản đăng ký offline lên Gateway khi mạng/gateway phục hồi.
+  - `POST /api/auth/sync/gateway`: Đồng bộ tài khoản từ Gateway về Local.
+- **Ma trận giải quyết xung đột (Conflict Resolution Matrix):**
+  - **Trùng Email (Same Email) -> Account Linking:** Email là SSOT Unique Anchor. Hợp nhất tài khoản, liên kết `gateway_user_id`, giữ nguyên toàn bộ máy trạm (`devices`), cấu hình (`user_sync_store`), không làm mất dữ liệu.
+  - **Trùng Username nhưng khác Email -> Namespace Resolution:** Ưu tiên tài khoản Gateway làm SSOT Authoritative. Tài khoản local tự động đổi tên thành `username_local_<short_hash>` và đánh dấu `sync_status = 'conflict'`.
+
+### 3. Cập Nhật Bộ Skill Chuẩn (`meikova-auth`):
+- Đã bổ sung **Mục 9.4: Bi-directional Fault-Tolerant Auth Sync & Conflict Resolution (Offline-First)** vào `C:\Users\kiemp\.gemini\config\skills\meikova-auth\SKILL.md`.
+
+### 4. Kết Quả Kiểm Chứng & Build Artifacts:
+- **Bộ Test TDD Mới:** `tests/test_auth_sync_and_linking.py` (5/5 tests PASS).
+- **Toàn bộ Test Suite:** 121/121 tests PASS in 64.0s (Exit Code 0).
+- **Build Artifacts:**
+  - `dist/MeikovaRelayHost.exe` & `relay-server/MeikovaRelayHost.exe`
+  - `dist/MeikovaRelayHost-windows-x64.zip`
+  - `relay-server/agent-package.zip`
+  - Version: `meikova-relay-server` v1.0.52.

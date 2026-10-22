@@ -127,12 +127,13 @@ logger = logging.getLogger("HostAgent")
 class HostService:
     """Manages outbound WebSocket connection to Relay Server and streams desktop + handles all remote events."""
 
-    def __init__(self, relay_url: str, room_id: str, pin: str, device_name: str = "Workstation", account: str = "", fps: int = 25, quality: int = 65):
+    def __init__(self, relay_url: str, room_id: str, pin: str, device_name: str = "Workstation", account: str = "", fps: int = 25, quality: int = 65, user_id: Optional[str] = None):
         self.relay_url = relay_url
         self.room_id = room_id
         self.pin = pin
         self.device_name = device_name
         self.account = account
+        self.user_id = user_id
         self.fps = fps
         self.frame_interval = 1.0 / max(1, fps)
         self.quality = quality
@@ -1002,6 +1003,7 @@ class HostService:
                             "height": h,
                             "device_name": self.device_name,
                             "account": self.account,
+                            "user_id": self.user_id,
                             "os_info": "Windows 11 x64",
                             "monitors": self.capture.monitors
                         })

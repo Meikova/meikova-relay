@@ -2647,9 +2647,10 @@
     window.location.href = '/api/download/MeikovaRelayHost.exe';
   }
   function downloadHostInstaller() {
-    const accountName = currentUser ? currentUser.username : 'User';
+    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
+    const userId = currentUser ? (currentUser.id || '') : '';
     const relayWs = defaultWsUrl;
-    window.location.href = `/api/download/setup.bat?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}`;
+    window.location.href = `/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
   }
   function downloadMacScript() {
     const accountName = currentUser ? currentUser.username : 'User';
@@ -2665,9 +2666,9 @@
     const origin = window.location.origin;
     const relayWs = defaultWsUrl;
     return {
-      win: `powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}', 'setup.bat'); .\\setup.bat"`,
-      mac: `curl -sSL "${origin}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}" | bash`,
-      linux: `curl -sSL "${origin}/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(relayWs)}" | bash`
+      win: `powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}', 'setup.bat'); .\\setup.bat"`,
+      mac: `curl -sSL "${origin}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}" | bash`,
+      linux: `curl -sSL "${origin}/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}" | bash`
     };
   }
 

@@ -1290,7 +1290,7 @@ class MeikovaRelayHostGUI:
             room_id=self.config["room_id"],
             pin=self.config["pin"],
             device_name=self.config["device_name"],
-            account=self.config["account"]
+            account=self.config["account"], user_id=self.config.get("user_id")
         )
 
         # Wire live callbacks
@@ -1916,7 +1916,7 @@ class HostApi:
                 room_id=room_id,
                 pin=pin,
                 device_name=device_name,
-                account=account
+                account=account, user_id=self._config.get("user_id")
             )
             self._host_service.on_status_change = self._on_service_status
             self._host_service.on_client_connect = self._on_client_connected
@@ -2284,6 +2284,7 @@ def launch_webview_app(autostart: bool = False):
         resizable=True,
         shadow=True,
         background_color="#070D17",
+        hidden=autostart,
     )
     api.set_window(window)
 
@@ -2440,7 +2441,7 @@ def run_service_headless():
         room_id=room_id,
         pin=pin,
         device_name=device_name,
-        account=account
+        account=account, user_id=config.get("user_id")
     )
     chat_window = None
     if HostChatWindow:
@@ -2449,9 +2450,41 @@ def run_service_headless():
                 on_send_reply=lambda text: service.send_chat_message(text),
                 parent=None
             )
-            service.on_chat_message = lambda sender, text: chat_window.add_message(sender, text, is_local=False)
+            service.on_chat_message = lambda sender, text: (
+                chat_window.add_message(sender, text, is_local=False)
+            )
         except Exception:
             chat_window = None
+
+    def handle_headless_ipc(cmd: str) -> str:
+        c = cmd.strip().upper()
+        if c in ("CHAT", "OPEN_CHAT", "SHOW_CHAT"):
+            if chat_window:
+                chat_window.show()
+                return "OK:CHAT_OPENED"
+            return "ERR:NO_CHAT"
+        elif c in ("HIDE_CHAT", "CLOSE_CHAT"):
+            if chat_window:
+                chat_window.hide()
+                return "OK:CHAT_HIDDEN"
+            return "ERR:NO_CHAT"
+        elif c == "STOP":
+            if service:
+                service.stop()
+            threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0)), daemon=True).start()
+            return "OK:STOPPING"
+        elif c == "STATUS":
+            status = "RUNNING" if (service and service.is_running) else "INITIALIZING"
+            return f"OK:STATUS={status};ROOM={room_id};MODE=HEADLESS"
+        elif c == "SHOW":
+            if chat_window:
+                chat_window.show()
+                return "OK:CHAT_SHOWN"
+            return "OK:HEADLESS_RUNNING"
+        return "ERR:UNKNOWN_COMMAND"
+
+    start_ipc_server(handle_headless_ipc)
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
@@ -2474,7 +2507,33 @@ def main():
         except Exception:
             pass
 
-    if "--service" in sys.argv or "--headless" in sys.argv or "--silent" in sys.argv or "--daemon" in sys.argv:
+    if "--chat" in sys.argv or "--open-chat" in sys.argv:
+        resp = send_ipc_command("CHAT")
+        if resp and resp.startswith("OK"):
+            print("[OK] Đã mở cửa sổ chat trên máy trạm.")
+            sys.exit(0)
+        else:
+            print("[INFO] Máy trạm đang offline hoặc chưa bật dịch vụ.")
+            sys.exit(1)
+
+    cfg_file = _get_default_config_path()
+    initial_config = _load_initial_config(cfg_file)
+    is_headless_config = (
+        initial_config.get("headless") is True or
+        str(initial_config.get("headless", "")).lower() in ("1", "true", "yes") or
+        initial_config.get("mode") == "headless"
+    )
+
+    if (
+        (is_headless_config or
+        "--service" in sys.argv or
+        "--headless" in sys.argv or
+        "--silent" in sys.argv or
+        "--daemon" in sys.argv or
+        "--no-tray" in sys.argv) and
+        "--gui" not in sys.argv and
+        "--window" not in sys.argv
+    ):
         run_service_headless()
         return
 
