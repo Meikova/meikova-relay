@@ -73,7 +73,7 @@ class TestCrossPlatformAgent(unittest.TestCase):
         with patch.dict(os.environ, {"USERPROFILE": "C:/Users/testuser", "HOME": "/home/testuser"}, clear=True):
             dir_path = get_user_install_dir()
             self.assertIsInstance(dir_path, Path)
-            self.assertTrue(dir_path.name in ("MeikovaRelayHost", ".meikova_relay_host"))
+            self.assertTrue(dir_path.name in ("MeikovaRelayHost", ".meikova-relay", ".meikova_relay_host"))
 
     def test_resolve_config_path_prefers_localappdata(self):
         """Verifies resolve_config_path correctly prioritizes LOCALAPPDATA when present."""

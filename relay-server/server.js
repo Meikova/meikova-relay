@@ -971,8 +971,6 @@ echo   "headless": %HEADLESS_BOOL%
 echo }
 ) > config.json
 
-REM Dong bo cau hinh vao thu muc nguoi dung de tranh ghi de hoac thieu tai khoan
-copy /y config.json "%USERPROFILE%\\.meikova_relay_config.json" >nul 2>&1
 
 if "%USE_STANDALONE%"=="1" goto :RUN_STANDALONE
 

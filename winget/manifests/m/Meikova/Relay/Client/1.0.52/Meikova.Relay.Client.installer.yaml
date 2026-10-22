@@ -1,0 +1,15 @@
+PackageIdentifier: Meikova.Relay.Client
+PackageVersion: 1.0.52
+MinimumOSVersion: 10.0.0.0
+InstallerType: inno
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/meikova/meikova-relay/releases/download/v1.0.52/MeikovaRelayClient-Setup.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    Scope: user
+ManifestType: installer
+ManifestVersion: 1.6.0

@@ -1,0 +1,19 @@
+PackageIdentifier: Meikova.Relay.Host
+PackageVersion: 1.0.52
+PackageLocale: vi-VN
+Publisher: Nền Tảng Meikova
+PublisherUrl: https://meikova.org
+PublisherSupportUrl: https://meikova.org
+PackageName: Meikova Relay Host
+PackageUrl: https://meikova.org
+License: MIT
+LicenseUrl: https://raw.githubusercontent.com/meikova/meikova-relay/main/LICENSE
+ShortDescription: Tác nhân máy chủ truyền phát máy trạm từ xa độ trễ cực thấp.
+Description: Meikova Relay Host là dịch vụ máy chủ máy trạm hiệu năng cao, độ trễ dưới 15ms, hỗ trợ đa màn hình, truyền âm thanh vòng lặp và mã hóa đầu cuối.
+Tags:
+  - may-tram-tu-xa
+  - dieu-khien-tu-xa
+  - relay
+  - meikova
+ManifestType: locale
+ManifestVersion: 1.6.0

@@ -254,9 +254,15 @@ def build_agent_package_zip(root_dir: Path) -> Path:
     dist_zip.parent.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(relay_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in sorted(host_agent_dir.iterdir()):
-            if f.is_file() and not f.name.endswith(".pyc") and f.name != "__pycache__":
-                zf.write(f, arcname=f.name)
+        for root, dirs, files in os.walk(host_agent_dir):
+            if "__pycache__" in root:
+                continue
+            for file in sorted(files):
+                if file.endswith(".pyc"):
+                    continue
+                full_path = Path(root) / file
+                rel_path = full_path.relative_to(host_agent_dir)
+                zf.write(full_path, arcname=str(rel_path).replace("\\", "/"))
 
     shutil.copy2(relay_zip, dist_zip)
     return relay_zip
@@ -276,6 +282,27 @@ def generate_checksums(dist_dir: Path) -> Path:
     checksums_content = "\n".join(lines) + "\n"
     checksums_file.write_text(checksums_content, encoding="utf-8")
     return checksums_file
+
+
+def compile_inno_setup(iss_file: Path, dist_dir: Path = DIST_DIR):
+    """Compiles an Inno Setup .iss script using ISCC.exe if available."""
+    iscc = shutil.which("ISCC.exe")
+    if not iscc and sys.platform == "win32":
+        default_iscc = Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe")
+        if default_iscc.exists():
+            iscc = str(default_iscc)
+    
+    if not iscc:
+        print(f"[!] ISCC.exe not found. Skipping Inno Setup compile for {iss_file.name}")
+        return None
+    
+    print(f"[*] Compiling Inno Setup script {iss_file.name}...")
+    res = subprocess.run([iscc, str(iss_file)], cwd=REPO_ROOT)
+    if res.returncode != 0:
+        print(f"[!] ISCC compilation failed with code {res.returncode}")
+        return None
+    print(f"[+] Successfully compiled {iss_file.name}")
+    return True
 
 def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
     """Invokes PyInstaller to compile gui_agent.py for current OS."""
@@ -368,6 +395,16 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
         relay_exe = REPO_ROOT / "relay-server" / "MeikovaRelayHost.exe"
         if exe_path.exists(): shutil.copy2(exe_path, relay_exe)
         build_agent_package_zip(REPO_ROOT)
+
+        # Inno Setup Windows Installers (Host & Client)
+        iss_host = REPO_ROOT / "installer_host.iss"
+        if iss_host.exists() and exe_path.exists():
+            compile_inno_setup(iss_host, dist_dir)
+        iss_client = REPO_ROOT / "installer_client.iss"
+        client_exe = dist_dir / "MeikovaRelayClient.exe"
+        if iss_client.exists() and client_exe.exists():
+            compile_inno_setup(iss_client, dist_dir)
+
         print(f"[+] Windows artifacts: {exe_path.name}, {zip_path.name}, agent-package.zip")
 
     elif target == "linux":

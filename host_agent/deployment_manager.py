@@ -66,7 +66,7 @@ def get_user_install_dir() -> Path:
     if local_app_data:
         target = Path(local_app_data) / "MeikovaRelayHost"
     else:
-        target = Path.home() / ".meikova_relay_host"
+        target = Path.home() / ".meikova-relay"
     try:
         target.mkdir(parents=True, exist_ok=True)
     except Exception:

@@ -1,0 +1,19 @@
+PackageIdentifier: Meikova.Relay.Client
+PackageVersion: 1.0.52
+PackageLocale: vi-VN
+Publisher: Nền Tảng Meikova
+PublisherUrl: https://meikova.org
+PublisherSupportUrl: https://meikova.org
+PackageName: Meikova Relay Client
+PackageUrl: https://meikova.org
+License: MIT
+LicenseUrl: https://raw.githubusercontent.com/meikova/meikova-relay/main/LICENSE
+ShortDescription: Ứng dụng điều khiển và kết nối máy trạm từ xa hiệu năng cao.
+Description: Meikova Relay Client là trình điều khiển máy trạm từ xa tốc độ cao với khả năng giải mã phần cứng 120 FPS, chia sẻ clipboard, truy cập terminal và kết nối trực tiếp P2P.
+Tags:
+  - dieu-khien-tu-xa
+  - may-tram-client
+  - viewer
+  - meikova
+ManifestType: locale
+ManifestVersion: 1.6.0

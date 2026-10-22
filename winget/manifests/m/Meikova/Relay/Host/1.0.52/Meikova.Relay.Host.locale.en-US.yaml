@@ -1,0 +1,20 @@
+PackageIdentifier: Meikova.Relay.Host
+PackageVersion: 1.0.52
+PackageLocale: en-US
+Publisher: Meikova Platform
+PublisherUrl: https://meikova.org
+PublisherSupportUrl: https://meikova.org
+PackageName: Meikova Relay Host
+PackageUrl: https://meikova.org
+License: MIT
+LicenseUrl: https://raw.githubusercontent.com/meikova/meikova-relay/main/LICENSE
+ShortDescription: Ultra low-latency remote desktop workstation host agent.
+Description: Meikova Relay Host is a high-performance workstation daemon delivering sub-15ms screen mirroring, multi-monitor display synchronization, audio loopback, and end-to-end encryption.
+Tags:
+  - remote-desktop
+  - streaming
+  - workstation
+  - vnc
+  - rdp
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

@@ -1,0 +1,19 @@
+PackageIdentifier: Meikova.Relay.Client
+PackageVersion: 1.0.52
+PackageLocale: en-US
+Publisher: Meikova Platform
+PublisherUrl: https://meikova.org
+PublisherSupportUrl: https://meikova.org
+PackageName: Meikova Relay Client
+PackageUrl: https://meikova.org
+License: MIT
+LicenseUrl: https://raw.githubusercontent.com/meikova/meikova-relay/main/LICENSE
+ShortDescription: High-performance remote desktop workstation client and viewer.
+Description: Meikova Relay Client is a high-speed workstation viewer featuring 120 FPS hardware-accelerated decoding, remote clipboard, terminal access, and direct peer-to-peer streaming.
+Tags:
+  - remote-desktop
+  - viewer
+  - workstation
+  - client
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
