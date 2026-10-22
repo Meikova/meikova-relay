@@ -91,7 +91,6 @@ class CursorManager:
                 hDesk = user32.OpenInputDesktop(0, False, 0x01FF)
                 if hDesk:
                     user32.SetThreadDesktop(hDesk)
-                    user32.CloseDesktop(hDesk)
                 if not user32.GetCursorInfo(ctypes.byref(ci)):
                     return "default"
 
@@ -150,6 +149,11 @@ class CursorManager:
 
     def stop_listener(self):
         self._running = False
+        if self._thread and self._thread.is_alive():
+            try:
+                self._thread.join(timeout=0.3)
+            except Exception:
+                pass
 
     def _loop(self):
         while self._running:

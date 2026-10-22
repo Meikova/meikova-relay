@@ -68,14 +68,15 @@ class ClipboardManager:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
+        self._attached = False
 
     def _attach_desktop(self):
-        if sys.platform == "win32":
+        if sys.platform == "win32" and not self._attached:
             try:
                 hDesk = user32.OpenInputDesktop(0, False, 0x01FF)
                 if hDesk:
                     user32.SetThreadDesktop(hDesk)
-                    user32.CloseDesktop(hDesk)
+                self._attached = True
             except Exception:
                 pass
 
@@ -208,6 +209,11 @@ class ClipboardManager:
 
     def stop_listener(self):
         self._running = False
+        if self._thread and self._thread.is_alive():
+            try:
+                self._thread.join(timeout=0.3)
+            except Exception:
+                pass
 
     def _loop(self):
         while self._running:

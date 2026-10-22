@@ -62,7 +62,6 @@ class ScreenCapture:
                 hdesk = user32.OpenDesktopW('default', 0, False, 0x01FF)
             if hdesk:
                 user32.SetThreadDesktop(hdesk)
-                user32.CloseDesktop(hdesk)
             self._attached = True
             return True
         except Exception:

@@ -1,3 +1,26 @@
+# Session Handoff: Meikova Relay - Khắc Phục Lỗi Heap Corruption (NTSTATUS 0xC0000374 / Exit Code 1) Trên Windows CI/CD
+
+## 1. Mục tiêu hoàn thành
+- [x] **Tìm nguyên nhân gốc rễ và sửa triệt để lỗi Exit Code 1 / 0xC0000374 (`STATUS_HEAP_CORRUPTION`) trên Windows:**
+  - `host_agent/screen_capture.py`, `host_agent/cursor_manager.py`, `host_agent/clipboard_manager.py`: Loại bỏ hoàn toàn lệnh `user32.CloseDesktop(hDesk)` gọi ngay sau `user32.SetThreadDesktop(hDesk)`. Theo đặc tả Win32 API, việc gọi `CloseDesktop` trên desktop handle đang được gán cho thread hiện tại làm hỏng heap quản lý desktop của NT subsystem.
+  - `host_agent/clipboard_manager.py`: Loại bỏ việc gọi `OpenInputDesktop` lặp đi lặp lại mỗi 200ms trong vòng lặp polling. Bổ sung cờ `self._attached = False` và chỉ attach một lần duy nhất. Thêm join thread trong `stop_listener(timeout=0.3)`.
+  - `host_agent/cursor_manager.py`: Thêm join thread trong `stop_listener(timeout=0.3)`.
+  - `host_agent/host_service.py`: Bổ sung dọn dẹp `self.clipboard.stop_listener()` và `self.terminal.stop()` trong phương thức `stop()`.
+  - `tests/test_clipboard_sync.py` & `tests/test_host_chat.py`: Bọc và dọn dẹp `service.stop()` trong các khối `finally:`, đảm bảo không để rò rỉ daemon thread chạy nền khi runner thoát tiến trình.
+- [x] **Xác minh kiểm thử cục bộ:**
+  - Toàn bộ 131 test cases vượt qua (`OK (skipped=1)`).
+  - Exit code tiến trình chuyển từ `-1073740940` (0xC0000374) sang `0` (Clean Exit) thành công 100%.
+
+## 2. Lệnh kiểm tra đã chạy & Exit Code
+- `python -m unittest discover tests`: **Exit Code 0** (131/131 tests pass, 1 skipped).
+- Kiểm tra trực tiếp `$LASTEXITCODE`: **0**.
+
+## 3. Các phần còn tồn đọng và cảnh báo kỹ thuật
+- Không còn lỗi heap corruption trên môi trường Windows.
+- Khi push commit lên GitHub Actions, luôn kèm cờ `[build] [release]` để kích hoạt runner build theo chuẩn `meikova-release-ops`.
+
+---
+
 # Session Handoff: Meikova Relay - Khắc Phục Lỗi Đồng Bộ Clipboard Hai Chiều (Windows 64-bit & Web Client)
 
 ## 1. Mục tiêu hoàn thành

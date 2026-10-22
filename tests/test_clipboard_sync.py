@@ -39,6 +39,11 @@ class TestClipboardSync(unittest.TestCase):
                 service.cursor_manager.stop_listener()
             except Exception:
                 pass
+        if hasattr(service, "clipboard") and service.clipboard:
+            try:
+                service.clipboard.stop_listener()
+            except Exception:
+                pass
 
         loop = asyncio.new_event_loop()
         t = threading.Thread(target=loop.run_forever, daemon=True)

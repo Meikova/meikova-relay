@@ -35,6 +35,7 @@ class TestHostChat(unittest.TestCase):
             self.assertEqual(call_arg["message"], "Xin chào client")
             self.assertEqual(call_arg["sender"], "TestHost")
         finally:
+            service.stop()
             loop.call_soon_threadsafe(loop.stop)
 
     def test_send_chat_message_empty(self):
@@ -44,8 +45,11 @@ class TestHostChat(unittest.TestCase):
             pin="123456",
             device_name="TestHost"
         )
-        ok = service.send_chat_message("   ")
-        self.assertFalse(ok)
+        try:
+            ok = service.send_chat_message("   ")
+            self.assertFalse(ok)
+        finally:
+            service.stop()
 
     def test_incoming_chat_message_dispatch(self):
         service = HostService(
@@ -54,18 +58,21 @@ class TestHostChat(unittest.TestCase):
             pin="123456",
             device_name="TestHost"
         )
-        received_messages = []
-        service.on_chat_message = lambda sender, text: received_messages.append((sender, text))
+        try:
+            received_messages = []
+            service.on_chat_message = lambda sender, text: received_messages.append((sender, text))
 
-        event = {
-            "type": "chat_message",
-            "sender": "Kỹ thuật viên",
-            "message": "Tôi đang kiểm tra máy bạn nhé"
-        }
-        
-        service.on_chat_message(event["sender"], event["message"])
-        self.assertEqual(len(received_messages), 1)
-        self.assertEqual(received_messages[0], ("Kỹ thuật viên", "Tôi đang kiểm tra máy bạn nhé"))
+            event = {
+                "type": "chat_message",
+                "sender": "Kỹ thuật viên",
+                "message": "Tôi đang kiểm tra máy bạn nhé"
+            }
+            
+            service.on_chat_message(event["sender"], event["message"])
+            self.assertEqual(len(received_messages), 1)
+            self.assertEqual(received_messages[0], ("Kỹ thuật viên", "Tôi đang kiểm tra máy bạn nhé"))
+        finally:
+            service.stop()
 
     def test_host_api_send_and_history(self):
         config = {"room_id": "RD-TEST", "pin": "123456", "device_name": "TestPC"}

@@ -186,6 +186,10 @@ class HostService:
             self.audio_capture.stop()
             self.audio_playback.stop()
             self.cursor_manager.stop_listener()
+            if hasattr(self, "clipboard") and self.clipboard:
+                self.clipboard.stop_listener()
+            if hasattr(self, "terminal") and self.terminal:
+                self.terminal.stop()
         except Exception:
             pass
 
