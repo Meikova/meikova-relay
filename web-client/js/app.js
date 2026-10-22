@@ -2863,7 +2863,8 @@
 
     try {
       if (ws && ws.readyState === WebSocket.OPEN && currentRoomId === currentManagingRoomId) {
-        ws.send(JSON.stringify({ type: 'get_sessions' }));
+        ws.send(JSON.stringify({ type: 'get_sessions' }));
+        ws.send(JSON.stringify({ type: 'clipboard_pull' }));
       }
 
       const res = await apiFetch(`/api/rooms/${currentManagingRoomId}/sessions`, 'GET');
@@ -4760,7 +4761,8 @@
     }
 
     // C. Handle text clipboard paste to remote screen
-    if (currentView !== 'remote') return;
+    if (currentView !== 'remote') return;
+    e.preventDefault();
     const pastedText = e.clipboardData?.getData('text');
     if (pastedText && ws && ws.readyState === WebSocket.OPEN) {
       lastSyncedClientClipboard = pastedText;
@@ -4819,6 +4821,12 @@
     const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
     if (tag === 'input' || tag === 'textarea' || tag === 'select' || (activeEl && activeEl.isContentEditable)) {
       return;
+    }
+
+    // Avoid double paste / race condition on Ctrl+V:
+    // Let browser paste event capture client clipboard, sync to host, and trigger remote paste!
+    if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyV' || e.key === 'v' || e.key === 'V')) {
+      return;
     }
 
     const vk = JS_TO_VK[e.code] || 0;
@@ -5597,7 +5605,10 @@
 
     const tab = btn.dataset.shelfTab;
     shelfFilesTab.classList.toggle('hidden', tab !== 'files');
-    shelfClipboardTab.classList.toggle('hidden', tab !== 'clipboard');
+    shelfClipboardTab.classList.toggle('hidden', tab !== 'clipboard');
+      if (tab === 'clipboard' && isConnected && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'clipboard_pull' }));
+      }
     shelfChatTab.classList.toggle('hidden', tab !== 'chat');
     if (tab === 'chat') {
       const chatUnreadDot = document.getElementById('chatUnreadDot');
@@ -5777,7 +5788,20 @@
       text: text
     }));
     showToast('Đang đẩy sang bộ nhớ tạm của máy trạm...', 'info');
-  });
+  });
+
+    // Clipboard Pull (Fetch from Host)
+    const btnPullClipboard = document.getElementById('btnPullClipboard');
+    if (btnPullClipboard) {
+      btnPullClipboard.addEventListener('click', () => {
+        if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('Chưa kết nối máy trạm', 'info');
+          return;
+        }
+        ws.send(JSON.stringify({ type: 'clipboard_pull' }));
+        showToast('Đang làm mới clipboard từ máy trạm...', 'info');
+      });
+    }
 
   // Direct Unicode Typing (PowerPoint, Word, Terminal, etc.)
   if (btnTypeDirect) {

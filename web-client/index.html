@@ -1806,7 +1806,13 @@
 
         <!-- Tab 2: Clipboard -->
         <div id="shelfClipboardTab" class="hidden">
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;" data-i18n="shelf.clip_title">Nội dung bộ nhớ tạm (Tự động đồng bộ 2 chiều):</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;" data-i18n="shelf.clip_title">Nội dung bộ nhớ tạm (Tự động đồng bộ 2 chiều):</p>
+            <button type="button" id="btnPullClipboard" class="btn-pill-sm" style="font-size: 0.72rem; padding: 4px 10px; border-color: var(--accent-cyan); color: var(--accent-cyan); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; background: rgba(56, 189, 248, 0.08); border-radius: 6px;" title="Lấy dữ liệu clipboard mới nhất từ máy trạm" data-i18n-title="shelf.btn_pull_clip_title">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              <span data-i18n="shelf.btn_pull_clip">Làm mới</span>
+            </button>
+          </div>
           <textarea id="clipboardViewer" class="instrument-input mono-font" rows="8" placeholder="Chưa có dữ liệu clipboard..." data-i18n-placeholder="shelf.clip_placeholder" style="width: 100%; resize: vertical;"></textarea>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;">
             <button type="button" id="btnPushClipboard" class="btn-pill" style="height: 38px; background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; font-size: 0.85rem; box-shadow: var(--glow); justify-content: center; margin: 0;" data-i18n="shelf.btn_push_clip">Đẩy clipboard</button>

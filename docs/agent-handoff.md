@@ -1,3 +1,38 @@
+# Session Handoff: Meikova Relay - Khắc Phục Lỗi Đồng Bộ Clipboard Hai Chiều (Windows 64-bit & Web Client)
+
+## 1. Mục tiêu hoàn thành
+- [x] **Tìm nguyên nhân gốc rễ và sửa triệt để lỗi không đồng bộ Clipboard trên Windows Host:**
+  - `host_agent/clipboard_manager.py`: Môi trường không cài `win32clipboard` (pywin32) nên chạy nhánh ctypes native. Trên kiến trúc Windows 64-bit, con trỏ trả về từ `kernel32.GlobalAlloc`, `kernel32.GlobalLock`, `user32.GetClipboardData`, `user32.SetClipboardData` bị ép kiểu ngầm định về `c_int` (32-bit), dẫn đến lỗi `Access violation writing 0x0000000000000000` khiến `set_clipboard_text` luôn thất bại và `get_clipboard_text` luôn trả về `None`.
+  - Khai báo đầy đủ `argtypes` và `restype` chuẩn 64-bit (`c_void_p`, `c_size_t`, `c_bool`, `OpenInputDesktop`, `SetThreadDesktop`, `CloseDesktop`).
+- [x] **Bổ sung giao thức kéo Clipboard chủ động (`clipboard_pull`):**
+  - `host_agent/host_service.py`: Xử lý sự kiện `clipboard_pull` từ client, lấy ngay nội dung clipboard hiện tại của máy trạm và phản hồi bằng tin nhắn `clipboard_sync`.
+- [x] **Nâng cấp Web Client (`relay-server/public` và `web-client`):**
+  - `index.html`: Bổ sung nút `#btnPullClipboard` ("Làm mới") với biểu tượng SVG trên tiêu đề tab Bộ nhớ tạm (`#shelfClipboardTab`).
+  - `i18n.js`: Thêm khóa dịch `shelf.btn_pull_clip` và `shelf.btn_pull_clip_title` cho cả tiếng Việt và tiếng Anh.
+  - `app.js`:
+    - Gắn sự kiện click cho `#btnPullClipboard` kích hoạt `clipboard_pull`.
+    - Tự động gửi `clipboard_pull` khi người dùng chuyển sang tab clipboard (`shelfClipboardTab`).
+    - Tự động gửi `clipboard_pull` ngay khi hoàn tất bắt tay kết nối phiên (`init_client`).
+    - Khắc phục race condition phím tắt `Ctrl+V` trên Remote Desktop: Khi nhấn `Ctrl+V`, chặn sự kiện phím thô `KeyV` gửi lên máy trạm để cho phép sự kiện `paste` của trình duyệt thu nhận clipboard mới nhất, gửi `clipboard_sync` tới host và kích hoạt dán từ xa mượt mà.
+- [x] **Viết bộ kiểm thử tự động `tests/test_clipboard_sync.py`:**
+  - Kiểm thử đọc/ghi clipboard native trên Windows qua ctypes 64-bit.
+  - Kiểm thử luồng phát sóng `_on_local_clipboard_change`.
+  - Kiểm thử cơ chế loại bỏ trùng lặp echo loop.
+  - Kiểm thử xử lý gói tin `clipboard_pull` và `clipboard_sync`.
+- [x] **Đồng bộ hóa 100% giữa `relay-server/public` và `web-client`.**
+
+## 2. Lệnh kiểm tra đã chạy & Exit Code
+- `python -m unittest tests/test_clipboard_sync.py`: **Exit Code 0** (4/4 tests pass).
+- `python -m unittest tests/test_host_chat.py tests/test_i18n.py tests/test_download_endpoints.py`: **Exit Code 0** (20/20 tests pass).
+- `python -m unittest tests/test_auth_sync_and_linking.py`: **Exit Code 0** (5/5 tests pass).
+- `node -c relay-server/public/js/app.js` & `web-client/js/app.js`: **Exit Code 0** (Syntax valid).
+- `node -c relay-server/public/js/i18n.js` & `web-client/js/i18n.js`: **Exit Code 0** (Syntax valid).
+
+## 3. Các phần còn tồn đọng và cảnh báo kỹ thuật
+- Không có lỗi tồn đọng. Clipboard đồng bộ hai chiều mượt mà, tức thời giữa Web Client và Host Workstation Windows x64.
+
+---
+
 # Session Handoff: Meikova Relay - Giao Diện Chat Ambient Dark & Tin Nhắn Hai Chiều Thời Gian Thực
 
 ## 1. Mục tiêu hoàn thành
