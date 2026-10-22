@@ -14,9 +14,10 @@
     - Tự động gửi `clipboard_pull` khi người dùng chuyển sang tab clipboard (`shelfClipboardTab`).
     - Tự động gửi `clipboard_pull` ngay khi hoàn tất bắt tay kết nối phiên (`init_client`).
     - Khắc phục race condition phím tắt `Ctrl+V` trên Remote Desktop: Khi nhấn `Ctrl+V`, chặn sự kiện phím thô `KeyV` gửi lên máy trạm để cho phép sự kiện `paste` của trình duyệt thu nhận clipboard mới nhất, gửi `clipboard_sync` tới host và kích hoạt dán từ xa mượt mà.
-- [x] **Viết bộ kiểm thử tự động `tests/test_clipboard_sync.py` & Sửa lỗi CI/CD runner:**
+- [x] **Viết bộ kiểm thử tự động `tests/test_clipboard_sync.py` & Sửa cấu hình CI/CD:**
   - Cô lập test khỏi background `terminal` và `cursor_manager` của `HostService` để tránh race condition trên môi trường Linux/macOS runner khiến `terminal_output` chèn vào kiểm tra `clipboard_sync`.
   - Bổ sung `@unittest.skipUnless(sys.platform == 'win32')` cho test ctypes native Windows.
+  - Sửa `.github/workflows/build-release.yml`: Xóa bỏ điều kiện ép buộc commit message phải có cờ `[build]` hoặc `[release]`. Bây giờ mọi commit push lên branch `main` đều sẽ tự động chạy toàn bộ quy trình CI/CD build và kiểm thử đa nền tảng.
 - [x] **Nâng cấp `screen_capture.py` hỗ trợ Desktop Swapping:**
   - Chuyển `_attach_window_station()` sang ưu tiên gọi `OpenInputDesktop(0, False, 0x01FF)` thay vì hardcode `OpenDesktopW('default')`, tự động bắt vào desktop `Winlogon` / Lock Screen khi tiến trình có quyền quản trị/service.
 - [x] **Đồng bộ hóa 100% giữa `relay-server/public` và `web-client`.**
