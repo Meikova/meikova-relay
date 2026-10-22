@@ -1,3 +1,23 @@
+# Session Handoff: Meikova Platform - Đồng Bộ Hóa Phong Cách Tray Icon Sang Brand Squircle Trên Toàn Bộ Hệ Sinh Thái
+
+## 1. Mục tiêu hoàn thành
+- [x] **Chuẩn hóa và đồng bộ phong cách Tray Icon sang Brand Squircle cho 100% sản phẩm:**
+  - Trước đây: `meikova-harvest` dùng icon đơn sắc trắng (`white-32.png`), `meikova-relay` dùng `white-32.png`, trong khi `meikova-loop` dùng icon app squircle có màu (`app.ico`). Điều này tạo ra sự không đồng nhất về nhận diện thương hiệu giữa các sản phẩm trên Taskbar.
+  - Sau chuẩn hóa: Cả 3 sản phẩm đều chuyển sang dùng chung phong cách **Brand Squircle** (`app-icons/rounded/icon-32.png`): Nền bo góc tối `#11151B` kết hợp biểu tượng phát quang màu thương hiệu riêng biệt (Relay: xanh ngọc `#83E8AC`, Loop: cam hổ phách `#FFB38A`, Harvest: cyber cyan `#83C4FF`).
+  - Cập nhật công cụ đồng bộ tài sản tập trung `D:\JOB\DEV\meikova\scripts\deploy_product_assets.py` để trỏ toàn bộ tray icon nguồn sang `app-icons/rounded/icon-32.png`.
+  - Đồng bộ và kiểm tra 183/183 tài sản đạt chuẩn 100% với SSOT (`deploy_product_assets.py --check` -> Clean Exit Code 0).
+  - Cập nhật `host_agent/tray_menu.py` trên Meikova Relay để ưu tiên đọc file `logo.png` / `tray_icon.png` Brand Squircle chính thức từ SSOT.
+
+## 2. Lệnh kiểm tra đã chạy & Exit Code
+- `python D:\JOB\DEV\meikova\scripts\deploy_product_assets.py`: **Exit Code 0** (Đã đồng bộ toàn bộ 3 dự án).
+- `python D:\JOB\DEV\meikova\scripts\deploy_product_assets.py --check`: **Exit Code 0** (183/183 tài sản khớp).
+- `python -m unittest tests/test_host_chat.py tests/test_screen_sync.py`: **Exit Code 0** (10/10 tests pass).
+
+## 3. Các phần còn tồn đọng và cảnh báo kỹ thuật
+- Không còn lỗi phân mảnh nhận diện. Cả 3 ứng dụng Desktop đều hiển thị biểu tượng khay hệ thống Brand Squircle sắc nét, đồng bộ tuyệt đối với Header và App Icon.
+
+---
+
 # Session Handoff: Meikova Relay - Khắc Phục Lỗi Foreign Key Constraint (LibsqlError SQLITE_CONSTRAINT) Khi Host Workstation Kết Nối
 
 ## 1. Mục tiêu hoàn thành

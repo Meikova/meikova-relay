@@ -52,6 +52,21 @@ def _render_menu_icon(name: str) -> Optional[Any]:
     d = ImageDraw.Draw(img)
 
     if name == "logo":
+        for candidate_path in [
+            current_dir / "tray_icons" / "logo.png",
+            current_dir / "tray_icon.png",
+            Path(__file__).resolve().parent / "tray_icons" / "logo.png",
+            Path(__file__).resolve().parent / "tray_icon.png",
+            Path(__file__).resolve().parent / "icon.png",
+        ]:
+            if candidate_path.is_file():
+                try:
+                    with Image.open(candidate_path) as im:
+                        master = im.resize((size, size), Image.Resampling.LANCZOS)
+                        _icon_cache[name] = master
+                        return master
+                except Exception:
+                    pass
         try:
             from host_agent.make_icon import render_unified_icon
             master = render_unified_icon(size)
