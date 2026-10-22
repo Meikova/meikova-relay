@@ -647,11 +647,28 @@ const DB = {
   async upsertDevice({ userId, deviceName, roomId, pin, resolution, osInfo }) {
     await ensureInit();
     const now = Date.now();
+
+    // Verify foreign key integrity: ensure userId actually exists in users table
+    let validatedUserId = null;
+    if (userId) {
+      try {
+        const uRes = await client.execute({
+          sql: 'SELECT id FROM users WHERE id = ?',
+          args: [userId]
+        });
+        if (uRes.rows && uRes.rows.length > 0) {
+          validatedUserId = String(uRes.rows[0].id || userId);
+        }
+      } catch {
+        validatedUserId = null;
+      }
+    }
+
     let existing = null;
-    if (userId && deviceName) {
+    if (validatedUserId && deviceName) {
       const res = await client.execute({
         sql: 'SELECT id, user_id, room_id FROM devices WHERE user_id = ? AND device_name = ?',
-        args: [userId, deviceName]
+        args: [validatedUserId, deviceName]
       });
       existing = res.rows[0] || null;
     }
@@ -663,28 +680,56 @@ const DB = {
       existing = res.rows[0] || null;
     }
 
-    if (existing) {
-      // Update existing
-      await client.execute({
-        sql: `
-          UPDATE devices 
-          SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?, user_id = COALESCE(?, user_id)
-          WHERE id = ?
-        `,
-        args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, userId || null, existing.id]
-      });
-      return existing.id;
-    } else {
-      // Insert new device
-      const id = crypto.randomUUID();
-      await client.execute({
-        sql: `
-          INSERT INTO devices (id, user_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
-          VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
-        `,
-        args: [id, userId || null, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
-      });
-      return id;
+    try {
+      if (existing) {
+        // Update existing device
+        await client.execute({
+          sql: `
+            UPDATE devices 
+            SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?, user_id = COALESCE(?, user_id)
+            WHERE id = ?
+          `,
+          args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, validatedUserId, existing.id]
+        });
+        return existing.id;
+      } else {
+        // Insert new device
+        const id = crypto.randomUUID();
+        await client.execute({
+          sql: `
+            INSERT INTO devices (id, user_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+          `,
+          args: [id, validatedUserId, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
+        });
+        return id;
+      }
+    } catch (err) {
+      // In case of foreign key error or constraint mismatch, fallback gracefully to unlinked device
+      if (String(err).includes('FOREIGN KEY')) {
+        if (existing) {
+          await client.execute({
+            sql: `
+              UPDATE devices 
+              SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?
+              WHERE id = ?
+            `,
+            args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, existing.id]
+          });
+          return existing.id;
+        } else {
+          const id = crypto.randomUUID();
+          await client.execute({
+            sql: `
+              INSERT INTO devices (id, user_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
+              VALUES (?, NULL, ?, ?, ?, 1, ?, ?, ?)
+            `,
+            args: [id, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
+          });
+          return id;
+        }
+      }
+      throw err;
     }
   },
 

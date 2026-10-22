@@ -5,6 +5,14 @@ const path = require('path');
 const { WebSocketServer, WebSocket } = require('ws');
 const DB = require('./db');
 
+// Prevent unhandled rejections from terminating production process
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Process] Uncaught Exception:', err);
+});
+
 const PORT = process.env.PORT || 8080;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const FALLBACK_DIR = path.join(__dirname, '..', 'web-client');
@@ -1511,33 +1519,46 @@ wss.on('connection', (ws, req) => {
         monitors: data.monitors || []
       };
 
-      // Register device in DB
-      let targetUserId = data.user_id || null;
-      if (!targetUserId && (data.account || data.user_email)) {
-        const matchedUser = await DB.findUserByIdentifier(data.account || data.user_email || data.user_id);
-        if (matchedUser) {
-          targetUserId = matchedUser.id;
+      // Register device in DB safely (foreign-key safe)
+      let targetUserId = null;
+      const candidateUser = data.user_id || data.account || data.user_email;
+      if (candidateUser) {
+        try {
+          const matchedUser = await DB.findUserByIdentifier(candidateUser);
+          if (matchedUser) {
+            targetUserId = matchedUser.id;
+          }
+        } catch (err) {
+          console.warn(`[Host Online] User lookup warning for '${candidateUser}': ${err.message}`);
         }
       }
 
-      await DB.upsertDevice({
-        userId: targetUserId,
-        deviceName: room.hostMeta.deviceName,
-        roomId: roomId,
-        pin: pin,
-        resolution: `${room.hostMeta.width}x${room.hostMeta.height}`,
-        osInfo: room.hostMeta.osInfo
-      });
+      try {
+        await DB.upsertDevice({
+          userId: targetUserId,
+          deviceName: room.hostMeta.deviceName,
+          roomId: roomId,
+          pin: pin,
+          resolution: `${room.hostMeta.width}x${room.hostMeta.height}`,
+          osInfo: room.hostMeta.osInfo
+        });
+      } catch (err) {
+        console.error(`[Host Online] Device upsert warning for room ${roomId}: ${err.message}`);
+      }
 
-      await DB.logAudit({
-        action: 'HOST_ONLINE',
-        roomId,
-        clientIp: ws.clientIp,
-        clientDevice: ws.clientDevice,
-        targetDevice: room.hostMeta.deviceName,
-        targetOs: room.hostMeta.osInfo,
-        details: { width: data.width, height: data.height, monitors: (data.monitors || []).length }
-      });
+      try {
+        await DB.logAudit({
+          action: 'HOST_ONLINE',
+          roomId,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          targetDevice: room.hostMeta.deviceName,
+          targetOs: room.hostMeta.osInfo,
+          details: { width: data.width, height: data.height, monitors: (data.monitors || []).length }
+        });
+      } catch (err) {
+        console.warn(`[Host Online] Audit log warning: ${err.message}`);
+      };
 
       console.log(`[Host Online] Room: ${roomId} | Device: ${room.hostMeta.deviceName} | IP: ${ws.clientIp}`);
       ws.send(JSON.stringify({ status: 'ok', role: 'host', room_id: roomId }));

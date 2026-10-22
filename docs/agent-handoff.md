@@ -1,3 +1,29 @@
+# Session Handoff: Meikova Relay - Khắc Phục Lỗi Foreign Key Constraint (LibsqlError SQLITE_CONSTRAINT) Khi Host Workstation Kết Nối
+
+## 1. Mục tiêu hoàn thành
+- [x] **Tìm nguyên nhân gốc rễ và sửa triệt để lỗi sập server Render do FOREIGN KEY constraint failed:**
+  - `relay-server/server.js`: Khi máy trạm (Host) gửi gói tin bắt tay `init_host`, trường `data.user_id` mang giá trị định danh từ cấu hình local của máy trạm. Giá trị này chưa tồn tại trong bảng `users` trên cơ sở dữ liệu đám mây Turso. Đoạn code cũ gán trực tiếp `targetUserId = data.user_id` mà không kiểm tra sự tồn tại trong `users`.
+  - `relay-server/db.js` (`upsertDevice`): Khi thực hiện `INSERT INTO devices (id, user_id, ...)` hoặc `UPDATE devices`, SQLite kích hoạt ràng buộc khóa ngoại `FOREIGN KEY(user_id) REFERENCES users(id)`. Do `user_id` không tồn tại, Libsql ném lỗi `SQLITE_CONSTRAINT: SQLite error: FOREIGN KEY constraint failed`.
+  - Do `ws.on('message')` thiếu bọc `try...catch` và tiến trình Node.js thiếu bộ lắng nghe `unhandledRejection`, lỗi async này đã làm sập toàn bộ tiến trình relay server trên Render (`error Command failed with exit code 1`).
+- [x] **Khắc phục đa tầng (Defense-in-depth):**
+  - `relay-server/db.js`: Kiểm tra tính hợp lệ của `userId` bằng truy vấn `SELECT id FROM users WHERE id = ?`. Nếu không tồn tại, tự động gán `validatedUserId = null` (cột `user_id` là nullable). Đồng thời bổ sung khối `try...catch` dự phòng: nếu phát sinh lỗi `FOREIGN KEY`, tự động fallback sang ghi bản ghi với `user_id = NULL` để không làm gián đoạn kết nối.
+  - `relay-server/server.js`: Trong `init_host`, thực hiện tra cứu người dùng qua `DB.findUserByIdentifier()` trước khi gán `targetUserId`. Bọc toàn bộ các lời gọi `DB.upsertDevice` và `DB.logAudit` trong khối `try...catch`.
+  - Bổ sung `process.on('unhandledRejection')` và `process.on('uncaughtException')` ở đầu `server.js` nhằm triệt tiêu nguy cơ sập tiến trình production khi có lỗi ngoài ý muốn.
+- [x] **Xác minh kiểm thử:**
+  - Kiểm tra trực tiếp hàm `DB.upsertDevice` với `userId` rác không tồn tại: Thành công 100%, tự động tạo thiết bị hợp lệ không vi phạm constraint.
+  - Chạy toàn bộ test suite `test_turso_dual_adapter.js`: **Exit Code 0** (PASS cả Turso Cloud SQLite và Local SQLite WAL).
+  - Chạy toàn bộ `tests/test_auth_sync_and_linking.py` và `tests/test_host_chat.py`: **Exit Code 0** (10/10 tests pass).
+
+## 2. Lệnh kiểm tra đã chạy & Exit Code
+- `node relay-server/test_turso_dual_adapter.js`: **Exit Code 0**.
+- `python -m unittest tests/test_auth_sync_and_linking.py tests/test_host_chat.py`: **Exit Code 0** (10/10 tests pass).
+- `node -c relay-server/server.js` & `node -c relay-server/db.js`: **Exit Code 0** (Syntax valid).
+
+## 3. Các phần còn tồn đọng và cảnh báo kỹ thuật
+- Không còn lỗi Foreign Key constraint khi máy trạm lạ hoặc máy trạm chưa liên kết tài khoản kết nối vào Relay Server.
+
+---
+
 # Session Handoff: Meikova Relay - Khắc Phục Lỗi Heap Corruption (NTSTATUS 0xC0000374 / Exit Code 1) Trên Windows CI/CD
 
 ## 1. Mục tiêu hoàn thành
