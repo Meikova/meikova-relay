@@ -1080,22 +1080,42 @@ class HostService:
         finally:
             PowerManager.prevent_sleep(False)
 
+def resolve_config_path() -> Optional[Path]:
+    candidates = []
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        candidates.append(exe_dir / "config.json")
+    if sys.platform == "win32":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            candidates.append(Path(local_app_data) / "MeikovaRelayHost" / "config.json")
+    else:
+        candidates.append(Path.home() / ".meikova-relay" / "config.json")
+    candidates.append(Path.cwd() / "config.json")
+    candidates.append(Path(__file__).resolve().parent / "config.json")
+    candidates.append(Path.home() / ".meikova_relay_config.json")
+    for c in candidates:
+        if c.exists() and c.is_file():
+            return c
+    return None
+
 def main():
     parser = argparse.ArgumentParser(description="Meikova Relay Desktop - Host Agent")
-    parser.add_argument("--relay", default="ws://127.0.0.1:8080", help="Relay Server URL")
-    parser.add_argument("--room", default="RD-8888", help="Room ID / Session Code")
-    parser.add_argument("--pin", default="123456", help="Security PIN")
-    parser.add_argument("--name", default="Workstation-PC", help="Device Name")
+    parser.add_argument("--config", default="", help="Path to config.json")
+    parser.add_argument("--relay", default="", help="Relay Server URL")
+    parser.add_argument("--room", default="", help="Room ID / Session Code")
+    parser.add_argument("--pin", default="", help="Security PIN")
+    parser.add_argument("--name", default="", help="Device Name")
     parser.add_argument("--account", default="", help="Linked user account (email or username)")
-    parser.add_argument("--fps", type=int, default=25, help="Target capture FPS")
-    parser.add_argument("--quality", type=int, default=65, help="JPEG quality 1-100")
+    parser.add_argument("--user-id", default="", help="Linked user ID")
+    parser.add_argument("--fps", type=int, default=0, help="Target capture FPS")
+    parser.add_argument("--quality", type=int, default=0, help="JPEG quality 1-100")
     parser.add_argument("--install-virtual-audio", action="store_true", help="Download and install VB-Audio Virtual Cable for headless audio")
     parser.add_argument("--install-virtual-display", action="store_true", help="Download and install Microsoft IddCx Virtual Display Driver for headless display")
     parser.add_argument("--probe-protocols", action="store_true", help="Probe and display native protocol negotiation matrix")
 
     args = parser.parse_args()
     if getattr(args, "probe_protocols", False):
-        import json
         matrix = probe_all_protocols()
         print("=== MEIKOVA NATIVE PROTOCOL MATRIX ===")
         print(json.dumps(matrix, indent=2))
@@ -1110,14 +1130,35 @@ def main():
         res = download_and_install_vbcable()
         print("[+]" if res.get("success") else "[-]", res.get("message"))
         sys.exit(0 if res.get("success") else 1)
+
+    cfg_data = {}
+    cfg_file = Path(args.config) if args.config else resolve_config_path()
+    if cfg_file and cfg_file.is_file():
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                cfg_data = json.load(f)
+            logger.info(f"Loaded host configuration from {cfg_file}")
+        except Exception as e:
+            logger.warning(f"Failed to read config from {cfg_file}: {e}")
+
+    relay_url = args.relay or cfg_data.get("relay") or "ws://127.0.0.1:8080"
+    room_id = args.room or cfg_data.get("room_id") or "RD-8888"
+    pin = args.pin or cfg_data.get("pin") or "123456"
+    device_name = args.name or cfg_data.get("device_name") or os.environ.get("COMPUTERNAME", socket.gethostname())
+    account = args.account or cfg_data.get("account") or ""
+    user_id = args.user_id or cfg_data.get("user_id") or None
+    fps = args.fps if args.fps > 0 else int(cfg_data.get("fps", 25))
+    quality = args.quality if args.quality > 0 else int(cfg_data.get("quality", 65))
+
     service = HostService(
-        relay_url=args.relay,
-        room_id=args.room,
-        pin=args.pin,
-        device_name=args.name,
-        account=args.account,
-        fps=args.fps,
-        quality=args.quality
+        relay_url=relay_url,
+        room_id=room_id,
+        pin=pin,
+        device_name=device_name,
+        account=account,
+        user_id=user_id,
+        fps=fps,
+        quality=quality
     )
 
     try:

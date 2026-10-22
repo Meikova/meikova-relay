@@ -848,7 +848,7 @@ const server = http.createServer(async (req, res) => {
       const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
-      const isHeadless = url.searchParams.get('headless') === '1' || url.searchParams.get('silent') === '1' || url.searchParams.get('mode') === 'headless' || url.searchParams.get('tray') === '0' || (url.searchParams.get('gui') !== '1' && url.searchParams.get('tray') !== '1');
+      const isHeadless = url.searchParams.get('headless') === '1' || url.searchParams.get('silent') === '1' || url.searchParams.get('mode') === 'headless';
 
       const batContent = `@echo off
 setlocal DisableDelayedExpansion
@@ -875,10 +875,10 @@ for %%A in (%*) do (
 set "APP_FLAGS="
 set "HEADLESS_BOOL=false"
 if "%HEADLESS_MODE%"=="1" (
-    set "APP_FLAGS=--service"
+    set "APP_FLAGS=--headless"
     set "HEADLESS_BOOL=true"
 ) else (
-    set "APP_FLAGS=--autostart"
+    set "APP_FLAGS=--gui"
     set "HEADLESS_BOOL=false"
 )
 echo ==============================================================
@@ -968,12 +968,12 @@ copy /y config.json "%USERPROFILE%\\.meikova_relay_config.json" >nul 2>&1
 
 if "%USE_STANDALONE%"=="1" goto :RUN_STANDALONE
 
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \\"%TARGET_DIR%\\gui_agent.py\\" %APP_FLAGS%" /f >nul 2>&1
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \\"%TARGET_DIR%\\gui_agent.py\\" --autostart" /f >nul 2>&1
 start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py" %APP_FLAGS%
 goto :FINISH_SETUP
 
 :RUN_STANDALONE
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\\"%TARGET_DIR%\\MeikovaRelayHost.exe\\" %APP_FLAGS%" /f >nul 2>&1
+reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\\"%TARGET_DIR%\\MeikovaRelayHost.exe\\" --autostart" /f >nul 2>&1
 start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\MeikovaRelayHost.exe" %APP_FLAGS%
 
 :FINISH_SETUP
@@ -1086,6 +1086,7 @@ pause >nul
     // 7.6 Download: Linux Auto-Installer (.sh)
     if ((pathname === '/api/download/install-linux.sh' || pathname === '/api/download/setup-linux.sh') && req.method === 'GET') {
       const account = url.searchParams.get('account') || (session ? session.username : 'User');
+      const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
       const shContent = `#!/usr/bin/env bash
@@ -1130,6 +1131,7 @@ cat << EOF > config.json
 {
   "relay": "$RELAY_WS",
   "account": "$ACCOUNT",
+  "user_id": "${userIdParam}",
   "device_name": "$(hostname)",
   "room_id": "$RAND_ROOM",
   "pin": "$RAND_PIN"
@@ -1140,8 +1142,12 @@ echo "=============================================================="
 echo "  MEIKOVA RELAY HOST (LINUX) READY!"
 echo "  Account: $ACCOUNT | Room ID: $RAND_ROOM | PIN: $RAND_PIN"
 echo "=============================================================="
-nohup python3 host_service.py > meikova-agent.log 2>&1 &
-echo "Meikova Relay Host running in background (PID: $!)."
+if [ -f "gui_agent.py" ] && [ -n "\$DISPLAY" ]; then
+    nohup python3 gui_agent.py --gui > meikova-agent.log 2>&1 &
+else
+    nohup python3 host_service.py --relay "$RELAY_WS" --account "$ACCOUNT" --user-id "${userIdParam}" --room "$RAND_ROOM" --pin "$RAND_PIN" --name "\$(hostname)" > meikova-agent.log 2>&1 &
+fi
+echo "Meikova Relay Host running in background (PID: \$!)."
 `;
       res.writeHead(200, {
         'Content-Type': 'application/x-sh; charset=utf-8',
@@ -1154,6 +1160,7 @@ echo "Meikova Relay Host running in background (PID: $!)."
     // 7.7 Download: macOS Auto-Installer (.sh)
     if ((pathname === '/api/download/install-macos.sh' || pathname === '/api/download/setup-macos.sh') && req.method === 'GET') {
       const account = url.searchParams.get('account') || (session ? session.username : 'User');
+      const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
       const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
       const shContent = `#!/usr/bin/env bash
@@ -1201,6 +1208,7 @@ cat << EOF > config.json
 {
   "relay": "$RELAY_WS",
   "account": "$ACCOUNT",
+  "user_id": "${userIdParam}",
   "device_name": "$(hostname -s)",
   "room_id": "$RAND_ROOM",
   "pin": "$RAND_PIN"
@@ -1211,8 +1219,12 @@ echo "=============================================================="
 echo "  MEIKOVA RELAY HOST (macOS) READY!"
 echo "  Account: $ACCOUNT | Room ID: $RAND_ROOM | PIN: $RAND_PIN"
 echo "=============================================================="
-nohup python3 host_service.py > meikova-agent.log 2>&1 &
-echo "Meikova Relay Host running in background (PID: $!)."
+if [ -f "gui_agent.py" ]; then
+    nohup python3 gui_agent.py --gui > meikova-agent.log 2>&1 &
+else
+    nohup python3 host_service.py --relay "$RELAY_WS" --account "$ACCOUNT" --user-id "${userIdParam}" --room "$RAND_ROOM" --pin "$RAND_PIN" --name "\$(hostname -s)" > meikova-agent.log 2>&1 &
+fi
+echo "Meikova Relay Host running in background (PID: \$!)."
 `;
       res.writeHead(200, {
         'Content-Type': 'application/x-sh; charset=utf-8',

@@ -15,13 +15,14 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#11151B">
   <meta name="color-scheme" content="dark">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.0.42">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.42">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.0.43">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.43">
 </head>
 <body>
 
@@ -1912,7 +1913,7 @@
             </button>
           </div>
           <p class="install-card-desc" style="margin-top: 8px; color: #F59E0B;">
-            ⚠️ <strong>Quyền macOS:</strong> Bật <em>Ghi màn hình</em> &amp; <em>Trợ năng</em> trong <em>System Settings → Privacy &amp; Security</em>.
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:-2px; margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><strong>Quyền macOS:</strong> Bật <em>Ghi màn hình</em> &amp; <em>Trợ năng</em> trong <em>System Settings → Privacy &amp; Security</em>.
           </p>
         </div>
       </div>
@@ -2181,16 +2182,40 @@
             <span class="dl-box-card__sub mono-font">Gói ZIP nén sẵn</span>
           </a>
 
-          <!-- 1-Click Auto Setup Script -->
-          <a href="/api/download/setup.bat" class="dl-box-card dl-box-card--highlight" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản">
+          <!-- 1-Click Auto Setup Script (Windows) -->
+          <a href="/api/download/setup.bat" id="linkDownloadSetupBat" class="dl-box-card dl-box-card--highlight" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (Windows)">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
               </span>
               <span class="dl-box-card__badge mono-font" style="background: rgba(34,197,94,0.2); color: #4ADE80;">1-CLICK</span>
             </div>
-            <strong class="dl-box-card__title">Setup Tự Động</strong>
+            <strong class="dl-box-card__title">Setup Tự Động Windows</strong>
             <span class="dl-box-card__sub mono-font">Setup-MeikovaHost.bat</span>
+          </a>
+
+          <!-- 1-Click Auto Setup Script (Linux) -->
+          <a href="/api/download/setup-linux.sh" id="linkDownloadSetupLinux" class="dl-box-card" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (Linux)">
+            <div class="dl-box-card__head">
+              <span class="dl-box-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.001 2c-2.42 0-3.999 1.83-3.999 4.08 0 .68.15 1.47.38 2.2-.67.43-1.42 1.1-1.85 1.9-.81 1.5-.7 3.2-.28 4.88-1.05.67-1.75 1.74-1.75 3.02 0 1.94 1.66 3.42 3.84 3.42 1.13 0 2.18-.45 2.97-1.22.88.38 1.83.62 2.82.62 1.05 0 2.05-.26 2.98-.67.79.77 1.83 1.22 2.96 1.22 2.18 0 3.84-1.48 3.84-3.42 0-1.28-.7-2.35-1.75-3.02.42-1.68.53-3.38-.28-4.88-.43-.8-1.18-1.47-1.85-1.9.23-.73.38-1.52.38-2.2 0-2.25-1.58-4.08-3.999-4.08h-.862z"/></svg>
+              </span>
+              <span class="dl-box-card__badge mono-font">1-CLICK</span>
+            </div>
+            <strong class="dl-box-card__title">Setup Tự Động Linux</strong>
+            <span class="dl-box-card__sub mono-font">setup-linux.sh</span>
+          </a>
+
+          <!-- 1-Click Auto Setup Script (macOS) -->
+          <a href="/api/download/setup-macos.sh" id="linkDownloadSetupMac" class="dl-box-card" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (macOS)">
+            <div class="dl-box-card__head">
+              <span class="dl-box-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.84.94-2.91-1 .04-2.18.67-2.88 1.49-.6.69-1.13 1.79-.99 2.85 1.11.09 2.24-.59 2.93-1.43z"/></svg>
+              </span>
+              <span class="dl-box-card__badge mono-font">1-CLICK</span>
+            </div>
+            <strong class="dl-box-card__title">Setup Tự Động macOS</strong>
+            <span class="dl-box-card__sub mono-font">setup-macos.sh</span>
           </a>
 
           <!-- Linux Host DEB -->
@@ -2528,9 +2553,9 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.42"></script>
-  <script src="/js/sync_engine.js?v=1.0.42"></script>
-  <script src="/js/app.js?v=1.0.42"></script>
+  <script src="/js/i18n.js?v=1.0.43"></script>
+  <script src="/js/sync_engine.js?v=1.0.43"></script>
+  <script src="/js/app.js?v=1.0.43"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {

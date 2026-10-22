@@ -1,3 +1,33 @@
+# Session Handoff: Meikova Relay - Tắt Headless, Sửa Nút Thêm Máy Trạm & Dynamic Account Binding
+
+## 1. Mục tiêu hoàn thành
+- [x] **Sửa nút "Thêm máy trạm" (`#btnOpenAddModal`):** Sửa lỗi `ReferenceError: userId is not defined` trong hàm `getInstallCommands()` (`app.js` cả `relay-server` và `web-client`). Khai báo đúng `userId = currentUser ? (currentUser.id || currentUser.userId || '') : ''` và `accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User'`. Bổ sung event listener đóng modal khi click ra backdrop và phím Escape.
+- [x] **Tắt chế độ Headless mặc định (Turn Off Headless):**
+  - Trong `relay-server/server.js`: Mặc định `isHeadless = false` và `HEADLESS_MODE=0`.
+  - Trong file sinh `setup.bat`: Mặc định `APP_FLAGS=--gui` để khi cài đặt trên máy trạm, ứng dụng lập tức mở cửa sổ GUI cho người dùng; registry `HKCU\...\Run` đăng ký `--autostart` để khởi động cùng Windows thu gọn khay hệ thống.
+  - Trong `host_agent/gui_agent.py`: Bỏ cờ tự động ép headless từ file config cũ. Chỉ chạy headless khi có cờ CLI tường minh (`--headless` hoặc `--service-headless`).
+- [x] **Tự động gắn thông tin tài khoản đang đăng nhập vào script và lệnh tải:**
+  - `Setup-MeikovaHost.bat`: Tự động gắn query params `?account=${accountName}&userId=${userId}&relay=${relayWs}`.
+  - Thêm thẻ và liên kết 1-click cho Linux (`setup-linux.sh`) và macOS (`setup-macos.sh`) với đầy đủ `account` và `user_id`.
+  - Cập nhật lệnh PowerShell 1-liner trên `#appsDownloadModal` tự động nhúng link đầy đủ thông số tài khoản người dùng đang đăng nhập.
+  - Cập nhật hàm `renderUserBadge()` để tự động làm mới toàn bộ link và snippet ngay khi user đăng nhập.
+- [x] **Sửa lỗi Service Worker Cache (`sw.js`):**
+  - Khắc phục triệt để `Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported` bằng cách kiểm tra `!url.protocol.startsWith('http')` và thêm catch handler an toàn.
+- [x] **Bổ sung thẻ meta PWA:** Thêm `<meta name="mobile-web-app-capable" content="yes">` xử lý deprecation warning của trình duyệt.
+- [x] **Nâng cấp `host_service.py`:** Bổ sung cơ chế tự tìm và nạp cấu hình `config.json` đa nền tảng (frozen exe, LocalAppData, ~/.meikova-relay, CWD, script dir, user profile), hỗ trợ tham số `--user-id` và `--config`.
+- [x] **Chuẩn hóa bộ kiểm thử:**
+  - Cập nhật `tests/test_pwa_manifest.py` kế thừa chuẩn `unittest.TestCase`.
+  - Bổ sung 3 test cases cho `tests/test_download_endpoints.py` kiểm tra `user_id` và setup script cho Linux/macOS.
+
+## 2. Lệnh kiểm tra đã chạy & Exit Code
+- `python -m unittest tests/test_download_endpoints.py tests/test_pwa_manifest.py`: **Exit Code 0** (9/9 tests pass).
+- Full suite (26 test files, 129 test cases): **Exit Code 0** (`Was successful: True`, 0 failures, 0 errors).
+
+## 3. Các phần còn tồn đọng và cảnh báo kỹ thuật
+- Không có lỗi tồn đọng. Hệ thống hoạt động trơn tru trên mọi nền tảng Windows, Linux, macOS.
+
+---
+
 # Session Handoff: Meikova Space Deployment & Legacy Alias Purge
 
 ## 1. Mục tiêu hoàn thành

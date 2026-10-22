@@ -1108,6 +1108,10 @@
         txtLandingStart.textContent = t('landing.btn_start');
       }
     }
+    try {
+      updateInstallModalContent();
+      updateRelayModalData();
+    } catch (_) {}
   }
 
   // --- GOOGLE SIGN-IN (GIS + DESKTOP RFC 8252) ---
@@ -2657,18 +2661,23 @@
     window.location.href = `/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
   }
   function downloadMacScript() {
-    const accountName = currentUser ? currentUser.username : 'User';
-    window.location.href = `/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(defaultWsUrl)}`;
+    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
+    const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
+    const relayWs = defaultWsUrl || window.location.origin.replace(/^http/, 'ws');
+    window.location.href = `/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
   }
   function downloadLinuxScript() {
-    const accountName = currentUser ? currentUser.username : 'User';
-    window.location.href = `/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&relay=${encodeURIComponent(defaultWsUrl)}`;
+    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
+    const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
+    const relayWs = defaultWsUrl || window.location.origin.replace(/^http/, 'ws');
+    window.location.href = `/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
   }
 
   function getInstallCommands() {
-    const accountName = currentUser ? currentUser.username : 'User';
+    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
+    const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
     const origin = window.location.origin;
-    const relayWs = defaultWsUrl;
+    const relayWs = defaultWsUrl || origin.replace(/^http/, 'ws');
     return {
       win: `powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}', 'setup.bat'); .\\setup.bat"`,
       mac: `curl -sSL "${origin}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}" | bash`,
@@ -2717,6 +2726,14 @@
   });
   btnCloseAddModal?.addEventListener('click', () => {
     addDeviceModal?.classList.add('hidden');
+  });
+  addDeviceModal?.addEventListener('click', (e) => {
+    if (e.target === addDeviceModal) addDeviceModal.classList.add('hidden');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && addDeviceModal && !addDeviceModal.classList.contains('hidden')) {
+      addDeviceModal.classList.add('hidden');
+    }
   });
   btnDownloadMac?.addEventListener('click', () => {
     updateInstallModalContent();
@@ -7027,6 +7044,10 @@
 
   function updateRelayModalData() {
     const currentOrigin = window.location.origin;
+    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
+    const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
+    const relayWs = defaultWsUrl || currentOrigin.replace(/^http/, 'ws');
+
     if (relayHostServerIp) relayHostServerIp.textContent = currentOrigin;
     if (relayClientGatewayIp) relayClientGatewayIp.textContent = currentOrigin;
     if (relayClientLink) {
@@ -7036,32 +7057,52 @@
     if (relayClientQr) {
       relayClientQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentOrigin)}`;
     }
-    
-  // Winget CLI command toggle between Host and Client & copy on click
-  const txtWingetRelayCmd = document.getElementById('txtWingetRelayCmd');
-  const btnCopyWingetRelay = document.getElementById('btnCopyWingetRelay');
 
-  if (tabBtnHost && tabBtnClient && txtWingetRelayCmd) {
-    tabBtnHost.addEventListener('click', () => {
-      txtWingetRelayCmd.textContent = 'winget install Meikova.Relay.Host';
-    });
-    tabBtnClient.addEventListener('click', () => {
-      txtWingetRelayCmd.textContent = 'winget install Meikova.Relay.Client';
-    });
-  }
+    const setupBatUrl = `${currentOrigin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const linkDownloadSetupBat = document.getElementById('linkDownloadSetupBat');
+    if (linkDownloadSetupBat) {
+      linkDownloadSetupBat.href = setupBatUrl;
+    }
 
-  if (btnCopyWingetRelay && txtWingetRelayCmd) {
-    btnCopyWingetRelay.addEventListener('click', () => {
-      const cmd = txtWingetRelayCmd.textContent.trim();
-      copyFeedback(btnCopyWingetRelay, cmd, 'Đã sao chép lệnh Winget!');
-    });
-  }
+    const setupLinuxUrl = `${currentOrigin}/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const linkDownloadSetupLinux = document.getElementById('linkDownloadSetupLinux');
+    if (linkDownloadSetupLinux) {
+      linkDownloadSetupLinux.href = setupLinuxUrl;
+    }
 
-  if (btnCopyHostCmd) {
-      const currentCmd = `irm ${currentOrigin}/api/download/setup.bat | iex`;
+    const setupMacUrl = `${currentOrigin}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const linkDownloadSetupMac = document.getElementById('linkDownloadSetupMac');
+    if (linkDownloadSetupMac) {
+      linkDownloadSetupMac.href = setupMacUrl;
+    }
+
+    if (btnCopyHostCmd) {
+      const currentCmd = `irm "${setupBatUrl}" | iex`;
       btnCopyHostCmd.setAttribute('data-cmd', currentCmd);
       const codeEl = btnCopyHostCmd.closest('.dl-cmd-box')?.querySelector('code');
       if (codeEl) codeEl.textContent = currentCmd;
+    }
+
+    // Winget CLI command toggle between Host and Client & copy on click
+    const txtWingetRelayCmd = document.getElementById('txtWingetRelayCmd');
+    const btnCopyWingetRelay = document.getElementById('btnCopyWingetRelay');
+
+    if (tabBtnHost && tabBtnClient && txtWingetRelayCmd && !txtWingetRelayCmd.dataset.initialized) {
+      txtWingetRelayCmd.dataset.initialized = 'true';
+      tabBtnHost.addEventListener('click', () => {
+        txtWingetRelayCmd.textContent = 'winget install Meikova.Relay.Host';
+      });
+      tabBtnClient.addEventListener('click', () => {
+        txtWingetRelayCmd.textContent = 'winget install Meikova.Relay.Client';
+      });
+    }
+
+    if (btnCopyWingetRelay && txtWingetRelayCmd && !btnCopyWingetRelay.dataset.initialized) {
+      btnCopyWingetRelay.dataset.initialized = 'true';
+      btnCopyWingetRelay.addEventListener('click', () => {
+        const cmd = txtWingetRelayCmd.textContent.trim();
+        copyFeedback(btnCopyWingetRelay, cmd, 'Đã sao chép lệnh Winget!');
+      });
     }
 
     // Auto-detect viewer device
@@ -7176,7 +7217,11 @@
   // Copy 1-liner command
   if (btnCopyHostCmd) {
     btnCopyHostCmd.addEventListener('click', () => {
-      const cmd = btnCopyHostCmd.getAttribute('data-cmd') || `irm ${window.location.origin}/api/download/setup.bat | iex`;
+      const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
+      const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
+      const relayWs = defaultWsUrl || window.location.origin.replace(/^http/, 'ws');
+      const setupBatUrl = `${window.location.origin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+      const cmd = btnCopyHostCmd.getAttribute('data-cmd') || `irm "${setupBatUrl}" | iex`;
       copyFeedback(btnCopyHostCmd, cmd, 'Đã sao chép lệnh cài đặt Host Agent!');
     });
   }

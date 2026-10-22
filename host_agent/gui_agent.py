@@ -2518,19 +2518,11 @@ def main():
 
     cfg_file = _get_default_config_path()
     initial_config = _load_initial_config(cfg_file)
-    is_headless_config = (
-        initial_config.get("headless") is True or
-        str(initial_config.get("headless", "")).lower() in ("1", "true", "yes") or
-        initial_config.get("mode") == "headless"
-    )
 
+    # Tắt chế độ headless mặc định theo yêu cầu người dùng.
+    # Chỉ chạy headless khi có cờ CLI chỉ định rõ ràng (--headless hoặc --service-headless).
     if (
-        (is_headless_config or
-        "--service" in sys.argv or
-        "--headless" in sys.argv or
-        "--silent" in sys.argv or
-        "--daemon" in sys.argv or
-        "--no-tray" in sys.argv) and
+        ("--headless" in sys.argv or "--service-headless" in sys.argv) and
         "--gui" not in sys.argv and
         "--window" not in sys.argv
     ):

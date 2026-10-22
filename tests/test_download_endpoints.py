@@ -54,6 +54,18 @@ class TestDownloadEndpoints(unittest.TestCase):
             content = resp.read().decode("utf-8")
             self.assertIn("Meikova Relay Host", content)
             self.assertIn("HEADLESS_MODE=0", content)
+            self.assertIn("APP_FLAGS=--gui", content)
+
+    def test_setup_bat_with_user_id(self):
+        url = f"http://127.0.0.1:{self.port}/api/download/setup.bat?account=Developer&userId=usr_abc123"
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            content = resp.read().decode("utf-8")
+            self.assertIn('"user_id": "usr_abc123"', content)
+            self.assertIn('"account": "Developer"', content)
+            self.assertIn('set "HEADLESS_BOOL=false"', content)
+            self.assertIn('"headless": %HEADLESS_BOOL%', content)
 
     def test_setup_bat_headless_download(self):
         url = f"http://127.0.0.1:{self.port}/api/download/setup.bat?account=Tester&headless=1"
@@ -65,6 +77,26 @@ class TestDownloadEndpoints(unittest.TestCase):
             self.assertIn("--service", content)
             self.assertIn("Tester", content)
             self.assertIn("MeikovaRelayHost.exe", content)
+
+    def test_setup_linux_download_with_account_and_user_id(self):
+        url = f"http://127.0.0.1:{self.port}/api/download/setup-linux.sh?account=LinuxUser&userId=usr_linux99"
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            content = resp.read().decode("utf-8")
+            self.assertIn('ACCOUNT="LinuxUser"', content)
+            self.assertIn('"user_id": "usr_linux99"', content)
+            self.assertIn('host_service.py', content)
+
+    def test_setup_macos_download_with_account_and_user_id(self):
+        url = f"http://127.0.0.1:{self.port}/api/download/setup-macos.sh?account=MacUser&userId=usr_mac77"
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            content = resp.read().decode("utf-8")
+            self.assertIn('ACCOUNT="MacUser"', content)
+            self.assertIn('"user_id": "usr_mac77"', content)
+            self.assertIn('host_service.py', content)
 
     def test_host_exe_download(self):
         url = f"http://127.0.0.1:{self.port}/api/download/MeikovaRelayHost.exe"

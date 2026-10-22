@@ -1,5 +1,5 @@
-// Meikova Relay PWA Service Worker (v1.0.23)
-const CACHE_NAME = 'meikova-relay-cache-v1.0.42';
+// Meikova Relay PWA Service Worker (v1.0.43)
+const CACHE_NAME = 'meikova-relay-cache-v1.0.43';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -34,6 +34,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Chỉ cache HTTP/HTTPS; bỏ qua chrome-extension, moz-extension, file, v.v.
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Không cache WebSocket, API REST, hoặc Google Auth
   if (
     url.pathname.startsWith('/api/') ||
@@ -51,7 +56,7 @@ self.addEventListener('fetch', (event) => {
       return cache.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            cache.put(event.request, networkResponse.clone());
+            cache.put(event.request, networkResponse.clone()).catch(() => {});
           }
           return networkResponse;
         }).catch(() => cachedResponse);
