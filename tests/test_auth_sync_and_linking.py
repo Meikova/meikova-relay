@@ -71,11 +71,14 @@ class TestAuthSyncAndLinking(unittest.IsolatedAsyncioTestCase):
           process.exit(1);
         }}
         """
+        env = os.environ.copy()
+        env["AUTH_PRIVATE_KEY_B64"] = "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1DNENBUUF3QlFZREsyVndCQ0lFSVBNVFl3Y2RFUTR5MjhXcTJoOWRpS05TdFhpSGRlU242MDdENGE3S0pXdUkKLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo="
         res = subprocess.run(
             ["node", "-e", script],
             cwd=str(Path(__file__).resolve().parent.parent / "relay-server"),
             capture_output=True,
-            text=True
+            text=True,
+            env=env
         )
         if res.returncode != 0:
             raise RuntimeError(f"Failed to generate SSO token: {res.stderr}")
