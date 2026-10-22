@@ -1,1339 +1,1723 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Meikova Relay Host</title>
-  <style>
-    /* Studio-Grade Ambient Instrument Tokens (/ambient-instrument-ui) */
-    :root {
-      --bg-main: #070D17;
-      --bg-panel: #0B1322;
-      --bg-card: rgba(16, 27, 46, 0.75);
-      --bg-card-inner: #0A111E;
-      --line: #1C2D4A;
-      --line-hover: #2B436D;
-      --text: #F8FAFC;
-      --text-muted: #64748B;
-      --text-sub: #94A3B8;
-      --accent: #22C55E;
-      --accent-glow: rgba(34, 197, 94, 0.25);
-      --accent-cyan: #38BDF8;
-      --accent-cyan-bg: rgba(56, 189, 248, 0.12);
-      --accent-red: #EF4444;
-      --accent-red-bg: rgba(239, 68, 68, 0.14);
-      --accent-amber: #F59E0B;
-      --accent-amber-bg: rgba(245, 158, 11, 0.12);
-      --btn-surface: #142138;
-      --btn-surface-hover: #1C2F50;
-      --round: 9999px;
-      --radius: 12px;
-      --radius-sm: 8px;
-      --ease: cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-
-    body {
-      background: var(--bg-main);
-      color: var(--text);
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-      font-size: 13px;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      padding: 0;
-      border: 1px solid var(--line);
-    }
-
-    .mono { font-family: 'Consolas', 'JetBrains Mono', monospace; }
-
-    /* Custom Studio Titlebar */
-    .titlebar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 38px;
-      min-height: 38px;
-      background: #060B14;
-      border-bottom: 1px solid var(--line);
-      padding: 0 6px 0 14px;
-      user-select: none;
-      -webkit-app-region: drag;
-    }
-    .titlebar-brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      pointer-events: none;
-    }
-    .titlebar-logo {
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-      filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.65));
-    }
-    .titlebar-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      color: var(--text);
-      font-family: 'Consolas', 'JetBrains Mono', monospace;
-    }
-    .titlebar-spacer {
-      flex: 1;
-      height: 100%;
-    }
-    .titlebar-actions {
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
-      -webkit-app-region: no-drag;
-    }
-    .titlebar-btn {
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-muted);
-      width: 38px;
-      height: 30px;
-      border-radius: 4px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      padding: 0;
-      margin: 0;
-      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-    }
-    .titlebar-btn:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: #ffffff;
-    }
-    .titlebar-btn:active {
-      background: rgba(255, 255, 255, 0.15);
-    }
-    .titlebar-btn.btn-close:hover {
-      background: #ef4444;
-      color: #ffffff;
-      border-color: #dc2626;
-    }
-    .titlebar-btn.btn-close:active {
-      background: #dc2626;
-      color: #ffffff;
-    }
-    .titlebar-btn svg {
-      width: 11px;
-      height: 11px;
-      pointer-events: none;
-    }
-
-    /* Subheader & Content Container */
-    .app-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      padding: 10px 18px 12px;
-    }
-    .sub-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--line);
-      gap: 8px;
-      min-width: 0;
-    }
-    .sub-header-right {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    /* Segmented Language Switcher */
-    .lang-box {
-      display: inline-flex;
-      background: var(--bg-panel);
-      border: 1px solid var(--line);
-      border-radius: var(--round);
-      padding: 2px;
-    }
-    .lang-pill {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: var(--round);
-      cursor: pointer;
-      transition: all 0.2s var(--ease);
-    }
-    .lang-pill.active {
-      background: var(--accent-cyan);
-      color: var(--bg-main);
-    }
-
-    /* Status Pill */
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: var(--round);
-      font-size: 10px;
-      font-weight: 700;
-      border: 1px solid transparent;
-      letter-spacing: 0.03em;
-    }
-    .status-stopped { background: var(--accent-red-bg); color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); }
-    .status-ready { background: rgba(34, 197, 94, 0.12); color: var(--accent); border-color: rgba(34, 197, 94, 0.35); }
-    .status-reconnecting { background: var(--accent-amber-bg); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3); }
-    .status-connected { background: var(--accent-cyan-bg); color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.35); }
-
-    .telemetry-kicker {
-      font-size: 10px;
-      color: var(--text-muted);
-      letter-spacing: 0.05em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex: 1;
-      min-width: 0;
-    }
-
-    /* Sliding Mode Navigation */
-    .seg-nav {
-      position: relative;
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      background: var(--bg-panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      padding: 3px;
-      margin: 12px 0 10px;
-    }
-    .seg-ind {
-      position: absolute;
-      top: 3px;
-      bottom: 3px;
-      left: 3px;
-      width: calc((100% - 6px) / 3);
-      background: var(--btn-surface-hover);
-      border: 1px solid var(--accent);
-      border-radius: 6px;
-      transition: transform 0.25s var(--ease);
-      pointer-events: none;
-    }
-    .seg-btn {
-      position: relative;
-      z-index: 1;
-      background: transparent;
-      border: none;
-      color: var(--text-sub);
-      font-size: 11px;
-      font-weight: 700;
-      padding: 7px 0;
-      text-align: center;
-      cursor: pointer;
-      transition: color 0.2s;
-    }
-    .seg-btn.active { color: var(--accent); }
-
-    /* Content Stage */
-    .stage {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding-right: 2px;
-    }
-    .stage::-webkit-scrollbar { width: 4px; }
-    .stage::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
-
-    .panel { display: none; flex-direction: column; gap: 8px; }
-    .panel.active { display: flex; }
-
-    .panel-intro {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text);
-    }
-    .panel-sub {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: -4px;
-      margin-bottom: 2px;
-    }
-
-    /* Ambient Cards */
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      padding: 10px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      backdrop-filter: blur(12px);
-      transition: border-color 0.2s;
-    }
-    .card:hover { border-color: var(--line-hover); }
-
-    .card-tag {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-    }
-    .card-tag.cyan { color: var(--accent-cyan); }
-    .card-tag.green { color: var(--accent); }
-
-    .card-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .card-val {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-    }
-    .card-val.cyan { color: var(--text); text-shadow: 0 0 16px rgba(56, 189, 248, 0.4); }
-    .card-val.green { color: var(--accent); text-shadow: 0 0 16px rgba(34, 197, 94, 0.5); }
-
-    .btn-group {
-      display: inline-flex;
-      gap: 6px;
-    }
-    .btn-pill-sm {
-      background: var(--btn-surface);
-      border: 1px solid var(--line);
-      color: var(--text-sub);
-      font-size: 10px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: var(--round);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: all 0.2s var(--ease);
-    }
-    .btn-pill-sm:hover {
-      background: var(--btn-surface-hover);
-      color: var(--text);
-      border-color: var(--line-hover);
-      transform: translateY(-1px);
-    }
-    .btn-pill-sm.cyan { color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.3); }
-    .btn-pill-sm.green { color: var(--accent); border-color: rgba(34, 197, 94, 0.3); }
-
-    .btn-deck-wide {
-      background: var(--btn-surface);
-      border: 1px solid var(--line);
-      color: var(--accent-cyan);
-      font-size: 11px;
-      font-weight: 700;
-      padding: 8px 14px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.2s var(--ease);
-    }
-    .btn-deck-wide:hover {
-      background: var(--btn-surface-hover);
-      border-color: var(--accent-cyan);
-      box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
-    }
-
-    /* Session Banner */
-    .session-banner {
-      background: var(--bg-card-inner);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 11px;
-    }
-    .session-txt { color: var(--text-muted); }
-    .session-txt.active { color: var(--accent-cyan); font-weight: 700; }
-    .btn-cyan-sm {
-      background: var(--accent-cyan-bg);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      color: var(--accent-cyan);
-      font-size: 9px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: var(--round);
-      cursor: pointer;
-    }
-    .btn-danger-sm {
-      background: var(--accent-red-bg);
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      color: var(--accent-red);
-      font-size: 9px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: var(--round);
-      cursor: pointer;
-    }
-
-    /* Inputs & Form Elements */
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .field-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-sub);
-    }
-    .field-input {
-      background: var(--bg-panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-size: 12px;
-      padding: 7px 10px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    .field-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 10px var(--accent-glow);
-    }
-
-    /* Custom Switch Toggles */
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--bg-card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      padding: 8px 12px;
-      cursor: pointer;
-    }
-    .toggle-lbl {
-      font-size: 11px;
-      color: var(--text);
-    }
-    .toggle-switch {
-      position: relative;
-      width: 34px;
-      height: 18px;
-      background: var(--bg-panel);
-      border: 1px solid var(--line);
-      border-radius: var(--round);
-      transition: all 0.2s;
-    }
-    .toggle-switch.on {
-      background: var(--accent);
-      border-color: var(--accent);
-    }
-    .toggle-thumb {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 12px;
-      height: 12px;
-      background: #FFFFFF;
-      border-radius: 50%;
-      transition: transform 0.2s var(--ease);
-    }
-    .toggle-switch.on .toggle-thumb {
-      transform: translateX(16px);
-      background: var(--bg-main);
-    }
-
-    /* 2-Tier Installation Cards */
-    .install-card {
-      padding: 8px 12px;
-      gap: 3px;
-      border: 1px solid var(--line);
-      background: var(--bg-card);
-      border-radius: var(--radius-sm);
-      transition: all 0.2s ease;
-    }
-    .install-card.active-installed {
-      border-color: rgba(34, 197, 94, 0.45);
-      background: rgba(34, 197, 94, 0.05);
-    }
-    .badge-mini {
-      font-size: 8.5px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      padding: 2px 7px;
-      border-radius: var(--round);
-      font-family: 'Consolas', monospace;
-    }
-    .badge-mini.cyan {
-      background: rgba(56, 189, 248, 0.12);
-      color: var(--accent-cyan);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-    }
-    .badge-mini.green {
-      background: rgba(34, 197, 94, 0.12);
-      color: var(--accent);
-      border: 1px solid rgba(34, 197, 94, 0.35);
-    }
-    .install-desc {
-      font-size: 10.5px;
-      color: var(--text-muted);
-      line-height: 1.4;
-      margin: 2px 0 4px;
-    }
-    .install-desc code {
-      font-family: 'Consolas', monospace;
-      color: var(--accent-cyan);
-      background: rgba(0, 0, 0, 0.35);
-      padding: 1px 4px;
-      border-radius: 3px;
-    }
-    .install-action-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-top: 5px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .install-status {
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-    .install-status.active {
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    /* Activity Log Terminal */
-    .log-box {
-      margin-top: 4px;
-      background: #040810;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      height: 110px;
-      overflow-y: auto;
-      padding: 6px 10px;
-      font-size: 10px;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-    .log-box::-webkit-scrollbar { width: 3px; }
-    .log-box::-webkit-scrollbar-thumb { background: var(--line); }
-    .log-line { white-space: pre-wrap; word-break: break-all; }
-    .log-time { color: var(--accent-cyan); margin-right: 6px; }
-
-    /* Bottom Master Action Floating Deck */
-    .bottom-deck {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--line);
-    }
-    .btn-master {
-      width: 100%;
-      height: 44px;
-      border-radius: var(--round);
-      border: none;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s var(--ease);
-    }
-    .btn-master.start {
-      background: var(--accent);
-      color: var(--bg-main);
-      box-shadow: 0 0 24px -2px rgba(34, 197, 94, 0.65);
-    }
-    .btn-master.start:hover {
-      filter: brightness(1.12);
-      transform: translateY(-1px);
-    }
-    .btn-master.stop {
-      background: var(--accent-red);
-      color: #FFFFFF;
-      box-shadow: 0 0 24px -2px rgba(239, 68, 68, 0.65);
-    }
-    .btn-master.stop:hover {
-      filter: brightness(1.12);
-      transform: translateY(-1px);
-    }
-  </style>
-</head>
-<body oncontextmenu="return false;">
-
-  <!-- Custom Ambient Titlebar (Frameless Drag Region) -->
-  <header class="titlebar pywebview-drag-region" onmousedown="handleTitlebarMouseDown(event)" ondblclick="handleTitlebarDblClick(event)">
-    <div class="titlebar-brand">
-      <svg class="titlebar-logo" viewBox="0 0 100 100" style="border-radius: 4px;" fill="#83E8AC" role="img" aria-label="Meikova Relay">
-        <rect width="100" height="100" rx="22" fill="#11151B"/>
-        <g transform="translate(7 7) scale(.86)">
-          <path fill-rule="evenodd" d="M12 29H45L57 41L45 53H30V41H40L43 38H24V62H40V74H12Z"/>
-          <path fill-rule="evenodd" d="M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z"/>
-        </g>
-      </svg>
-      <span class="titlebar-title">MEIKOVA RELAY HOST</span>
-    </div>
-    <div class="titlebar-spacer pywebview-drag-region"></div>
-    <div class="titlebar-actions">
-      <button class="titlebar-btn btn-chat" onclick="openChatWindow()" title="Mở cửa sổ Chat" style="color: var(--accent-cyan);">
-        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2.5 3.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5.5l-3 2.5v-2.5h0a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z"/></svg>
-      </button>
-      <button class="titlebar-btn btn-min" onclick="minimizeWindow()" title="Thu nhỏ">
-        <svg viewBox="0 0 11 11"><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      </button>
-      <button class="titlebar-btn btn-max" id="btnHostMax" onclick="toggleMaximizeWindow()" title="Phóng to / Khôi phục">
-        <svg viewBox="0 0 11 11" class="icon-max"><rect x="1.5" y="1.5" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
-        <svg viewBox="0 0 11 11" class="icon-restore" style="display:none;"><path d="M3.5 3.5V1.5h6v6h-2M1.5 3.5h6v6h-6z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
-      </button>
-      <button class="titlebar-btn btn-close" onclick="closeWindow()" title="Đóng (Ẩn xuống khay)">
-        <svg viewBox="0 0 11 11"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-  </header>
-
-  <div class="app-container">
-    <!-- Subheader Row -->
-    <div class="sub-header">
-      <div id="txtKicker" class="telemetry-kicker mono">
-        MÁY TRẠM: PC-LOCAL // 120 FPS // TRUY CẬP KÉP
-      </div>
-      <div class="sub-header-right">
-        <div class="lang-box">
-          <button id="btnLangVi" class="lang-pill active" onclick="setLang('vi')">VI</button>
-          <button id="btnLangEn" class="lang-pill" onclick="setLang('en')">EN</button>
-        </div>
-        <div id="statusPill" class="status-pill status-stopped">
-          <span id="txtStatus">● ĐÃ DỪNG</span>
-        </div>
-      </div>
-    </div>
-
-  <!-- Sliding Mode Navigation -->
-  <nav class="seg-nav">
-    <span class="seg-ind" id="segInd"></span>
-    <button id="tabBtnUltra" class="seg-btn active" onclick="switchTab('ultra', 0)">HỖ TRỢ TỨC THÌ</button>
-    <button id="tabBtnChrome" class="seg-btn" onclick="switchTab('chrome', 1)">QUẢN TRỊ 24/7</button>
-    <button id="tabBtnSettings" class="seg-btn" onclick="switchTab('settings', 2)">CẤU HÌNH</button>
-  </nav>
-
-  <!-- Main Stage Viewport -->
-  <main class="stage">
-
-    <!-- Panel 1: Hỗ trợ tức thì -->
-    <section id="panelUltra" class="panel active">
-      <div class="panel-intro" id="txtUltraTitle">CHẾ ĐỘ HỖ TRỢ TỨC THÌ</div>
-      <div class="panel-sub" id="txtUltraDesc">Cung cấp Mã Phòng và PIN bên dưới cho người hỗ trợ.</div>
-
-      <!-- Room Card -->
-      <div class="card">
-        <div class="card-tag cyan" id="txtRoomLabel">MÃ PHÒNG // ROOM ID</div>
-        <div class="card-row">
-          <div id="txtRoomId" class="card-val cyan mono">RD-8888</div>
-          <div class="btn-group">
-            <button class="btn-pill-sm cyan" onclick="renewRoom()" id="btnRenewRoom">ĐỔI MÃ</button>
-            <button class="btn-pill-sm cyan" onclick="copyRoom()" id="btnCopyRoom">CHÉP MÃ</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- PIN Card -->
-      <div class="card">
-        <div class="card-tag green" id="txtPinLabel">MẬT KHẨ PHIÊN // ACCESS PIN</div>
-        <div class="card-row">
-          <div id="txtPin" class="card-val green mono">123456</div>
-          <div class="btn-group">
-            <button class="btn-pill-sm green" onclick="renewPin()" id="btnRenewPin">ĐỔI PIN</button>
-            <button class="btn-pill-sm green" onclick="copyPin()" id="btnCopyPin">CHÉP PIN</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Wide Share Deck -->
-      <button class="btn-deck-wide" onclick="copyShareInfo()" id="btnShareInfo">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-        <span id="txtShareInfo">SAO CHÉP THÔNG TIN KẾT NỐI</span>
-      </button>
-
-      <!-- Active Session Bar -->
-      <div class="session-banner">
-        <span id="txtSessionInfo" class="session-txt mono">● Dịch vụ đang tắt</span>
-        <div style="display:flex;gap:6px;">
-          <button id="btnHostChat" class="btn-cyan-sm" style="display:none;" onclick="openChatWindow()"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>CHAT</span></button>
-          <button id="btnDisconnectClient" class="btn-danger-sm" style="display:none;" onclick="disconnectClient()">NGẮT PHIÊN</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Panel 2: Quản trị thường trực 24/7 -->
-    <section id="panelChrome" class="panel">
-      <div class="panel-intro" id="txtChromeTitle">Truy cập không giám sát 24/7 (Unattended Access)</div>
-      <div class="panel-sub" id="txtChromeDesc">Liên kết máy tính vào tài khoản của bạn để truy cập từ xa mọi lúc.</div>
-
-      <div class="field-group">
-        <label class="field-label" id="lblAccount">Tài khoản chủ sở hữu (Email / Username):</label>
-        <input type="text" id="inpAccount" class="field-input mono" placeholder="admin / user@domain.com" onchange="saveFields()">
-      </div>
-
-      <div class="field-group">
-        <label class="field-label" id="lblDeviceName">Tên máy trạm hiển thị (Fleet Name):</label>
-        <input type="text" id="inpDeviceName" class="field-input mono" placeholder="PC-Accounting-01" onchange="saveFields()">
-      </div>
-
-      <div class="field-group">
-        <label class="field-label" id="lblPermPin">Mật khẩu bảo mật cố định (Permanent PIN):</label>
-        <input type="password" id="inpPermPin" class="field-input mono" placeholder="******" onchange="saveFields()">
-      </div>
-
-      <!-- 2-Tier Deployment Deck -->
-      <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin: 6px 0 2px;" id="lblInstallTiers">PHƯƠNG THỨC CÀI ĐẶT MÁY TRẠM:</div>
-
-      <!-- Tier 1: User-Level (No Admin Required) -->
-      <div class="card install-card" id="cardTierUser">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="card-tag cyan" id="tagTierUser">CÀI ĐẶT NGƯỜI DÙNG // USER LEVEL</span>
-          <span class="badge-mini cyan" id="badgeNoAdmin">KHÔNG CẦN ADMIN</span>
-        </div>
-        <p class="install-desc" id="descTierUser">
-          Tự động copy vào <code>%LOCALAPPDATA%</code> và chạy khi đăng nhập Windows. Phù hợp cho máy tính văn phòng, tài khoản không có quyền Administrator.
-        </p>
-        <div class="install-action-row">
-          <span class="install-status mono" id="statusTierUser">○ Chưa kích hoạt</span>
-          <button type="button" class="btn-pill-sm cyan" id="btnActionUser" onclick="actionUserTier()">CÀI ĐẶT</button>
-        </div>
-      </div>
-
-      <!-- Tier 2: Admin-Level (Windows 24/7 Service) -->
-      <div class="card install-card" id="cardTierAdmin">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="card-tag green" id="tagTierAdmin">DỊCH VỤ HỆ THỐNG 24/7 // SYSTEM SERVICE</span>
-          <span class="badge-mini green" id="badgeNeedAdmin">CẦN ADMIN (UAC)</span>
-        </div>
-        <p class="install-desc" id="descTierAdmin">
-          Đăng ký Windows Service chạy ngầm lúc bật máy (hỗ trợ màn hình khóa Lock Screen, gõ mật khẩu từ xa, tương tác cửa sổ UAC không bị đen).
-        </p>
-        <div class="install-action-row">
-          <span class="install-status mono" id="statusTierAdmin">○ Chưa cài đặt</span>
-          <button type="button" class="btn-pill-sm green" id="btnActionAdmin" onclick="actionAdminTier()">CÀI SERVICE</button>
-        </div>
-      </div>
-
-      <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin: 8px 0 3px;" id="lblSystemBehavior">CẤU HÌNH KHỞI ĐỘNG & HỆ THỐNG:</div>
-
-      <div class="toggle-row" onclick="toggleSwitch('autostart')">
-        <span class="toggle-lbl" id="lblAutostart">Khởi động cùng Windows (Tự chạy khi bật máy)</span>
-        <div id="swAutostart" class="toggle-switch"><div class="toggle-thumb"></div></div>
-      </div>
-
-      <div class="toggle-row" onclick="toggleSwitch('open_on_boot')">
-        <span class="toggle-lbl" id="lblOpenOnBoot">Mở cửa sổ khi Windows khởi động (Hiển thị giao diện)</span>
-        <div id="swOpenOnBoot" class="toggle-switch"><div class="toggle-thumb"></div></div>
-      </div>
-
-      <div class="toggle-row" onclick="toggleSwitch('close_to_tray')">
-        <span class="toggle-lbl" id="lblCloseToTray">Thu nhỏ vào khay khi bấm đóng [X]</span>
-        <div id="swCloseToTray" class="toggle-switch"><div class="toggle-thumb"></div></div>
-      </div>
-
-      <div class="toggle-row" onclick="toggleSwitch('keepawake')">
-        <span class="toggle-lbl" id="lblKeepawake">Chống tắt màn hình / Sleep (Anti-Sleep)</span>
-        <div id="swKeepawake" class="toggle-switch"><div class="toggle-thumb"></div></div>
-      </div>
-
-      <div class="toggle-row" onclick="toggleSwitch('show_tray')">
-        <span class="toggle-lbl" id="lblShowTray">Hiện biểu tượng ở khay hệ thống (Tray Icon)</span>
-        <div id="swShowTray" class="toggle-switch"><div class="toggle-thumb"></div></div>
-      </div>
-
-      <button class="btn-deck-wide" onclick="minimizeToTray()" style="margin-top: 4px;" id="btnMinimizeTray">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
-        <span id="txtMinimizeTray">THU NHỎ VÀO KHAY HỆ THỐNG</span>
-      </button>
-    </section>
-
-    <!-- Panel 3: Cấu hình Relay -->
-    <section id="panelSettings" class="panel">
-      <div class="panel-intro" id="txtSettingsTitle">Cấu hình kết nối hệ thống</div>
-      <div class="panel-sub" id="txtSettingsDesc">Địa chỉ Relay Server trung chuyển WebSocket độ trễ thấp.</div>
-
-      <div class="field-group">
-        <label class="field-label" id="lblRelay">Relay Server WebSocket URL:</label>
-        <input type="text" id="inpRelay" class="field-input mono" placeholder="ws://localhost:8080" onchange="saveFields()">
-      </div>
-
-      <button class="btn-deck-wide" onclick="saveSettingsBtn()" style="margin-top: 8px;" id="btnSaveSettings">
-        <span id="txtSaveSettings">LƯU CẤU HÌNH</span>
-      </button>
-    </section>
-
-    <!-- Real-time Activity Log Terminal -->
-    <div style="margin-top: auto;">
-      <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 3px;" id="lblLog">NHẬT KÝ HOẠT ĐỘNG:</div>
-      <div id="logBox" class="log-box mono"></div>
-    </div>
-
-  </main>
-
-  <!-- Bottom Master Action Deck -->
-  <footer class="bottom-deck">
-    <button id="btnMasterToggle" class="btn-master start" onclick="toggleMasterService()">
-      <span id="txtMasterToggle">● BẬT DỊCH VỤ</span>
-    </button>
-  </footer>
-  </div> <!-- /.app-container -->
-
-  <script>
-    let currentLang = 'vi';
-    let isServiceRunning = false;
-    let localConfig = {};
-
-    const DICT = {
-      vi: {
-        header_title: "MEIKOVA RELAY HOST",
-        tab_ultra: "HỖ TRỢ TỨC THÌ",
-        tab_chrome: "QUẢN TRỊ 24/7",
-        tab_settings: "CẤU HÌNH",
-        ultra_title: "CHẾ ĐỘ HỖ TRỢ TỨC THÌ",
-        ultra_desc: "Cung cấp Mã Phòng và PIN bên dưới cho người hỗ trợ.",
-        room_label: "MÃ PHÒNG // ROOM ID",
-        pin_label: "MẬT KHẨ PHIÊN // ACCESS PIN",
-        btn_renew_room: "ĐỔI MÃ",
-        btn_copy_room: "CHÉP MÃ",
-        btn_renew_pin: "ĐỔI PIN",
-        btn_copy_pin: "CHÉP PIN",
-        btn_share_info: "SAO CHÉP THÔNG TIN KẾT NỐI",
-        session_stopped: "● Dịch vụ đang tắt",
-        session_waiting: "● Đang chờ kết nối từ máy chủ...",
-        session_active: "● ĐANG ĐIỀU KHIỂN BỞI: {client}",
-        btn_disconnect: "NGẮT PHIÊN",
-        chrome_title: "Truy cập không giám sát 24/7 (Unattended Access)",
-        chrome_desc: "Liên kết máy tính vào tài khoản của bạn để truy cập từ xa mọi lúc.",
-        lbl_account: "Tài khoản chủ sở hữu (Email / Username):",
-        lbl_device: "Tên máy trạm hiển thị (Fleet Name):",
-        lbl_perm_pin: "Mật khẩu bảo mật cố định (Permanent PIN):",
-        lbl_system_behavior: "CẤU HÌNH KHỞI ĐỘNG & HỆ THỐNG:",
-        lbl_autostart: "Khởi động cùng Windows (Tự chạy khi bật máy)",
-        lbl_open_on_boot: "Mở cửa sổ khi Windows khởi động (Hiển thị giao diện)",
-        lbl_close_to_tray: "Thu nhỏ vào khay khi bấm đóng [X]",
-        lbl_keepawake: "Chống tắt màn hình / Sleep (Anti-Sleep)",
-        lbl_show_tray: "Hiện biểu tượng ở khay hệ thống (Tray Icon)",
-        lbl_service: "Dịch vụ hệ thống 24/7 (Trước màn hình khóa Lock Screen)",
-        lbl_install_tiers: "PHƯƠNG THỨC CÀI ĐẶT MÁY TRẠM:",
-        tag_tier_user: "CÀI ĐẶT NGƯỜI DÙNG // USER LEVEL",
-        badge_no_admin: "KHÔNG CẦN ADMIN",
-        desc_tier_user: "Tự động copy vào %LOCALAPPDATA% và chạy khi đăng nhập Windows. Phù hợp cho máy tính văn phòng, tài khoản không có quyền Administrator.",
-        tag_tier_admin: "DỊCH VỤ HỆ THỐNG 24/7 // SYSTEM SERVICE",
-        badge_need_admin: "CẦN ADMIN (UAC)",
-        desc_tier_admin: "Đăng ký Windows Service chạy ngầm lúc bật máy (hỗ trợ màn hình khóa Lock Screen, gõ mật khẩu từ xa, tương tác cửa sổ UAC không bị đen).",
-        lbl_keepawake: "Chống tắt màn hình / Sleep (Anti-Sleep)",
-        btn_minimize_tray: "THU NHỎ VÀO KHAY HỆ THỐNG",
-        settings_title: "Cấu hình kết nối hệ thống",
-        settings_desc: "Địa chỉ Relay Server trung chuyển WebSocket độ trễ thấp.",
-        lbl_relay: "Relay Server WebSocket URL:",
-        btn_save_settings: "LƯU CẤU HÌNH",
-        lbl_log: "NHẬT KÝ HOẠT ĐỘNG:",
-        btn_start: "● BẬT DỊCH VỤ",
-        btn_stop: "■ DỪNG DỊCH VỤ",
-        status_stopped: "● ĐÃ DỪNG",
-        status_ready: "● SẴN SÀNG KẾT NỐI",
-        status_reconnecting: "● ĐANG KẾT NỐI LẠI...",
-        status_connected: "● ĐANG CÓ KẾT NỐI"
-      },
-      en: {
-        header_title: "MEIKOVA RELAY HOST",
-        tab_ultra: "INSTANT ASSIST",
-        tab_chrome: "24/7 UNATTENDED",
-        tab_settings: "SETTINGS",
-        ultra_title: "ON-DEMAND REMOTE ASSIST",
-        ultra_desc: "Provide Room ID and PIN below to the remote technician.",
-        room_label: "ROOM ID",
-        pin_label: "ACCESS PIN",
-        btn_renew_room: "RENEW",
-        btn_copy_room: "COPY",
-        btn_renew_pin: "RENEW PIN",
-        btn_copy_pin: "COPY PIN",
-        btn_share_info: "COPY CONNECTION INFO",
-        session_stopped: "● Service is stopped",
-        session_waiting: "● Waiting for server connection...",
-        session_active: "● CONTROLLED BY: {client}",
-        btn_disconnect: "DISCONNECT",
-        chrome_title: "24/7 Unattended Remote Access",
-        chrome_desc: "Link this workstation to your account for anytime remote access.",
-        lbl_account: "Owner Account (Email / Username):",
-        lbl_device: "Workstation Fleet Name:",
-        lbl_perm_pin: "Permanent Security PIN:",
-        lbl_system_behavior: "STARTUP & SYSTEM BEHAVIOR:",
-        lbl_autostart: "Start with Windows (Auto-run on boot)",
-        lbl_open_on_boot: "Open window on Windows boot (Show UI)",
-        lbl_close_to_tray: "Minimize to tray when clicking close [X]",
-        lbl_keepawake: "Prevent sleep & screen shutoff (Anti-Sleep)",
-        lbl_show_tray: "Show System Tray Icon",
-        lbl_service: "24/7 Windows Service (Pre-login & Lock Screen)",
-        lbl_install_tiers: "WORKSTATION DEPLOYMENT METHOD:",
-        tag_tier_user: "USER-LEVEL INSTALLATION",
-        badge_no_admin: "NO ADMIN REQUIRED",
-        desc_tier_user: "Auto-deploys to %LOCALAPPDATA% and runs on Windows logon. Ideal for restricted office PCs without Administrator passwords.",
-        tag_tier_admin: "24/7 SYSTEM SERVICE",
-        badge_need_admin: "REQUIRES ADMIN (UAC)",
-        desc_tier_admin: "Registers a Windows Service running at boot (supports Windows Lock Screen, remote password entry, and UAC interaction without black screens).",
-        lbl_keepawake: "Prevent sleep & screen shutoff (Anti-Sleep)",
-        btn_minimize_tray: "MINIMIZE TO SYSTEM TRAY",
-        settings_title: "Connection Configuration",
-        settings_desc: "Low-latency WebSocket Relay Server URL.",
-        lbl_relay: "Relay Server WebSocket URL:",
-        btn_save_settings: "SAVE SETTINGS",
-        lbl_log: "ACTIVITY LOG:",
-        btn_start: "● START SERVICE",
-        btn_stop: "■ STOP SERVICE",
-        status_stopped: "● STOPPED",
-        status_ready: "● READY TO CONNECT",
-        status_reconnecting: "● RECONNECTING...",
-        status_connected: "● ACTIVE SESSION"
-      }
-    };
-
-    function t(key, params) {
-      let str = DICT[currentLang][key] || DICT['vi'][key] || key;
-      if (params) {
-        for (let p in params) str = str.replace(`{${p}}`, params[p]);
-      }
-      return str;
-    }
-
-    function switchTab(tab, idx) {
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-      
-      const targetPanel = document.getElementById(tab === 'ultra' ? 'panelUltra' : (tab === 'chrome' ? 'panelChrome' : 'panelSettings'));
-      const targetBtn = document.getElementById(tab === 'ultra' ? 'tabBtnUltra' : (tab === 'chrome' ? 'tabBtnChrome' : 'tabBtnSettings'));
-      
-      if (targetPanel) targetPanel.classList.add('active');
-      if (targetBtn) targetBtn.classList.add('active');
-      
-      document.getElementById('segInd').style.transform = `translateX(${idx * 100}%)`;
-    }
-
-    function setLang(lang) {
-      if (currentLang === lang) return;
-      currentLang = lang;
-      document.getElementById('btnLangVi').classList.toggle('active', lang === 'vi');
-      document.getElementById('btnLangEn').classList.toggle('active', lang === 'en');
-      applyTranslations();
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.set_language(lang);
-      }
-    }
-
-    function applyTranslations() {
-      document.getElementById('tabBtnUltra').innerText = t('tab_ultra');
-      document.getElementById('tabBtnChrome').innerText = t('tab_chrome');
-      document.getElementById('tabBtnSettings').innerText = t('tab_settings');
-      document.getElementById('txtUltraTitle').innerText = t('ultra_title');
-      document.getElementById('txtUltraDesc').innerText = t('ultra_desc');
-      document.getElementById('txtRoomLabel').innerText = t('room_label');
-      document.getElementById('txtPinLabel').innerText = t('pin_label');
-      document.getElementById('btnRenewRoom').innerText = t('btn_renew_room');
-      document.getElementById('btnCopyRoom').innerText = t('btn_copy_room');
-      document.getElementById('btnRenewPin').innerText = t('btn_renew_pin');
-      document.getElementById('btnCopyPin').innerText = t('btn_copy_pin');
-      document.getElementById('txtShareInfo').innerText = t('btn_share_info');
-      document.getElementById('btnDisconnectClient').innerText = t('btn_disconnect');
-      document.getElementById('txtChromeTitle').innerText = t('chrome_title');
-      document.getElementById('txtChromeDesc').innerText = t('chrome_desc');
-      document.getElementById('lblAccount').innerText = t('lbl_account');
-      document.getElementById('lblDeviceName').innerText = t('lbl_device');
-      document.getElementById('lblPermPin').innerText = t('lbl_perm_pin');
-      if (document.getElementById('lblInstallTiers')) document.getElementById('lblInstallTiers').innerText = t('lbl_install_tiers');
-      if (document.getElementById('tagTierUser')) document.getElementById('tagTierUser').innerText = t('tag_tier_user');
-      if (document.getElementById('badgeNoAdmin')) document.getElementById('badgeNoAdmin').innerText = t('badge_no_admin');
-      if (document.getElementById('descTierUser')) document.getElementById('descTierUser').innerHTML = t('desc_tier_user').replace('%LOCALAPPDATA%', '<code>%LOCALAPPDATA%</code>');
-      if (document.getElementById('tagTierAdmin')) document.getElementById('tagTierAdmin').innerText = t('tag_tier_admin');
-      if (document.getElementById('badgeNeedAdmin')) document.getElementById('badgeNeedAdmin').innerText = t('badge_need_admin');
-      if (document.getElementById('descTierAdmin')) document.getElementById('descTierAdmin').innerText = t('desc_tier_admin');
-      if (document.getElementById('lblSystemBehavior')) document.getElementById('lblSystemBehavior').innerText = t('lbl_system_behavior');
-      if (document.getElementById('lblAutostart')) document.getElementById('lblAutostart').innerText = t('lbl_autostart');
-      if (document.getElementById('lblOpenOnBoot')) document.getElementById('lblOpenOnBoot').innerText = t('lbl_open_on_boot');
-      if (document.getElementById('lblCloseToTray')) document.getElementById('lblCloseToTray').innerText = t('lbl_close_to_tray');
-      if (document.getElementById('lblKeepawake')) document.getElementById('lblKeepawake').innerText = t('lbl_keepawake');
-      if (document.getElementById('lblShowTray')) document.getElementById('lblShowTray').innerText = t('lbl_show_tray');
-      document.getElementById('txtMinimizeTray').innerText = t('btn_minimize_tray');
-      document.getElementById('txtSettingsTitle').innerText = t('settings_title');
-      document.getElementById('txtSettingsDesc').innerText = t('settings_desc');
-      document.getElementById('lblRelay').innerText = t('lbl_relay');
-      document.getElementById('txtSaveSettings').innerText = t('btn_save_settings');
-      document.getElementById('lblLog').innerText = t('lbl_log');
-      
-      const btnMaster = document.getElementById('btnMasterToggle');
-      if (isServiceRunning) {
-        document.getElementById('txtMasterToggle').innerText = t('btn_stop');
-      } else {
-        document.getElementById('txtMasterToggle').innerText = t('btn_start');
-      }
-    }
-
-    function addLog(msg) {
-      const box = document.getElementById('logBox');
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
-      const div = document.createElement('div');
-      div.className = 'log-line';
-      div.innerHTML = `<span class="log-time">[${timeStr}]</span>${msg}`;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    // Bridge Calls
-    function toggleMasterService() {
-      if (window.pywebview && window.pywebview.api) {
-        if (isServiceRunning) {
-          window.pywebview.api.stop_service();
-        } else {
-          window.pywebview.api.start_service();
-        }
-      }
-    }
-
-    function renewRoom() {
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.renew_room().then(res => {
-          document.getElementById('txtRoomId').innerText = res;
-        });
-      }
-    }
-
-    function copyRoom() {
-      const text = document.getElementById('txtRoomId').innerText;
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.copy_text(text, "Room ID");
-      }
-    }
-
-    function renewPin() {
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.renew_pin().then(res => {
-          document.getElementById('txtPin').innerText = res;
-        });
-      }
-    }
-
-    function copyPin() {
-      const text = document.getElementById('txtPin').innerText;
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.copy_text(text, "PIN");
-      }
-    }
-
-    function copyShareInfo() {
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.copy_share_info();
-      }
-    }
-
-    function disconnectClient() {
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.disconnect_client();
-      }
-    }
-
-    let currentDeployment = { user_installed: false, service_installed: false, is_admin: false };
-
-    function updateDeploymentUI(dep) {
-      if (!dep) return;
-      currentDeployment = dep;
-
-      // User Tier UI
-      const cardUser = document.getElementById('cardTierUser');
-      const statusUser = document.getElementById('statusTierUser');
-      const btnUser = document.getElementById('btnActionUser');
-      if (dep.user_installed) {
-        cardUser?.classList.add('active-installed');
-        if (statusUser) {
-          statusUser.innerText = "● ĐÃ KÍCH HOẠT (Tự chạy khi đăng nhập)";
-          statusUser.className = "install-status mono active";
-        }
-        if (btnUser) btnUser.innerText = "GỠ BỎ";
-      } else {
-        cardUser?.classList.remove('active-installed');
-        if (statusUser) {
-          statusUser.innerText = "○ Chưa kích hoạt";
-          statusUser.className = "install-status mono";
-        }
-        if (btnUser) btnUser.innerText = "CÀI ĐẶT";
-      }
-
-      // Admin Tier UI
-      const cardAdmin = document.getElementById('cardTierAdmin');
-      const statusAdmin = document.getElementById('statusTierAdmin');
-      const btnAdmin = document.getElementById('btnActionAdmin');
-      if (dep.service_installed) {
-        cardAdmin?.classList.add('active-installed');
-        if (statusAdmin) {
-          statusAdmin.innerText = "● ĐANG HOẠT ĐỘNG (Dịch vụ 24/7)";
-          statusAdmin.className = "install-status mono active";
-        }
-        if (btnAdmin) btnAdmin.innerText = "GỠ SERVICE";
-      } else {
-        cardAdmin?.classList.remove('active-installed');
-        if (statusAdmin) {
-          statusAdmin.innerText = "○ Chưa cài đặt";
-          statusAdmin.className = "install-status mono";
-        }
-        if (btnAdmin) btnAdmin.innerText = dep.is_admin ? "CÀI SERVICE" : "CÀI SERVICE (UAC)";
-      }
-    }
-
-    function actionUserTier() {
-      if (!window.pywebview || !window.pywebview.api) return;
-      if (currentDeployment.user_installed) {
-        window.pywebview.api.uninstall_user_tier().then(res => {
-          if (res && res.deployment) updateDeploymentUI(res.deployment);
-          addLog(res.message);
-        });
-      } else {
-        window.pywebview.api.install_user_tier().then(res => {
-          if (res && res.deployment) updateDeploymentUI(res.deployment);
-          addLog(res.message);
-        });
-      }
-    }
-
-    function actionAdminTier() {
-      if (!window.pywebview || !window.pywebview.api) return;
-      if (currentDeployment.service_installed) {
-        window.pywebview.api.uninstall_admin_tier().then(res => {
-          if (res && res.deployment) updateDeploymentUI(res.deployment);
-          addLog(res.message);
-        });
-      } else {
-        window.pywebview.api.install_admin_tier().then(res => {
-          if (res && res.deployment) updateDeploymentUI(res.deployment);
-          addLog(res.message);
-        });
-      }
-    }
-
-    function toggleSwitch(name) {
-      let swId = 'swAutostart';
-      if (name === 'open_on_boot') swId = 'swOpenOnBoot';
-      else if (name === 'close_to_tray') swId = 'swCloseToTray';
-      else if (name === 'service') swId = 'swService';
-      else if (name === 'keepawake') swId = 'swKeepawake';
-      else if (name === 'show_tray') swId = 'swShowTray';
-      const sw = document.getElementById(swId);
-      if (!sw) return;
-      const isOn = sw.classList.toggle('on');
-      if (window.pywebview && window.pywebview.api) {
-        if (name === 'autostart') window.pywebview.api.toggle_autostart(isOn);
-        else if (name === 'open_on_boot') window.pywebview.api.toggle_open_on_boot(isOn);
-        else if (name === 'close_to_tray') window.pywebview.api.toggle_close_to_tray(isOn);
-        else if (name === 'keepawake') window.pywebview.api.toggle_keepawake(isOn);
-        else if (name === 'show_tray') window.pywebview.api.toggle_show_tray(isOn);
-        else if (name === 'service') {
-          window.pywebview.api.toggle_service(isOn).then(res => {
-            if (!res || !res.success) {
-              sw.classList.toggle('on', !isOn);
-              addLog("Dịch vụ: " + (res ? res.message : "Thất bại"));
-            } else {
-              addLog("Dịch vụ: " + (res ? res.message : "Thành công"));
-            }
-          });
-        }
-      }
-    }
-
-    function minimizeToTray() {
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.minimize_to_tray();
-      }
-    }
-
-    function saveFields() {
-      localConfig.account = document.getElementById('inpAccount').value;
-      localConfig.device_name = document.getElementById('inpDeviceName').value;
-      localConfig.perm_pin = document.getElementById('inpPermPin').value;
-      localConfig.relay_url = document.getElementById('inpRelay').value;
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.save_config(JSON.stringify(localConfig));
-      }
-    }
-
-    function saveSettingsBtn() {
-      saveFields();
-      addLog("Đã lưu cấu hình.");
-    }
-
-    // Python-to-JS Event Callbacks
-    window.__initData = function(cfg, autostartOn, isRunning, serviceOn, dep) {
-      localConfig = cfg;
-      isServiceRunning = isRunning;
-      currentLang = cfg.lang || 'vi';
-      
-      document.getElementById('txtRoomId').innerText = cfg.room_id || 'RD-8888';
-      document.getElementById('txtPin').innerText = cfg.pin || '123456';
-      document.getElementById('inpAccount').value = cfg.account || '';
-      document.getElementById('inpDeviceName').value = cfg.device_name || '';
-      document.getElementById('inpPermPin').value = cfg.perm_pin || '';
-      document.getElementById('inpRelay').value = cfg.relay_url || 'ws://localhost:8080';
-      
-      if (autostartOn && document.getElementById('swAutostart')) document.getElementById('swAutostart').classList.add('on');
-      if (cfg.open_on_boot && document.getElementById('swOpenOnBoot')) document.getElementById('swOpenOnBoot').classList.add('on');
-      if (cfg.close_to_tray !== false && document.getElementById('swCloseToTray')) document.getElementById('swCloseToTray').classList.add('on');
-      if (serviceOn && document.getElementById('swService')) document.getElementById('swService').classList.add('on');
-      if (cfg.keep_awake && document.getElementById('swKeepawake')) document.getElementById('swKeepawake').classList.add('on');
-      if (cfg.show_tray_icon !== false && document.getElementById('swShowTray')) document.getElementById('swShowTray').classList.add('on');
-      
-      if (dep) updateDeploymentUI(dep);
-      
-      document.getElementById('btnLangVi').classList.toggle('active', currentLang === 'vi');
-      document.getElementById('btnLangEn').classList.toggle('active', currentLang === 'en');
-      
-      const hostName = cfg.device_name || 'PC-LOCAL';
-      document.getElementById('txtKicker').innerText = `MÁY TRẠM: ${hostName} // 120 FPS // TRUY CẬP KÉP`;
-      
-      applyTranslations();
-      addLog("Meikova Relay Host sẵn sàng.");
-    };
-
-    window.__onServiceStatus = function(status) {
-      const pill = document.getElementById('statusPill');
-      const txtStatus = document.getElementById('txtStatus');
-      const btnMaster = document.getElementById('btnMasterToggle');
-      const sessInfo = document.getElementById('txtSessionInfo');
-      
-      pill.className = 'status-pill';
-      if (status === 'ready') {
-        isServiceRunning = true;
-        pill.classList.add('status-ready');
-        txtStatus.innerText = t('status_ready');
-        btnMaster.className = 'btn-master stop';
-        document.getElementById('txtMasterToggle').innerText = t('btn_stop');
-        sessInfo.innerText = t('session_waiting');
-        sessInfo.className = 'session-txt mono active';
-      } else if (status === 'stopped') {
-        isServiceRunning = false;
-        pill.classList.add('status-stopped');
-        txtStatus.innerText = t('status_stopped');
-        btnMaster.className = 'btn-master start';
-        document.getElementById('txtMasterToggle').innerText = t('btn_start');
-        sessInfo.innerText = t('session_stopped');
-        sessInfo.className = 'session-txt mono';
-        document.getElementById('btnDisconnectClient').style.display = 'none';
-      } else if (status === 'reconnecting') {
-        pill.classList.add('status-reconnecting');
-        txtStatus.innerText = t('status_reconnecting');
-      }
-    };
-
-    window.__onClientConnected = function(clientInfo) {
-      const sessInfo = document.getElementById('txtSessionInfo');
-      sessInfo.innerText = t('session_active', { client: clientInfo });
-      sessInfo.className = 'session-txt mono active';
-      document.getElementById('btnDisconnectClient').style.display = 'inline-block';
-      const btnChat = document.getElementById('btnHostChat'); if (btnChat) btnChat.style.display = 'inline-block';
-      
-      const pill = document.getElementById('statusPill');
-      pill.className = 'status-pill status-connected';
-      document.getElementById('txtStatus').innerText = t('status_connected');
-    };
-
-    window.__onClientDisconnected = function() {
-      const sessInfo = document.getElementById('txtSessionInfo');
-      sessInfo.innerText = t('session_waiting');
-      document.getElementById('btnDisconnectClient').style.display = 'none';
-      const btnChat = document.getElementById('btnHostChat'); if (btnChat) btnChat.style.display = 'none';
-      if (isServiceRunning) {
-        const pill = document.getElementById('statusPill');
-        pill.className = 'status-pill status-ready';
-        document.getElementById('txtStatus').innerText = t('status_ready');
-      }
-    };
-
-    window.__onLog = function(msg) {
-      addLog(msg);
-    };
-
-    // Custom Titlebar & Window Controls
-    function handleTitlebarMouseDown(e) {
-      if (e.button === 0 && !e.target.closest('.titlebar-btn')) {
-        if (window.pywebview && window.pywebview.api && window.pywebview.api.drag_window) {
-          window.pywebview.api.drag_window();
-        }
-      }
-    }
-
-    async function toggleMaximizeWindow() {
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.toggle_maximize) {
-        try {
-          const isMax = await window.pywebview.api.toggle_maximize();
-          const btn = document.getElementById('btnHostMax');
-          if (btn) {
-            const iconMax = btn.querySelector('.icon-max');
-            const iconRestore = btn.querySelector('.icon-restore');
-            if (iconMax && iconRestore) {
-              iconMax.style.display = isMax ? 'none' : 'block';
-              iconRestore.style.display = isMax ? 'block' : 'none';
-            }
-          }
-        } catch (e) {}
-      }
-    }
-
-    function handleTitlebarDblClick(e) {
-      if (!e.target.closest('.titlebar-btn')) {
-        toggleMaximizeWindow();
-      }
-    }
-
-    function openChatWindow() {
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.open_chat_window) {
-        window.pywebview.api.open_chat_window();
-      }
-    }
-
-    function minimizeWindow() {
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.minimize_window) {
-        window.pywebview.api.minimize_window();
-      }
-    }
-
-    function closeWindow() {
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
-        window.pywebview.api.close_window();
-      }
-    }
-
-    // Pull pattern initialization: safe from UI deadlocks
-    async function initBridgeData() {
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_initial_data) {
-        try {
-          const res = await window.pywebview.api.get_initial_data();
-          if (res && res.config) {
-            window.__initData(res.config, res.autostart, res.is_running, res.service_installed, res.deployment);
-          }
-        } catch (err) {
-          console.error("Bridge init error:", err);
-        }
-      }
-    }
-
-    window.addEventListener('pywebviewready', initBridgeData);
-    document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(initBridgeData, 250);
-    });
-  </script>
-</body>
-</html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Meikova Relay Host</title>
+  <style>
+    /* Studio-Grade Ambient Instrument Tokens (/ambient-instrument-ui) */
+    :root {
+      --bg-main: #070D17;
+      --bg-panel: #0B1322;
+      --bg-card: rgba(16, 27, 46, 0.75);
+      --bg-card-inner: #0A111E;
+      --line: #1C2D4A;
+      --line-hover: #2B436D;
+      --text: #F8FAFC;
+      --text-muted: #64748B;
+      --text-sub: #94A3B8;
+      --accent: #22C55E;
+      --accent-glow: rgba(34, 197, 94, 0.25);
+      --accent-cyan: #38BDF8;
+      --accent-cyan-bg: rgba(56, 189, 248, 0.12);
+      --accent-red: #EF4444;
+      --accent-red-bg: rgba(239, 68, 68, 0.14);
+      --accent-amber: #F59E0B;
+      --accent-amber-bg: rgba(245, 158, 11, 0.12);
+      --btn-surface: #142138;
+      --btn-surface-hover: #1C2F50;
+      --round: 9999px;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+    body {
+      background: var(--bg-main);
+      color: var(--text);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0;
+      border: 1px solid var(--line);
+    }
+
+    .mono { font-family: 'Consolas', 'JetBrains Mono', monospace; }
+
+    /* Custom Studio Titlebar */
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 38px;
+      min-height: 38px;
+      background: #060B14;
+      border-bottom: 1px solid var(--line);
+      padding: 0 6px 0 14px;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+    .titlebar-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      pointer-events: none;
+    }
+    .titlebar-logo {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.65));
+    }
+    .titlebar-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text);
+      font-family: 'Consolas', 'JetBrains Mono', monospace;
+    }
+    .titlebar-spacer {
+      flex: 1;
+      height: 100%;
+    }
+    .titlebar-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      -webkit-app-region: no-drag;
+    }
+    .titlebar-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      width: 38px;
+      height: 30px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .titlebar-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+    }
+    .titlebar-btn:active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .titlebar-btn.btn-close:hover {
+      background: #ef4444;
+      color: #ffffff;
+      border-color: #dc2626;
+    }
+    .titlebar-btn.btn-close:active {
+      background: #dc2626;
+      color: #ffffff;
+    }
+    .titlebar-btn svg {
+      width: 11px;
+      height: 11px;
+      pointer-events: none;
+    }
+
+    /* Subheader & Content Container */
+    .app-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 10px 18px 12px;
+    }
+    .sub-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      gap: 8px;
+      min-width: 0;
+    }
+    .sub-header-right {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Segmented Language Switcher */
+    .lang-box {
+      display: inline-flex;
+      background: var(--bg-panel);
+      border: 1px solid var(--line);
+      border-radius: var(--round);
+      padding: 2px;
+    }
+    .lang-pill {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--round);
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+    }
+    .lang-pill.active {
+      background: var(--accent-cyan);
+      color: var(--bg-main);
+    }
+
+    /* Status Pill */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--round);
+      font-size: 10px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      letter-spacing: 0.03em;
+    }
+    .status-stopped { background: var(--accent-red-bg); color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); }
+    .status-ready { background: rgba(34, 197, 94, 0.12); color: var(--accent); border-color: rgba(34, 197, 94, 0.35); }
+    .status-reconnecting { background: var(--accent-amber-bg); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3); }
+    .status-connected { background: var(--accent-cyan-bg); color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.35); }
+
+    .telemetry-kicker {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Sliding Mode Navigation */
+    .seg-nav {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      background: var(--bg-panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      margin: 12px 0 10px;
+    }
+    .seg-ind {
+      position: absolute;
+      top: 3px;
+      bottom: 3px;
+      left: 3px;
+      width: calc((100% - 6px) / 3);
+      background: var(--btn-surface-hover);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      transition: transform 0.25s var(--ease);
+      pointer-events: none;
+    }
+    .seg-btn {
+      position: relative;
+      z-index: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 7px 0;
+      text-align: center;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .seg-btn.active { color: var(--accent); }
+
+    /* Content Stage */
+    .stage {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 2px;
+    }
+    .stage::-webkit-scrollbar { width: 4px; }
+    .stage::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+    .panel { display: none; flex-direction: column; gap: 8px; }
+    .panel.active { display: flex; }
+
+    .panel-intro {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .panel-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: -4px;
+      margin-bottom: 2px;
+    }
+
+    /* Ambient Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--line-hover); }
+
+    .card-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .card-tag.cyan { color: var(--accent-cyan); }
+    .card-tag.green { color: var(--accent); }
+
+    .card-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-val {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+    .card-val.cyan { color: var(--text); text-shadow: 0 0 16px rgba(56, 189, 248, 0.4); }
+    .card-val.green { color: var(--accent); text-shadow: 0 0 16px rgba(34, 197, 94, 0.5); }
+
+    .btn-group {
+      display: inline-flex;
+      gap: 6px;
+    }
+    .btn-pill-sm {
+      background: var(--btn-surface);
+      border: 1px solid var(--line);
+      color: var(--text-sub);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--round);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s var(--ease);
+    }
+    .btn-pill-sm:hover {
+      background: var(--btn-surface-hover);
+      color: var(--text);
+      border-color: var(--line-hover);
+      transform: translateY(-1px);
+    }
+    .btn-pill-sm.cyan { color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.3); }
+    .btn-pill-sm.green { color: var(--accent); border-color: rgba(34, 197, 94, 0.3); }
+
+    .btn-deck-wide {
+      background: var(--btn-surface);
+      border: 1px solid var(--line);
+      color: var(--accent-cyan);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s var(--ease);
+    }
+    .btn-deck-wide:hover {
+      background: var(--btn-surface-hover);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
+    }
+
+    /* Session Banner */
+    .session-banner {
+      background: var(--bg-card-inner);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+    .session-txt { color: var(--text-muted); }
+    .session-txt.active { color: var(--accent-cyan); font-weight: 700; }
+    .btn-cyan-sm {
+      background: var(--accent-cyan-bg);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: var(--accent-cyan);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--round);
+      cursor: pointer;
+    }
+    .btn-danger-sm {
+      background: var(--accent-red-bg);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: var(--accent-red);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--round);
+      cursor: pointer;
+    }
+
+    /* Inputs & Form Elements */
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
+    .field-input {
+      background: var(--bg-panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 12px;
+      padding: 7px 10px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* Custom Switch Toggles */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .toggle-lbl {
+      font-size: 11px;
+      color: var(--text);
+    }
+    .toggle-switch {
+      position: relative;
+      width: 34px;
+      height: 18px;
+      background: var(--bg-panel);
+      border: 1px solid var(--line);
+      border-radius: var(--round);
+      transition: all 0.2s;
+    }
+    .toggle-switch.on {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      background: #FFFFFF;
+      border-radius: 50%;
+      transition: transform 0.2s var(--ease);
+    }
+    .toggle-switch.on .toggle-thumb {
+      transform: translateX(16px);
+      background: var(--bg-main);
+    }
+
+    /* 2-Tier Installation Cards */
+    .install-card {
+      padding: 8px 12px;
+      gap: 3px;
+      border: 1px solid var(--line);
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+    .install-card.active-installed {
+      border-color: rgba(34, 197, 94, 0.45);
+      background: rgba(34, 197, 94, 0.05);
+    }
+    .badge-mini {
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+      border-radius: var(--round);
+      font-family: 'Consolas', monospace;
+    }
+    .badge-mini.cyan {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+    .badge-mini.green {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .install-desc {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin: 2px 0 4px;
+    }
+    .install-desc code {
+      font-family: 'Consolas', monospace;
+      color: var(--accent-cyan);
+      background: rgba(0, 0, 0, 0.35);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    .install-action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 5px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .install-status {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .install-status.active {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Activity Log Terminal */
+    .log-box {
+      margin-top: 4px;
+      background: #040810;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      height: 110px;
+      overflow-y: auto;
+      padding: 6px 10px;
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .log-box::-webkit-scrollbar { width: 3px; }
+    .log-box::-webkit-scrollbar-thumb { background: var(--line); }
+    .log-line { white-space: pre-wrap; word-break: break-all; }
+    .log-time { color: var(--accent-cyan); margin-right: 6px; }
+
+    /* Bottom Master Action Floating Deck */
+    .bottom-deck {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+    .btn-master {
+      width: 100%;
+      height: 44px;
+      border-radius: var(--round);
+      border: none;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s var(--ease);
+    }
+    .btn-master.start {
+      background: var(--accent);
+      color: var(--bg-main);
+      box-shadow: 0 0 24px -2px rgba(34, 197, 94, 0.65);
+    }
+    .btn-master.start:hover {
+      filter: brightness(1.12);
+      transform: translateY(-1px);
+    }
+    .btn-master.stop {
+      background: var(--accent-red);
+      color: #FFFFFF;
+      box-shadow: 0 0 24px -2px rgba(239, 68, 68, 0.65);
+    }
+    .btn-master.stop:hover {
+      filter: brightness(1.12);
+      transform: translateY(-1px);
+    }
+
+    /* Host Chat Slide-Over Drawer */
+    .host-chat-drawer {
+      position: absolute;
+      top: 38px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(7, 13, 23, 0.98);
+      backdrop-filter: blur(16px);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      animation: slideInChat 0.22s var(--ease);
+      border-top: 1px solid var(--line);
+    }
+    .host-chat-drawer.hidden { display: none; }
+
+    @keyframes slideInChat {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .host-chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #0B1324;
+      border-bottom: 1px solid var(--line);
+    }
+    .host-chat-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .host-chat-back-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .host-chat-back-btn:hover {
+      color: var(--text);
+      border-color: var(--accent-cyan);
+    }
+    .host-chat-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    .host-chat-subtitle {
+      font-size: 10px;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .chat-live-led {
+      color: var(--accent-green);
+      font-size: 10px;
+      animation: pulseGlow 1.8s infinite;
+    }
+    .btn-popout-chat {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-popout-chat:hover {
+      color: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+    }
+
+    .host-chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .host-chat-messages::-webkit-scrollbar { width: 4px; }
+    .host-chat-messages::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+
+    .host-chat-empty {
+      margin: auto;
+      text-align: center;
+      padding: 24px;
+    }
+    .host-chat-empty-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--accent-cyan);
+      margin-bottom: 10px;
+    }
+
+    .host-bubble-row {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+    .host-bubble-row.local { align-items: flex-end; }
+    .host-bubble-row.remote { align-items: flex-start; }
+
+    .host-bubble-meta {
+      font-size: 10px;
+      font-family: 'Consolas', monospace;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+      padding: 0 4px;
+    }
+    .host-bubble-row.local .host-bubble-meta { color: var(--accent-green); }
+    .host-bubble-row.remote .host-bubble-meta { color: var(--accent-cyan); }
+
+    .host-bubble {
+      max-width: 84%;
+      padding: 8px 12px;
+      font-size: 12px;
+      line-height: 1.45;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .host-bubble-row.local .host-bubble {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(34, 197, 94, 0.08) 100%);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      border-radius: 12px 12px 2px 12px;
+      color: #F8FAFC;
+    }
+    .host-bubble-row.remote .host-bubble {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.6) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      border-radius: 12px 12px 12px 2px;
+      color: #F1F5F9;
+    }
+
+    .host-quick-chips {
+      display: flex;
+      gap: 6px;
+      padding: 6px 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      background: rgba(13, 21, 36, 0.5);
+      border-top: 1px solid var(--line);
+    }
+    .host-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      font-size: 11px;
+      white-space: nowrap;
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: 9999px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .host-chip:hover {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: var(--accent-cyan);
+      color: var(--text);
+    }
+
+    .host-chat-input-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px 12px;
+      background: #0B1324;
+      border-top: 1px solid var(--line);
+    }
+    .host-chat-input {
+      flex: 1;
+      background: var(--bg-main);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .host-chat-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 1px var(--accent-cyan), 0 0 12px -2px rgba(56, 189, 248, 0.35);
+    }
+    .host-chat-send-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--accent-cyan);
+      color: #070D17;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .host-chat-send-btn:hover {
+      background: #7dd3fc;
+      transform: scale(1.05);
+    }
+    .host-chat-send-btn:active {
+      transform: scale(0.95);
+    }
+
+    .unread-dot {
+      animation: pulseUnread 1.5s infinite;
+    }
+    @keyframes pulseUnread {
+      0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+      100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+  </style>
+</head>
+<body oncontextmenu="return false;">
+
+  <!-- Custom Ambient Titlebar (Frameless Drag Region) -->
+  <header class="titlebar pywebview-drag-region" onmousedown="handleTitlebarMouseDown(event)" ondblclick="handleTitlebarDblClick(event)">
+    <div class="titlebar-brand">
+      <svg class="titlebar-logo" viewBox="0 0 100 100" style="border-radius: 4px;" fill="#83E8AC" role="img" aria-label="Meikova Relay">
+        <rect width="100" height="100" rx="22" fill="#11151B"/>
+        <g transform="translate(7 7) scale(.86)">
+          <path fill-rule="evenodd" d="M12 29H45L57 41L45 53H30V41H40L43 38H24V62H40V74H12Z"/>
+          <path fill-rule="evenodd" d="M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z"/>
+        </g>
+      </svg>
+      <span class="titlebar-title">MEIKOVA RELAY HOST</span>
+    </div>
+    <div class="titlebar-spacer pywebview-drag-region"></div>
+    <div class="titlebar-actions">
+      <button class="titlebar-btn btn-chat" onclick="toggleHostChatDrawer()" title="Mở khung Chat" style="color: var(--accent-cyan); position: relative;">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2.5 3.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5.5l-3 2.5v-2.5h0a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z"/></svg>
+        <span id="hostChatUnreadDot" class="unread-dot hidden" style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: #EF4444; box-shadow: 0 0 6px #EF4444;"></span>
+      </button>
+      <button class="titlebar-btn btn-min" onclick="minimizeWindow()" title="Thu nhỏ">
+        <svg viewBox="0 0 11 11"><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+      <button class="titlebar-btn btn-max" id="btnHostMax" onclick="toggleMaximizeWindow()" title="Phóng to / Khôi phục">
+        <svg viewBox="0 0 11 11" class="icon-max"><rect x="1.5" y="1.5" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+        <svg viewBox="0 0 11 11" class="icon-restore" style="display:none;"><path d="M3.5 3.5V1.5h6v6h-2M1.5 3.5h6v6h-6z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+      </button>
+      <button class="titlebar-btn btn-close" onclick="closeWindow()" title="Đóng (Ẩn xuống khay)">
+        <svg viewBox="0 0 11 11"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Subheader Row -->
+    <div class="sub-header">
+      <div id="txtKicker" class="telemetry-kicker mono">
+        MÁY TRẠM: PC-LOCAL // 120 FPS // TRUY CẬP KÉP
+      </div>
+      <div class="sub-header-right">
+        <div class="lang-box">
+          <button id="btnLangVi" class="lang-pill active" onclick="setLang('vi')">VI</button>
+          <button id="btnLangEn" class="lang-pill" onclick="setLang('en')">EN</button>
+        </div>
+        <div id="statusPill" class="status-pill status-stopped">
+          <span id="txtStatus">● ĐÃ DỪNG</span>
+        </div>
+      </div>
+    </div>
+
+  <!-- Sliding Mode Navigation -->
+  <nav class="seg-nav">
+    <span class="seg-ind" id="segInd"></span>
+    <button id="tabBtnUltra" class="seg-btn active" onclick="switchTab('ultra', 0)">HỖ TRỢ TỨC THÌ</button>
+    <button id="tabBtnChrome" class="seg-btn" onclick="switchTab('chrome', 1)">QUẢN TRỊ 24/7</button>
+    <button id="tabBtnSettings" class="seg-btn" onclick="switchTab('settings', 2)">CẤU HÌNH</button>
+  </nav>
+
+  <!-- Main Stage Viewport -->
+  <main class="stage">
+
+    <!-- Panel 1: Hỗ trợ tức thì -->
+    <section id="panelUltra" class="panel active">
+      <div class="panel-intro" id="txtUltraTitle">CHẾ ĐỘ HỖ TRỢ TỨC THÌ</div>
+      <div class="panel-sub" id="txtUltraDesc">Cung cấp Mã Phòng và PIN bên dưới cho người hỗ trợ.</div>
+
+      <!-- Room Card -->
+      <div class="card">
+        <div class="card-tag cyan" id="txtRoomLabel">MÃ PHÒNG // ROOM ID</div>
+        <div class="card-row">
+          <div id="txtRoomId" class="card-val cyan mono">RD-8888</div>
+          <div class="btn-group">
+            <button class="btn-pill-sm cyan" onclick="renewRoom()" id="btnRenewRoom">ĐỔI MÃ</button>
+            <button class="btn-pill-sm cyan" onclick="copyRoom()" id="btnCopyRoom">CHÉP MÃ</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIN Card -->
+      <div class="card">
+        <div class="card-tag green" id="txtPinLabel">MẬT KHẨ PHIÊN // ACCESS PIN</div>
+        <div class="card-row">
+          <div id="txtPin" class="card-val green mono">123456</div>
+          <div class="btn-group">
+            <button class="btn-pill-sm green" onclick="renewPin()" id="btnRenewPin">ĐỔI PIN</button>
+            <button class="btn-pill-sm green" onclick="copyPin()" id="btnCopyPin">CHÉP PIN</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wide Share Deck -->
+      <button class="btn-deck-wide" onclick="copyShareInfo()" id="btnShareInfo">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+        <span id="txtShareInfo">SAO CHÉP THÔNG TIN KẾT NỐI</span>
+      </button>
+
+      <!-- Active Session Bar -->
+      <div class="session-banner">
+        <span id="txtSessionInfo" class="session-txt mono">● Dịch vụ đang tắt</span>
+        <div style="display:flex;gap:6px;">
+          <button id="btnHostChat" class="btn-cyan-sm" style="display:none; position: relative;" onclick="toggleHostChatDrawer()"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>CHAT</span><span id="bannerChatUnreadDot" class="unread-dot hidden" style="position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; background: #EF4444; box-shadow: 0 0 6px #EF4444;"></span></button>
+          <button id="btnDisconnectClient" class="btn-danger-sm" style="display:none;" onclick="disconnectClient()">NGẮT PHIÊN</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel 2: Quản trị thường trực 24/7 -->
+    <section id="panelChrome" class="panel">
+      <div class="panel-intro" id="txtChromeTitle">Truy cập không giám sát 24/7 (Unattended Access)</div>
+      <div class="panel-sub" id="txtChromeDesc">Liên kết máy tính vào tài khoản của bạn để truy cập từ xa mọi lúc.</div>
+
+      <div class="field-group">
+        <label class="field-label" id="lblAccount">Tài khoản chủ sở hữu (Email / Username):</label>
+        <input type="text" id="inpAccount" class="field-input mono" placeholder="admin / user@domain.com" onchange="saveFields()">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" id="lblDeviceName">Tên máy trạm hiển thị (Fleet Name):</label>
+        <input type="text" id="inpDeviceName" class="field-input mono" placeholder="PC-Accounting-01" onchange="saveFields()">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" id="lblPermPin">Mật khẩu bảo mật cố định (Permanent PIN):</label>
+        <input type="password" id="inpPermPin" class="field-input mono" placeholder="******" onchange="saveFields()">
+      </div>
+
+      <!-- 2-Tier Deployment Deck -->
+      <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin: 6px 0 2px;" id="lblInstallTiers">PHƯƠNG THỨC CÀI ĐẶT MÁY TRẠM:</div>
+
+      <!-- Tier 1: User-Level (No Admin Required) -->
+      <div class="card install-card" id="cardTierUser">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="card-tag cyan" id="tagTierUser">CÀI ĐẶT NGƯỜI DÙNG // USER LEVEL</span>
+          <span class="badge-mini cyan" id="badgeNoAdmin">KHÔNG CẦN ADMIN</span>
+        </div>
+        <p class="install-desc" id="descTierUser">
+          Tự động copy vào <code>%LOCALAPPDATA%</code> và chạy khi đăng nhập Windows. Phù hợp cho máy tính văn phòng, tài khoản không có quyền Administrator.
+        </p>
+        <div class="install-action-row">
+          <span class="install-status mono" id="statusTierUser">○ Chưa kích hoạt</span>
+          <button type="button" class="btn-pill-sm cyan" id="btnActionUser" onclick="actionUserTier()">CÀI ĐẶT</button>
+        </div>
+      </div>
+
+      <!-- Tier 2: Admin-Level (Windows 24/7 Service) -->
+      <div class="card install-card" id="cardTierAdmin">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="card-tag green" id="tagTierAdmin">DỊCH VỤ HỆ THỐNG 24/7 // SYSTEM SERVICE</span>
+          <span class="badge-mini green" id="badgeNeedAdmin">CẦN ADMIN (UAC)</span>
+        </div>
+        <p class="install-desc" id="descTierAdmin">
+          Đăng ký Windows Service chạy ngầm lúc bật máy (hỗ trợ màn hình khóa Lock Screen, gõ mật khẩu từ xa, tương tác cửa sổ UAC không bị đen).
+        </p>
+        <div class="install-action-row">
+          <span class="install-status mono" id="statusTierAdmin">○ Chưa cài đặt</span>
+          <button type="button" class="btn-pill-sm green" id="btnActionAdmin" onclick="actionAdminTier()">CÀI SERVICE</button>
+        </div>
+      </div>
+
+      <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin: 8px 0 3px;" id="lblSystemBehavior">CẤU HÌNH KHỞI ĐỘNG & HỆ THỐNG:</div>
+
+      <div class="toggle-row" onclick="toggleSwitch('autostart')">
+        <span class="toggle-lbl" id="lblAutostart">Khởi động cùng Windows (Tự chạy khi bật máy)</span>
+        <div id="swAutostart" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
+      <div class="toggle-row" onclick="toggleSwitch('open_on_boot')">
+        <span class="toggle-lbl" id="lblOpenOnBoot">Mở cửa sổ khi Windows khởi động (Hiển thị giao diện)</span>
+        <div id="swOpenOnBoot" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
+      <div class="toggle-row" onclick="toggleSwitch('close_to_tray')">
+        <span class="toggle-lbl" id="lblCloseToTray">Thu nhỏ vào khay khi bấm đóng [X]</span>
+        <div id="swCloseToTray" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
+      <div class="toggle-row" onclick="toggleSwitch('keepawake')">
+        <span class="toggle-lbl" id="lblKeepawake">Chống tắt màn hình / Sleep (Anti-Sleep)</span>
+        <div id="swKeepawake" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
+      <div class="toggle-row" onclick="toggleSwitch('show_tray')">
+        <span class="toggle-lbl" id="lblShowTray">Hiện biểu tượng ở khay hệ thống (Tray Icon)</span>
+        <div id="swShowTray" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
+      <button class="btn-deck-wide" onclick="minimizeToTray()" style="margin-top: 4px;" id="btnMinimizeTray">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+        <span id="txtMinimizeTray">THU NHỎ VÀO KHAY HỆ THỐNG</span>
+      </button>
+    </section>
+
+    <!-- Panel 3: Cấu hình Relay -->
+    <section id="panelSettings" class="panel">
+      <div class="panel-intro" id="txtSettingsTitle">Cấu hình kết nối hệ thống</div>
+      <div class="panel-sub" id="txtSettingsDesc">Địa chỉ Relay Server trung chuyển WebSocket độ trễ thấp.</div>
+
+      <div class="field-group">
+        <label class="field-label" id="lblRelay">Relay Server WebSocket URL:</label>
+        <input type="text" id="inpRelay" class="field-input mono" placeholder="ws://localhost:8080" onchange="saveFields()">
+      </div>
+
+      <button class="btn-deck-wide" onclick="saveSettingsBtn()" style="margin-top: 8px;" id="btnSaveSettings">
+        <span id="txtSaveSettings">LƯU CẤU HÌNH</span>
+      </button>
+    </section>
+
+    <!-- Real-time Activity Log Terminal -->
+    <div style="margin-top: auto;">
+      <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 3px;" id="lblLog">NHẬT KÝ HOẠT ĐỘNG:</div>
+      <div id="logBox" class="log-box mono"></div>
+    </div>
+
+  </main>
+
+  <!-- Meikova Ambient Host Chat Slide-Over Drawer -->
+  <div id="hostChatDrawer" class="host-chat-drawer hidden">
+    <div class="host-chat-header">
+      <div class="host-chat-title-group">
+        <button class="host-chat-back-btn" onclick="toggleHostChatDrawer()" title="Thu nhỏ khung chat">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <div>
+          <div class="host-chat-title">TRÒ CHUYỆN VỚI KỸ THUẬT VIÊN</div>
+          <div class="host-chat-subtitle mono"><span class="chat-live-led">●</span> TRỰC TIẾP // 2 CHIỀU</div>
+        </div>
+      </div>
+      <div class="host-chat-header-actions">
+        <button class="btn-popout-chat" onclick="openStandaloneChat()" title="Mở cửa sổ chat nổi ngoài màn hình">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div id="hostChatMessages" class="host-chat-messages">
+      <div class="host-chat-empty">
+        <div class="host-chat-empty-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text);">Kênh Chat Máy Trạm</div>
+        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">Trao đổi tin nhắn 2 chiều với kỹ thuật viên điều khiển từ xa.</div>
+      </div>
+    </div>
+
+    <!-- Quick Chips for Host -->
+    <div class="host-quick-chips">
+      <button type="button" class="host-chip" onclick="sendHostQuickMsg('Tôi đang kiểm tra màn hình máy tính.')">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span>Đang kiểm tra</span>
+      </button>
+      <button type="button" class="host-chip" onclick="sendHostQuickMsg('Đã nhận được thông tin từ bạn.')">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Đã nhận thông tin</span>
+      </button>
+      <button type="button" class="host-chip" onclick="sendHostQuickMsg('Cảm ơn bạn rất nhiều!')">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+        <span>Cảm ơn bạn</span>
+      </button>
+    </div>
+
+    <!-- Chat Input Form -->
+    <form id="hostChatForm" class="host-chat-input-bar" onsubmit="handleHostChatSubmit(event)">
+      <input type="text" id="hostChatInput" class="host-chat-input" placeholder="Nhập tin nhắn gửi tới kỹ thuật viên..." autocomplete="off">
+      <button type="submit" class="host-chat-send-btn" title="Gửi tin nhắn">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </form>
+  </div>
+
+  <!-- Bottom Master Action Deck -->
+  <footer class="bottom-deck">
+    <button id="btnMasterToggle" class="btn-master start" onclick="toggleMasterService()">
+      <span id="txtMasterToggle">● BẬT DỊCH VỤ</span>
+    </button>
+  </footer>
+  </div> <!-- /.app-container -->
+
+  <script>
+    let currentLang = 'vi';
+    let isServiceRunning = false;
+    let localConfig = {};
+
+    const DICT = {
+      vi: {
+        header_title: "MEIKOVA RELAY HOST",
+        tab_ultra: "HỖ TRỢ TỨC THÌ",
+        tab_chrome: "QUẢN TRỊ 24/7",
+        tab_settings: "CẤU HÌNH",
+        ultra_title: "CHẾ ĐỘ HỖ TRỢ TỨC THÌ",
+        ultra_desc: "Cung cấp Mã Phòng và PIN bên dưới cho người hỗ trợ.",
+        room_label: "MÃ PHÒNG // ROOM ID",
+        pin_label: "MẬT KHẨ PHIÊN // ACCESS PIN",
+        btn_renew_room: "ĐỔI MÃ",
+        btn_copy_room: "CHÉP MÃ",
+        btn_renew_pin: "ĐỔI PIN",
+        btn_copy_pin: "CHÉP PIN",
+        btn_share_info: "SAO CHÉP THÔNG TIN KẾT NỐI",
+        session_stopped: "● Dịch vụ đang tắt",
+        session_waiting: "● Đang chờ kết nối từ máy chủ...",
+        session_active: "● ĐANG ĐIỀU KHIỂN BỞI: {client}",
+        btn_disconnect: "NGẮT PHIÊN",
+        chrome_title: "Truy cập không giám sát 24/7 (Unattended Access)",
+        chrome_desc: "Liên kết máy tính vào tài khoản của bạn để truy cập từ xa mọi lúc.",
+        lbl_account: "Tài khoản chủ sở hữu (Email / Username):",
+        lbl_device: "Tên máy trạm hiển thị (Fleet Name):",
+        lbl_perm_pin: "Mật khẩu bảo mật cố định (Permanent PIN):",
+        lbl_system_behavior: "CẤU HÌNH KHỞI ĐỘNG & HỆ THỐNG:",
+        lbl_autostart: "Khởi động cùng Windows (Tự chạy khi bật máy)",
+        lbl_open_on_boot: "Mở cửa sổ khi Windows khởi động (Hiển thị giao diện)",
+        lbl_close_to_tray: "Thu nhỏ vào khay khi bấm đóng [X]",
+        lbl_keepawake: "Chống tắt màn hình / Sleep (Anti-Sleep)",
+        lbl_show_tray: "Hiện biểu tượng ở khay hệ thống (Tray Icon)",
+        lbl_service: "Dịch vụ hệ thống 24/7 (Trước màn hình khóa Lock Screen)",
+        lbl_install_tiers: "PHƯƠNG THỨC CÀI ĐẶT MÁY TRẠM:",
+        tag_tier_user: "CÀI ĐẶT NGƯỜI DÙNG // USER LEVEL",
+        badge_no_admin: "KHÔNG CẦN ADMIN",
+        desc_tier_user: "Tự động copy vào %LOCALAPPDATA% và chạy khi đăng nhập Windows. Phù hợp cho máy tính văn phòng, tài khoản không có quyền Administrator.",
+        tag_tier_admin: "DỊCH VỤ HỆ THỐNG 24/7 // SYSTEM SERVICE",
+        badge_need_admin: "CẦN ADMIN (UAC)",
+        desc_tier_admin: "Đăng ký Windows Service chạy ngầm lúc bật máy (hỗ trợ màn hình khóa Lock Screen, gõ mật khẩu từ xa, tương tác cửa sổ UAC không bị đen).",
+        lbl_keepawake: "Chống tắt màn hình / Sleep (Anti-Sleep)",
+        btn_minimize_tray: "THU NHỎ VÀO KHAY HỆ THỐNG",
+        settings_title: "Cấu hình kết nối hệ thống",
+        settings_desc: "Địa chỉ Relay Server trung chuyển WebSocket độ trễ thấp.",
+        lbl_relay: "Relay Server WebSocket URL:",
+        btn_save_settings: "LƯU CẤU HÌNH",
+        lbl_log: "NHẬT KÝ HOẠT ĐỘNG:",
+        btn_start: "● BẬT DỊCH VỤ",
+        btn_stop: "■ DỪNG DỊCH VỤ",
+        status_stopped: "● ĐÃ DỪNG",
+        status_ready: "● SẴN SÀNG KẾT NỐI",
+        status_reconnecting: "● ĐANG KẾT NỐI LẠI...",
+        status_connected: "● ĐANG CÓ KẾT NỐI"
+      },
+      en: {
+        header_title: "MEIKOVA RELAY HOST",
+        tab_ultra: "INSTANT ASSIST",
+        tab_chrome: "24/7 UNATTENDED",
+        tab_settings: "SETTINGS",
+        ultra_title: "ON-DEMAND REMOTE ASSIST",
+        ultra_desc: "Provide Room ID and PIN below to the remote technician.",
+        room_label: "ROOM ID",
+        pin_label: "ACCESS PIN",
+        btn_renew_room: "RENEW",
+        btn_copy_room: "COPY",
+        btn_renew_pin: "RENEW PIN",
+        btn_copy_pin: "COPY PIN",
+        btn_share_info: "COPY CONNECTION INFO",
+        session_stopped: "● Service is stopped",
+        session_waiting: "● Waiting for server connection...",
+        session_active: "● CONTROLLED BY: {client}",
+        btn_disconnect: "DISCONNECT",
+        chrome_title: "24/7 Unattended Remote Access",
+        chrome_desc: "Link this workstation to your account for anytime remote access.",
+        lbl_account: "Owner Account (Email / Username):",
+        lbl_device: "Workstation Fleet Name:",
+        lbl_perm_pin: "Permanent Security PIN:",
+        lbl_system_behavior: "STARTUP & SYSTEM BEHAVIOR:",
+        lbl_autostart: "Start with Windows (Auto-run on boot)",
+        lbl_open_on_boot: "Open window on Windows boot (Show UI)",
+        lbl_close_to_tray: "Minimize to tray when clicking close [X]",
+        lbl_keepawake: "Prevent sleep & screen shutoff (Anti-Sleep)",
+        lbl_show_tray: "Show System Tray Icon",
+        lbl_service: "24/7 Windows Service (Pre-login & Lock Screen)",
+        lbl_install_tiers: "WORKSTATION DEPLOYMENT METHOD:",
+        tag_tier_user: "USER-LEVEL INSTALLATION",
+        badge_no_admin: "NO ADMIN REQUIRED",
+        desc_tier_user: "Auto-deploys to %LOCALAPPDATA% and runs on Windows logon. Ideal for restricted office PCs without Administrator passwords.",
+        tag_tier_admin: "24/7 SYSTEM SERVICE",
+        badge_need_admin: "REQUIRES ADMIN (UAC)",
+        desc_tier_admin: "Registers a Windows Service running at boot (supports Windows Lock Screen, remote password entry, and UAC interaction without black screens).",
+        lbl_keepawake: "Prevent sleep & screen shutoff (Anti-Sleep)",
+        btn_minimize_tray: "MINIMIZE TO SYSTEM TRAY",
+        settings_title: "Connection Configuration",
+        settings_desc: "Low-latency WebSocket Relay Server URL.",
+        lbl_relay: "Relay Server WebSocket URL:",
+        btn_save_settings: "SAVE SETTINGS",
+        lbl_log: "ACTIVITY LOG:",
+        btn_start: "● START SERVICE",
+        btn_stop: "■ STOP SERVICE",
+        status_stopped: "● STOPPED",
+        status_ready: "● READY TO CONNECT",
+        status_reconnecting: "● RECONNECTING...",
+        status_connected: "● ACTIVE SESSION"
+      }
+    };
+
+    function t(key, params) {
+      let str = DICT[currentLang][key] || DICT['vi'][key] || key;
+      if (params) {
+        for (let p in params) str = str.replace(`{${p}}`, params[p]);
+      }
+      return str;
+    }
+
+    function switchTab(tab, idx) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+      
+      const targetPanel = document.getElementById(tab === 'ultra' ? 'panelUltra' : (tab === 'chrome' ? 'panelChrome' : 'panelSettings'));
+      const targetBtn = document.getElementById(tab === 'ultra' ? 'tabBtnUltra' : (tab === 'chrome' ? 'tabBtnChrome' : 'tabBtnSettings'));
+      
+      if (targetPanel) targetPanel.classList.add('active');
+      if (targetBtn) targetBtn.classList.add('active');
+      
+      document.getElementById('segInd').style.transform = `translateX(${idx * 100}%)`;
+    }
+
+    function setLang(lang) {
+      if (currentLang === lang) return;
+      currentLang = lang;
+      document.getElementById('btnLangVi').classList.toggle('active', lang === 'vi');
+      document.getElementById('btnLangEn').classList.toggle('active', lang === 'en');
+      applyTranslations();
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.set_language(lang);
+      }
+    }
+
+    function applyTranslations() {
+      document.getElementById('tabBtnUltra').innerText = t('tab_ultra');
+      document.getElementById('tabBtnChrome').innerText = t('tab_chrome');
+      document.getElementById('tabBtnSettings').innerText = t('tab_settings');
+      document.getElementById('txtUltraTitle').innerText = t('ultra_title');
+      document.getElementById('txtUltraDesc').innerText = t('ultra_desc');
+      document.getElementById('txtRoomLabel').innerText = t('room_label');
+      document.getElementById('txtPinLabel').innerText = t('pin_label');
+      document.getElementById('btnRenewRoom').innerText = t('btn_renew_room');
+      document.getElementById('btnCopyRoom').innerText = t('btn_copy_room');
+      document.getElementById('btnRenewPin').innerText = t('btn_renew_pin');
+      document.getElementById('btnCopyPin').innerText = t('btn_copy_pin');
+      document.getElementById('txtShareInfo').innerText = t('btn_share_info');
+      document.getElementById('btnDisconnectClient').innerText = t('btn_disconnect');
+      document.getElementById('txtChromeTitle').innerText = t('chrome_title');
+      document.getElementById('txtChromeDesc').innerText = t('chrome_desc');
+      document.getElementById('lblAccount').innerText = t('lbl_account');
+      document.getElementById('lblDeviceName').innerText = t('lbl_device');
+      document.getElementById('lblPermPin').innerText = t('lbl_perm_pin');
+      if (document.getElementById('lblInstallTiers')) document.getElementById('lblInstallTiers').innerText = t('lbl_install_tiers');
+      if (document.getElementById('tagTierUser')) document.getElementById('tagTierUser').innerText = t('tag_tier_user');
+      if (document.getElementById('badgeNoAdmin')) document.getElementById('badgeNoAdmin').innerText = t('badge_no_admin');
+      if (document.getElementById('descTierUser')) document.getElementById('descTierUser').innerHTML = t('desc_tier_user').replace('%LOCALAPPDATA%', '<code>%LOCALAPPDATA%</code>');
+      if (document.getElementById('tagTierAdmin')) document.getElementById('tagTierAdmin').innerText = t('tag_tier_admin');
+      if (document.getElementById('badgeNeedAdmin')) document.getElementById('badgeNeedAdmin').innerText = t('badge_need_admin');
+      if (document.getElementById('descTierAdmin')) document.getElementById('descTierAdmin').innerText = t('desc_tier_admin');
+      if (document.getElementById('lblSystemBehavior')) document.getElementById('lblSystemBehavior').innerText = t('lbl_system_behavior');
+      if (document.getElementById('lblAutostart')) document.getElementById('lblAutostart').innerText = t('lbl_autostart');
+      if (document.getElementById('lblOpenOnBoot')) document.getElementById('lblOpenOnBoot').innerText = t('lbl_open_on_boot');
+      if (document.getElementById('lblCloseToTray')) document.getElementById('lblCloseToTray').innerText = t('lbl_close_to_tray');
+      if (document.getElementById('lblKeepawake')) document.getElementById('lblKeepawake').innerText = t('lbl_keepawake');
+      if (document.getElementById('lblShowTray')) document.getElementById('lblShowTray').innerText = t('lbl_show_tray');
+      document.getElementById('txtMinimizeTray').innerText = t('btn_minimize_tray');
+      document.getElementById('txtSettingsTitle').innerText = t('settings_title');
+      document.getElementById('txtSettingsDesc').innerText = t('settings_desc');
+      document.getElementById('lblRelay').innerText = t('lbl_relay');
+      document.getElementById('txtSaveSettings').innerText = t('btn_save_settings');
+      document.getElementById('lblLog').innerText = t('lbl_log');
+      
+      const btnMaster = document.getElementById('btnMasterToggle');
+      if (isServiceRunning) {
+        document.getElementById('txtMasterToggle').innerText = t('btn_stop');
+      } else {
+        document.getElementById('txtMasterToggle').innerText = t('btn_start');
+      }
+    }
+
+    function addLog(msg) {
+      const box = document.getElementById('logBox');
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.innerHTML = `<span class="log-time">[${timeStr}]</span>${msg}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // Bridge Calls
+    function toggleMasterService() {
+      if (window.pywebview && window.pywebview.api) {
+        if (isServiceRunning) {
+          window.pywebview.api.stop_service();
+        } else {
+          window.pywebview.api.start_service();
+        }
+      }
+    }
+
+    function renewRoom() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.renew_room().then(res => {
+          document.getElementById('txtRoomId').innerText = res;
+        });
+      }
+    }
+
+    function copyRoom() {
+      const text = document.getElementById('txtRoomId').innerText;
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.copy_text(text, "Room ID");
+      }
+    }
+
+    function renewPin() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.renew_pin().then(res => {
+          document.getElementById('txtPin').innerText = res;
+        });
+      }
+    }
+
+    function copyPin() {
+      const text = document.getElementById('txtPin').innerText;
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.copy_text(text, "PIN");
+      }
+    }
+
+    function copyShareInfo() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.copy_share_info();
+      }
+    }
+
+    function disconnectClient() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.disconnect_client();
+      }
+    }
+
+    let currentDeployment = { user_installed: false, service_installed: false, is_admin: false };
+
+    function updateDeploymentUI(dep) {
+      if (!dep) return;
+      currentDeployment = dep;
+
+      // User Tier UI
+      const cardUser = document.getElementById('cardTierUser');
+      const statusUser = document.getElementById('statusTierUser');
+      const btnUser = document.getElementById('btnActionUser');
+      if (dep.user_installed) {
+        cardUser?.classList.add('active-installed');
+        if (statusUser) {
+          statusUser.innerText = "● ĐÃ KÍCH HOẠT (Tự chạy khi đăng nhập)";
+          statusUser.className = "install-status mono active";
+        }
+        if (btnUser) btnUser.innerText = "GỠ BỎ";
+      } else {
+        cardUser?.classList.remove('active-installed');
+        if (statusUser) {
+          statusUser.innerText = "○ Chưa kích hoạt";
+          statusUser.className = "install-status mono";
+        }
+        if (btnUser) btnUser.innerText = "CÀI ĐẶT";
+      }
+
+      // Admin Tier UI
+      const cardAdmin = document.getElementById('cardTierAdmin');
+      const statusAdmin = document.getElementById('statusTierAdmin');
+      const btnAdmin = document.getElementById('btnActionAdmin');
+      if (dep.service_installed) {
+        cardAdmin?.classList.add('active-installed');
+        if (statusAdmin) {
+          statusAdmin.innerText = "● ĐANG HOẠT ĐỘNG (Dịch vụ 24/7)";
+          statusAdmin.className = "install-status mono active";
+        }
+        if (btnAdmin) btnAdmin.innerText = "GỠ SERVICE";
+      } else {
+        cardAdmin?.classList.remove('active-installed');
+        if (statusAdmin) {
+          statusAdmin.innerText = "○ Chưa cài đặt";
+          statusAdmin.className = "install-status mono";
+        }
+        if (btnAdmin) btnAdmin.innerText = dep.is_admin ? "CÀI SERVICE" : "CÀI SERVICE (UAC)";
+      }
+    }
+
+    function actionUserTier() {
+      if (!window.pywebview || !window.pywebview.api) return;
+      if (currentDeployment.user_installed) {
+        window.pywebview.api.uninstall_user_tier().then(res => {
+          if (res && res.deployment) updateDeploymentUI(res.deployment);
+          addLog(res.message);
+        });
+      } else {
+        window.pywebview.api.install_user_tier().then(res => {
+          if (res && res.deployment) updateDeploymentUI(res.deployment);
+          addLog(res.message);
+        });
+      }
+    }
+
+    function actionAdminTier() {
+      if (!window.pywebview || !window.pywebview.api) return;
+      if (currentDeployment.service_installed) {
+        window.pywebview.api.uninstall_admin_tier().then(res => {
+          if (res && res.deployment) updateDeploymentUI(res.deployment);
+          addLog(res.message);
+        });
+      } else {
+        window.pywebview.api.install_admin_tier().then(res => {
+          if (res && res.deployment) updateDeploymentUI(res.deployment);
+          addLog(res.message);
+        });
+      }
+    }
+
+    function toggleSwitch(name) {
+      let swId = 'swAutostart';
+      if (name === 'open_on_boot') swId = 'swOpenOnBoot';
+      else if (name === 'close_to_tray') swId = 'swCloseToTray';
+      else if (name === 'service') swId = 'swService';
+      else if (name === 'keepawake') swId = 'swKeepawake';
+      else if (name === 'show_tray') swId = 'swShowTray';
+      const sw = document.getElementById(swId);
+      if (!sw) return;
+      const isOn = sw.classList.toggle('on');
+      if (window.pywebview && window.pywebview.api) {
+        if (name === 'autostart') window.pywebview.api.toggle_autostart(isOn);
+        else if (name === 'open_on_boot') window.pywebview.api.toggle_open_on_boot(isOn);
+        else if (name === 'close_to_tray') window.pywebview.api.toggle_close_to_tray(isOn);
+        else if (name === 'keepawake') window.pywebview.api.toggle_keepawake(isOn);
+        else if (name === 'show_tray') window.pywebview.api.toggle_show_tray(isOn);
+        else if (name === 'service') {
+          window.pywebview.api.toggle_service(isOn).then(res => {
+            if (!res || !res.success) {
+              sw.classList.toggle('on', !isOn);
+              addLog("Dịch vụ: " + (res ? res.message : "Thất bại"));
+            } else {
+              addLog("Dịch vụ: " + (res ? res.message : "Thành công"));
+            }
+          });
+        }
+      }
+    }
+
+    function minimizeToTray() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.minimize_to_tray();
+      }
+    }
+
+    function saveFields() {
+      localConfig.account = document.getElementById('inpAccount').value;
+      localConfig.device_name = document.getElementById('inpDeviceName').value;
+      localConfig.perm_pin = document.getElementById('inpPermPin').value;
+      localConfig.relay_url = document.getElementById('inpRelay').value;
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.save_config(JSON.stringify(localConfig));
+      }
+    }
+
+    function saveSettingsBtn() {
+      saveFields();
+      addLog("Đã lưu cấu hình.");
+    }
+
+    // Python-to-JS Event Callbacks
+    window.__initData = function(cfg, autostartOn, isRunning, serviceOn, dep) {
+      localConfig = cfg;
+      isServiceRunning = isRunning;
+      currentLang = cfg.lang || 'vi';
+      
+      document.getElementById('txtRoomId').innerText = cfg.room_id || 'RD-8888';
+      document.getElementById('txtPin').innerText = cfg.pin || '123456';
+      document.getElementById('inpAccount').value = cfg.account || '';
+      document.getElementById('inpDeviceName').value = cfg.device_name || '';
+      document.getElementById('inpPermPin').value = cfg.perm_pin || '';
+      document.getElementById('inpRelay').value = cfg.relay_url || 'ws://localhost:8080';
+      
+      if (autostartOn && document.getElementById('swAutostart')) document.getElementById('swAutostart').classList.add('on');
+      if (cfg.open_on_boot && document.getElementById('swOpenOnBoot')) document.getElementById('swOpenOnBoot').classList.add('on');
+      if (cfg.close_to_tray !== false && document.getElementById('swCloseToTray')) document.getElementById('swCloseToTray').classList.add('on');
+      if (serviceOn && document.getElementById('swService')) document.getElementById('swService').classList.add('on');
+      if (cfg.keep_awake && document.getElementById('swKeepawake')) document.getElementById('swKeepawake').classList.add('on');
+      if (cfg.show_tray_icon !== false && document.getElementById('swShowTray')) document.getElementById('swShowTray').classList.add('on');
+      
+      if (dep) updateDeploymentUI(dep);
+      
+      document.getElementById('btnLangVi').classList.toggle('active', currentLang === 'vi');
+      document.getElementById('btnLangEn').classList.toggle('active', currentLang === 'en');
+      
+      const hostName = cfg.device_name || 'PC-LOCAL';
+      document.getElementById('txtKicker').innerText = `MÁY TRẠM: ${hostName} // 120 FPS // TRUY CẬP KÉP`;
+      
+      applyTranslations();
+      addLog("Meikova Relay Host sẵn sàng.");
+    };
+
+    window.__onServiceStatus = function(status) {
+      const pill = document.getElementById('statusPill');
+      const txtStatus = document.getElementById('txtStatus');
+      const btnMaster = document.getElementById('btnMasterToggle');
+      const sessInfo = document.getElementById('txtSessionInfo');
+      
+      pill.className = 'status-pill';
+      if (status === 'ready') {
+        isServiceRunning = true;
+        pill.classList.add('status-ready');
+        txtStatus.innerText = t('status_ready');
+        btnMaster.className = 'btn-master stop';
+        document.getElementById('txtMasterToggle').innerText = t('btn_stop');
+        sessInfo.innerText = t('session_waiting');
+        sessInfo.className = 'session-txt mono active';
+      } else if (status === 'stopped') {
+        isServiceRunning = false;
+        pill.classList.add('status-stopped');
+        txtStatus.innerText = t('status_stopped');
+        btnMaster.className = 'btn-master start';
+        document.getElementById('txtMasterToggle').innerText = t('btn_start');
+        sessInfo.innerText = t('session_stopped');
+        sessInfo.className = 'session-txt mono';
+        document.getElementById('btnDisconnectClient').style.display = 'none';
+      } else if (status === 'reconnecting') {
+        pill.classList.add('status-reconnecting');
+        txtStatus.innerText = t('status_reconnecting');
+      }
+    };
+
+    window.__onClientConnected = function(clientInfo) {
+      const sessInfo = document.getElementById('txtSessionInfo');
+      sessInfo.innerText = t('session_active', { client: clientInfo });
+      sessInfo.className = 'session-txt mono active';
+      document.getElementById('btnDisconnectClient').style.display = 'inline-block';
+      const btnChat = document.getElementById('btnHostChat'); if (btnChat) btnChat.style.display = 'inline-block';
+      
+      const pill = document.getElementById('statusPill');
+      pill.className = 'status-pill status-connected';
+      document.getElementById('txtStatus').innerText = t('status_connected');
+    };
+
+    window.__onClientDisconnected = function() {
+      const sessInfo = document.getElementById('txtSessionInfo');
+      sessInfo.innerText = t('session_waiting');
+      document.getElementById('btnDisconnectClient').style.display = 'none';
+      const btnChat = document.getElementById('btnHostChat'); if (btnChat) btnChat.style.display = 'none';
+      if (isServiceRunning) {
+        const pill = document.getElementById('statusPill');
+        pill.className = 'status-pill status-ready';
+        document.getElementById('txtStatus').innerText = t('status_ready');
+      }
+    };
+
+    window.__onLog = function(msg) {
+      addLog(msg);
+    };
+
+    // Custom Titlebar & Window Controls
+    function handleTitlebarMouseDown(e) {
+      if (e.button === 0 && !e.target.closest('.titlebar-btn')) {
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.drag_window) {
+          window.pywebview.api.drag_window();
+        }
+      }
+    }
+
+    async function toggleMaximizeWindow() {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.toggle_maximize) {
+        try {
+          const isMax = await window.pywebview.api.toggle_maximize();
+          const btn = document.getElementById('btnHostMax');
+          if (btn) {
+            const iconMax = btn.querySelector('.icon-max');
+            const iconRestore = btn.querySelector('.icon-restore');
+            if (iconMax && iconRestore) {
+              iconMax.style.display = isMax ? 'none' : 'block';
+              iconRestore.style.display = isMax ? 'block' : 'none';
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    function handleTitlebarDblClick(e) {
+      if (!e.target.closest('.titlebar-btn')) {
+        toggleMaximizeWindow();
+      }
+    }
+
+    function openChatWindow() {
+      toggleHostChatDrawer();
+    }
+
+    function toggleHostChatDrawer() {
+      const drawer = document.getElementById('hostChatDrawer');
+      if (!drawer) return;
+      const isHidden = drawer.classList.contains('hidden');
+      drawer.classList.toggle('hidden', !isHidden);
+      if (isHidden) {
+        document.getElementById('hostChatUnreadDot')?.classList.add('hidden');
+        document.getElementById('bannerChatUnreadDot')?.classList.add('hidden');
+        document.getElementById('hostChatInput')?.focus();
+      }
+    }
+
+    function openStandaloneChat() {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.open_chat_window) {
+        window.pywebview.api.open_chat_window();
+      }
+    }
+
+    function handleHostChatSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('hostChatInput');
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      appendHostChatMessage('Bạn', text, true);
+
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.send_host_chat) {
+        window.pywebview.api.send_host_chat(text);
+      }
+    }
+
+    function sendHostQuickMsg(text) {
+      const input = document.getElementById('hostChatInput');
+      if (input) {
+        input.value = text;
+        handleHostChatSubmit();
+      }
+    }
+
+    function appendHostChatMessage(sender, text, isLocal) {
+      const list = document.getElementById('hostChatMessages');
+      if (!list) return;
+      const empty = list.querySelector('.host-chat-empty');
+      if (empty) empty.remove();
+
+      const timeStr = new Date().toLocaleTimeString('vi-VN', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      const row = document.createElement('div');
+      row.className = `host-bubble-row ${isLocal ? 'local' : 'remote'}`;
+      row.innerHTML = `
+        <div class="host-bubble-meta">${escapeHtml(sender)} // ${timeStr}</div>
+        <div class="host-bubble">${escapeHtml(text)}</div>
+      `;
+      list.appendChild(row);
+      list.scrollTop = list.scrollHeight;
+    }
+
+    function playHostChatNotificationSound() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+        setTimeout(() => { try { ctx.close(); } catch {} }, 350);
+      } catch {}
+    }
+
+    window.__onIncomingChat = function(payload) {
+      if (!payload) return;
+      const sender = payload.sender || 'Kỹ thuật viên';
+      const text = payload.text || '';
+      appendHostChatMessage(sender, text, false);
+
+      const drawer = document.getElementById('hostChatDrawer');
+      const isOpen = drawer && !drawer.classList.contains('hidden');
+      if (!isOpen) {
+        document.getElementById('hostChatUnreadDot')?.classList.remove('hidden');
+        document.getElementById('bannerChatUnreadDot')?.classList.remove('hidden');
+        playHostChatNotificationSound();
+      }
+    };
+
+    function minimizeWindow() {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.minimize_window) {
+        window.pywebview.api.minimize_window();
+      }
+    }
+
+    function closeWindow() {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+        window.pywebview.api.close_window();
+      }
+    }
+
+    // Pull pattern initialization: safe from UI deadlocks
+    async function initBridgeData() {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_initial_data) {
+        try {
+          const res = await window.pywebview.api.get_initial_data();
+          if (res && res.config) {
+            window.__initData(res.config, res.autostart, res.is_running, res.service_installed, res.deployment);
+          }
+        } catch (err) {
+          console.error("Bridge init error:", err);
+        }
+      }
+    }
+
+    window.addEventListener('pywebviewready', initBridgeData);
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(initBridgeData, 250);
+    });
+  </script>
+</body>
+</html>

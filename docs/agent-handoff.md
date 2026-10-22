@@ -1,3 +1,47 @@
+# Session Handoff: Meikova Relay - Giao Diện Chat Ambient Dark & Tin Nhắn Hai Chiều Thời Gian Thực
+
+## 1. Mục tiêu hoàn thành
+- [x] **Custom lại giao diện khung chat Web Client theo chuẩn Meikova Ambient UI:**
+  - Thay thế terminal text thô sơ cũ bằng Container `.meikova-chat-tab` và Stream `.meikova-chat-stream` (nền sâu OKLCH `#070D17`, viền hairline `#1E293B`, scrollbar mỏng 4px bo tròn).
+  - Phân tách Chat Bubbles 2 chiều:
+    - **Tin nhắn Bạn (Operator/Client):** Căn phải, bubble gradient xanh ngọc `linear-gradient(135deg, rgba(34,197,94,0.18), rgba(34,197,94,0.08))` viền `rgba(34,197,94,0.35)`, timestamp JetBrains Mono kèm icon Checkmark SVG đôi xác nhận đã gửi.
+    - **Tin nhắn Máy trạm (Remote Host):** Căn trái, bubble gradient xanh dương đậm `linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.6))` viền `rgba(56,189,248,0.25)`, kèm SVG avatar máy trạm và tên máy trạm Cyan `#38BDF8`.
+  - Header khung chat: LED xanh báo trạng thái trực tiếp, tên máy trạm đồng bộ động (`#chatHostName`), nút làm trống lịch sử trò chuyện.
+  - Quick action chips: Các nút bấm SVG gửi nhanh ("Xin chào", "Giữ màn hình", "Hoàn tất") tuân thủ nghiêm ngặt Zero-Emoji Mandate.
+  - Thanh nhập tin nhắn: Pill input bo tròn viền hairline glow neon khi focus, nút gửi SVG Paper plane bo góc.
+- [x] **Bổ sung nút Chat chuyên dụng trên Viewer Floating Deck:**
+  - Nút `#btnViewerChat` trên thanh công cụ điều khiển nổi giúp người dùng mở/đóng khung chat 1-click mà không cần tìm trong menu.
+  - Tích hợp chấm đỏ nhấp nháy Unread Dot (`#chatUnreadDot` và `#tabChatUnreadDot`) khi có tin nhắn từ máy trạm đến mà khung chat đang đóng.
+  - Tích hợp âm thanh chuông báo tinh tế bằng Web Audio API (sine wave 784Hz -> 1046Hz, không cần tải file ngoài).
+- [x] **Kích hoạt gửi nhận tin nhắn 2 chiều hoàn chỉnh từ phía Máy trạm (Host Workstation):**
+  - **Trên Host GUI WebView2 (`gui_view.html`):**
+    - Tích hợp sẵn Slide-over Chat Drawer `#hostChatDrawer` hiển thị trực tiếp bên trong cửa sổ host agent.
+    - Nút Chat trên titlebar và session banner được trang bị Unread Dot và click là mở ngay Chat Drawer.
+    - Cho phép người ngồi máy trạm nhập phản hồi và gửi tin nhắn 2 chiều ngay lập tức qua API `send_host_chat(text)`.
+    - Tự động phát âm báo Web Audio và rung chuông khi có tin nhắn từ kỹ thuật viên đến.
+  - **Trên Cửa sổ Chat nổi Tkinter (`chat_window.py`):**
+    - Chuẩn hóa toàn bộ typography và bảng màu theo phong cách Ambient Dark `#070D17` / `#0D1524`, viền `#1E293B`, nút Send Emerald `#22C55E`.
+    - Sửa triệt để các ký tự tiếng Việt mojibake ("Trò chuyện trực tiếp", "Kỹ thuật viên", "Bạn", "Gửi").
+    - Đồng bộ tin nhắn 2 chiều với `HostService.send_chat_message`.
+- [x] **Nâng cấp Relay Server (`relay-server/server.js`):**
+  - Bổ sung router điều phối tin nhắn `chat_message` 2 chiều:
+    - Client -> Host + phát sóng tới các client quan sát khác trong phòng.
+    - Host -> Phát sóng tới tất cả các client trong phòng.
+  - Bổ sung Audit Logging: `CHAT_SENT_CLIENT` và `CHAT_SENT_HOST` ghi nhận đầy đủ người gửi, máy trạm và độ dài tin nhắn.
+- [x] **Đồng bộ hóa 100% giữa `relay-server/public` và `web-client`:**
+  - Cập nhật cả `index.html`, `style.css`, `app.js`, `i18n.js`.
+
+## 2. Lệnh kiểm tra đã chạy & Exit Code
+- `python -m unittest tests/test_host_chat.py`: **Exit Code 0** (5/5 tests pass).
+- `python -m unittest discover tests`: **Exit Code 0** (127/127 tests pass, 1 skipped).
+- `node -c server.js`: **Exit Code 0** (Syntax valid).
+- `node -c app.js` & `node -c i18n.js`: **Exit Code 0** (Syntax valid).
+
+## 3. Các phần còn tồn đọng và cảnh báo kỹ thuật
+- Không có lỗi tồn đọng. Tính năng chat 2 chiều hoạt động đồng bộ trên cả Web Viewer, Host WebView2 GUI và Host Standalone Tkinter Floating Window.
+
+---
+
 # Session Handoff: Meikova Relay - Tắt Headless, Sửa Nút Thêm Máy Trạm & Dynamic Account Binding
 
 ## 1. Mục tiêu hoàn thành

@@ -15,7 +15,7 @@ class HostChatWindow:
         self,
         on_send_reply: Optional[Callable[[str], None]] = None,
         parent: Optional[tk.Tk] = None,
-        title: str = "Meikova Relay Chat"
+        title: str = "Meikova Relay // Trò chuyện"
     ):
         self.on_send_reply = on_send_reply
         self.parent = parent
@@ -69,26 +69,29 @@ class HostChatWindow:
         self.root.attributes("-topmost", True)
 
         # Window Size & Position (Bottom Right above taskbar)
-        w, h = 360, 420
+        w, h = 380, 460
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
         x = max(10, sw - w - 24)
         y = max(10, sh - h - 60)
         self.root.geometry(f"{w}x{h}+{x}+{y}")
-        self.root.minsize(300, 320)
+        self.root.minsize(320, 340)
 
         # Hide on window manager close (X button) instead of destroying
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
 
         # Title bar banner
-        header = tk.Frame(self.root, bg="#0D1524", height=42, padx=12, pady=8)
+        header = tk.Frame(self.root, bg="#0D1524", height=44, padx=14, pady=10)
         header.pack(fill=tk.X)
 
-        dot = tk.Label(header, text="●", fg="#22C55E", bg="#0D1524", font=("Segoe UI", 10, "bold"))
-        dot.pack(side=tk.LEFT, padx=(0, 6))
+        dot = tk.Label(header, text="●", fg="#22C55E", bg="#0D1524", font=("Segoe UI", 11, "bold"))
+        dot.pack(side=tk.LEFT, padx=(0, 8))
 
-        title_lbl = tk.Label(header, text="Trò chuyện với Client", fg="#F8FAFC", bg="#0D1524", font=("Segoe UI", 10, "bold"))
+        title_lbl = tk.Label(header, text="Trò chuyện trực tiếp", fg="#F8FAFC", bg="#0D1524", font=("Segoe UI", 10, "bold"))
         title_lbl.pack(side=tk.LEFT)
+
+        sub_lbl = tk.Label(header, text="// Kỹ thuật viên", fg="#94A3B8", bg="#0D1524", font=("Segoe UI", 9))
+        sub_lbl.pack(side=tk.LEFT, padx=(4, 0))
 
         btn_close = tk.Button(
             header,
@@ -98,8 +101,9 @@ class HostChatWindow:
             activebackground="#EF4444",
             activeforeground="#FFFFFF",
             bd=0,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 10, "bold"),
             cursor="hand2",
+            padx=8,
             command=self.hide
         )
         btn_close.pack(side=tk.RIGHT)
@@ -110,13 +114,17 @@ class HostChatWindow:
 
         self._text_area = tk.Text(
             history_frame,
-            bg="#0B132B",
+            bg="#0A1120",
             fg="#F1F5F9",
             insertbackground="#22C55E",
             font=("Segoe UI", 9),
             wrap=tk.WORD,
-            bd=0,
-            padx=10,
+            bd=1,
+            relief=tk.SOLID,
+            highlightthickness=1,
+            highlightcolor="#1E293B",
+            highlightbackground="#1E293B",
+            padx=12,
             pady=10,
             state=tk.DISABLED
         )
@@ -129,12 +137,12 @@ class HostChatWindow:
         self._text_area.tag_config("system", foreground="#94A3B8", font=("Segoe UI", 8, "italic"))
         self._text_area.tag_config("body", foreground="#F8FAFC", font=("Segoe UI", 9))
 
-        scrollbar = tk.Scrollbar(history_frame, command=self._text_area.yview, bg="#0B132B")
+        scrollbar = tk.Scrollbar(history_frame, command=self._text_area.yview, bg="#0A1120", bd=0)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self._text_area.config(yscrollcommand=scrollbar.set)
 
         # Input Area
-        input_frame = tk.Frame(self.root, bg="#0D1524", padx=10, pady=8)
+        input_frame = tk.Frame(self.root, bg="#0D1524", padx=10, pady=10)
         input_frame.pack(fill=tk.X)
 
         self._entry = tk.Entry(
@@ -142,14 +150,14 @@ class HostChatWindow:
             bg="#070D17",
             fg="#F8FAFC",
             insertbackground="#22C55E",
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 10),
             bd=1,
             relief=tk.SOLID,
             highlightthickness=1,
             highlightcolor="#22C55E",
             highlightbackground="#1E293B"
         )
-        self._entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=4, padx=(0, 8))
+        self._entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=5, padx=(0, 8))
         self._entry.bind("<Return>", lambda e: self._send_message())
 
         btn_send = tk.Button(
@@ -161,8 +169,8 @@ class HostChatWindow:
             activeforeground="#070D17",
             font=("Segoe UI", 9, "bold"),
             bd=0,
-            padx=14,
-            pady=4,
+            padx=16,
+            pady=5,
             cursor="hand2",
             command=self._send_message
         )
