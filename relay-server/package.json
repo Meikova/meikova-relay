@@ -1,8 +1,9 @@
 {
   "name": "meikova-relay-server",
-  "version": "1.0.49",
+  "version": "1.0.50",
   "description": "High-performance WebSocket Relay Server and Static File Host for Meikova Relay",
   "main": "server.js",
+  "license": "MIT",
   "scripts": {
     "start": "node --experimental-sqlite server.js"
   },

@@ -39,6 +39,8 @@ yarn-error.log*
 # Databases & Runtime State
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 

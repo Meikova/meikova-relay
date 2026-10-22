@@ -1261,7 +1261,7 @@
         const authGatewayUrl = window.MEIKOVA_AUTH_URL || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:8990' : 'https://meikova-auth.onrender.com');
         const origin = window.location.origin;
         const ssoUrl = `${authGatewayUrl}/login?client_id=relay&origin=${encodeURIComponent(origin)}`;
-        const w = 460, h = 640;
+        const w = 400, h = 540;
         const left = Math.max(0, (window.screen.width - w) / 2);
         const top = Math.max(0, (window.screen.height - h) / 2);
         window.open(ssoUrl, 'meikova_sso', `width=${w},height=${h},left=${left},top=${top},status=no,toolbar=no,menubar=no`);
@@ -5043,7 +5043,7 @@
         protocolCurrentLabel.textContent = 'BYPASS';
         btnProtocolMenu.className = 'deck__btn deck__btn--protocol bypass-active';
       } else if (protocolRoutingMode === 'native' || (protocolRoutingMode === 'auto' && matrix.remote && matrix.remote.rdp && matrix.remote.rdp.available)) {
-        protocolCurrentLabel.textContent = '⚡ RDP';
+        protocolCurrentLabel.textContent = 'RDP';
         btnProtocolMenu.className = 'deck__btn deck__btn--protocol native-active';
       } else {
         protocolCurrentLabel.textContent = 'BYPASS';
