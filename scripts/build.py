@@ -321,6 +321,14 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icons'}{sep}host_agent/tray_icons",
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icons'}{sep}tray_icons",
     ]
+    hidden_args = [
+        "--hidden-import", "mss",
+        "--hidden-import", "mss.windows",
+        "--hidden-import", "websockets",
+        "--hidden-import", "PIL",
+        "--hidden-import", "PIL.Image",
+        "--hidden-import", "PIL.ImageGrab",
+    ]
 
     if target_os == "windows":
         name = "MeikovaRelayHost"
@@ -333,6 +341,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
             "--workpath", str(REPO_ROOT / "build"),
             "--clean",
             *data_args,
+            *hidden_args,
             str(entry_point)
         ]
         out_bin = dist_dir / f"{name}.exe"
@@ -346,6 +355,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
             "--workpath", str(REPO_ROOT / "build"),
             "--clean",
             *data_args,
+            *hidden_args,
             str(entry_point)
         ]
         out_bin = dist_dir / name
@@ -359,6 +369,7 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
             "--workpath", str(REPO_ROOT / "build"),
             "--clean",
             *data_args,
+            *hidden_args,
             str(entry_point)
         ]
         out_bin = dist_dir / name

@@ -962,3 +962,15 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
 - **Kết quả đẩy mã nguồn:**
   - Đẩy thành công 9 commits lên https://github.com/Meikova/meikova-relay.git branch main (commit head: 1274fc6).
   - Trạng thái kho: Your branch is up to date with 'origin/main'.
+
+
+## 39. Dong Goi Lai Ban Standalone Host Executable (MeikovaRelayHost.exe) Voi Dong Co MSS & Day Len Remote
+- **Bat buoc dong goi lai Standalone Host:**
+  - May tram lien ket qua setup.bat hoac tai truc tiep chay file doc lap MeikovaRelayHost.exe khong cai moi truong Python.
+  - Can nhung thu vien mss>=9.0.0 va toan bo co che capture GDI raw memoryview, dirty check 0.05ms, JPEG chroma subsampling 4:2:0, va bo loc NEAREST vao ban thuc thi .exe.
+- **Thuc thi:**
+  - Cai dat mss>=9.0.0 vao moi truong ao .venv va khai bao vao requirements.txt.
+  - Cap nhat scripts/build.py bo sung --hidden-import mss, mss.windows, websockets, PIL.
+  - Chay scripts/build.py --target windows tai tao dist/MeikovaRelayHost.exe va dist/MeikovaRelayHost-windows-x64.zip.
+  - Dong bo binary moi sang relay-server/MeikovaRelayHost.exe va dong goi lai relay-server/agent-package.zip.
+  - Kiem thu tests/self_test_capture.py va tests/test_screen_sync.py: 100% PASS (Exit Code 0).
