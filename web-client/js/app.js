@@ -653,6 +653,7 @@
   let isConnected = false;
   let hasPromptedHeadlessDisplay = false;
   let currentRoom = null;
+  let currentRoomId = null;
   let currentPin = '';
   let hostResolution = { width: 1920, height: 1080 };
   let isFitMode = true;
@@ -2584,8 +2585,8 @@
 
   if (btnOpenSessionConfig && sessionConfigModal && cfgTimeoutRemote && cfgTimeoutGlobal) {
     btnOpenSessionConfig.addEventListener('click', () => {
-      if (isConnected && currentRoomId) {
-        openSessionManagerModal(currentRoomId, hostResolution ? `Trạm (${hostResolution.width}x${hostResolution.height})` : currentRoomId);
+      if (isConnected && (currentRoom || currentRoomId)) {
+        openSessionManagerModal(currentRoom || currentRoomId, hostResolution ? `Trạm (${hostResolution.width}x${hostResolution.height})` : currentRoomId);
       } else {
         cfgTimeoutRemote.value = timeoutRemoteMin;
         cfgTimeoutGlobal.value = timeoutGlobalMin;
@@ -2835,7 +2836,7 @@
   });
 
   async function openSessionManagerModal(roomId, deviceName) {
-    currentManagingRoomId = roomId || currentRoomId;
+    currentManagingRoomId = roomId || currentRoom || currentRoomId;
     const titleEl = document.getElementById('modalSessionManagerTitle');
     const subEl = document.getElementById('sessionManagerSubtitle');
     if (titleEl) titleEl.textContent = `Quản lý phiên // ${deviceName || currentManagingRoomId}`;
@@ -2863,7 +2864,7 @@
     listEl.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted);" class="mono-font">Đang tải danh sách phiên trực tiếp...</div>`;
 
     try {
-      if (ws && ws.readyState === WebSocket.OPEN && currentRoomId === currentManagingRoomId) {
+      if (ws && ws.readyState === WebSocket.OPEN && (currentRoom === currentManagingRoomId || currentRoomId === currentManagingRoomId)) {
         ws.send(JSON.stringify({ type: 'get_sessions' }));
         ws.send(JSON.stringify({ type: 'clipboard_pull' }));
       }
@@ -2946,7 +2947,7 @@
         btn.textContent = 'Đang ngắt...';
 
         try {
-          if (ws && ws.readyState === WebSocket.OPEN && currentRoomId === currentManagingRoomId) {
+          if (ws && ws.readyState === WebSocket.OPEN && (currentRoom === currentManagingRoomId || currentRoomId === currentManagingRoomId)) {
             ws.send(JSON.stringify({ type: 'kill_session', session_id: sessId }));
           }
 
@@ -3117,6 +3118,7 @@
   function startRemoteSession(relayUrl, roomId, pin) {
     resetSessionMetrics();
     currentRoom = roomId;
+    currentRoomId = roomId;
     currentPin = pin || '';
     if (pin) {
       sessionStorage.setItem('meikova_relay_pin_' + roomId, pin);
@@ -3205,7 +3207,7 @@
             const span = btnSessionCfg.querySelector('span');
             if (span) span.textContent = count > 0 ? `Phiên (${count})` : (t('topbar.session_cfg') || 'Phiên');
           }
-          if (currentManagingRoomId === currentRoomId) {
+          if (currentManagingRoomId === (currentRoom || currentRoomId)) {
             renderSessionManagerList(roomSessions);
           }
           if (currentView === 'dashboard') {
@@ -3472,6 +3474,7 @@
     resetSessionMetrics();
     updateTerminalStatusBadge();
     currentRoom = null;
+    currentRoomId = null;
     currentPin = '';
     updateAudioStreamUi(false);
     stopMicStream();
@@ -5202,21 +5205,39 @@
 
   // Download .RDP Button
   if (btnDownloadRdp) {
-    btnDownloadRdp.addEventListener('click', (e) => {
+    btnDownloadRdp.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const roomId = currentRoomId || 'Workstation';
-      const rdpUrl = `/api/session/${roomId}/rdp-config?port=3389&host=127.0.0.1`;
-      const a = document.createElement('a');
-      a.href = rdpUrl;
-      a.download = `Meikova-${roomId}.rdp`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      showToast('Đã tải tệp cấu hình RDP (.rdp). Nhấp đúp để mở mstsc.exe!', 'success');
+      const roomId = currentRoom || (typeof currentRoomId !== 'undefined' ? currentRoomId : null) || 'Workstation';
+      const rdpPort = (currentProtocolMatrix && currentProtocolMatrix.remote && currentProtocolMatrix.remote.rdp && currentProtocolMatrix.remote.rdp.port) || 3389;
+      const rdpUrl = `/api/session/${encodeURIComponent(roomId)}/rdp-config?port=${rdpPort}&host=127.0.0.1`;
+      try {
+        const resp = await fetch(rdpUrl);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `Meikova-${roomId}.rdp`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+          a.remove();
+        }, 300);
+        showToast('Đã tải tệp cấu hình RDP (.rdp). Nhấp đúp để mở mstsc.exe!', 'success');
+      } catch (err) {
+        const a = document.createElement('a');
+        a.href = rdpUrl;
+        a.download = `Meikova-${roomId}.rdp`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => a.remove(), 300);
+        showToast('Đã tải tệp cấu hình RDP (.rdp).', 'success');
+      }
     });
   }
 
-  // Copy SSH Command Button
+// Copy SSH Command Button
   if (btnCopySshCmd) {
     btnCopySshCmd.addEventListener('click', (e) => {
       e.stopPropagation();
