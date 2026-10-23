@@ -2,7 +2,7 @@
 ; Package: Meikova Relay Client (Workstation Remote Desktop Client)
 
 #define MyAppName "Meikova Relay Client"
-#define MyAppVersion "1.0.52"
+#define MyAppVersion "1.0.54"
 #define MyAppPublisher "Meikova Platform"
 #define MyAppURL "https://meikova.org"
 #define MyAppExeName "MeikovaRelayClient.exe"

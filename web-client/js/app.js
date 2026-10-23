@@ -3705,7 +3705,7 @@
         } else {
           const p = qualitySelector ? qualitySelector.value : 'speed_60';
           const target = (p === 'speed_60') ? 60 : (p === 'grayscale' ? 25 : 30);
-          metricFps.textContent = ${target} (SYNCED);
+          metricFps.textContent = target + ' (SYNCED)';
         }
       }
       frameCount = 0;
