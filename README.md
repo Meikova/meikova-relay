@@ -74,6 +74,19 @@ Meikova Relay là giải pháp Remote Desktop toàn diện, độc lập, đư�
 - Tự động bắt âm thanh hệ thống (WASAPI Loopback Capture) định dạng PCM 16-bit / 48kHz Stereo.
 - Phát lại độ trễ thấp trên Web Client qua HTML5 Web Audio API (AudioContext).
 
+### Trải nghiệm điều khiển di động toàn diện (Mobile Touch & Responsive)
+
+- **Động cơ cử chỉ cảm ứng (Touch-First Controller)**:
+  - Chạm 1 ngón (Single Tap): Gửi chuỗi sự kiện Click hoàn chỉnh kèm hiệu ứng sóng phản hồi Cyan trực quan.
+  - Nhấp đúp (Double Tap): Gửi Double Click nguyên bản.
+  - Nhấn giữ 450ms (Long Press): Kích hoạt Chuột phải (Right Click) kèm rung phản hồi xúc giác (`45ms`).
+  - Nút chuột phải chuyên dụng: Tích hợp trực tiếp trên Floating Deck cho thao tác chính xác tức thì.
+  - Cử chỉ 2 ngón: Vuốt cuộn trang (Mouse Wheel) và Chụm thu phóng (Pinch Zoom).
+- **Cầu nối bàn phím ảo (Native Soft Keyboard Bridge)**: Mở bàn phím ảo gốc của điện thoại/máy tính bảng, nhập liệu ký tự Unicode tiếng Việt và phím chức năng (`Backspace`, `Enter`, `Tab`, `Esc`).
+- **Thanh phím tắt nhanh (Mobile Quick Keys Bar)**: Thao tác 1-chạm với các phím thông dụng (`Ctrl+Alt+Del`, `Esc`, `Tab`, `Win`, `Space`, `Enter`, `Back`, `Alt+Tab`).
+- **Mở khóa máy trạm từ xa (Remote Lock Screen Unlock)**: Gửi tổ hợp phím `Ctrl+Alt+Del` qua mã quét phần cứng (Hardware Scan Codes) để đánh thức và đăng nhập máy trạm Windows từ màn hình khóa.
+- **Tối ưu hiển thị Stage & Safe Area**: Tự động mở rộng Canvas stage toàn màn hình (`100vw x 100dvh`), triệt tiêu thanh cuộn trang thừa và bảo vệ vùng an toàn (`env(safe-area-inset-*)`) tránh bị che khuất bởi Dynamic Island / camera notch khi xoay ngang (Landscape).
+
 ### Bộ công cụ quản trị hệ thống từ xa
 
 - **Quản lý tệp tin hai chiều (File Manager)**: Duyệt cây thư mục máy trạm, tải lên/tải xuống tệp tin, xem nội dung văn bản từ xa, xác thực mã băm SHA-256 bảo đảm tính toàn vẹn.
