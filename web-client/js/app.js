@@ -2313,6 +2313,27 @@
     switchView(view, true);
   });
 
+  // Nav placement sync: on mobile, attach #mainNav to document.body to prevent WebKit containing-block clipping
+  function syncNavPlacement() {
+    const isMobile = window.innerWidth <= 767;
+    const nav = document.getElementById('mainNav');
+    const topbar = document.querySelector('.topbar');
+    if (!nav || !topbar) return;
+    if (isMobile && nav.parentElement === topbar) {
+      document.body.appendChild(nav);
+    } else if (!isMobile && nav.parentElement === document.body) {
+      const topbarRight = topbar.querySelector('.topbar-right');
+      if (topbarRight) {
+        topbar.insertBefore(nav, topbarRight);
+      } else {
+        topbar.appendChild(nav);
+      }
+    }
+  }
+  window.addEventListener('resize', syncNavPlacement);
+  window.addEventListener('orientationchange', () => setTimeout(syncNavPlacement, 100));
+  syncNavPlacement();
+
   // --- LANDING INTERACTIONS ---
   btnLandingStart?.addEventListener('click', () => {
     if (authToken && currentUser) {

@@ -1,3 +1,28 @@
+# Session Handoff: iOS WebKit Containing Block Bugfix & Safe-Area Topbar (v1.0.57)
+
+## 1. Mục tiêu hoàn thành
+- [x] **Khắc phục lỗi đè thanh điều hướng lên Status Bar và không hiển thị Bottom Nav trên iPhone X (iOS Safari & PWA):**
+  - **Nguyên nhân gốc rễ:**
+    1. `-webkit-backdrop-filter: blur(12px)` trên `.topbar` tạo một Stacking Context & Containing Block mới trong WebKit (Apple Safari/iOS PWA). `#mainNav` bên trong có `position: fixed; bottom: 0` bị bẫy lại ở đáy của `.topbar` (đỉnh màn hình), che lấp logo và nút đăng nhập, không bao giờ rơi xuống đáy viewport.
+    2. Desktop Chrome (Blink) không bẫy `position: fixed` theo cách này và không có Status Bar hệ điều hành trên DevTools responsive mode, dẫn đến việc giả lập trên PC thấy hoạt động tốt nhưng trên iPhone thật bị vỡ hoàn toàn.
+    3. `.topbar` thiếu `padding-top: env(safe-area-inset-top)` nên nằm trùng hoàn toàn với Status Bar (đồng hồ 22:00, pin, tai thỏ/notch).
+    4. Service Worker `CACHE_NAME` bị kẹt ở `v1.0.48` khiến PWA và trình duyệt iOS liên tục phục vụ style cũ.
+  - **Giải pháp xử lý triệt để:**
+    1. Thêm `syncNavPlacement()` trong `app.js`: Tự động tách `#mainNav` ra khỏi `.topbar` và gắn trực tiếp vào `document.body` khi ở chế độ mobile (`<= 767px`), loại trừ 100% nguy cơ bị bẫy containing block bởi bất kỳ thuộc tính CSS nào của cha. Tự động trả về `.topbar` khi ở màn hình desktop.
+    2. Tắt `backdrop-filter: none !important` và `-webkit-backdrop-filter: none !important` trên `.topbar` khi ở mobile breakpoint.
+    3. Bổ sung `padding-top: env(safe-area-inset-top, 0px)` và chiều cao `calc(var(--topbar-h) + env(safe-area-inset-top, 0px))` cho `.topbar`, đẩy toàn bộ nội dung logo và nút bấm xuống dưới vùng an toàn của tai thỏ / status bar.
+    4. Cập nhật `height: calc(100dvh - var(--topbar-h) - var(--bottom-nav-h) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))` cho `.stage`.
+    5. Nâng cấp Service Worker cache lên `meikova-relay-cache-v1.0.57` và bump cache-busting query param `?v=1.0.57` trên toàn bộ assets.
+- [x] **Đồng bộ SSOT:** 7 tệp bản sao đạt 100% SHA-256 parity.
+
+## 2. Kiểm thử & Kiểm chứng (Exit Code 0)
+- `python -m unittest tests/test_screen_sync.py`: **9/9 PASS (Exit Code 0)**
+- `node --check relay-server/server.js`: **Exit Code 0**
+- `node --check relay-server/public/js/app.js`: **Exit Code 0**
+- `node --check relay-server/public/sw.js`: **Exit Code 0**
+
+---
+
 # Session Handoff: Universal Responsive Mobile Engine & Native Touch Remote (v1.0.56)
 
 ## 1. Mục tiêu hoàn thành
