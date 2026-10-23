@@ -3076,9 +3076,9 @@ wss.on('connection', (ws, req) => {
 
             if (client.ws.readyState === WebSocket.OPEN) {
 
-              // Zero-lag backpressure: allow up to 1MB in-flight pipeline for 30-60 FPS stream
-              // Drop stale frame only if client socket buffer is truly congested (>1MB)
-              if (client.ws.bufferedAmount > 1024 * 1024) {
+              // Zero-lag backpressure: drop stale frame if client socket buffer > 64KB (approx 1 frame)
+              // This completely eliminates bufferbloat and multi-second latency queues
+              if (client.ws.bufferedAmount > 64 * 1024) {
                 continue;
               }
 

@@ -145,6 +145,10 @@ class HostService:
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.frame_queue: Optional[asyncio.Queue] = None
+        self.frames_in_flight: int = 0
+        self.ack_event: Optional[asyncio.Event] = None
+        self._consecutive_high_rtt: int = 0
+        self._consecutive_low_rtt: int = 0
 
         # Audio Capture & Stream
         self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk, on_status=self._on_audio_status)
@@ -414,6 +418,26 @@ class HostService:
             self.frame_interval = 1.0 / 30.0
         return preset
 
+    def _update_congestion_control(self, rtt_ms: float):
+        """Dynamic Congestion Control (DCC) adapting compression quality based on measured round-trip time."""
+        if rtt_ms > 140:
+            self._consecutive_high_rtt += 1
+            self._consecutive_low_rtt = 0
+            if self._consecutive_high_rtt >= 3:
+                # Alleviate congestion by lowering JPEG quality slightly
+                if self.capture.quality > 40:
+                    self.capture.quality = max(38, self.capture.quality - 8)
+                self._consecutive_high_rtt = 0
+        elif rtt_ms < 60:
+            self._consecutive_low_rtt += 1
+            self._consecutive_high_rtt = 0
+            if self._consecutive_low_rtt >= 10:
+                # Gradually recover quality when network clears
+                target_q = 70 if self.capture.max_width == 1600 else 58
+                if self.capture.quality < target_q:
+                    self.capture.quality = min(target_q, self.capture.quality + 4)
+                self._consecutive_low_rtt = 0
+
     def negotiate_optimal_display_profile(self, client_w: int, client_h: int, client_fps: int = 60) -> dict:
         """
         Negotiates highest optimal resolution & frame profile between host monitor and controller client.
@@ -481,6 +505,9 @@ class HostService:
         """Worker task reading latest frame from queue and sending over WebSocket."""
         logger.info("Frame sender worker started")
         last_heartbeat = time.time()
+        self.frames_in_flight = 0
+        self.ack_event = asyncio.Event()
+
         while self.running:
             if not self.has_active_client:
                 if time.time() - last_heartbeat > 10:
@@ -503,13 +530,25 @@ class HostService:
                     frame = None
 
                 if frame:
-                    # Transport write buffer backpressure check: yield only if buffer > 4MB congested
+                    # Flow control 1: Transport write buffer check (< 128KB prevents bufferbloat)
                     transport = getattr(ws, "transport", None)
                     if transport and hasattr(transport, "get_write_buffer_size"):
-                        if transport.get_write_buffer_size() > 4 * 1024 * 1024:
+                        if transport.get_write_buffer_size() > 128 * 1024:
                             await asyncio.sleep(0.005)
                             continue
 
+                    # Flow control 2: In-flight frame limit (Guacamole / WebRTC ACK model)
+                    if self.frames_in_flight >= 2:
+                        if self.ack_event is not None:
+                            self.ack_event.clear()
+                            try:
+                                await asyncio.wait_for(self.ack_event.wait(), timeout=0.04)
+                            except asyncio.TimeoutError:
+                                self.frames_in_flight = 0
+                        else:
+                            self.frames_in_flight = 0
+
+                    self.frames_in_flight += 1
                     await ws.send(frame)
 
                 if time.time() - last_heartbeat > 10:
@@ -625,6 +664,17 @@ class HostService:
                                 self.on_client_disconnect()
                             except Exception:
                                 pass
+                    continue
+
+                elif ev_type == "frame_ack":
+                    self.frames_in_flight = max(0, self.frames_in_flight - 1)
+                    if self.ack_event is not None and not self.ack_event.is_set():
+                        self.ack_event.set()
+                    client_ts = event.get("ts")
+                    if client_ts:
+                        rtt_ms = (time.time() * 1000) - client_ts
+                        if rtt_ms > 0:
+                            self._update_congestion_control(rtt_ms)
                     continue
 
                 # Protocol Probing & Tunnel Events

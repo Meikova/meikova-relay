@@ -3579,8 +3579,8 @@
         lastPingSend = performance.now();
         ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
       }
-      if (isConnected && performance.now() - lastFpsUpdate > 2500) {
-        if (metricFps) metricFps.textContent = '0';
+      if (isConnected && performance.now() - lastFpsUpdate > 2500) {
+        if (metricFps) metricFps.textContent = '0';
       }
     }, 2000);
   }
@@ -3695,23 +3695,7 @@
   let pendingFrameBlob = null;
   let isFrameRendering = false;
 
-  function handleIncomingFrame(blob) {
-    frameCount++;
-    const now = performance.now();
-    if (now - lastFpsUpdate >= 1000) {
-      if (metricFps) {
-        if (frameCount >= 6) {
-          metricFps.textContent = frameCount;
-        } else {
-          const p = qualitySelector ? qualitySelector.value : 'speed_60';
-          const target = (p === 'speed_60') ? 60 : (p === 'grayscale' ? 25 : 30);
-          metricFps.textContent = target + ' (SYNCED)';
-        }
-      }
-      frameCount = 0;
-      lastFpsUpdate = now;
-    }
-
+  function handleIncomingFrame(blob) {
     // Retain newest frame; drop stale intermediate frames to eliminate rendering latency backlog
     pendingFrameBlob = blob;
 
@@ -3758,6 +3742,24 @@
         ctx.drawImage(bitmap, 0, 0);
       }
       bitmap.close();
+
+      // Honest Real-Time Measured Rendered FPS calculation
+      frameCount++;
+      const now = performance.now();
+      const elapsed = (now - lastFpsUpdate) / 1000;
+      if (elapsed >= 1.0) {
+        const actualFps = Math.max(0, Math.round(frameCount / elapsed));
+        if (metricFps) {
+          metricFps.textContent = actualFps;
+        }
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
+
+      // Flow Control: notify host that frame has rendered (Guacamole / WebRTC ACK model)
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() }));
+      }
     } catch {}
 
     if (pendingFrameBlob) {

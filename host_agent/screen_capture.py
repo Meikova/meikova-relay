@@ -340,7 +340,8 @@ class ScreenCapture:
                 try:
                     native_img, raw_buf, cursor_changed = self._native_cap.grab(left, top, w, h)
                     if native_img is not None and raw_buf is not None:
-                        curr_hash = hash(memoryview(raw_buf)[::4096].tobytes())
+                        # Granular grid sampling (stride 256 = sample every 64 pixels) catches any text/UI change
+                        curr_hash = hash(memoryview(raw_buf)[::256].tobytes())
                         is_static = (not force and not cursor_changed and curr_hash == self._last_frame_hash)
                         if is_static:
                             # Keepalive idle frame: maintain minimum 4 FPS so video stream & HUD stay alive
@@ -366,7 +367,7 @@ class ScreenCapture:
                         mon_target = self._sct.monitors[0]
 
                     shot = self._sct.grab(mon_target)
-                    curr_hash = hash(memoryview(shot.raw)[::4096].tobytes())
+                    curr_hash = hash(memoryview(shot.raw)[::256].tobytes())
                     if not force and curr_hash == self._last_frame_hash:
                         if now - self._last_frame_sent_time > 0.25:
                             self._last_frame_sent_time = now
@@ -393,7 +394,7 @@ class ScreenCapture:
                         return generate_headless_placeholder(1920, 1080)
                     return None
 
-                curr_hash = hash(memoryview(img.tobytes())[::4096].tobytes())
+                curr_hash = hash(memoryview(img.tobytes())[::256].tobytes())
                 if not force and curr_hash == self._last_frame_hash:
                     if now - self._last_frame_sent_time > 0.25:
                         self._last_frame_sent_time = now

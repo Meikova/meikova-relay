@@ -2,7 +2,7 @@
 ; Package: Meikova Relay Host (Workstation Remote Host Agent)
 
 #define MyAppName "Meikova Relay Host"
-#define MyAppVersion "1.0.54"
+#define MyAppVersion "1.0.55"
 #define MyAppPublisher "Meikova Platform"
 #define MyAppURL "https://meikova.org"
 #define MyAppExeName "MeikovaRelayHost.exe"
