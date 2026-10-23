@@ -16,6 +16,8 @@ import webbrowser
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+current_dir = Path(__file__).resolve().parent
+
 try:
     from PIL import Image, ImageDraw
     HAS_PIL = True

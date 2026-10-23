@@ -81,6 +81,15 @@ jobs:
           }
           Get-ChildItem "dist\*" | Select-Object Name, Length
 
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: meikova-relay-host-windows
+          path: |
+            dist/MeikovaRelayHost.exe
+            dist/MeikovaRelayHost-windows-x64.zip
+            dist/SHA256SUMS.txt
+
       - name: Publish Windows Release Assets
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
@@ -156,6 +165,15 @@ jobs:
           test -f dist/meikova-relay-host-linux-x64.tar.gz || (echo "Tarball not found" && exit 1)
           ls -lh dist/
 
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: meikova-relay-host-linux
+          path: |
+            dist/meikova-relay-host
+            dist/meikova-relay-host_amd64.deb
+            dist/meikova-relay-host-linux-x64.tar.gz
+
       - name: Publish Linux Release Assets
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
@@ -223,6 +241,14 @@ jobs:
           test -f dist/MeikovaRelayHost || (echo "macOS binary not found" && exit 1)
           test -f dist/meikova-relay-host-macos.tar.gz || (echo "macOS tarball not found" && exit 1)
           ls -lh dist/
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: meikova-relay-host-macos
+          path: |
+            dist/MeikovaRelayHost
+            dist/meikova-relay-host-macos.tar.gz
 
       - name: Publish macOS Release Assets
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'

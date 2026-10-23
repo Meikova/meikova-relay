@@ -794,3 +794,17 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
    - `meikova-loop`: `tests/test_content_hydration.py` -> 6 tests passed (Exit Code 0).
    - `meikova-harvest`: `tests/test_turso_harvest_full.py` -> 3 suites passed, Turso Cloud + Local WAL + SSO (Exit Code 0).
    - `meikova-relay`: `node test_turso_dual_adapter.js` -> 8 tests passed, Turso Cloud + Local WAL + SSO (Exit Code 0).
+
+
+---
+
+## 31. Khắc phục Lỗi Tray Icon Biến Mất Khỏi Khay Hệ Thống & Nâng Cấp Giao Diện Chat
+- **Nguyên nhân gốc rễ tray icon biến mất:** Trong `host_agent/tray_menu.py` (hàm `_render_menu_icon`), biến `current_dir` được sử dụng để định vị đường dẫn `tray_icons/logo.png` nhưng chưa được khai báo ở đầu tệp, gây lỗi `NameError: name 'current_dir' is not defined`. Khi `pystray.Icon.run()` khởi tạo menu, lỗi này khiến worker thread của khay hệ thống bị sập ngay lập tức và icon không thể đăng ký vào Windows Explorer Notification Area.
+- **Biện pháp xử lý:**
+  1. Khai báo `current_dir = Path(__file__).resolve().parent` ở đầu `host_agent/tray_menu.py`.
+  2. Bổ sung ghi nhật ký lỗi chi tiết vào `tray.log` trong `tray_worker` (`gui_agent.py`) để tuân thủ quy chuẩn Fail Loudly, không nuốt lỗi.
+  3. Thêm cờ đóng gói thư mục `tray_icons` vào `scripts/build.py` để file thực thi PyInstaller luôn có đầy đủ asset khi chạy ở môi trường đóng gói `_MEIPASS`.
+  4. Biên dịch lại toàn bộ và cập nhật file nhị phân `MeikovaRelayHost.exe` mới (24.0 MB) vào cả `dist/`, `relay-server/` và `%LOCALAPPDATA%\MeikovaRelayHost\`.
+- **Kiểm chứng:**
+  - `python -m unittest tests/test_cross_platform_agent.py`: 11/11 tests pass (Exit Code 0).
+  - Khởi chạy thử nghiệm `pystray.Icon.run(setup=on_setup)`: Thành công với 0 lỗi (`icon.visible: True`).

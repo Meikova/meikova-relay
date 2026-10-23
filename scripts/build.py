@@ -318,6 +318,8 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'icon.png'}{sep}.",
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icon.png'}{sep}host_agent",
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icon.png'}{sep}.",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icons'}{sep}host_agent/tray_icons",
+        "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icons'}{sep}tray_icons",
     ]
 
     if target_os == "windows":

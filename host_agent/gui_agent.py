@@ -2476,7 +2476,13 @@ def launch_webview_app(autostart: bool = False):
             try:
                 api._tray_icon.run(setup=setup_tray)
             except Exception as e:
-                pass
+                try:
+                    with open(get_app_data_dir() / "tray.log", "a", encoding="utf-8") as f:
+                        f.write(f"TRAY RUN ERROR: {e}\n")
+                        import traceback
+                        traceback.print_exc(file=f)
+                except Exception:
+                    pass
 
         threading.Thread(target=tray_worker, daemon=True).start()
 
