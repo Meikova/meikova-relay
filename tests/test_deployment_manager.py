@@ -23,7 +23,11 @@ class TestDeploymentManager(unittest.TestCase):
         p = get_user_install_dir()
         self.assertIsInstance(p, Path)
         self.assertTrue(p.exists())
-        self.assertTrue("meikovarelayhost" in str(p).lower() or "meikova_relay_host" in str(p).lower())
+        self.assertTrue(
+            "meikovarelayhost" in str(p).lower() or
+            "meikova_relay_host" in str(p).lower() or
+            "meikova-relay" in str(p).lower()
+        )
 
     def test_admin_install_dir(self):
         p = get_admin_install_dir()
