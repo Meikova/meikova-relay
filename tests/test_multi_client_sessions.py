@@ -6,6 +6,8 @@ Unit tests for Meikova Relay multi-client sessions and session termination.
 import json
 import asyncio
 import unittest
+import tempfile
+import uuid
 import websockets
 import urllib.request
 import subprocess
@@ -16,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 class TestMultiClientSessions(unittest.IsolatedAsyncioTestCase):
     server_process = None
+    temp_db_path = None
     server_port = 9015
 
     @classmethod
@@ -24,7 +27,9 @@ class TestMultiClientSessions(unittest.IsolatedAsyncioTestCase):
         import socket
         server_js = REPO_ROOT / "relay-server" / "server.js"
         env = os.environ.copy()
+        cls.temp_db_path = str(Path(tempfile.gettempdir()) / f"test_relay_mc_{uuid.uuid4().hex[:8]}.db")
         env["PORT"] = str(cls.server_port)
+        env["DB_PATH"] = cls.temp_db_path
         try:
             cls.server_process = subprocess.Popen(
                 ["node", str(server_js)],
@@ -59,6 +64,14 @@ class TestMultiClientSessions(unittest.IsolatedAsyncioTestCase):
         if cls.server_process:
             cls.server_process.terminate()
             cls.server_process.wait()
+        if cls.temp_db_path:
+            for ext in ["", "-wal", "-shm"]:
+                try:
+                    p_db = Path(cls.temp_db_path + ext)
+                    if p_db.exists():
+                        p_db.unlink()
+                except OSError:
+                    pass
 
     async def test_multi_client_connect_and_kill(self):
         url = f"ws://127.0.0.1:{self.server_port}"

@@ -3,16 +3,20 @@ import subprocess
 import time
 import urllib.request
 import urllib.error
+import tempfile
+import uuid
 from pathlib import Path
 
 class TestDownloadEndpoints(unittest.TestCase):
     server_process = None
     port = 8998
+    temp_db_path = None
 
     @classmethod
     def setUpClass(cls):
         server_path = str(Path(__file__).resolve().parent.parent / "relay-server" / "server.js")
-        env = dict(**dict(subprocess.os.environ), PORT=str(cls.port))
+        cls.temp_db_path = str(Path(tempfile.gettempdir()) / f"test_relay_dl_{uuid.uuid4().hex[:8]}.db")
+        env = dict(**dict(subprocess.os.environ), PORT=str(cls.port), DB_PATH=cls.temp_db_path)
         try:
             cls.server_process = subprocess.Popen(
                 ["node", server_path],
@@ -45,6 +49,14 @@ class TestDownloadEndpoints(unittest.TestCase):
         if cls.server_process:
             cls.server_process.terminate()
             cls.server_process.wait()
+        if cls.temp_db_path:
+            for ext in ["", "-wal", "-shm"]:
+                try:
+                    p = Path(cls.temp_db_path + ext)
+                    if p.exists():
+                        p.unlink()
+                except OSError:
+                    pass
 
     def test_setup_bat_download(self):
         url = f"http://127.0.0.1:{self.port}/api/download/setup.bat?account=Tester"

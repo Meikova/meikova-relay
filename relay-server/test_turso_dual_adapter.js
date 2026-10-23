@@ -13,7 +13,7 @@ async function testTursoCloud() {
   const info = DB.getAdapterInfo();
   assert.strictEqual(info.type, 'turso', 'Adapter type must be turso');
   assert.strictEqual(info.isTurso, true, 'isTurso must be true');
-  console.log('✓ Turso adapter connected:', info.url);
+  console.log('[PASS] Turso adapter connected:', info.url);
 
   const randId = 'turso_test_' + Math.random().toString(36).substring(2, 9);
   
@@ -21,7 +21,7 @@ async function testTursoCloud() {
   const regUser = await DB.registerUser(randId, 'strongPass123!');
   assert(regUser.id, 'User id must exist');
   assert.strictEqual(regUser.username, randId);
-  console.log('✓ User registered in Turso Cloud:', regUser.username);
+  console.log('[PASS] User registered in Turso Cloud:', regUser.username);
 
   // Test Duplicate Registration Handling
   let dupFailed = false;
@@ -32,18 +32,18 @@ async function testTursoCloud() {
     assert(err.message.includes('Tài khoản đã tồn tại') || err.message.includes('UNIQUE constraint'), 'Expected duplicate error');
   }
   assert.strictEqual(dupFailed, true, 'Duplicate registration must fail gracefully');
-  console.log('✓ Duplicate registration constraint verified');
+  console.log('[PASS] Duplicate registration constraint verified');
 
   // Test Authentication
   const auth = await DB.authenticateUser(randId, 'strongPass123!');
   assert(auth && auth.token, 'Auth must succeed and return token');
   assert.strictEqual(auth.user.username, randId);
-  console.log('✓ Authentication successful, token:', auth.token.substring(0, 16) + '...');
+  console.log('[PASS] Authentication successful, token:', auth.token.substring(0, 16) + '...');
 
   // Test Validate Session
   const validSess = await DB.validateSession(auth.token);
   assert(validSess && validSess.id === regUser.id, 'Session must be valid');
-  console.log('✓ Session validated for user:', validSess.username);
+  console.log('[PASS] Session validated for user:', validSess.username);
 
   // Test Universal SSO Ed25519 Token Validation (Fast-path 0.1ms)
   let ssoToken = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJtZWlrb3ZhLmF1dGgiLCJzdWIiOiJ1c3Jfc3NvX3JlbGF5IiwidXNlcm5hbWUiOiJyZWxheV9zc29fdGVzdGVyIiwiZW1haWwiOiJzc29AcmVsYXkuaW8iLCJkaXNwbGF5X25hbWUiOiJSZWxheSBUZXN0ZXIiLCJyb2xlIjoidXNlciIsImlhdCI6MTc5MjU5ODQ1MywiZXhwIjoyNDIzMzE4NDUzfQ.GLAiD24955fRBPQoLp7jP3meOAkq1_38VyhMPN4PaLmRl5A_bbJ_HCyL-1TjsnnQcFXqoBKHI2ClWv5hRzUWAQ';
@@ -64,7 +64,7 @@ async function testTursoCloud() {
   assert(refreshed && refreshed.token !== auth.token, 'Refreshed token must be new');
   const validRefreshed = await DB.validateSession(refreshed.token);
   assert(validRefreshed, 'New session must be valid');
-  console.log('✓ Session refreshed successfully');
+  console.log('[PASS] Session refreshed successfully');
 
   // Test Audit Log
   const auditId = await DB.logAudit({
@@ -77,12 +77,12 @@ async function testTursoCloud() {
     details: { test: true, timestamp: Date.now() }
   });
   assert(auditId, 'Audit ID must be returned');
-  console.log('✓ Audit log written, ID:', auditId);
+  console.log('[PASS] Audit log written, ID:', auditId);
 
   // Test Query Audit Logs
   const auditLogs = await DB.getAuditLogs({ limit: 10, action: 'TEST_TURSO_INTEGRATION' });
   assert(auditLogs.logs.length > 0, 'Audit logs must contain inserted log');
-  console.log('✓ Audit logs queried, count:', auditLogs.logs.length, 'total:', auditLogs.total);
+  console.log('[PASS] Audit logs queried, count:', auditLogs.logs.length, 'total:', auditLogs.total);
 
   // Test Offline Sync Store
   const syncSave = await DB.saveUserSync(regUser.id, {
@@ -93,7 +93,7 @@ async function testTursoCloud() {
   const syncPull = await DB.getUserSync(regUser.id);
   assert.strictEqual(syncPull.preferences.theme, 'ambient-dark');
   assert.strictEqual(syncPull.device_bookmarks[0], 'room_' + randId);
-  console.log('✓ User sync pull/push verified on Turso Cloud');
+  console.log('[PASS] User sync pull/push verified on Turso Cloud');
 
   // Test Device Management
   const devId = await DB.upsertDevice({
@@ -110,14 +110,14 @@ async function testTursoCloud() {
   const devices = await DB.getDevices(regUser.id);
   assert(devices.length > 0, 'Device must be in user device list');
   assert.strictEqual(devices[0].room_id, 'room_' + randId);
-  console.log('✓ Device upsert and status tracking verified on Turso Cloud');
+  console.log('[PASS] Device upsert and status tracking verified on Turso Cloud');
 
   // Cleanup session & device
   await DB.deleteDevice(devId, regUser.id);
   await DB.deleteSession(refreshed.token);
   const nullSess = await DB.validateSession(refreshed.token);
   assert.strictEqual(nullSess, null, 'Deleted session must be invalid');
-  console.log('✓ Session and device cleanup verified on Turso Cloud');
+  console.log('[PASS] Session and device cleanup verified on Turso Cloud');
 }
 
 async function testLocalFallback() {
@@ -135,14 +135,14 @@ async function testLocalFallback() {
   const info = DB.getAdapterInfo();
   assert.strictEqual(info.type, 'local', 'Adapter type must be local');
   assert.strictEqual(info.isTurso, false, 'isTurso must be false');
-  console.log('✓ Local adapter active:', info.url);
+  console.log('[PASS] Local adapter active:', info.url);
 
   // Verify WAL mode
   const client = DB.getClient();
   const pragmaRes = await client.execute('PRAGMA journal_mode;');
   const journalMode = (pragmaRes.rows[0]?.journal_mode || '').toLowerCase();
   assert.strictEqual(journalMode, 'wal', 'Local SQLite must use WAL journal mode');
-  console.log('✓ Local SQLite WAL verified:', journalMode);
+  console.log('[PASS] Local SQLite WAL verified:', journalMode);
 
   // Test local operations
   const localUser = 'local_' + Math.random().toString(36).substring(2, 9);
@@ -152,7 +152,7 @@ async function testLocalFallback() {
   assert(auth && auth.token);
   const sess = await DB.validateSession(auth.token);
   assert.strictEqual(sess.username, localUser);
-  console.log('✓ Local user register, auth, session verified');
+  console.log('[PASS] Local user register, auth, session verified');
 
   const auditId = await DB.logAudit({
     action: 'LOCAL_FALLBACK_TEST',
@@ -163,7 +163,7 @@ async function testLocalFallback() {
   assert(auditId);
   const logs = await DB.getAuditLogs({ limit: 5, action: 'LOCAL_FALLBACK_TEST' });
   assert(logs.logs.length > 0);
-  console.log('✓ Local audit logging verified');
+  console.log('[PASS] Local audit logging verified');
 
   // Close and cleanup
   await DB.close();
@@ -177,7 +177,7 @@ async function testLocalFallback() {
   if (oldUrl) process.env.TURSO_DATABASE_URL = oldUrl;
   if (oldToken) process.env.TURSO_AUTH_TOKEN = oldToken;
 
-  console.log('✓ Local fallback teardown complete');
+  console.log('[PASS] Local fallback teardown complete');
 }
 
 (async () => {
@@ -189,7 +189,7 @@ async function testLocalFallback() {
     console.log('=========================================\n');
     process.exit(0);
   } catch (err) {
-    console.error('\n❌ TEST FAILURE:', err);
+    console.error('\n[FAIL] TEST FAILURE:', err);
     process.exit(1);
   }
 })();

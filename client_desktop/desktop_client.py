@@ -763,7 +763,7 @@ class ClientTray:
         # 5. Autostart toggle
         auto_on = is_autostart_enabled()
         self._autostart_item = ToolStripMenuItem(
-            f"Khởi động cùng Windows: {'Bật ✓' if auto_on else 'Tắt'}"
+            f"Khởi động cùng Windows: {'Bật' if auto_on else 'Tắt'}"
         )
         self._autostart_item.Font = font_regular
         self._autostart_item.Padding = item_pad
@@ -776,7 +776,7 @@ class ClientTray:
             nxt = not current
             set_autostart(nxt)
             if self._autostart_item:
-                self._autostart_item.Text = f"Khởi động cùng Windows: {'Bật ✓' if nxt else 'Tắt'}"
+                self._autostart_item.Text = f"Khởi động cùng Windows: {'Bật' if nxt else 'Tắt'}"
                 new_bmp = self._get_icon_bitmap("autostart_on" if nxt else "autostart")
                 if new_bmp:
                     self._autostart_item.Image = new_bmp
@@ -861,7 +861,7 @@ class ClientTray:
                 pystray.MenuItem("Mở trên trình duyệt Web", on_web),
                 pystray.MenuItem("Mở thư mục tệp tin (Downloads)", on_dl),
                 pystray.Menu.SEPARATOR,
-                pystray.MenuItem(f"Khởi động cùng hệ thống: {'Bật ✓' if auto_on else 'Tắt'}", on_toggle_auto),
+                pystray.MenuItem(f"Khởi động cùng hệ thống: {'Bật' if auto_on else 'Tắt'}", on_toggle_auto),
                 pystray.MenuItem("Tải lại giao diện (F5)", on_reload),
                 pystray.MenuItem("Toàn màn hình (F11)", on_fullscreen),
                 pystray.Menu.SEPARATOR,

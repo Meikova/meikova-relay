@@ -173,7 +173,7 @@ class HostChatWindow:
         # Window Controls: Minimize and Close
         btn_close = tk.Button(
             titlebar,
-            text="✕",
+            text="X",
             fg="#94A3B8",
             bg="#0D1524",
             activebackground="#EF4444",

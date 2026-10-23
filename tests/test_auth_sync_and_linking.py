@@ -6,6 +6,8 @@ import urllib.request
 import urllib.error
 import subprocess
 import unittest
+import tempfile
+import uuid
 from pathlib import Path
 import websockets
 import asyncio
@@ -15,11 +17,13 @@ class TestAuthSyncAndLinking(unittest.IsolatedAsyncioTestCase):
     port = "9015"
     base_url = f"http://127.0.0.1:{port}"
     ws_url = f"ws://127.0.0.1:{port}"
+    temp_db_path = None
 
     @classmethod
     def setUpClass(cls):
         server_path = str(Path(__file__).resolve().parent.parent / "relay-server" / "server.js")
-        env = dict(**dict(os.environ), PORT=cls.port)
+        cls.temp_db_path = str(Path(tempfile.gettempdir()) / f"test_relay_auth_{uuid.uuid4().hex[:8]}.db")
+        env = dict(**dict(os.environ), PORT=cls.port, DB_PATH=cls.temp_db_path)
         try:
             cls.server_process = subprocess.Popen(
                 ["node", server_path],
@@ -52,6 +56,14 @@ class TestAuthSyncAndLinking(unittest.IsolatedAsyncioTestCase):
         if cls.server_process:
             cls.server_process.terminate()
             cls.server_process.wait()
+        if cls.temp_db_path:
+            for ext in ["", "-wal", "-shm"]:
+                try:
+                    p = Path(cls.temp_db_path + ext)
+                    if p.exists():
+                        p.unlink()
+                except OSError:
+                    pass
 
     def _generate_mock_sso_token(self, user_id, username, email, display_name=None):
         """Generates a signed or mock Ed25519 Universal SSO token using node CLI script."""

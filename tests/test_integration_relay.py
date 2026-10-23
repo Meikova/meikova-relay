@@ -1,6 +1,8 @@
 import json
 import asyncio
 import unittest
+import tempfile
+import uuid
 import subprocess
 import time
 import sys
@@ -9,12 +11,14 @@ import websockets
 
 class TestIntegrationRelay(unittest.IsolatedAsyncioTestCase):
     server_process = None
+    temp_db_path = None
 
     @classmethod
     def setUpClass(cls):
         # Start Relay Server on test port 8999
         server_path = str(Path(__file__).resolve().parent.parent / "relay-server" / "server.js")
-        env = dict(**dict(subprocess.os.environ), PORT="8999")
+        cls.temp_db_path = str(Path(tempfile.gettempdir()) / f"test_relay_integ_{uuid.uuid4().hex[:8]}.db")
+        env = dict(**dict(subprocess.os.environ), PORT="8999", DB_PATH=cls.temp_db_path)
         try:
             cls.server_process = subprocess.Popen(
                 ["node", server_path],
@@ -48,6 +52,14 @@ class TestIntegrationRelay(unittest.IsolatedAsyncioTestCase):
         if cls.server_process:
             cls.server_process.terminate()
             cls.server_process.wait()
+        if cls.temp_db_path:
+            for ext in ["", "-wal", "-shm"]:
+                try:
+                    p_db = Path(cls.temp_db_path + ext)
+                    if p_db.exists():
+                        p_db.unlink()
+                except OSError:
+                    pass
 
     async def test_full_relay_lifecycle(self):
         url = "ws://127.0.0.1:8999"

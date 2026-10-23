@@ -352,7 +352,7 @@ const server = http.createServer(async (req, res) => {
       return jsonResponse(res, 200, { success: true, configured: true, client_id: creds.clientId });
     }
 
-    if (pathname === '/api/auth/google/url' && req.method === 'GET') {
+    if ((pathname === '/api/auth/google/start' || pathname === '/api/auth/google/url') && req.method === 'GET') {
       const creds = getGoogleCredentials();
       if (!creds) {
         return jsonResponse(res, 500, {
