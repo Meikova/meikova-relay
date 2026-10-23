@@ -856,3 +856,34 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
   3. Sửa triệt để các vị trí tham chiếu session manager modal từ currentRoomId sang currentRoom || currentRoomId.
 - **Lệnh kiểm tra đã chạy & Exit Code:**
   - python -m unittest tests.test_download_endpoints: 11/11 tests pass (Exit Code 0).
+
+---
+
+## 35. Chu?n H?a To?n Di?n 5 ?i?m Ch?m UI/UX & C?ch Ly Database Ki?m Th? (Meikova Ambient Dark)
+- **M?c ti?u ho?n th?nh:**
+  1. **Th?ng h?ng Danh s?ch T?p Drawer Shelf (`#remoteFolderList`):**
+     - ??ng g?i c?m n?t thao t?c b?n ph?i v?o `.shelf-file-actions` d?ng Flexbox c?n ph?i (`margin-left: auto; display: flex; align-items: center; gap: 6px;`).
+     - T?n t?p v? icon b?n tr?i ???c ??ng g?i v?o `.folder-item__name` v?i `min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;` ng?n t?n t?p d?i ??y x? l?ch giao di?n (ch?m d?t ho?n to?n hi?n t??ng th? th?t).
+     - Thay th? 100% k? t? Unicode th? (`?`, `? T?i`) b?ng SVG icons: Th? m?c d?ng SVG Chevron Right thanh m?nh, t?p tin d?ng n?t `.shelf-btn-action` chu?n 26x26px v?i SVG Edit Pencil v? SVG Download Tray k?m tooltip.
+     - ??ng k? s? ki?n click tr?c ti?p cho `.btn-shelf-download` v? `.btn-shelf-edit`.
+  2. **Tri?t ti?u Vi?n K?p Focus Chat Input (Zero-Double-Border):**
+     - Reset tri?t ?? `box-shadow: none !important`, `border: none !important`, `outline: none !important` cho `.chat-input-field:focus` v? `.meikova-chat-input-bar input:focus`.
+     - Lo?i b? khe r?nh ?en ng?n gi?a 2 vi?n xanh khi nh?p chu?t v?o ? chat input; duy tr? duy nh?t vi?n li?n kh?i v? h?o quang ph?t quang t?i v? container `.meikova-chat-input-bar:focus-within`.
+  3. **Chu?n h?a N?t Thao t?c File Explorer & Grid View:**
+     - Thay th? c?c n?t h?nh ??ng d?ng pill ch?a ch? d?i (`Ch?p`, `C?t`, `??i t?n`, `T?i`, `X?a`) b?ng c?c n?t icon vu?ng nh? g?n `.btn-action-icon` chu?n 28x28px (v? 24x24px trong Grid card) v?i 100% vector SVG v? tooltip ?a ng?n ng? i18n (`title`).
+     - B? sung event listener c?n thi?u cho n?t T?i file (`.btn-action-dl`) v? Ch?nh s?a file (`.btn-action-edit`) trong b?ng File Explorer; gi?i quy?t d?t ?i?m l?i nh?p n?t t?i kh?ng ph?n h?i.
+  4. **C?ch ly Database Ki?m th? & D?n d?p meikova_relay.db:**
+     - C?p nh?t to?n b? c?c b?i ki?m tra (`test_auth_sync_and_linking.py`, `test_download_endpoints.py`, `test_full_system_e2e.py`, `test_integration_relay.py`, `test_multi_client_sessions.py`) ?? c?p ph?t file DB t?m ri?ng bi?t qua bi?n m?i tr??ng `DB_PATH`, t? ??ng thu d?n s?ch sau khi test xong (`tearDownClass`).
+     - Qu?t s?ch to?n b? d? li?u test r?c (`bob_clash_...`, `alice_corp_...`, `admin_...`, `google_user_...`) kh?i `relay-server/meikova_relay.db`. C? s? d? li?u tr? v? tr?ng th?i s?ch nguy?n b?n (0 user r?c, 0 audit r?c).
+  5. **C?n ??i N?t B?m trong Modal Confirm Dialog (Harmonized Dialog Buttons):**
+     - Thay th? c?p n?t l?ch k?ch th??c `.btn-pill` (30px) v? `.btn-cta` (48px) b?ng h? th?ng l?p `.dialog-btn`: ??ng b? chi?u cao 38px, bo g?c 8px, font-size 0.85rem, min-width 96px.
+     - N?t H?y d?ng `.dialog-btn--secondary`, n?t ??ng ? d?ng `.dialog-btn--primary` (ho?c `.dialog-btn--danger` khi x?a).
+  6. **??ng b? SSOT:** ??ng b? 100% gi?a `relay-server/public/` v? `web-client/`.
+  7. **B? sung B? Test T? ??ng:** Th?m `test_07_zero_double_border_in_chat_input`, `test_08_harmonized_dialog_buttons`, `test_09_svg_only_file_shelf_and_explorer` v?o `tests/test_relay_standardization.py`.
+- **L?nh ki?m tra ?? ch?y & Exit Code:**
+  - `python -m unittest tests/test_relay_standardization.py`: 9/9 tests pass (Exit Code 0).
+  - `python -m unittest tests/test_clipboard_sync.py`: 4/4 tests pass (Exit Code 0).
+  - `python -m unittest tests/test_turso_relay.py`: 4/4 tests pass (Exit Code 0).
+  - `python -m unittest discover tests`: 142/142 tests pass (Exit Code 0).
+- **C?nh b?o k? thu?t:**
+  - `meikova_relay.db` ?? ???c b?o v? ho?n to?n kh?i ? nhi?m t? test runner th?ng qua c? ch? `DB_PATH` c?ch ly.

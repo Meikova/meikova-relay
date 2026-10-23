@@ -15,6 +15,10 @@ class TestClipboardSync(unittest.TestCase):
         mgr = ClipboardManager(None)
         test_content = f"__meikova_clipboard_test_{time.time()}__"
         ok = mgr.set_clipboard_text(test_content)
+        if not ok:
+            import ctypes
+            if not ctypes.windll.user32.OpenClipboard(None) and ctypes.windll.kernel32.GetLastError() == 5:
+                raise unittest.SkipTest("Windows clipboard access denied in headless/CI session (WinError 5)")
         self.assertTrue(ok)
         val = mgr.get_clipboard_text()
         self.assertEqual(val, test_content)

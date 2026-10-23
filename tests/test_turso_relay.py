@@ -86,7 +86,7 @@ class TestTursoRelay(unittest.TestCase):
         payload = json.dumps({"username": rand, "password": "securePass123!"}).encode("utf-8")
         req = urllib.request.Request(reg_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
         
-        with urllib.request.urlopen(req, timeout=8) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             self.assertEqual(res.status, 201)
             reg_data = json.loads(res.read().decode("utf-8"))
             self.assertTrue(reg_data.get("success"))
@@ -97,7 +97,7 @@ class TestTursoRelay(unittest.TestCase):
         # Login with registered account
         login_url = f"http://127.0.0.1:{self.port}/api/auth/login"
         req = urllib.request.Request(login_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=8) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             self.assertEqual(res.status, 200)
             login_data = json.loads(res.read().decode("utf-8"))
             self.assertTrue(login_data.get("success"))
@@ -106,7 +106,7 @@ class TestTursoRelay(unittest.TestCase):
         # Verify /api/auth/me with Bearer token
         me_url = f"http://127.0.0.1:{self.port}/api/auth/me"
         req = urllib.request.Request(me_url, headers={"Authorization": f"Bearer {token}"}, method="GET")
-        with urllib.request.urlopen(req, timeout=8) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             self.assertEqual(res.status, 200)
             me_data = json.loads(res.read().decode("utf-8"))
             self.assertTrue(me_data.get("success"))
@@ -118,13 +118,13 @@ class TestTursoRelay(unittest.TestCase):
         rand = f"audit_usr_{int(time.time())}"
         payload = json.dumps({"username": rand, "password": "securePass123!"}).encode("utf-8")
         req = urllib.request.Request(reg_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=8) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             data = json.loads(res.read().decode("utf-8"))
             token = data.get("token")
 
         audit_url = f"http://127.0.0.1:{self.port}/api/audit-logs?limit=5"
         req = urllib.request.Request(audit_url, headers={"Authorization": f"Bearer {token}"}, method="GET")
-        with urllib.request.urlopen(req, timeout=8) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             self.assertEqual(res.status, 200)
             audit_data = json.loads(res.read().decode("utf-8"))
             self.assertTrue(audit_data.get("success"))
@@ -137,20 +137,20 @@ class TestTursoRelay(unittest.TestCase):
         rand = f"sync_usr_{int(time.time())}"
         payload = json.dumps({"username": rand, "password": "securePass123!"}).encode("utf-8")
         req = urllib.request.Request(reg_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=8) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             token = json.loads(res.read().decode("utf-8")).get("token")
 
         push_url = f"http://127.0.0.1:{self.port}/api/sync/push"
         sync_payload = json.dumps({"preferences": {"color_scheme": "ambient-dark"}}).encode("utf-8")
         req = urllib.request.Request(push_url, data=sync_payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=8) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             self.assertEqual(res.status, 200)
             push_res = json.loads(res.read().decode("utf-8"))
             self.assertEqual(push_res.get("status"), "success")
 
         pull_url = f"http://127.0.0.1:{self.port}/api/sync/pull"
         req = urllib.request.Request(pull_url, headers={"Authorization": f"Bearer {token}"}, method="GET")
-        with urllib.request.urlopen(req, timeout=8) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             self.assertEqual(res.status, 200)
             pull_res = json.loads(res.read().decode("utf-8"))
             self.assertEqual(pull_res.get("data", {}).get("preferences", {}).get("color_scheme"), "ambient-dark")

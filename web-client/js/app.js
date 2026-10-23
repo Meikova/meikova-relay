@@ -6139,10 +6139,20 @@
       const sizeStr = isDir ? '' : ` (${formatBytes(item.size)})`;
       return `
         <div class="folder-item" data-path="${escapeHtml(item.path || item.name)}" data-isdir="${isDir}">
-          <span style="display:flex;align-items:center;">${icon} ${escapeHtml(item.name)}${sizeStr}</span>
-          <span style="display:flex;align-items:center;gap:6px;">
-            ${!isDir && isEditableFile(item.name) ? `<button class="btn-pill btn-shelf-edit" data-path="${escapeHtml(item.path || item.name)}" style="padding:1px 6px;font-size:0.65rem;border-color:#38BDF8;color:#38BDF8;">Sửa</button>` : ''}
-            <span>${isDir ? '→' : '⇣ Tải'}</span>
+          <span class="folder-item__name">${icon} <span class="folder-item__label">${escapeHtml(item.name)}</span><span style="opacity:0.6;font-size:0.75rem;margin-left:4px;">${sizeStr}</span></span>
+          <span class="shelf-file-actions">
+            ${isDir ? `
+              <svg class="shelf-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            ` : `
+              ${isEditableFile(item.name) ? `
+                <button type="button" class="shelf-btn-action btn-shelf-edit" data-path="${escapeHtml(item.path || item.name)}" title="${t('files.action_edit') || 'Chỉnh sửa'}">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </button>
+              ` : ''}
+              <button type="button" class="shelf-btn-action btn-shelf-download" data-path="${escapeHtml(item.path || item.name)}" title="${t('files.action_download') || 'Tải về'}">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+            `}
           </span>
         </div>
       `;
@@ -6150,7 +6160,21 @@
 
     remoteFolderList.querySelectorAll('.folder-item').forEach(el => {
       el.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-shelf-edit')) return;
+        if (e.target.closest('.btn-shelf-edit')) {
+          e.stopPropagation();
+          const itemPath = e.target.closest('.btn-shelf-edit').dataset.path;
+          openFileInEditor(itemPath);
+          return;
+        }
+        if (e.target.closest('.btn-shelf-download')) {
+          e.stopPropagation();
+          const itemPath = e.target.closest('.btn-shelf-download').dataset.path;
+          ws.send(JSON.stringify({
+            type: 'file_download_request',
+            filepath: itemPath
+          }));
+          return;
+        }
         const itemPath = el.dataset.path;
         const isDir = el.dataset.isdir === 'true';
         if (isDir) {
@@ -6163,13 +6187,6 @@
             filepath: itemPath
           }));
         }
-      });
-    });
-
-    remoteFolderList.querySelectorAll('.btn-shelf-edit').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openFileInEditor(btn.dataset.path);
       });
     });
   }
@@ -6354,34 +6371,28 @@
           <td style="color: var(--text-faint);">${sizeStr}</td>
           <td style="color: var(--text-faint); font-size: 0.75rem;">${dateStr}</td>
           <td style="text-align: right;">
-            <div style="display: inline-flex; gap: 6px;">
+            <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
               ${!isDir && isEditableFile(item.name) ? `
-                <button class="btn-pill btn-action-edit" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_edit_title')}" style="padding: 2px 8px; font-size: 0.7rem; border-color: #38BDF8; color: #38BDF8;">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  <span>${t('files.action_edit')}</span>
+                <button type="button" class="btn-action-icon btn-action-edit" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_edit_title') || t('files.action_edit')}">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
               ` : ''}
-              <button class="btn-pill btn-action-copy" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_copy_title') || 'Sao chép'}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--line-highlight); color: var(--text-muted);">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <span>${t('files.action_copy') || 'Chép'}</span>
+              <button type="button" class="btn-action-icon btn-action-copy" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_copy_title') || 'Sao chép'}">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
-              <button class="btn-pill btn-action-cut" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_cut_title') || 'Cắt / Di chuyển'}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--line-highlight); color: var(--text-muted);">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
-                <span>${t('files.action_cut') || 'Cắt'}</span>
+              <button type="button" class="btn-action-icon btn-action-cut" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_cut_title') || 'Cắt / Di chuyển'}">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
               </button>
-              <button class="btn-pill btn-action-rename" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_rename_title') || 'Đổi tên'}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--line-highlight); color: var(--text-muted);">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                <span>${t('files.action_rename') || 'Đổi tên'}</span>
+              <button type="button" class="btn-action-icon btn-action-rename" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_rename_title') || 'Đổi tên'}">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               </button>
               ${!isDir ? `
-                <button class="btn-pill btn-action-dl" data-path="${itemPath}" title="${t('files.action_download_title')}" style="padding: 2px 8px; font-size: 0.7rem; border-color: var(--accent); color: var(--accent);">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  <span>${t('files.action_download')}</span>
+                <button type="button" class="btn-action-icon btn-action-dl" data-path="${itemPath}" title="${t('files.action_download_title')}">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 </button>
               ` : ''}
-              <button class="btn-pill btn-action-del" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_delete_title')}" style="padding: 2px 8px; font-size: 0.7rem; border-color: #EF4444; color: #EF4444;">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                <span>${t('files.action_delete')}</span>
+              <button type="button" class="btn-action-icon btn-action-del" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_delete_title')}">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
             </div>
           </td>
@@ -6403,17 +6414,27 @@
             <div class="grid-item-name">${escapeHtml(item.name)}</div>
             <div class="grid-item-size">${sizeStr}</div>
             <div class="grid-item-actions" style="display: flex; gap: 4px; justify-content: center; margin-top: 8px;">
-              <button type="button" class="btn-pill btn-grid-copy" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_copy_title') || 'Sao chép'}" style="padding: 2px 6px; font-size: 0.65rem;">
-                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              ${!isDir && isEditableFile(item.name) ? `
+                <button type="button" class="btn-action-icon btn-grid-edit" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_edit_title') || 'Chỉnh sửa'}" style="width:24px;height:24px;">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+              ` : ''}
+              <button type="button" class="btn-action-icon btn-grid-copy" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_copy_title') || 'Sao chép'}" style="width:24px;height:24px;">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
-              <button type="button" class="btn-pill btn-grid-cut" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_cut_title') || 'Cắt / Di chuyển'}" style="padding: 2px 6px; font-size: 0.65rem;">
-                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+              <button type="button" class="btn-action-icon btn-grid-cut" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_cut_title') || 'Cắt / Di chuyển'}" style="width:24px;height:24px;">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
               </button>
-              <button type="button" class="btn-pill btn-grid-rename" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_rename_title') || 'Đổi tên'}" style="padding: 2px 6px; font-size: 0.65rem;">
-                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <button type="button" class="btn-action-icon btn-grid-rename" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_rename_title') || 'Đổi tên'}" style="width:24px;height:24px;">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               </button>
-              <button type="button" class="btn-pill btn-grid-del" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_delete_title') || 'Xóa'}" style="padding: 2px 6px; font-size: 0.65rem; border-color: #EF4444; color: #EF4444;">
-                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              ${!isDir ? `
+                <button type="button" class="btn-action-icon btn-grid-dl" data-path="${itemPath}" title="${t('files.action_download_title') || 'Tải về'}" style="width:24px;height:24px;">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+              ` : ''}
+              <button type="button" class="btn-action-icon btn-grid-del" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_delete_title') || 'Xóa'}" style="width:24px;height:24px;">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
             </div>
           </div>
@@ -6527,6 +6548,23 @@
       });
     });
 
+    explorerTableBody.querySelectorAll('.btn-action-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openFileInEditor(btn.dataset.path);
+      });
+    });
+
+    explorerTableBody.querySelectorAll('.btn-action-dl').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ws.send(JSON.stringify({
+          type: 'file_download_request',
+          filepath: btn.dataset.path
+        }));
+      });
+    });
+
     if (explorerGridContainer) {
       explorerGridContainer.querySelectorAll('.grid-item').forEach(card => {
         card.addEventListener('dblclick', () => {
@@ -6573,6 +6611,23 @@
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             onDeleteClick(btn.dataset.path, btn.dataset.name);
+          });
+        });
+
+        card.querySelectorAll('.btn-grid-edit').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openFileInEditor(btn.dataset.path);
+          });
+        });
+
+        card.querySelectorAll('.btn-grid-dl').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            ws.send(JSON.stringify({
+              type: 'file_download_request',
+              filepath: btn.dataset.path
+            }));
           });
         });
       });

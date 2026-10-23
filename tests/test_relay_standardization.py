@@ -87,5 +87,29 @@ class TestRelayStandardization(unittest.TestCase):
         self.assertIn('"license": "MIT"', content)
 
 
+    def test_07_zero_double_border_in_chat_input(self):
+        """Verifies chat input focus rules suppress concentric double borders."""
+        for css_file in [ROOT / "web-client" / "css" / "style.css", ROOT / "relay-server" / "public" / "css" / "style.css"]:
+            content = css_file.read_text(encoding="utf-8")
+            self.assertIn(".chat-input-field:focus", content)
+            self.assertIn("box-shadow: none !important", content)
+
+    def test_08_harmonized_dialog_buttons(self):
+        """Verifies confirm dialog uses balanced .dialog-btn instead of mismatched btn-pill vs btn-cta."""
+        for html_file in [ROOT / "web-client" / "index.html", ROOT / "relay-server" / "public" / "index.html"]:
+            content = html_file.read_text(encoding="utf-8")
+            self.assertIn('id="confirmDialogBtnCancel" class="dialog-btn dialog-btn--secondary"', content)
+            self.assertIn('id="confirmDialogBtnConfirm" class="dialog-btn dialog-btn--primary"', content)
+
+    def test_09_svg_only_file_shelf_and_explorer(self):
+        """Verifies shelf and explorer action buttons use standard SVG icons without raw unicode text."""
+        for js_file in [ROOT / "web-client" / "js" / "app.js", ROOT / "relay-server" / "public" / "js" / "app.js"]:
+            content = js_file.read_text(encoding="utf-8")
+            self.assertIn("shelf-btn-action btn-shelf-download", content)
+            self.assertIn("btn-action-icon btn-action-copy", content)
+            self.assertIn("btn-action-icon btn-action-dl", content)
+            self.assertNotIn("<span>${isDir ? '?' : '? T?i'}</span>", content)
+
+
 if __name__ == "__main__":
     unittest.main()
