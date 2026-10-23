@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="docs/assets/logo.png" alt="Meikova Relay Logo" width="160px">
+
 [![CI/CD Pipeline](https://img.shields.io/github/actions/workflow/status/Meikova/meikova-relay/build-release.yml?branch=main&style=flat-square)](https://github.com/Meikova/meikova-relay/actions/workflows/build-release.yml)
 [![Latest Release](https://img.shields.io/github/v/release/Meikova/meikova-relay?color=059669&style=flat-square)](https://github.com/Meikova/meikova-relay/releases)
 [![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Web-2563eb?style=flat-square)](https://github.com/Meikova/meikova-relay)
@@ -156,15 +158,23 @@ Kết quả kiểm thử tự động:
 
 ---
 
-## 7. Giấy phép bản quyền (License)
+## 8. Giấy phép bản quyền (License)
 
 Dự án được phát hành theo giấy phép mã nguồn mở **MIT License**.
+Bản quyền thuộc về **Meikova Relay Team © 2026**.
 
 ---
 
-## 8. Hệ sinh thái Meikova
+## 9. Hệ sinh thái Meikova
 
-- [Meikova Relay](https://github.com/Meikova/meikova-relay) - Remote desktop control độ trễ thấp, outbound-only.
-- [Meikova Loop](https://github.com/Meikova/meikova-loop) - DJ mashup và infinite soundscape engine chạy trên trình duyệt, desktop và mobile.
 - [Meikova Harvest](https://github.com/Meikova/meikova-harvest) - Hệ sinh thái trích xuất và tải đa phương tiện đa nền tảng.
-- [Meikova Harvest Tool](https://github.com/Meikova/meikova-harvest-tool) - Bộ công cụ bảo mật, xáo trộn mã nguồn AST và đóng gói phát hành CI/CD.
+- [Meikova Loop](https://github.com/Meikova/meikova-loop) - DJ mashup và infinite soundscape engine chạy trên web, desktop và mobile.
+- [Meikova Relay](https://github.com/Meikova/meikova-relay) - Điều khiển máy tính từ xa độ trễ thấp, outbound-only.
+- [Meikova Auth](https://github.com/Meikova/meikova-auth) - Cổng xác thực tập trung, Universal SSO Ed25519 và quản lý danh tính đa nền tảng.
+- [Meikova Balance](https://github.com/Meikova/meikova-balance) - Quản lý tài chính cá nhân, chia hóa đơn nhóm và trợ lý AI đa tầng.
+- [Meikova Campus](https://github.com/Meikova/meikova-campus) - Nền tảng thương mại khóa học, phân quyền Google Drive tự động và LMS trực tuyến.
+- [Meikova Exchange](https://github.com/Meikova/meikova-exchange) - Sàn giao dịch B2B cho dự án phần mềm, mã nguồn và tài sản số.
+- [Meikova Traverse](https://github.com/Meikova/meikova-traverse) - Trình duyệt tệp tin cục bộ, SFTP, WebDAV và quản lý lưu trữ đa nền tảng.
+- [Meikova Shield](https://github.com/Meikova/meikova-shield) - Hệ thống phòng thủ an ninh mạng và phát hiện web defacement bằng học máy lai ghép.
+- [Meikova Vision](https://github.com/Meikova/meikova-vision) - Bộ công cụ xử lý ảnh RAW, ghép đa phơi sáng HDR và tone mapping chuyên nghiệp.
+- [Meikova Flow](https://github.com/Meikova/meikova-flow) - Động cơ trích xuất, biến đổi, nạp dữ liệu (ETL) và tự động hóa luồng báo cáo.
