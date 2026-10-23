@@ -826,3 +826,20 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
   - `python -m unittest discover tests`: 133/133 tests pass (Exit Code 0).
 - **Cảnh báo kỹ thuật:**
   - 100% modal download trong toàn bộ hệ sinh thái đã tuân thủ chuẩn SSOT `Dynamic-Host-Discovery & Zero-Hardcoded-QR Mandate`.
+
+---
+
+## 33. Chuẩn Hóa Thông Điệp Trạng Thái Chế Độ Khởi Chạy Trong setup.bat (Desktop Tray Agent vs Headless Service)
+- **Mục tiêu hoàn thành:**
+  1. Chuẩn hóa phân luồng hiển thị trạng thái chế độ hoạt động trong script setup.bat:
+     - Chế độ mặc định (HEADLESS_MODE=0): Hiển thị rõ ràng:
+       Che do: Desktop Tray Agent (Khay he thong + Cua so Chat truc quan)
+       kèm thông báo kiểm tra khay hệ thống (System Tray) và dừng lại chờ người dùng xem trước khi đóng.
+     - Chế độ chạy ngầm (HEADLESS_MODE=1): Hiển thị:
+       [THANH CONG] MAY TRAM DA KHOI CHAY NGAM (HEADLESS SERVICE)
+       Che do: Dich vu chay ngam (Headless Service).
+  2. Bổ sung test tự động trong tests/test_download_endpoints.py cho cả 2 nhánh Desktop Tray Agent và Headless Service.
+  3. Cập nhật đồng bộ vào C:/Users/kiemp/setup.bat local.
+- **Lệnh kiểm tra đã chạy & Exit Code:**
+  - python -m unittest tests.test_download_endpoints: 11/11 tests pass (Exit Code 0).
+  - python -m unittest discover tests: 133/133 tests pass (Exit Code 0).
