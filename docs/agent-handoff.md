@@ -1,3 +1,27 @@
+# Session Handoff: High-FPS Native Remote Engine & Cross-Platform Invariants (Windows, Linux, macOS)
+
+## 1. Mục tiêu hoàn thành
+- [x] **Khắc phục triệt để hiện tượng 0 FPS / 1 FPS khi ping thấp (34ms):**
+  - **Nguyên nhân gốc rễ 1 (Màn hình tĩnh ngắt frame):** Trong `screen_capture.py`, khi màn hình không đổi pixel, host trả về None, không gửi frame nào. Client sau 1200ms không nhận frame tự động gán text 0 FPS.
+  - **Nguyên nhân gốc rễ 2 (Bỏ quên hardware cursor):** GDI BitBlt và mss không chụp con trỏ chuột vật lý của Windows. Khi user di chuột trên client, host thực thi `SetCursorPos` nhưng pixel framebuffer không đổi -> Hash trùng khớp -> Host drop frame -> Màn hình đứng yên và FPS hiển thị 0.
+  - **Nguyên nhân gốc rễ 3 (Thread Desktop Isolation):** `asyncio.to_thread` chạy trên worker thread pool; `SetThreadDesktop` chỉ áp dụng per-thread. Worker thread không có quyền truy cập desktop input station dẫn đến `GetCursorInfo` trả về `ERROR_ACCESS_DENIED (5)`.
+- [x] **Giải pháp kỹ thuật chuẩn công nghiệp:**
+  1. **NativeWin32Capture (Tier 1 GPU VRAM / GDI DIBSection):** Sử dụng persistent memory-backed DIBSection (zero allocation per frame).
+  2. **Hardware Cursor Overlay:** Nhúng trực tiếp `user32.DrawIconEx` vẽ con trỏ chuột vật lý vào frame. Bắt sự thay đổi vị trí con trỏ chuột `cursor_changed` để sinh frame ngay lập tức khi di chuột (30 - 60 FPS).
+  3. **Thread-Local Desktop Attachment:** Sử dụng `threading.local()` trong `_attach_window_station()` để mọi worker thread trong thread pool đều tự động gắn vào interactive desktop an toàn.
+  4. **Idle Keepalive Frame (4 FPS):** Khi màn hình hoàn toàn tĩnh quá 250ms, host tự động gửi 1 frame nhẹ giữ nhịp video stream và chỉ số FPS của client luôn sống khỏe.
+  5. **HUD Rolling Moving Average:** Phân biệt rõ trạng thái tĩnh `SYNCED (60 FPS)` / `SYNCED (30 FPS)` và trạng thái động (15-60 FPS), loại bỏ việc hiển thị gây hiểu lầm `0 FPS`.
+  6. **Đa nền tảng (Windows, Linux, macOS):**
+     - Windows: Tận dụng `user32.DrawIconEx` + Win32 GDI DIBSection + `SendInput`.
+     - Linux / macOS: Tự động fallback sang `mss` (X11/Wayland/Quartz) + `pyautogui` input injection + `xrandr` / multi-monitor enumeration; an toàn 100% không crash do thiếu DLL.
+
+## 2. Kiểm thử & Kiểm chứng (Exit Code 0)
+- `python tests/self_test_capture.py` -> **PASS (Exit Code 0)**
+- `python -m unittest tests/test_screen_sync.py` -> **6/6 PASS (Exit Code 0)**
+- `python -m unittest tests/test_topology_architect.py` -> **4/4 PASS (Exit Code 0)**
+
+---
+
 # Session Handoff: Remote Viewport UI Optimization (Hide Floating Tabs & Sync /css/style.css)
 
 ## 1. Mục tiêu hoàn thành
