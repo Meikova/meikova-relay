@@ -1,3 +1,20 @@
+# Session Handoff: Setup.bat CMD Parenthesis Parser Fix (Headless Mode Display Bug)
+
+## 1. Mục tiêu hoàn thành
+- [x] **Khắc phục lỗi PowerShell in nhầm "Dich vu chay ngam (Headless Service)":**
+  - **Nguyên nhân gốc rễ:** Trong `server.js` (sinh `setup.bat`), khối lệnh điều kiện `:FINISH_SETUP` sử dụng ngoặc đơn:
+    `if "%HEADLESS_MODE%"=="1" ( echo ... (HEADLESS SERVICE) ... exit /b 0 )`.
+    Trình thông dịch `cmd.exe` coi dấu ngoặc đóng `)` trong chuỗi `(HEADLESS SERVICE)` là kết thúc của khối `if`. Do đó, các dòng `echo` thông tin headless và lệnh `exit /b 0` phía sau bị coi là lệnh nằm ngoài `if` và luôn luôn bị thực thi vô điều kiện, kể cả khi `HEADLESS_MODE=0` (chạy đầy đủ GUI/Tray).
+  - **Khắc phục:** Tái cấu trúc khối điều kiện sang lệnh `goto` không dùng ngoặc đơn:
+    `if "%HEADLESS_MODE%"=="1" goto :FINISH_HEADLESS`, phân rẽ rành mạch thành `:FINISH_GUI` và `:FINISH_HEADLESS`. Tránh 100% rủi ro cú pháp parser của batch script.
+  - **Kiểm chứng:** `test_download_endpoints.py` (11/11 tests PASS) và chạy thử `setup.bat` qua `cmd.exe` cho cả 2 nhánh (mặc định GUI/Tray vs `--headless`) cho kết quả chuẩn xác tuyệt đối.
+
+## 2. Kiểm thử & Kiểm chứng (Exit Code 0)
+- `python -m unittest tests/test_download_endpoints.py` -> **11/11 PASS (Exit Code 0)**
+- `python -m unittest tests/test_screen_sync.py` -> **6/6 PASS (Exit Code 0)**
+
+---
+
 # Session Handoff: Machine Session Isolation & Auto-Connect Guard (Vấn đề 2 Fix)
 
 ## 1. Mục tiêu hoàn thành
