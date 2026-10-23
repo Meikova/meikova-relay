@@ -952,3 +952,13 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
   - `python -m unittest tests/test_screen_sync.py`: 5/5 tests pass (Exit Code 0).
   - `python -m unittest tests/test_relay_standardization.py`: 12/12 tests pass (Exit Code 0).
   - `python -m unittest discover tests`: 145/145 tests pass (Exit Code 0).
+
+
+## 38. Gỡ Bỏ Quy Tắc Cấm Push & Đồng Bộ Toàn Bộ Lên GitHub Remote
+- **Thay đổi chính sách Git-Ops:**
+  - Theo chỉ đạo của người dùng: Gỡ bỏ quy tắc cấm push kho meikova-relay khỏi toàn bộ hệ thống (AGENTS.md, GEMINI.md, meikova/SKILL.md, meikova-release-ops/SKILL.md).
+  - Lấy commit mới nhất từ remote (439269 docs: add MIT license [skip ci]).
+  - Rebase toàn bộ 9 commits tính năng và tối ưu hóa lên trên origin/main.
+- **Kết quả đẩy mã nguồn:**
+  - Đẩy thành công 9 commits lên https://github.com/Meikova/meikova-relay.git branch main (commit head: 1274fc6).
+  - Trạng thái kho: Your branch is up to date with 'origin/main'.
