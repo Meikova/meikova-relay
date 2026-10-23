@@ -2276,11 +2276,31 @@ input:-webkit-autofill:active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 6px 10px;
   border-radius: 6px;
   font-size: var(--step--1);
   cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease-out);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.folder-item__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-item__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .folder-item svg {
@@ -2291,6 +2311,91 @@ input:-webkit-autofill:active {
 .folder-item:hover {
   background: var(--ink-2);
   color: var(--accent);
+}
+
+.shelf-file-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.shelf-chevron {
+  opacity: 0.5;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.folder-item:hover .shelf-chevron {
+  opacity: 1;
+  transform: translateX(2px);
+  color: var(--accent);
+}
+
+.shelf-btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--ink-1);
+  border: 1px solid var(--line-highlight);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.shelf-btn-action:hover {
+  background: var(--ink-3);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.shelf-btn-action.btn-shelf-edit:hover {
+  color: #38BDF8;
+  border-color: #38BDF8;
+}
+
+/* Dedicated File Explorer Table Action Icon Buttons */
+.btn-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  background: var(--ink-1);
+  border: 1px solid var(--line-highlight);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.btn-action-icon:hover {
+  background: var(--ink-3);
+  color: var(--text);
+  border-color: var(--line-bright);
+}
+
+.btn-action-icon.btn-action-dl:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.btn-action-icon.btn-action-del:hover {
+  color: #EF4444;
+  border-color: #EF4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.btn-action-icon.btn-action-edit:hover {
+  color: #38BDF8;
+  border-color: #38BDF8;
 }
 
 /* ------------------------------------------------------------------ MEIKOVA AMBIENT CHAT STREAM */
