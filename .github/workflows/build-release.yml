@@ -13,6 +13,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.54) - Leave empty for build & test only'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -91,9 +96,10 @@ jobs:
             dist/SHA256SUMS.txt
 
       - name: Publish Windows Release Assets
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
           files: |
             dist/MeikovaRelayHost.exe
             dist/MeikovaRelayHost-windows-x64.zip
@@ -175,9 +181,10 @@ jobs:
             dist/meikova-relay-host-linux-x64.tar.gz
 
       - name: Publish Linux Release Assets
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
           files: |
             dist/meikova-relay-host
             dist/meikova-relay-host_amd64.deb
@@ -251,9 +258,10 @@ jobs:
             dist/meikova-relay-host-macos.tar.gz
 
       - name: Publish macOS Release Assets
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
           files: |
             dist/MeikovaRelayHost
             dist/meikova-relay-host-macos.tar.gz
