@@ -1,3 +1,40 @@
+# Session Handoff: Universal Responsive Mobile Engine & Native Touch Remote (v1.0.56)
+
+## 1. Mục tiêu hoàn thành
+- [x] **Khắc phục lỗi "Chẳng thao tác được gì" trên Mobile:**
+  - **Triển khai Mobile Touch Controller:**
+    * Single Tap: Gửi tọa độ chuẩn xác kèm `mouse_move` -> `mouse_down` (0) -> `mouse_up` (0), hiển thị sóng gợn Neon Cyan (`showTouchRipple`).
+    * Double Tap: Tự động phát hiện 2 lần chạm trong 320ms gửi Native Double Click.
+    * Long Press (450ms): Tự động rung xúc giác (`navigator.vibrate(45)`), phát sóng viền tím Neon và gửi Right Click (button 2).
+    * Two-finger Scroll: Bóc tách chuyển động 2 ngón cùng chiều gửi `mouse_wheel` (delta_y).
+    * Two-finger Pinch: Thu phóng màn hình từ 0.5x đến 4.0x.
+    * Thêm nút bấm chuyên dụng Chuột phải (`#btnMobileRightClick`) trên thanh Deck.
+- [x] **Cầu nối Bàn phím ảo Native & Mở khóa Windows Lock Screen:**
+  - Tích hợp `#mobileVirtualInput` kích hoạt bàn phím ảo iOS/Android khi bấm nút "Phím". Gửi ký tự Unicode qua packet `text_input` tới `InputInjector.type_unicode`.
+  - Hỗ trợ đầy đủ phím xóa lùi (`Backspace`), xuống dòng (`Enter`), chuyển trường (`Tab`), thoát (`Esc`).
+  - Bổ sung thanh phím tắt nhanh `#mobileQuickKeysBar` chứa nút `Ctrl+Alt+Del` (Virtual Key `0x11, 0x12, 0x2E`) để mở khóa ngay lập tức màn hình khóa Windows Lock Screen.
+- [x] **Khắc phục màn hình đen Portrait & Vỡ layout Landscape:**
+  - Cưỡng chế `isFitMode = true` trên thiết bị di động trong `detectClientDisplayCapabilities()`, ngăn host chọn tỷ lệ 1:1 làm Canvas nở to gấp 5 lần màn hình điện thoại dẫn đến góc nhìn trôi ra ngoài khoảng đen.
+  - Chế độ đắm chìm `body.remote-active`: Ẩn 100% Topbar, Bottom Nav và Telemetry Readouts khi kết nối remote trên màn hình nhỏ hoặc màn hình xoay ngang. Mở rộng `.remote-stage` toàn màn hình `100vw x 100dvh`.
+  - Bổ sung nút thoát nổi `#btnMobileImmersiveExit` tại góc trên an toàn.
+- [x] **Tối ưu hóa Responsive toàn diện hệ thống:**
+  - Áp dụng diện tích chạm 44px (Apple HIG / WCAG 2.5.5) cho toàn bộ nút bấm trên mobile.
+  - Bổ sung `env(safe-area-inset-*)` cho iPhone Notch, Dynamic Island và Home Indicator bar.
+  - Dropdown menus ("Chất lượng", "Giao thức", "Nguồn") tự động căn giữa và giới hạn chiều cao tối đa không vượt mép màn hình.
+  - Thêm `overflow-x: auto` cho bảng biểu Task Manager, Audit Log và File Manager.
+  - Modal overlay bổ sung `overflow-y: auto` chống tràn cắt nút xác nhận.
+
+## 2. Kiểm thử & Kiểm chứng (Exit Code 0)
+- `python -m unittest tests/test_screen_sync.py`: **9/9 PASS (Exit Code 0)**
+- `python tests/self_test_capture.py`: **All PASS (Exit Code 0)**
+- `node --check relay-server/server.js`: **Exit Code 0**
+- `node --check relay-server/public/js/app.js`: **Exit Code 0**
+- `node --check web-client/js/app.js`: **Exit Code 0**
+- `node --check relay-server/public/js/i18n.js`: **Exit Code 0**
+- `git push origin main && git push origin v1.0.56`: **Exit Code 0**
+
+---
+
 # Session Handoff: High-Performance Real-FPS Engine & Zero-Bufferbloat Flow Control (v1.0.55)
 
 ## 1. Mục tiêu hoàn thành
