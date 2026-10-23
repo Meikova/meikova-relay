@@ -980,6 +980,7 @@
   }
 
   async function initApp() {
+    try { updateRelayModalData(); } catch (_) {}
     initDesktopIntegration();
     applyDeckMode(currentDeckMode);
     const route = getRouteStateFromUrl();
@@ -7387,6 +7388,9 @@
       }
     });
   }
+
+  // Initial sync of download modal state with current host/domain
+  try { updateRelayModalData(); } catch (_) {}
 
   // Start app
   initApp();

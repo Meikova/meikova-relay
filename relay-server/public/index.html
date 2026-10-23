@@ -2194,7 +2194,7 @@
           <div class="mobile-modal__sub-meta">
             <span class="mobile-modal__led" aria-hidden="true"></span>
             <span class="mobile-modal__sub-tag" id="relayHostServerTag">Relay Server</span>
-            <span class="mobile-modal__ip mono-font" id="relayHostServerIp">https://meikova-relay.onrender.com</span>
+            <span class="mobile-modal__ip mono-font" id="relayHostServerIp">--</span>
           </div>
           <button type="button" class="mobile-modal__sub-btn btn-pill" id="btnCopyHostServerUrl" title="Sao chép địa chỉ máy chủ">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -2309,12 +2309,12 @@
         <div class="dl-cmd-box mono-font">
           <div class="dl-cmd-header">
             <span>CÀI NHANH QUA POWERSHELL // WINDOWS TERMINAL</span>
-            <button type="button" class="btn-pill btn-copy-cmd" id="btnCopyHostCmd" data-cmd="irm https://meikova-relay.onrender.com/api/download/setup.bat | iex">
+            <button type="button" class="btn-pill btn-copy-cmd" id="btnCopyHostCmd" data-cmd="">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               <span>Sao chép</span>
             </button>
           </div>
-          <code>irm https://meikova-relay.onrender.com/api/download/setup.bat | iex</code>
+          <code>--</code>
         </div>
 
         <!-- Host Micro Steps -->
@@ -2353,7 +2353,7 @@
           <div class="mobile-modal__sub-meta">
             <span class="mobile-modal__led" style="background: #38BDF8; box-shadow: 0 0 8px #38BDF8;" aria-hidden="true"></span>
             <span class="mobile-modal__sub-tag" id="relayClientGatewayTag" style="color: #38BDF8; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.1);">Web Gateway</span>
-            <span class="mobile-modal__ip mono-font" id="relayClientGatewayIp">https://meikova-relay.onrender.com</span>
+            <span class="mobile-modal__ip mono-font" id="relayClientGatewayIp">--</span>
           </div>
           <button type="button" class="mobile-modal__sub-btn btn-pill" id="btnCopyClientGatewayUrl" title="Sao chép liên kết điều khiển">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -2445,7 +2445,7 @@
           <div class="mobile-modal__qr-frame">
             <img
               id="relay-client-qr"
-              src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&amp;data=https%3A%2F%2Fmeikova-relay.onrender.com"
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112' viewBox='0 0 112 112'%3E%3Crect width='112' height='112' fill='%2311151B' rx='8'/%3E%3C/svg%3E"
               alt="Mã QR kết nối nhanh Viewer"
               width="112"
               height="112"
@@ -2461,7 +2461,7 @@
             </p>
             <a
               id="relay-client-link"
-              href="https://meikova-relay.onrender.com"
+              href="#"
               target="_blank"
               class="mobile-modal__link mono-font"
               title="Mở trong tab mới"
