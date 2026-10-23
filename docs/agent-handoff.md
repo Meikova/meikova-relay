@@ -843,3 +843,16 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
 - **Lệnh kiểm tra đã chạy & Exit Code:**
   - python -m unittest tests.test_download_endpoints: 11/11 tests pass (Exit Code 0).
   - python -m unittest discover tests: 133/133 tests pass (Exit Code 0).
+
+---
+
+## 34. Khắc Phục Lỗi Nhấn Nút Tải File .RDP Không Hoạt Động (Undeclared currentRoomId & Blob URL Download)
+- **Nguyên nhân gốc rễ:**
+  1. Trong public/js/app.js và web-client/js/app.js, biến định danh phòng active là currentRoom, nhưng sự kiện click nút btnDownloadRdp lại tham chiếu biến chưa khai báo: const roomId = currentRoomId || 'Workstation';.
+  2. Việc truy cập biến undeclared ném ngoại lệ ReferenceError: currentRoomId is not defined làm toàn bộ hàm xử lý click bị crash ngay dòng đầu tiên, không thể kích hoạt lệnh tải file.
+- **Biện pháp xử lý:**
+  1. Khai báo bổ sung let currentRoomId = null; đồng bộ cùng currentRoom khi kết nối (startRemoteSession) và ngắt kết nối (disconnect).
+  2. Cập nhật trình xử lý sự kiện btnDownloadRdp: Thay thế phương pháp synthetic link click thuần bằng luồng fetch API -> res.blob() -> URL.createObjectURL() -> auto-click -> URL.revokeObjectURL(), kèm fallback an toàn.
+  3. Sửa triệt để các vị trí tham chiếu session manager modal từ currentRoomId sang currentRoom || currentRoomId.
+- **Lệnh kiểm tra đã chạy & Exit Code:**
+  - python -m unittest tests.test_download_endpoints: 11/11 tests pass (Exit Code 0).
