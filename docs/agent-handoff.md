@@ -974,3 +974,11 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
   - Chay scripts/build.py --target windows tai tao dist/MeikovaRelayHost.exe va dist/MeikovaRelayHost-windows-x64.zip.
   - Dong bo binary moi sang relay-server/MeikovaRelayHost.exe va dong goi lai relay-server/agent-package.zip.
   - Kiem thu tests/self_test_capture.py va tests/test_screen_sync.py: 100% PASS (Exit Code 0).
+
+
+## 40. Kich Hoat CI/CD Build Da Nen Tang Tren GitHub Actions (Trigger [build])
+- **Khac phuc co kich hoat:**
+  - Commit truoc dung nham co [skip ci] khien GitHub Actions runner khong chay workflow build-release.yml.
+  - Da bo sung mss>=9.0.0 vao host_agent/requirements.txt de cac runner (Windows, Linux, macOS) cai dat day du thu vien truoc khi dong goi.
+  - Phan tach ro hidden import theo he dieu hanh trong scripts/build.py (mss.windows cho Windows, mss.linux cho Linux, mss.darwin cho macOS).
+  - Commit voi co [build] de trigger dong loat ca 3 jobs tren GitHub Actions runner.

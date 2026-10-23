@@ -323,12 +323,17 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
     ]
     hidden_args = [
         "--hidden-import", "mss",
-        "--hidden-import", "mss.windows",
         "--hidden-import", "websockets",
         "--hidden-import", "PIL",
         "--hidden-import", "PIL.Image",
         "--hidden-import", "PIL.ImageGrab",
     ]
+    if target_os == "windows":
+        hidden_args.extend(["--hidden-import", "mss.windows"])
+    elif target_os == "linux":
+        hidden_args.extend(["--hidden-import", "mss.linux"])
+    elif target_os == "macos":
+        hidden_args.extend(["--hidden-import", "mss.darwin"])
 
     if target_os == "windows":
         name = "MeikovaRelayHost"
