@@ -1482,20 +1482,15 @@ const server = http.createServer(async (req, res) => {
 
       const room = rooms.get(roomId);
 
+      const reqMachineId = req.headers['x-machine-id'] || null;
       const activeSessions = (room && room.clients) ? Array.from(room.clients.values()).map(c => ({
-
         id: c.id,
-
         username: c.username || 'Khách (Ẩn danh)',
-
+        machineId: c.machineId || null,
         clientIp: c.clientIp || '127.0.0.1',
-
         clientDevice: c.clientDevice || 'Trình duyệt Web',
-
         connectedAt: c.connectTime || Date.now(),
-
-        isSelf: c.userId === session.id
-
+        isSelf: Boolean(reqMachineId && c.machineId && c.machineId === reqMachineId)
       })) : [];
 
       return jsonResponse(res, 200, {

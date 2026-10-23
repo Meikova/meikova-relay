@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.0.43">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.43">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.0.44">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.44">
 </head>
 <body>
 
@@ -1037,6 +1037,16 @@
 
     <!-- VIEW 3: ACTIVE REMOTE DESKTOP STAGE -->
     <section id="remoteSection" class="remote-stage fit-mode hidden">
+      <!-- Floating Session Tabs Bar (Multi-Device Remote Switcher & Popout) -->
+      <div id="remoteSessionTabsBar" class="remote-session-bar hidden">
+        <div class="session-tab-list" id="remoteSessionTabsList"></div>
+        <div class="session-tab-actions">
+          <button type="button" id="btnRemoteNewSessionTab" class="session-tab-btn" title="Kết nối thêm máy khác (Tab mới)">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Thêm máy</span>
+          </button>
+        </div>
+      </div>
       <!-- 1:1 Pixel-Perfect & Sync Status Floating Badge -->
       <div id="pixelIndicatorBadge" class="pixel-indicator-badge hidden">
         <span class="badge-dot"></span>
@@ -1141,6 +1151,9 @@
 
         <button id="btnFullscreen" class="deck__btn" title="Toàn màn hình" data-i18n-title="deck.fullscreen_title">
           <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+        <button type="button" id="btnPopoutSession" class="deck__btn" title="Mở trong tab mới / cửa sổ riêng (Popout)" data-i18n-title="deck.popout_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
         </button>
 
         <!-- Deck Display Mode Controller (Bottom Float / Top Pinned / Top Auto-Hide) -->
@@ -2053,7 +2066,11 @@
         </div>
         <div style="display: flex; gap: 10px; margin-top: 16px;">
           <button type="button" id="btnCancelQC" class="btn-pill" style="flex: 1; padding: 10px; justify-content: center;" data-i18n="qc.btn_cancel">Hủy</button>
-          <button type="submit" class="btn-cta" style="flex: 2; margin-top: 0;" data-i18n="qc.btn_connect">Kết nối ngay</button>
+          <button type="button" id="btnQCPopout" class="btn-pill" style="flex: 1; padding: 10px; justify-content: center; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan);" title="Mở trong tab mới / cửa sổ riêng">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            <span>Tab mới</span>
+          </button>
+          <button type="submit" class="btn-cta" style="flex: 1.5; margin-top: 0;" data-i18n="qc.btn_connect">Kết nối</button>
         </div>
       </form>
     </div>
@@ -2629,9 +2646,9 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.43"></script>
-  <script src="/js/sync_engine.js?v=1.0.43"></script>
-  <script src="/js/app.js?v=1.0.43"></script>
+  <script src="/js/i18n.js?v=1.0.44"></script>
+  <script src="/js/sync_engine.js?v=1.0.44"></script>
+  <script src="/js/app.js?v=1.0.44"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {

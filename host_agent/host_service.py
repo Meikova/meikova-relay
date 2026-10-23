@@ -202,7 +202,7 @@ class HostService:
         except Exception:
             pass
 
-        if self.ws and self.loop and self.loop.is_running():
+        if getattr(self, "ws", None) and getattr(self, "loop", None) and self.loop.is_running():
             async def _graceful_close():
                 try:
                     await self.ws.send(json.dumps({"type": "host_closing", "room_id": self.room_id}))
@@ -300,7 +300,7 @@ class HostService:
         text = (text or "").strip()
         if not text:
             return False
-        if self.ws and self.loop and self.loop.is_running():
+        if getattr(self, "ws", None) and getattr(self, "loop", None) and self.loop.is_running():
             try:
                 fut = asyncio.run_coroutine_threadsafe(
                     self.ws.send(json.dumps({
@@ -612,18 +612,19 @@ class HostService:
                     continue
 
                 elif ev_type == "client_disconnected":
-                    logger.info("[-] Client disconnected.")
-                    self.has_active_client = False
-                    self.audio_enabled = False
-                    self.audio_capture.stop()
-                    self.audio_playback.stop()
-                    await self.tunnel_manager.close_all()
-                    if self.on_client_disconnect:
-                        try:
-                            self.on_client_disconnect()
-                        except Exception:
-                            pass
-                    continue
+                    client_count = event.get("clientCount", 0)
+                    logger.info(f"[-] Client disconnected. Remaining active clients: {client_count}")
+                    if client_count <= 0:
+                        self.has_active_client = False
+                        self.audio_enabled = False
+                        self.audio_capture.stop()
+                        self.audio_playback.stop()
+                        await self.tunnel_manager.close_all()
+                        if self.on_client_disconnect:
+                            try:
+                                self.on_client_disconnect()
+                            except Exception:
+                                pass
                     continue
 
                 # Protocol Probing & Tunnel Events

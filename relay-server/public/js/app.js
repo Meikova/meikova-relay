@@ -777,9 +777,16 @@
   if (document.fonts) document.fonts.ready.then(placeAllIndicators);
   setTimeout(placeAllIndicators, 60);
 
+  // Persistent Client Machine GUID for Hardware-Level Loopback & Multi-Client Session Isolation
+  let myMachineId = localStorage.getItem('meikova_relay_client_machine_id');
+  if (!myMachineId) {
+    myMachineId = 'client_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 11));
+    localStorage.setItem('meikova_relay_client_machine_id', myMachineId);
+  }
+
   // --- REST API CALLS ---
   async function apiFetch(endpoint, method = 'GET', body = null) {
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = { 'Content-Type': 'application/json', 'X-Machine-Id': myMachineId };
     if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
     const opts = { method, headers };
     if (body) opts.body = JSON.stringify(body);
@@ -1010,13 +1017,14 @@
 
     // 1. Synchronously resolve target view based on URL route and cached token
     let targetView = 'landing';
-    if (route.room && (route.direct || route.view === 'remote' || ['remote', 'files', 'terminal', 'tasks'].includes(route.view))) {
+    const isExplicitDirectConnect = Boolean(route.room && (route.direct || (route.view === 'remote' && route.direct)));
+    if (isExplicitDirectConnect) {
       targetView = route.view || 'remote';
     } else if (authToken) {
       if (route.view === 'auth') {
         targetView = 'dashboard';
       } else {
-        targetView = route.view || 'dashboard';
+        targetView = (route.view && ['dashboard', 'files', 'terminal', 'tasks', 'audit'].includes(route.view)) ? route.view : 'dashboard';
       }
     } else {
       if (route.view === 'auth') {
@@ -1026,8 +1034,8 @@
       }
     }
 
-    // Restore deep link state synchronously
-    if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
+    // Restore deep link state synchronously ONLY if explicit direct connection
+    if (isExplicitDirectConnect) {
       currentRoom = route.room;
       const savedPin = route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
       currentPin = savedPin;
@@ -1056,8 +1064,8 @@
             return;
           }
 
-          // If room was deep linked, start session
-          if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
+          // If room was explicitly direct connected via ?direct=1, start session
+          if (isExplicitDirectConnect && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
             const savedPin = currentPin || route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
             startRemoteSession(defaultWsUrl, route.room, savedPin);
             return;
@@ -1070,7 +1078,7 @@
           currentUser = null;
           localStorage.removeItem('meikova_relay_token');
           renderUserBadge();
-          if (targetView !== 'landing' && targetView !== 'auth' && !route.room) {
+          if (targetView !== 'landing' && targetView !== 'auth' && !isExplicitDirectConnect) {
             switchView('landing', true);
             showToast('Phiên đăng nhập đã hết hạn', 'info');
           }
@@ -1080,8 +1088,8 @@
       }
     }
 
-    // 3. Direct or Unauthenticated connect with room ID
-    if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
+    // 3. Direct or Unauthenticated connect with room ID (ONLY if explicit direct=1)
+    if (isExplicitDirectConnect && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
       const savedPin = currentPin || route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
       startRemoteSession(defaultWsUrl, route.room, savedPin);
       return;
@@ -2932,7 +2940,7 @@
     }
 
     listEl.innerHTML = sessions.map(sess => {
-      const isSelf = !!sess.isSelf || sess.id === mySessionId || (currentUser && sess.username === currentUser.username);
+      const isSelf = !!sess.isSelf || (sess.id && sess.id === mySessionId) || (sess.machineId && myMachineId && sess.machineId === myMachineId);
       const connTime = formatTimeAgo(sess.connectedAt);
       return `
         <div class="session-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--ink-1); border:1px solid ${isSelf ? 'rgba(34,197,94,0.3)' : 'var(--line)'}; border-radius:var(--radius); gap:12px;">
@@ -3200,7 +3208,9 @@
         room_id: roomId,
         pin: pin,
         token: authToken || '',
-        username: currentUser ? currentUser.username : 'Khách'
+        username: currentUser ? currentUser.username : 'Khách',
+        machine_id: myMachineId,
+        client_name: (currentUser ? currentUser.username : 'Khách') + ' (' + (navigator.userAgent.includes('Edg') ? 'Edge' : navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Browser') + ')'
       }));
     };
 
@@ -3223,6 +3233,7 @@
 
         if (msg.status === 'ok' && msg.role === 'client') {
           isConnected = true;
+          mySessionId = msg.session_id || null;
           if (typeof updateRemoteSessionTabs === 'function') {
             updateRemoteSessionTabs();
           }
@@ -3553,6 +3564,9 @@
       laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
     }
     updateRoStatus();
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({ view: 'dashboard' }, '', '/dashboard');
+    }
     switchView('dashboard', true);
   }
 

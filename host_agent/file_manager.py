@@ -9,7 +9,10 @@ class FileManager:
 
     def __init__(self, download_dir: Optional[str] = None):
         if not download_dir:
-            user_downloads = Path.home() / "Downloads" / "MeikovaRelay"
+            try:
+                user_downloads = Path.home() / "Downloads" / "MeikovaRelay"
+            except Exception:
+                user_downloads = Path(os.environ.get("LOCALAPPDATA", "C:\temp")) / "MeikovaRelay" / "Downloads"
             user_downloads.mkdir(parents=True, exist_ok=True)
             self.download_dir = str(user_downloads)
         else:
@@ -22,10 +25,13 @@ class FileManager:
         if target_dir:
             target_dir = unicodedata.normalize('NFC', target_dir)
         if target_dir == "desktop" or not target_dir or not os.path.isdir(target_dir):
-            desktop_dir = Path.home() / "Desktop"
-            if desktop_dir.is_dir():
-                upload_folder = str(desktop_dir)
-            else:
+            try:
+                desktop_dir = Path.home() / "Desktop"
+                if desktop_dir.is_dir():
+                    upload_folder = str(desktop_dir)
+                else:
+                    upload_folder = self.download_dir
+            except Exception:
                 upload_folder = self.download_dir
         else:
             upload_folder = target_dir
