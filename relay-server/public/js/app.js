@@ -4155,14 +4155,35 @@
       preset: preset
     }));
 
+    const presetKeyMap = {
+      'native_1to1': 'deck.quality_native_1to1',
+      'auto_sync': 'deck.quality_auto_sync',
+      'ultra_120': 'deck.quality_ultra_120',
+      'speed_60': 'deck.quality_speed',
+      'crisp_2k_4k': 'deck.quality_crisp_2k_4k',
+      'crisp_hd': 'deck.quality_hd',
+      'balanced': 'deck.quality_balanced',
+      'eco': 'deck.quality_eco',
+      'grayscale': 'deck.quality_grayscale'
+    };
+    const presetFallbackVi = {
+      'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
+      'auto_sync': 'Tự động tối ưu (Auto-Sync)',
+      'ultra_120': '120 FPS Siêu mượt',
+      'speed_60': '60 FPS Mượt mà (720p)',
+      'crisp_2k_4k': '2K / 4K Cực nét (95%)',
+      'crisp_hd': 'HD Nét (1080p // 85%)',
+      'balanced': '30 FPS Cân bằng (900p)',
+      'eco': 'Tiết kiệm băng thông (540p)',
+      'grayscale': 'Tiết kiệm băng thông (Đơn sắc)'
+    };
+    const key = presetKeyMap[preset] || ('deck.quality_' + preset);
+    const friendlyName = (window.MeikovaI18n ? window.MeikovaI18n.t(key) : null) || presetFallbackVi[preset] || preset;
+
     if (preset === 'native_1to1') {
       showToast('Chế độ 1:1 Chuẩn gốc: Hiển thị nguyên bản từng điểm ảnh (Pixel-Perfect)', 'success');
-    } else if (preset === 'ultra_120') {
-      showToast('Đã kích hoạt 120 FPS Siêu mượt (Độ trễ tối thiểu)', 'info');
-    } else if (preset === 'crisp_2k_4k') {
-      showToast('Đã kích hoạt chế độ 2K / 4K Cực nét (Chất lượng 95%)', 'info');
     } else {
-      showToast(`Đã chuyển cấu hình: ${preset.toUpperCase()}`, 'info');
+      showToast(`Đã chuyển cấu hình: ${friendlyName}`, 'info');
     }
   });
 

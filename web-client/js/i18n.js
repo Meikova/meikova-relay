@@ -303,6 +303,7 @@
       'deck.quality_balanced_desc': 'Tối ưu tài nguyên CPU trạm và băng thông ổn định',
 
       'deck.quality_grayscale': 'Tiết kiệm băng thông',
+      'deck.quality_eco': 'Tiết kiệm băng thông (ECO)',
 
       'deck.quality_grayscale_desc': 'Chế độ đơn sắc / nén cao khi mạng 3G/4G yếu',
 
@@ -1496,6 +1497,7 @@
       'deck.quality_balanced_desc': '30 FPS balanced for lower host CPU usage',
 
       'deck.quality_grayscale': 'Low Bandwidth',
+      'deck.quality_eco': 'ECO Bandwidth Saver (540p)',
 
       'deck.quality_grayscale_desc': 'Grayscale & high compression for weak 3G/4G',
 
