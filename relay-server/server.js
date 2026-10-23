@@ -3058,14 +3058,10 @@ wss.on('connection', (ws, req) => {
 
             if (client.ws.readyState === WebSocket.OPEN) {
 
-              // Zero-lag backpressure: drop stale screen frame if client buffer is congested (>64KB)
-
-              // // ponytail: guarantees client renders real-time stream without queued bufferbloat
-
-              if (client.ws.bufferedAmount > 64 * 1024) {
-
+              // Zero-lag backpressure: allow up to 1MB in-flight pipeline for 30-60 FPS stream
+              // Drop stale frame only if client socket buffer is truly congested (>1MB)
+              if (client.ws.bufferedAmount > 1024 * 1024) {
                 continue;
-
               }
 
               client.ws.send(message, { binary: true });

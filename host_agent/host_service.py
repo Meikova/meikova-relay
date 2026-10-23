@@ -180,6 +180,8 @@ class HostService:
         self.audio_enabled = False
 
         try:
+            if hasattr(self, "capture") and self.capture:
+                self.capture.close()
             if hasattr(self, "audio_capture") and self.audio_capture:
                 self.audio_capture.stop()
             if hasattr(self, "audio_playback") and self.audio_playback:
@@ -411,11 +413,11 @@ class HostService:
                 continue
 
             # Transport write buffer backpressure check:
-            # If previous frame is still draining over the network (>64KB), yield to prevent bufferbloat
+            # Allow in-flight frame pipelines; yield only if write buffer is congested (>1MB)
             transport = getattr(ws, "transport", None)
             if transport and hasattr(transport, "get_write_buffer_size"):
-                if transport.get_write_buffer_size() > 64 * 1024:
-                    await asyncio.sleep(0.008)
+                if transport.get_write_buffer_size() > 1024 * 1024:
+                    await asyncio.sleep(0.005)
                     continue
 
             start_time = time.perf_counter()

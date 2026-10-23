@@ -3623,7 +3623,10 @@
     showToast(`Đã đồng bộ tối ưu: Trạm ${msg.host_res[0]}x${msg.host_res[1]} ↔ Điều khiển ${msg.client_res[0]}x${msg.client_res[1]} @ ${msg.client_fps}Hz -> Cấu hình cao nhất: ${label}`, 'success');
   }
 
-  async function handleIncomingFrame(blob) {
+  let pendingFrameBlob = null;
+  let isFrameRendering = false;
+
+  function handleIncomingFrame(blob) {
     frameCount++;
     const now = performance.now();
     if (now - lastFpsUpdate >= 1000) {
@@ -3632,8 +3635,25 @@
       lastFpsUpdate = now;
     }
 
+    // Retain newest frame; drop stale intermediate frames to eliminate rendering latency backlog
+    pendingFrameBlob = blob;
+
+    if (!isFrameRendering) {
+      isFrameRendering = true;
+      requestAnimationFrame(renderQueuedFrame);
+    }
+  }
+
+  async function renderQueuedFrame() {
+    if (!pendingFrameBlob) {
+      isFrameRendering = false;
+      return;
+    }
+    const blobToRender = pendingFrameBlob;
+    pendingFrameBlob = null;
+
     try {
-      const bitmap = await createImageBitmap(blob);
+      const bitmap = await createImageBitmap(blobToRender);
       if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
         // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
         const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
@@ -3662,6 +3682,12 @@
       }
       bitmap.close();
     } catch {}
+
+    if (pendingFrameBlob) {
+      requestAnimationFrame(renderQueuedFrame);
+    } else {
+      isFrameRendering = false;
+    }
   }
 
   // --- MULTI-MONITOR SELECTION & INTERACTIVE GRID ---
