@@ -808,3 +808,21 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
 - **Kiểm chứng:**
   - `python -m unittest tests/test_cross_platform_agent.py`: 11/11 tests pass (Exit Code 0).
   - Khởi chạy thử nghiệm `pystray.Icon.run(setup=on_setup)`: Thành công với 0 lỗi (`icon.visible: True`).
+
+---
+
+## 32. Chuẩn Hóa Dynamic Host Discovery & Mã QR (Đồng Bộ 1:1 Với Meikova Harvest & Meikova Loop)
+- **Mục tiêu hoàn thành:**
+  1. Triển khai endpoint chuẩn `GET /api/host-info` và alias `/api/network/host-info` trên `relay-server/server.js`, tự động bóc tách Tailscale IP (`100.x.x.x`), LAN IP (`192.168.x.x` / `10.x.x.x`), và Active URL công khai.
+  2. Triển khai endpoint chuyển hướng mã QR chuẩn `GET /api/qr?data=...` trên `relay-server/server.js` (HTTP 307 Redirect).
+  3. Cập nhật client UI (`public/js/app.js` và `web-client/js/app.js`):
+     - Hàm `updateRelayModalData()` bất đồng bộ: Khi truy cập từ `localhost` / `127.0.0.1`, tự động fetch `/api/host-info` để ưu tiên URL Tailscale Mesh, fallback về Wi-Fi LAN IP thay vì localhost giúp điện thoại quét mã QR mở được ngay lập tức.
+     - Đồng bộ thẻ tag trạng thái mạng (`#relayHostServerTag`, `#relayClientGatewayTag`): "Tailscale Mesh", "Mạng Wi-Fi (LAN)", "Local Host", "Máy chủ Web".
+     - Tạo mã QR qua `/api/qr?data=...` kèm fallback `onerror` tới `api.qrserver.com`.
+     - Tự động kích hoạt đồng bộ ngay khi nạp trang (`initApp()`) và khi mở modal download.
+  4. Bổ sung test tự động: `test_host_info_endpoints_and_schema` và `test_qr_endpoint` trong `tests/test_download_endpoints.py`.
+- **Lệnh kiểm tra đã chạy & Exit Code:**
+  - `python -m unittest tests/test_download_endpoints.py`: 11/11 tests pass (Exit Code 0).
+  - `python -m unittest discover tests`: 133/133 tests pass (Exit Code 0).
+- **Cảnh báo kỹ thuật:**
+  - 100% modal download trong toàn bộ hệ sinh thái đã tuân thủ chuẩn SSOT `Dynamic-Host-Discovery & Zero-Hardcoded-QR Mandate`.
