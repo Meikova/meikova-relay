@@ -33,6 +33,24 @@
 - `node --check relay-server/public/js/i18n.js`: **Exit Code 0**
 - `git push origin main && git push origin v1.0.56`: **Exit Code 0**
 
+## 3. Thể chế hóa SSOT Rules, Skills & Đồng bộ tài liệu liên quan
+- [x] **Cập nhật Master Rules:**
+  - Bổ sung `Universal-Responsive-Design & Mobile-Touch Mandate` vào `C:\Users\kiemp\.gemini\config\rules\AGENTS.md`, `GEMINI.md`, `C:\Users\kiemp\.gemini\config\AGENTS.md`, `GEMINI.md`.
+  - Cập nhật Điều 19 vào `C:\Users\kiemp\.gemini\config\rules\meikova-master.md`.
+  - Cập nhật Mục 20 vào `C:\Users\kiemp\.gemini\config\rules\meikova-code-quality.md`.
+  - Đồng bộ `D:\JOB\DEV\meikova\meikova-relay\AGENTS.md`, `meikova-harvest\AGENTS.md`, `meikova-loop\AGENTS.md`.
+- [x] **Cập nhật Skills & References:**
+  - `meikova-ambient-ui/SKILL.md`: Bổ sung Nguyên lý 14.
+  - `meikova-ambient-ui/references/stage-deck-layout.md`: Bổ sung Mục 4 (Mobile Viewport & Safe-Area Insets).
+  - `meikova-ambient-ui/references/motion-and-interactions.md`: Bổ sung Mục 4 (Mobile Touch Mechanics & Haptic Feedback).
+  - `meikova-multiplatform/SKILL.md`: Bổ sung Mục 3.1.
+  - `meikova/SKILL.md`: Mở rộng Ma trận định tuyến đa thiết bị.
+  - `ui-styling/SKILL.md` (cả SSOT và bản sao nội bộ dự án).
+  - `ambient-instrument-ui/SKILL.md`: Bổ sung Nguyên lý 9.
+  - Các Agent chuyên trách (`meikova-uiux-designer`, `meikova-desktop-mobile-engineer`, `meikova-frontend-engineer`) trong `.agents/agents/`.
+- [x] **Cập nhật Tài liệu dự án:**
+  - `D:\JOB\DEV\meikova\meikova-relay\README.md`: Bổ sung Mục "Trải nghiệm điều khiển di động toàn diện (Mobile Touch & Responsive)".
+
 ---
 
 # Session Handoff: High-Performance Real-FPS Engine & Zero-Bufferbloat Flow Control (v1.0.55)
