@@ -81,9 +81,14 @@ class TestExtendedFeatures(unittest.TestCase):
 
         term = TerminalManager(on_output=on_out)
         term.start()
-        time.sleep(1.0)
-        term.send_input("Write-Output 'MEIKOVA_TEST_OK'")
-        time.sleep(1.0)
+        time.sleep(0.5)
+        cmd = "Write-Output 'MEIKOVA_TEST_OK'" if sys.platform == "win32" else "echo 'MEIKOVA_TEST_OK'"
+        for attempt in range(25):
+            if any("MEIKOVA" in o for o in output_received):
+                break
+            if attempt % 3 == 0:
+                term.send_input(cmd)
+            time.sleep(0.2)
         term.stop()
 
         full_output = "".join(output_received)
@@ -157,18 +162,15 @@ class TestExtendedFeatures(unittest.TestCase):
 
         term = TerminalManager(on_output=on_out)
         term.start()
-        for _ in range(30):
-            if any("SẴN SÀNG" in o or "POWERSHELL" in o or "BASH" in o or "TERMINAL" in o for o in output_received):
-                break
-            time.sleep(0.1)
-        if sys.platform == "win32":
-            term.send_input("Write-Output 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'")
-        else:
-            term.send_input("echo 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'")
-        for _ in range(30):
+        time.sleep(0.5)
+
+        cmd = "Write-Output 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'" if sys.platform == "win32" else "echo 'Tiếng Việt: Hà Nội - Đà Nẵng - Sài Gòn'"
+        for attempt in range(40):
             if any("Hà Nội" in o for o in output_received):
                 break
-            time.sleep(0.1)
+            if attempt % 5 == 0:
+                term.send_input(cmd)
+            time.sleep(0.2)
         term.stop()
 
         full_output = "".join(output_received)

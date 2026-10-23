@@ -23,13 +23,14 @@ class TerminalManager:
             init_cmd = (
                 "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); "
                 "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
-                "$OutputEncoding = [System.Text.UTF8Encoding]::new($false)"
+                "$OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+                "Write-Output '=== MEIKOVA RELAY POWERSHELL (UTF-8) SẴN SÀNG ==='"
             )
             shell_cmd = ["powershell.exe", "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", init_cmd]
-            ready_msg = "=== MEIKOVA RELAY POWERSHELL (UTF-8) SẴN SÀNG ===\n"
+            ready_msg = ""
         else:
             shell_bin = "/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh"
-            shell_cmd = [shell_bin, "-i"]
+            shell_cmd = [shell_bin]
             ready_msg = f"=== MEIKOVA RELAY TERMINAL ({os.path.basename(shell_bin).upper()}) SẴN SÀNG ===\n"
 
         try:
@@ -47,7 +48,8 @@ class TerminalManager:
             self._reader_thread = threading.Thread(target=self._read_output_loop, daemon=True)
             self._reader_thread.start()
             atexit.register(self.stop)
-            self.on_output(ready_msg)
+            if ready_msg:
+                self.on_output(ready_msg)
         except Exception as e:
             self.on_output(f"Failed to start terminal: {e}\n")
 
