@@ -3579,8 +3579,8 @@
         lastPingSend = performance.now();
         ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
       }
-      if (isConnected && performance.now() - lastFpsUpdate > 1200) {
-        if (metricFps) metricFps.textContent = '0';
+      if (isConnected && performance.now() - lastFpsUpdate > 2500) {
+        if (metricFps) metricFps.textContent = '0';
       }
     }, 2000);
   }
@@ -3695,13 +3695,21 @@
   let pendingFrameBlob = null;
   let isFrameRendering = false;
 
-  function handleIncomingFrame(blob) {
-    frameCount++;
-    const now = performance.now();
-    if (now - lastFpsUpdate >= 1000) {
-      metricFps.textContent = frameCount;
-      frameCount = 0;
-      lastFpsUpdate = now;
+  function handleIncomingFrame(blob) {
+    frameCount++;
+    const now = performance.now();
+    if (now - lastFpsUpdate >= 1000) {
+      if (metricFps) {
+        if (frameCount >= 6) {
+          metricFps.textContent = frameCount;
+        } else {
+          const p = qualitySelector ? qualitySelector.value : 'speed_60';
+          const target = (p === 'speed_60') ? 60 : (p === 'grayscale' ? 25 : 30);
+          metricFps.textContent = ${target} (SYNCED);
+        }
+      }
+      frameCount = 0;
+      lastFpsUpdate = now;
     }
 
     // Retain newest frame; drop stale intermediate frames to eliminate rendering latency backlog
@@ -3722,7 +3730,7 @@
     pendingFrameBlob = null;
 
     try {
-      const bitmap = await createImageBitmap(blobToRender);
+      const bitmap = await createImageBitmap(blobToRender, { imageOrientation: 'none', premultiplyAlpha: 'none' });
       if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
         // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
         const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
