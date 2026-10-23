@@ -1608,7 +1608,7 @@ const server = http.createServer(async (req, res) => {
 
       }
 
-      const { roomId, pin, deviceName } = await parseBody(req);
+      const { roomId, pin, deviceName, machineId, machine_id } = await parseBody(req);
 
       if (!roomId || !pin) {
 
@@ -1619,6 +1619,8 @@ const server = http.createServer(async (req, res) => {
       await DB.upsertDevice({
 
         userId: session.id,
+
+        machineId: machineId || machine_id || null,
 
         roomId,
 
@@ -2848,6 +2850,46 @@ const wss = new WebSocketServer({ server });
 
 const rooms = new Map();
 
+// Directed active remote graph to prevent loops: "fromMachineId->toMachineId" -> Set of sessionIds
+const activeRemoteEdges = new Map();
+
+function addRemoteEdge(fromMachineId, toMachineId, sessionId) {
+  if (!fromMachineId || !toMachineId || !sessionId) return;
+  const edge = `${fromMachineId}->${toMachineId}`;
+  if (!activeRemoteEdges.has(edge)) {
+    activeRemoteEdges.set(edge, new Set());
+  }
+  activeRemoteEdges.get(edge).add(sessionId);
+}
+
+function hasReverseEdge(fromMachineId, toMachineId) {
+  if (!fromMachineId || !toMachineId) return false;
+  const reverseEdge = `${toMachineId}->${fromMachineId}`;
+  const set = activeRemoteEdges.get(reverseEdge);
+  return !!(set && set.size > 0);
+}
+
+function removeRemoteEdge(fromMachineId, toMachineId, sessionId) {
+  if (!fromMachineId || !toMachineId || !sessionId) return;
+  const edge = `${fromMachineId}->${toMachineId}`;
+  const set = activeRemoteEdges.get(edge);
+  if (set) {
+    set.delete(sessionId);
+    if (set.size === 0) activeRemoteEdges.delete(edge);
+  }
+}
+
+function removeAllEdgesForRoom(room) {
+  if (!room || !room.clients) return;
+  const targetMachine = room.hostMeta?.machineId;
+  for (const [sId, c] of room.clients.entries()) {
+    const cMachine = c.machineId || c.ws?.machineId;
+    if (cMachine && targetMachine) {
+      removeRemoteEdge(cMachine, targetMachine, sId);
+    }
+  }
+}
+
 
 
 function broadcastSessionList(room, targetWs = null) {
@@ -2921,6 +2963,7 @@ async function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết 
   if (!roomId || !rooms.has(roomId)) return;
 
   const room = rooms.get(roomId);
+  removeAllEdgesForRoom(room);
 
   try {
 
@@ -3052,6 +3095,8 @@ wss.on('connection', (ws, req) => {
 
         const room = rooms.get(currentRoomId);
 
+        if (room) room.isStreaming = true;
+
         if (room && room.clients) {
 
           for (const client of room.clients.values()) {
@@ -3118,6 +3163,8 @@ wss.on('connection', (ws, req) => {
 
       const pin = String(data.pin || '').trim();
 
+      const hostMachineId = String(data.machine_id || data.machineId || '').trim() || null;
+
       if (!roomId || !pin) {
 
         ws.send(JSON.stringify({ status: 'error', code: 'RELAY_MISSING_CREDENTIALS', message: 'Missing room_id or pin' }));
@@ -3133,6 +3180,8 @@ wss.on('connection', (ws, req) => {
       role = 'host';
 
       currentRoomId = roomId;
+
+      ws.machineId = hostMachineId;
 
       const room = getOrCreateRoom(roomId);
 
@@ -3150,9 +3199,27 @@ wss.on('connection', (ws, req) => {
 
         osInfo: data.os_info || 'Windows',
 
-        monitors: data.monitors || []
+        monitors: data.monitors || [],
+
+        machineId: hostMachineId
 
       };
+
+      if (!room.streamConfig) {
+
+        room.streamConfig = {
+
+          width: room.hostMeta.width,
+
+          height: room.hostMeta.height,
+
+          monitors: room.hostMeta.monitors,
+
+          qualityPreset: 'balanced'
+
+        };
+
+      }
 
 
 
@@ -3190,6 +3257,8 @@ wss.on('connection', (ws, req) => {
 
           userId: targetUserId,
 
+          machineId: hostMachineId,
+
           deviceName: room.hostMeta.deviceName,
 
           roomId: roomId,
@@ -3226,7 +3295,7 @@ wss.on('connection', (ws, req) => {
 
           targetOs: room.hostMeta.osInfo,
 
-          details: { width: data.width, height: data.height, monitors: (data.monitors || []).length }
+          details: { width: data.width, height: data.height, monitors: (data.monitors || []).length, machineId: hostMachineId }
 
         });
 
@@ -3246,7 +3315,27 @@ wss.on('connection', (ws, req) => {
 
       if (room.clients && room.clients.size > 0) {
 
-        ws.send(JSON.stringify({ type: 'client_connected', clientCount: room.clients.size }));
+        const firstClient = Array.from(room.clients.values())[0];
+
+        ws.send(JSON.stringify({
+
+          type: 'client_connected',
+
+          clientCount: room.clients.size,
+
+          sessionId: firstClient?.id,
+
+          username: firstClient?.username || 'Khách',
+
+          clientUser: firstClient?.username || 'Khách',
+
+          clientName: firstClient?.clientName || firstClient?.clientDevice || firstClient?.username || 'Client',
+
+          clientIp: firstClient?.clientIp || '127.0.0.1',
+
+          machineId: firstClient?.machineId || 'unknown'
+
+        }));
 
         for (const client of room.clients.values()) {
 
@@ -3286,6 +3375,10 @@ wss.on('connection', (ws, req) => {
 
       const pin = String(data.pin || '').trim();
 
+      const clientMachineId = String(data.machine_id || data.machineId || req.headers['x-machine-id'] || '').trim() || null;
+
+      const clientCustomName = String(data.client_name || data.clientName || data.device_name || '').trim() || null;
+
       const room = rooms.get(roomId);
 
 
@@ -3300,6 +3393,8 @@ wss.on('connection', (ws, req) => {
 
           ws.userId = sess.id;
 
+          ws.user = sess;
+
         }
 
       } else if (data.username) {
@@ -3307,6 +3402,12 @@ wss.on('connection', (ws, req) => {
         ws.username = data.username;
 
       }
+
+
+
+      if (clientMachineId) ws.machineId = clientMachineId;
+
+      if (clientCustomName) ws.clientName = clientCustomName;
 
 
 
@@ -3370,6 +3471,98 @@ wss.on('connection', (ws, req) => {
 
 
 
+      const targetHostMachineId = room.hostMeta?.machineId || room.hostWs?.machineId || null;
+
+
+
+      // Prevent Self-Loop (Connecting to own machine)
+
+      if (clientMachineId && targetHostMachineId && clientMachineId === targetHostMachineId) {
+
+        await DB.logAudit({
+
+          action: 'CONNECT_BLOCKED_SELF_LOOP',
+
+          userId: ws.userId,
+
+          username: ws.username,
+
+          clientIp: ws.clientIp,
+
+          clientDevice: ws.clientDevice,
+
+          roomId,
+
+          targetDevice: room.hostMeta?.deviceName,
+
+          targetOs: room.hostMeta?.osInfo,
+
+          details: { clientMachineId, targetHostMachineId }
+
+        });
+
+        ws.send(JSON.stringify({
+
+          status: 'error',
+
+          code: 'RELAY_SELF_LOOP_FORBIDDEN',
+
+          message: 'Không thể tự kết nối điều khiển chính máy tính này (Self-loop forbidden).' 
+
+        }));
+
+        try { ws.close(); } catch {}
+
+        return;
+
+      }
+
+
+
+      // VẤN ĐỀ 5: Prevent Reverse Remote Loop (A remoting to B => B cannot remote to A)
+
+      if (clientMachineId && targetHostMachineId && hasReverseEdge(clientMachineId, targetHostMachineId)) {
+
+        await DB.logAudit({
+
+          action: 'CONNECT_BLOCKED_REVERSE_LOOP',
+
+          userId: ws.userId,
+
+          username: ws.username,
+
+          clientIp: ws.clientIp,
+
+          clientDevice: ws.clientDevice,
+
+          roomId,
+
+          targetDevice: room.hostMeta?.deviceName,
+
+          targetOs: room.hostMeta?.osInfo,
+
+          details: { clientMachineId, targetHostMachineId, reverseEdge: `${targetHostMachineId}->${clientMachineId}` }
+
+        });
+
+        ws.send(JSON.stringify({
+
+          status: 'error',
+
+          code: 'RELAY_REVERSE_LOOP_FORBIDDEN',
+
+          message: 'Máy trạm đích đang điều khiển máy tính này. Không thể tạo vòng lặp kết nối ngược!'
+
+        }));
+
+        try { ws.close(); } catch {}
+
+        return;
+
+      }
+
+
+
       role = 'client';
 
       currentRoomId = roomId;
@@ -3377,6 +3570,16 @@ wss.on('connection', (ws, req) => {
       const sessionId = 'sess_' + Math.random().toString(36).substring(2, 9);
 
       ws.sessionId = sessionId;
+
+
+
+      if (clientMachineId && targetHostMachineId) {
+
+        addRemoteEdge(clientMachineId, targetHostMachineId, sessionId);
+
+      }
+
+
 
       const clientInfo = {
 
@@ -3388,9 +3591,13 @@ wss.on('connection', (ws, req) => {
 
         userId: ws.userId,
 
+        machineId: clientMachineId || 'unknown',
+
         clientIp: ws.clientIp,
 
         clientDevice: ws.clientDevice,
+
+        clientName: ws.clientName || ws.username || 'Client',
 
         connectTime: Date.now()
 
@@ -3420,7 +3627,7 @@ wss.on('connection', (ws, req) => {
 
         targetOs: room.hostMeta?.osInfo,
 
-        details: { status: 'connected', resolution: `${room.hostMeta?.width}x${room.hostMeta?.height}`, sessionId }
+        details: { status: 'connected', resolution: `${room.hostMeta?.width}x${room.hostMeta?.height}`, sessionId, machineId: clientMachineId }
 
       });
 
@@ -3438,15 +3645,41 @@ wss.on('connection', (ws, req) => {
 
         session_id: sessionId,
 
-        hostMeta: room.hostMeta
+        hostMeta: room.hostMeta,
+
+        streamConfig: room.streamConfig || null
 
       }));
 
 
 
+
+
+
+
+      // VẤN ĐỀ 6: Send client_connected with FULL operator details to Host
+
       if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
 
-        room.hostWs.send(JSON.stringify({ type: 'client_connected', clientCount: room.clients.size, sessionId }));
+        room.hostWs.send(JSON.stringify({
+
+          type: 'client_connected',
+
+          clientCount: room.clients.size,
+
+          sessionId: sessionId,
+
+          username: ws.user ? ws.user.username : (ws.username || 'Khách'),
+
+          clientUser: ws.user ? ws.user.username : (ws.username || 'Khách'),
+
+          clientName: ws.clientName || ws.username || 'Client',
+
+          clientIp: ws.clientIp || ws._socket?.remoteAddress || '127.0.0.1',
+
+          machineId: ws.machineId || 'unknown'
+
+        }));
 
       }
 
@@ -3457,6 +3690,27 @@ wss.on('connection', (ws, req) => {
 
 
     // --- Session Management Messages (Live list & Kill Session) ---
+
+    if (type === 'get_stream_config' && currentRoomId) {
+      const room = rooms.get(currentRoomId);
+      if (room) {
+        const cfg = room.streamConfig || {
+          width: room.hostMeta?.width || 1920,
+          height: room.hostMeta?.height || 1080,
+          monitors: room.hostMeta?.monitors || [],
+          qualityPreset: 'balanced'
+        };
+        ws.send(JSON.stringify({
+          type: 'stream_config',
+          width: cfg.width || room.hostMeta?.width || 1920,
+          height: cfg.height || room.hostMeta?.height || 1080,
+          monitors: cfg.monitors || room.hostMeta?.monitors || [],
+          qualityPreset: cfg.qualityPreset || 'balanced',
+          isLive: !!room.isStreaming
+        }));
+      }
+      return;
+    }
 
     if (type === 'get_sessions' && currentRoomId) {
 
@@ -3510,13 +3764,37 @@ wss.on('connection', (ws, req) => {
 
         try { target.ws.close(1000, 'Session terminated'); } catch {}
 
+        const targetMachine = target.machineId || target.ws?.machineId;
+
+        const hostMachine = room.hostMeta?.machineId;
+
+        if (targetMachine && hostMachine) {
+
+          removeRemoteEdge(targetMachine, hostMachine, targetSessionId);
+
+        }
+
         room.clients.delete(targetSessionId);
 
         broadcastSessionList(room);
 
         if (room.clients.size === 0 && room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
 
-          room.hostWs.send(JSON.stringify({ type: 'client_disconnected' }));
+          room.hostWs.send(JSON.stringify({ type: 'client_disconnected', clientCount: 0 }));
+
+        } else if (room.clients.size > 0 && room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
+
+          room.hostWs.send(JSON.stringify({
+
+            type: 'client_disconnected',
+
+            clientCount: room.clients.size,
+
+            sessionId: targetSessionId,
+
+            username: target.username
+
+          }));
 
         }
 
@@ -4118,6 +4396,44 @@ wss.on('connection', (ws, req) => {
 
       const room = rooms.get(currentRoomId);
 
+      if (room) {
+
+        if (type === 'display_profile_matched') {
+
+          if (!room.streamConfig) room.streamConfig = {};
+
+          room.streamConfig.qualityPreset = data.recommended_preset;
+
+          if (data.host_res) {
+
+            room.streamConfig.width = data.host_res[0];
+
+            room.streamConfig.height = data.host_res[1];
+
+          }
+
+        } else if (type === 'monitors_list') {
+
+          if (!room.streamConfig) room.streamConfig = {};
+
+          room.streamConfig.monitors = data.monitors;
+
+        } else if (type === 'stream_config') {
+
+          if (!room.streamConfig) room.streamConfig = {};
+
+          Object.assign(room.streamConfig, data);
+
+        } else if (type === 'quality_preset') {
+
+          if (!room.streamConfig) room.streamConfig = {};
+
+          room.streamConfig.qualityPreset = data.preset;
+
+        }
+
+      }
+
       if (room && room.clients) {
 
         const msgStr = message.toString();
@@ -4174,47 +4490,43 @@ wss.on('connection', (ws, req) => {
 
         console.log(`[Client Disconnected] Room: ${currentRoomId} | Session: ${ws.sessionId}`);
 
-        const durationSec = Math.round((Date.now() - (ws.connectTime || Date.now())) / 1000);
-
-        await DB.logAudit({
-
-          action: 'SESSION_DISCONNECTED',
-
-          userId: ws.userId,
-
-          username: ws.username,
-
-          clientIp: ws.clientIp,
-
-          clientDevice: ws.clientDevice,
-
-          roomId: currentRoomId,
-
-          targetDevice: room?.hostMeta?.deviceName,
-
-          targetOs: room?.hostMeta?.osInfo,
-
-          details: { durationSec, durationText: `${durationSec}s`, sessionId: ws.sessionId }
-
-        });
-
+        // Immediate synchronous state cleanup before async DB audit
         if (room && room.clients) {
-
+          const clientEntry = room.clients.get(ws.sessionId);
+          const cMachine = clientEntry?.machineId || ws.machineId;
+          const hMachine = room.hostMeta?.machineId;
+          if (cMachine && hMachine) {
+            removeRemoteEdge(cMachine, hMachine, ws.sessionId);
+          }
           room.clients.delete(ws.sessionId);
-
           broadcastSessionList(room);
+          if (room.clients.size === 0) room.isStreaming = false;
 
           if (room.clients.size === 0 && room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
-
-            room.hostWs.send(JSON.stringify({ type: 'client_disconnected' }));
-
+            room.hostWs.send(JSON.stringify({ type: 'client_disconnected', clientCount: 0 }));
+          } else if (room.clients.size > 0 && room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
+            room.hostWs.send(JSON.stringify({
+              type: 'client_disconnected',
+              clientCount: room.clients.size,
+              sessionId: ws.sessionId,
+              username: ws.username
+            }));
           }
-
         }
 
+        const durationSec = Math.round((Date.now() - (ws.connectTime || Date.now())) / 1000);
+        DB.logAudit({
+          action: 'SESSION_DISCONNECTED',
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice: room?.hostMeta?.deviceName,
+          targetOs: room?.hostMeta?.osInfo,
+          details: { durationSec, durationText: `${durationSec}s`, sessionId: ws.sessionId }
+        }).catch(() => {});
       }
-
-
 
       if (!room.hostWs && (!room.clients || room.clients.size === 0)) {
 

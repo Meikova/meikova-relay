@@ -790,7 +790,20 @@
   // --- URL ROUTING & PATH / QUERY STATE ENGINE ---
   function getRouteStateFromUrl() {
     const rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
-    const params = new URLSearchParams(window.location.search);
+    const searchParams = new URLSearchParams(window.location.search);
+    let hash = window.location.hash.replace(/^#\/?/, '');
+    if (hash.includes('?')) hash = hash.split('?')[1];
+    const hashParams = new URLSearchParams(hash);
+
+    const getParam = (key) => searchParams.get(key) || hashParams.get(key) || '';
+
+    const roomParam = getParam('room');
+    const pinParam = getParam('pin');
+    const directParam = getParam('direct');
+    const isDirect = directParam === '1' || directParam === 'true';
+    const browsePath = getParam('path');
+    const langParam = getParam('lang');
+
     let view = 'landing';
     if (rawPath === 'auth' || rawPath === 'login') view = 'auth';
     else if (rawPath === 'remote') view = 'remote';
@@ -799,19 +812,28 @@
     else if (rawPath === 'tasks') view = 'tasks';
     else if (rawPath === 'audit' || rawPath === 'audit-logs') view = 'audit';
     else if (rawPath === 'dashboard') view = 'dashboard';
-    else if (rawPath === 'home' || rawPath === 'landing' || rawPath === '') view = 'landing';
+    else if (rawPath === 'home' || rawPath === 'landing' || rawPath === '') {
+      if (roomParam && (isDirect || rawPath === 'remote')) {
+        view = 'remote';
+      } else if (roomParam && !rawPath) {
+        // Direct remote link via /?room=...
+        view = isDirect ? 'remote' : 'landing';
+      } else {
+        view = 'landing';
+      }
+    }
 
-    const langParam = params.get('lang');
     if (langParam && window.MeikovaI18n) {
       window.MeikovaI18n.setLang(langParam, false);
     }
 
     return {
       view,
-      room: params.get('room') || '',
-      pin: params.get('pin') || '',
-      browsePath: params.get('path') || '',
-      lang: langParam || ''
+      room: roomParam,
+      pin: pinParam,
+      direct: isDirect,
+      browsePath: browsePath,
+      lang: langParam
     };
   }
 
@@ -988,7 +1010,9 @@
 
     // 1. Synchronously resolve target view based on URL route and cached token
     let targetView = 'landing';
-    if (authToken) {
+    if (route.room && (route.direct || route.view === 'remote' || ['remote', 'files', 'terminal', 'tasks'].includes(route.view))) {
+      targetView = route.view || 'remote';
+    } else if (authToken) {
       if (route.view === 'auth') {
         targetView = 'dashboard';
       } else {
@@ -1003,10 +1027,13 @@
     }
 
     // Restore deep link state synchronously
-    if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
+    if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
       currentRoom = route.room;
       const savedPin = route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
       currentPin = savedPin;
+      if (savedPin) {
+        sessionStorage.setItem('meikova_relay_pin_' + route.room, savedPin);
+      }
       if (route.browsePath) {
         remoteCurrentPath = route.browsePath;
       }
@@ -1043,18 +1070,24 @@
           currentUser = null;
           localStorage.removeItem('meikova_relay_token');
           renderUserBadge();
-          if (targetView !== 'landing' && targetView !== 'auth') {
+          if (targetView !== 'landing' && targetView !== 'auth' && !route.room) {
             switchView('landing', true);
             showToast('Phiên đăng nhập đã hết hạn', 'info');
           }
-          return;
         }
       } catch (err) {
         console.warn('Auth check error:', err);
       }
     }
 
-    // 3. Unauthenticated pending deep link
+    // 3. Direct or Unauthenticated connect with room ID
+    if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
+      const savedPin = currentPin || route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
+      startRemoteSession(defaultWsUrl, route.room, savedPin);
+      return;
+    }
+
+    // 4. Unauthenticated pending deep link
     if (route.view !== 'landing' && route.room) {
       sessionStorage.setItem('meikova_relay_pending_route', window.location.pathname + window.location.search);
     }
@@ -2228,6 +2261,9 @@
     if (updateUrl) {
       syncUrlWithState(false);
     }
+    if (typeof updateRemoteSessionTabs === 'function') {
+      updateRemoteSessionTabs();
+    }
   }
 
   // Navigation Click Handler
@@ -3039,6 +3075,9 @@
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
               <span data-i18n="dashboard.btn_connect">${connectLabel}</span>
             </button>
+            <button type="button" class="btn-popout-device" data-room="${escapeHtml(d.room_id)}" data-pin="${escapeHtml(d.pin || '')}" data-name="${escapeHtml(d.device_name)}" title="Mở trong tab mới / cửa sổ riêng (Popout)" aria-label="Mở trong tab mới" style="height:38px;padding:0 12px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:var(--radius);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s ease;" onmouseenter="this.style.color='var(--accent-cyan)';this.style.borderColor='rgba(56,189,248,0.4)';this.style.background='rgba(56,189,248,0.08)';" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--line)';this.style.background='rgba(255,255,255,0.03)';">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </button>
             <button class="btn-delete-device" data-id="${d.id}" data-name="${escapeHtml(d.device_name)}" title="${t('dashboard.btn_delete')}" aria-label="${t('dashboard.btn_delete')}" style="height:38px;padding:0 12px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:var(--radius);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s ease;" onmouseenter="this.style.color='#EF4444';this.style.borderColor='rgba(239,68,68,0.4)';this.style.background='rgba(239,68,68,0.08)';" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--line)';this.style.background='rgba(255,255,255,0.03)';">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
             </button>
@@ -3059,6 +3098,16 @@
         const room = btn.dataset.room;
         const pin = btn.dataset.pin;
         startRemoteSession(defaultWsUrl, room, pin);
+      });
+    });
+
+    deviceGrid.querySelectorAll('.btn-popout-device').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const room = btn.dataset.room;
+        const pin = btn.dataset.pin || '';
+        const popoutUrl = `/?room=${encodeURIComponent(room)}${pin ? `&pin=${encodeURIComponent(pin)}` : ''}&direct=1`;
+        window.open(popoutUrl, '_blank', 'noopener,noreferrer');
       });
     });
 
@@ -3174,6 +3223,9 @@
 
         if (msg.status === 'ok' && msg.role === 'client') {
           isConnected = true;
+          if (typeof updateRemoteSessionTabs === 'function') {
+            updateRemoteSessionTabs();
+          }
           lastRemoteActivity = Date.now();
           lastGlobalActivity = Date.now();
           if (isAwaitingRemoteRestart) {
@@ -3479,6 +3531,9 @@
     currentRoom = null;
     currentRoomId = null;
     currentPin = '';
+    if (typeof updateRemoteSessionTabs === 'function') {
+      updateRemoteSessionTabs();
+    }
     updateAudioStreamUi(false);
     stopMicStream();
     if (audioContext && audioContext.state !== 'closed') {
@@ -4101,7 +4156,6 @@
     }));
 
     if (preset === 'native_1to1') {
-      setDisplayScaleMode(false);
       showToast('Chế độ 1:1 Chuẩn gốc: Hiển thị nguyên bản từng điểm ảnh (Pixel-Perfect)', 'success');
     } else if (preset === 'ultra_120') {
       showToast('Đã kích hoạt 120 FPS Siêu mượt (Độ trễ tối thiểu)', 'info');
@@ -6442,7 +6496,7 @@
             <div class="grid-item-icon" style="transform: scale(1.6); margin-bottom: 12px;">${icon}</div>
             <div class="grid-item-name">${escapeHtml(item.name)}</div>
             <div class="grid-item-size">${sizeStr}</div>
-            <div class="grid-item-actions" style="display: flex; gap: 4px; justify-content: center; margin-top: 8px;">
+            <div class="grid-item-actions">
               ${!isDir && isEditableFile(item.name) ? `
                 <button type="button" class="btn-action-icon btn-grid-edit" data-path="${itemPath}" data-name="${escapeHtml(item.name)}" title="${t('files.action_edit_title') || 'Chỉnh sửa'}" style="width:24px;height:24px;">
                   <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -7551,6 +7605,102 @@
 
   // Start app
   initApp();
+
+  // --- MULTI-SESSION TABS & POPOUT ENGINE (Vấn đề 3) ---
+  function updateRemoteSessionTabs() {
+    const bar = document.getElementById('remoteSessionTabsBar');
+    const list = document.getElementById('remoteSessionTabsList');
+    if (!bar || !list) return;
+
+    if (currentView !== 'remote' || !currentRoom) {
+      bar.classList.add('hidden');
+      return;
+    }
+
+    bar.classList.remove('hidden');
+
+    const devices = (currentDeviceList && currentDeviceList.length > 0) ? currentDeviceList : [];
+    let devItems = [...devices];
+    const exists = devItems.some(d => d.room_id === currentRoom);
+    if (!exists) {
+      devItems.unshift({
+        room_id: currentRoom,
+        device_name: currentRoom,
+        is_online: 1,
+        pin: currentPin || ''
+      });
+    }
+
+    list.innerHTML = devItems.map(d => {
+      const isActive = d.room_id === currentRoom;
+      const isOnline = d.is_online === 1;
+      return `
+        <div class="session-tab-pill ${isActive ? 'active' : ''}" data-room="${escapeHtml(d.room_id)}" data-pin="${escapeHtml(d.pin || '')}">
+          <span class="session-tab-dot ${isOnline ? 'online' : 'offline'}"></span>
+          <span class="session-tab-name mono-font">${escapeHtml(d.device_name || d.room_id)}</span>
+          <button type="button" class="session-tab-popout" title="Mở trong tab mới / cửa sổ riêng" data-room="${escapeHtml(d.room_id)}" data-pin="${escapeHtml(d.pin || '')}">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('.session-tab-pill').forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        if (e.target.closest('.session-tab-popout')) return;
+        const room = pill.dataset.room;
+        const pin = pill.dataset.pin || '';
+        if (room && room !== currentRoom) {
+          startRemoteSession(defaultWsUrl, room, pin);
+        }
+      });
+    });
+
+    list.querySelectorAll('.session-tab-popout').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const room = btn.dataset.room;
+        const pin = btn.dataset.pin || '';
+        const popUrl = `/?room=${encodeURIComponent(room)}${pin ? `&pin=${encodeURIComponent(pin)}` : ''}&direct=1`;
+        window.open(popUrl, '_blank', 'noopener,noreferrer');
+      });
+    });
+  }
+
+  // Bind Session Tab Actions & Popout Button
+  document.getElementById('btnRemoteNewSessionTab')?.addEventListener('click', () => {
+    quickConnectModal?.classList.remove('hidden');
+    landingRoomInput?.focus();
+  });
+
+  document.getElementById('btnPopoutSession')?.addEventListener('click', () => {
+    if (!currentRoom) return;
+    const popUrl = `/?room=${encodeURIComponent(currentRoom)}${currentPin ? `&pin=${encodeURIComponent(currentPin)}` : ''}&direct=1`;
+    window.open(popUrl, '_blank', 'noopener,noreferrer');
+  });
+
+  document.getElementById('btnQCPopout')?.addEventListener('click', () => {
+    const room = qcRoomId?.value.trim();
+    const pin = qcPin?.value.trim() || '';
+    if (!room) {
+      showToast('Vui lòng nhập Room ID', 'warning');
+      return;
+    }
+    quickConnectModal.classList.add('hidden');
+    const popUrl = `/?room=${encodeURIComponent(room)}${pin ? `&pin=${encodeURIComponent(pin)}` : ''}&direct=1`;
+    window.open(popUrl, '_blank', 'noopener,noreferrer');
+  });
+
+  window.addEventListener('hashchange', () => {
+    const route = getRouteStateFromUrl();
+    if (route.room && route.room !== currentRoom) {
+      currentRoom = route.room;
+      currentPin = route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
+      switchView('remote', false);
+      startRemoteSession(defaultWsUrl, route.room, currentPin);
+    }
+  });
+
 })();
 
 

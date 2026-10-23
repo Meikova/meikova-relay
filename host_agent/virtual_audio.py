@@ -111,6 +111,136 @@ def is_audio_output_available() -> bool:
 
     return True
 
+def set_default_audio_playback_device(device_keyword: str = "CABLE") -> bool:
+    """Activates audio device matching keyword as Windows Default Playback Device."""
+    if sys.platform != "win32":
+        return False
+    try:
+        import winreg
+        import ctypes
+        from ctypes import wintypes
+        import uuid
+
+        # 1. Locate Device Endpoint ID in Registry
+        root_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render"
+        target_dev_id = None
+        target_name = None
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, root_path) as root:
+                count = winreg.QueryInfoKey(root)[0]
+                for i in range(count):
+                    guid = winreg.EnumKey(root, i)
+                    try:
+                        with winreg.OpenKey(root, guid + r"\Properties") as prop_key:
+                            num_vals = winreg.QueryInfoKey(prop_key)[1]
+                            for j in range(num_vals):
+                                _, val, _ = winreg.EnumValue(prop_key, j)
+                                if isinstance(val, str) and (device_keyword.lower() in val.lower() or "vb-audio" in val.lower()):
+                                    target_dev_id = "{0.0.0.00000000}." + guid
+                                    target_name = val
+                                    break
+                    except Exception:
+                        continue
+                    if target_dev_id:
+                        break
+        except Exception as e:
+            logger.warning(f"[VirtualAudio] Registry device lookup error: {e}")
+
+        if not target_dev_id:
+            logger.warning(f"[VirtualAudio] Device matching '{device_keyword}' not found in MMDevices registry.")
+            return False
+
+        # 2. Check if already default endpoint
+        ole32 = ctypes.windll.ole32
+        ole32.CoInitialize(None)
+
+        class GUID(ctypes.Structure):
+            _fields_ = [
+                ('Data1', wintypes.DWORD),
+                ('Data2', wintypes.WORD),
+                ('Data3', wintypes.WORD),
+                ('Data4', wintypes.BYTE * 8)
+            ]
+
+        def str_to_guid(s):
+            b = uuid.UUID(s).bytes_le
+            g = GUID()
+            g.Data1 = int.from_bytes(b[0:4], 'little')
+            g.Data2 = int.from_bytes(b[4:6], 'little')
+            g.Data3 = int.from_bytes(b[6:8], 'little')
+            for idx in range(8):
+                g.Data4[idx] = b[8 + idx]
+            return g
+
+        def v_call(ptr, idx, argtypes, *args):
+            vt = ctypes.cast(ptr, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)))
+            fn = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, *argtypes)(vt[0][idx])
+            return fn(ptr, *args)
+
+        clsid_enum = str_to_guid('BCDE0395-E52F-467C-8E3D-C4579291692E')
+        iid_enum = str_to_guid('A95664D2-9614-4F35-A746-DE8DB63617E6')
+        p_enum = ctypes.c_void_p()
+        hr = ole32.CoCreateInstance(ctypes.byref(clsid_enum), None, 1, ctypes.byref(iid_enum), ctypes.byref(p_enum))
+        if hr == 0 and p_enum.value:
+            p_dev = ctypes.c_void_p()
+            hr_def = v_call(p_enum, 4, [ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p)], 0, 0, ctypes.byref(p_dev))
+            if hr_def == 0 and p_dev.value:
+                p_id = wintypes.LPWSTR()
+                v_call(p_dev, 5, [ctypes.POINTER(wintypes.LPWSTR)], ctypes.byref(p_id))
+                if p_id.value and target_dev_id.lower() == p_id.value.lower():
+                    logger.info(f"[VirtualAudio] '{target_name}' is already default playback device.")
+                    ole32.CoUninitialize()
+                    return True
+
+        # 3. Apply via IPolicyConfig COM interface (CLSID: 870af99c-171d-4f9e-af0d-e63df40c2bc9)
+        clsid_pol = str_to_guid('870af99c-171d-4f9e-af0d-e63df40c2bc9')
+        iid_pol = str_to_guid('f8679f50-850a-41cf-9c72-430f290290c8')
+        p_pol = ctypes.c_void_p()
+        hr_pol = ole32.CoCreateInstance(ctypes.byref(clsid_pol), None, 1, ctypes.byref(iid_pol), ctypes.byref(p_pol))
+        success = False
+        if hr_pol == 0 and p_pol.value:
+            for role in (0, 1, 2):  # eConsole, eMultimedia, eCommunications
+                v_call(p_pol, 13, [wintypes.LPCWSTR, ctypes.c_int], target_dev_id, role)
+            success = True
+            logger.info(f"[VirtualAudio] Set '{target_name}' ({target_dev_id}) as default playback device via IPolicyConfig.")
+
+        ole32.CoUninitialize()
+
+        # 4. Fallback PowerShell execution
+        if not success:
+            ps_cmd = (
+                f"$devId = '{target_dev_id}';"
+                "try {"
+                "  $code = @'\n"
+                "using System;\n"
+                "using System.Runtime.InteropServices;\n"
+                "[ComImport, Guid(\"870af99c-171d-4f9e-af0d-e63df40c2bc9\")]\n"
+                "class PolicyConfigClient {}\n"
+                "[Guid(\"f8679f50-850a-41cf-9c72-430f290290c8\"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]\n"
+                "interface IPolicyConfig {\n"
+                "  int M0(); int M1(); int M2(); int M3(); int M4(); int M5(); int M6(); int M7(); int M8(); int M9();\n"
+                "  [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string devId, int role);\n"
+                "}\n"
+                "public class AudioHelper {\n"
+                "  public static void SetDefault(string id) {\n"
+                "    var p = (IPolicyConfig)new PolicyConfigClient();\n"
+                "    p.SetDefaultEndpoint(id, 0); p.SetDefaultEndpoint(id, 1); p.SetDefaultEndpoint(id, 2);\n"
+                "  }\n"
+                "}\n"
+                "'@;\n"
+                "  Add-Type -TypeDefinition $code -ErrorAction Stop;\n"
+                "  [AudioHelper]::SetDefault($devId);\n"
+                "} catch {}"
+            )
+            subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
+                           capture_output=True, timeout=5)
+            success = True
+
+        return success
+    except Exception as e:
+        logger.error(f"[VirtualAudio] Failed to activate default playback device: {e}")
+        return False
+
 def download_and_install_vbcable() -> Dict[str, Any]:
     """
     Installs virtual audio device according to the current platform:
@@ -148,6 +278,12 @@ def download_and_install_vbcable() -> Dict[str, Any]:
             time.sleep(3)
             active = is_audio_output_available()
             logger.info(f"[VirtualAudio] Driver installation finished. Audio output active: {active}")
+
+            # Auto-activate VB-CABLE as Default Playback Device in Windows if not already selected
+            activated = set_default_audio_playback_device("CABLE")
+            if activated:
+                logger.info("[VirtualAudio] Successfully ensured VB-CABLE is default playback device.")
+            active = is_audio_output_available()
 
             return {
                 "success": True,

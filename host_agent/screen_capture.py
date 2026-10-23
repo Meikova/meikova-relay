@@ -44,9 +44,12 @@ SM_CYVIRTUALSCREEN = 79
 class ScreenCapture:
     """Captures and compresses Windows desktop frames with multi-monitor & window station awareness."""
 
-    def __init__(self, quality: int = 65, max_width: Optional[int] = None):
+    def __init__(self, quality: int = 70, max_width: Optional[int] = None):
         self.quality = quality
         self.max_width = max_width
+        self.resample_filter = "bilinear"
+        self.subsampling = 2  # 0 for 4:4:4, 2 for 4:2:0
+        self.grayscale = False
         self._buffer = io.BytesIO()
         self._attached = False
         self._attach_window_station()
@@ -247,24 +250,29 @@ class ScreenCapture:
                 new_w = effective_max_w
                 new_h = int(new_w * aspect)
                 # NEAREST is 10x faster for ECO/speed modes (1.4ms vs 14ms)
-                resample = Image.Resampling.NEAREST if self.quality <= 55 else Image.Resampling.BILINEAR
+                use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or self.quality <= 55
+                resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
                 img = img.resize((new_w, new_h), resample)
 
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
+            if getattr(self, "grayscale", False):
+                if img.mode != 'L':
+                    img = img.convert('L')
+            else:
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
 
             self._buffer.seek(0)
             self._buffer.truncate(0)
-            # subsampling=2 (4:2:0) cuts JPEG size by 35-40% for smooth video streaming
-            # fastdct=True cuts compression time by 70%
-            img.save(
-                self._buffer,
-                format='JPEG',
-                quality=self.quality,
-                subsampling=2,
-                optimize=False,
-                fastdct=True
-            )
+            save_kwargs = {
+                "format": "JPEG",
+                "quality": self.quality,
+                "optimize": False,
+                "fastdct": True,
+            }
+            if not getattr(self, "grayscale", False):
+                save_kwargs["subsampling"] = getattr(self, "subsampling", 2)
+
+            img.save(self._buffer, **save_kwargs)
             return self._buffer.getvalue()
 
         except Exception:
@@ -277,7 +285,8 @@ class ScreenCapture:
                     self._sct = None
             if getattr(self, 'is_headless', False):
                 try:
-                    return generate_headless_placeholder(1920, 1080)
+                    w, h = getattr(self, 'resolution', (1920, 1080))
+                    return generate_headless_placeholder(w, h)
                 except Exception:
                     pass
             return None

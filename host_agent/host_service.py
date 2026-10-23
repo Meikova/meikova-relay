@@ -144,6 +144,7 @@ class HostService:
         self._allow_insecure_ssl = False
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self.frame_queue: Optional[asyncio.Queue] = None
 
         # Audio Capture & Stream
         self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk, on_status=self._on_audio_status)
@@ -323,37 +324,93 @@ class HostService:
         logger.warning("[Chat Send Warning]: Host service is offline or not connected")
         return False
 
+    @staticmethod
+    def get_machine_id() -> str:
+        """Retrieves persistent unique hardware MachineGuid across Windows/POSIX."""
+        if sys.platform == "win32":
+            try:
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Cryptography") as k:
+                    val, _ = winreg.QueryValueEx(k, "MachineGuid")
+                    if val and isinstance(val, str):
+                        return val.strip()
+            except Exception:
+                pass
+        else:
+            for p in (Path("/etc/machine-id"), Path("/var/lib/dbus/machine-id")):
+                if p.exists():
+                    try:
+                        t = p.read_text().strip()
+                        if t:
+                            return t
+                    except Exception:
+                        pass
+        import uuid
+        return str(uuid.UUID(int=uuid.getnode()))
+
     def apply_quality_preset(self, preset: str) -> str:
-        """Applies streaming frame rate, quality, and compression parameters."""
-        # ponytail: deterministic preset mapping, single source of truth
-        if preset == "native_1to1":
-            self.capture.quality = 95
-            self.capture.max_width = None
-            self.frame_interval = 1.0 / 60.0
-        elif preset == "ultra_120":
-            self.capture.quality = 55
-            self.capture.max_width = None
-            self.frame_interval = 1.0 / 120.0
-        elif preset == "crisp_2k_4k":
-            self.capture.quality = 92
-            self.capture.max_width = None
+        """Applies streaming frame rate, quality, and compression parameters across 6 deterministic presets."""
+        # ponytail: deterministic preset mapping with measurable bitrate & resolution parameters
+        if preset == "eco":
+            self.capture.quality = 45
+            self.capture.max_width = 960
+            self.capture.resample_filter = "nearest"
+            self.capture.subsampling = 2  # 4:2:0
+            self.capture.grayscale = False
             self.frame_interval = 1.0 / 30.0
         elif preset == "speed_60":
-            self.capture.quality = 50
-            self.capture.max_width = None
+            self.capture.quality = 58
+            self.capture.max_width = 1280
+            self.capture.resample_filter = "nearest"
+            self.capture.subsampling = 2  # 4:2:0
+            self.capture.grayscale = False
             self.frame_interval = 1.0 / 60.0
         elif preset == "crisp_hd":
-            self.capture.quality = 85
+            self.capture.quality = 80
+            self.capture.max_width = 1920
+            self.capture.resample_filter = "bilinear"
+            self.capture.subsampling = 2  # 4:2:0
+            self.capture.grayscale = False
+            self.frame_interval = 1.0 / 30.0
+        elif preset == "native_1to1":
+            self.capture.quality = 90
             self.capture.max_width = None
+            self.capture.resample_filter = "bilinear"
+            self.capture.subsampling = 0  # 4:4:4 pixel-perfect
+            self.capture.grayscale = False
             self.frame_interval = 1.0 / 30.0
         elif preset == "grayscale":
-            self.capture.quality = 35
+            self.capture.quality = 40
             self.capture.max_width = 1280
+            self.capture.resample_filter = "nearest"
+            self.capture.subsampling = 2  # 4:2:0
+            self.capture.grayscale = True
             self.frame_interval = 1.0 / 25.0
+        elif preset == "ultra_120":
+            # Legacy alias mapped to speed_60
+            self.capture.quality = 58
+            self.capture.max_width = 1280
+            self.capture.resample_filter = "nearest"
+            self.capture.subsampling = 2
+            self.capture.grayscale = False
+            self.frame_interval = 1.0 / 60.0
+            preset = "speed_60"
+        elif preset == "crisp_2k_4k":
+            # Legacy alias mapped to native_1to1
+            self.capture.quality = 90
+            self.capture.max_width = None
+            self.capture.resample_filter = "bilinear"
+            self.capture.subsampling = 0
+            self.capture.grayscale = False
+            self.frame_interval = 1.0 / 30.0
+            preset = "native_1to1"
         else: # balanced default
             preset = "balanced"
-            self.capture.quality = 65
-            self.capture.max_width = None
+            self.capture.quality = 70
+            self.capture.max_width = 1600
+            self.capture.resample_filter = "bilinear"
+            self.capture.subsampling = 2  # 4:2:0
+            self.capture.grayscale = False
             self.frame_interval = 1.0 / 30.0
         return preset
 
@@ -364,21 +421,17 @@ class HostService:
         """
         host_w, host_h = self.capture.resolution
         
-        # High refresh rate priority (120 FPS)
-        if client_fps >= 120:
-            recommended = "ultra_120"
+        # High refresh rate priority (>= 60 FPS)
+        if client_fps >= 60:
+            recommended = "speed_60"
             suggested_scale = "fit" if (client_w < host_w or client_h < host_h) else "1to1"
-        # Ultra HD (2K / 4K) fidelity priority when controller or both sides support it
-        elif (host_w >= 2560 and client_w >= 2560) or client_w >= 3840 or client_h >= 2160:
-            recommended = "crisp_2k_4k"
-            suggested_scale = "1to1" if (client_w >= host_w and client_h >= host_h) else "fit"
         # Native 1:1 Pixel-Perfect priority if controller can display host resolution unscaled
         elif client_w >= host_w and client_h >= host_h:
             recommended = "native_1to1"
             suggested_scale = "1to1"
-        # 60 FPS smooth default for standard displays
-        elif client_fps >= 60:
-            recommended = "speed_60"
+        # Crisp HD fidelity for high resolution displays
+        elif client_w >= 1920:
+            recommended = "crisp_hd"
             suggested_scale = "fit"
         else:
             recommended = "balanced"
@@ -398,8 +451,35 @@ class HostService:
             "message": f"Đồng bộ tối ưu: Trạm {host_w}x{host_h} ↔ Điều khiển {client_w}x{client_h} @ {client_fps}Hz -> {applied}"
         }
 
-    async def _send_frames_loop(self, ws: websockets.WebSocketClientProtocol):
-        logger.info(f"Frame streamer started targeting {self.fps} FPS")
+    async def _stream_screen(self):
+        """Captures screen frames independently at target FPS, decoupled from network latency."""
+        fps_target = int(round(1.0 / self.frame_interval))
+        logger.info(f"Screen capture loop started targeting {fps_target} FPS")
+        while self.running:
+            if not self.has_active_client:
+                await asyncio.sleep(0.1)
+                continue
+
+            start_time = time.perf_counter()
+            frame_bytes = await asyncio.to_thread(self.capture.capture_frame, False)
+            if frame_bytes and self.frame_queue is not None:
+                if self.frame_queue.full():
+                    try:
+                        self.frame_queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        pass
+                try:
+                    self.frame_queue.put_nowait(frame_bytes)
+                except asyncio.QueueFull:
+                    pass
+
+            elapsed = time.perf_counter() - start_time
+            sleep_time = max(0.001, self.frame_interval - elapsed)
+            await asyncio.sleep(sleep_time)
+
+    async def _send_frames_worker(self, ws: websockets.WebSocketClientProtocol):
+        """Worker task reading latest frame from queue and sending over WebSocket."""
+        logger.info("Frame sender worker started")
         last_heartbeat = time.time()
         while self.running:
             if not self.has_active_client:
@@ -412,35 +492,42 @@ class HostService:
                 await asyncio.sleep(0.2)
                 continue
 
-            # Transport write buffer backpressure check:
-            # Allow in-flight frame pipelines; yield only if write buffer is congested (>1MB)
-            transport = getattr(ws, "transport", None)
-            if transport and hasattr(transport, "get_write_buffer_size"):
-                if transport.get_write_buffer_size() > 1024 * 1024:
-                    await asyncio.sleep(0.005)
+            try:
+                if self.frame_queue is None:
+                    await asyncio.sleep(0.05)
                     continue
 
-            start_time = time.perf_counter()
-
-            # Offload blocking capture & JPEG encode to thread to prevent stalling asyncio event loop
-            frame_bytes = await asyncio.to_thread(self.capture.capture_frame, False)
-            if frame_bytes:
                 try:
-                    await ws.send(frame_bytes)
-                except Exception as e:
-                    logger.warning(f"Error sending frame: {e}")
-                    break
+                    frame = await asyncio.wait_for(self.frame_queue.get(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    frame = None
 
-            if time.time() - last_heartbeat > 10:
-                try:
-                    await ws.send(json.dumps({"type": "ping", "ts": time.time()}))
-                    last_heartbeat = time.time()
-                except Exception:
-                    break
+                if frame:
+                    # Transport write buffer backpressure check: yield only if buffer > 4MB congested
+                    transport = getattr(ws, "transport", None)
+                    if transport and hasattr(transport, "get_write_buffer_size"):
+                        if transport.get_write_buffer_size() > 4 * 1024 * 1024:
+                            await asyncio.sleep(0.005)
+                            continue
 
-            elapsed = time.perf_counter() - start_time
-            sleep_time = max(0.002, self.frame_interval - elapsed)
-            await asyncio.sleep(sleep_time)
+                    await ws.send(frame)
+
+                if time.time() - last_heartbeat > 10:
+                    try:
+                        await ws.send(json.dumps({"type": "ping", "ts": time.time()}))
+                        last_heartbeat = time.time()
+                    except Exception:
+                        break
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.warning(f"Error sending frame: {e}")
+                break
+
+    async def _send_frames_loop(self, ws: websockets.WebSocketClientProtocol):
+        """Legacy compatibility wrapper delegating to _send_frames_worker."""
+        await self._send_frames_worker(ws)
 
     async def _send_audio_loop(self, ws: websockets.WebSocketClientProtocol):
         logger.info("Audio streamer started")
@@ -1022,6 +1109,7 @@ class HostService:
                         "ping_interval": 20,
                         "ping_timeout": 15,
                         "max_size": 20 * 1024 * 1024,
+                        "write_limit": 4 * 1024 * 1024,
                         "user_agent_header": browser_ua,
                         "origin": origin_header,
                         "additional_headers": {"Origin": origin_header, "User-Agent": browser_ua},
@@ -1042,6 +1130,7 @@ class HostService:
                             "device_name": self.device_name,
                             "account": self.account,
                             "user_id": self.user_id,
+                            "machine_id": self.get_machine_id(),
                             "os_info": "Windows 11 x64",
                             "monitors": self.capture.monitors
                         })
@@ -1067,13 +1156,15 @@ class HostService:
                             except Exception:
                                 pass
 
+                        self.frame_queue = asyncio.Queue(maxsize=1)
                         self.audio_queue = asyncio.Queue(maxsize=50)
-                        send_task = asyncio.create_task(self._send_frames_loop(ws))
+                        capture_task = asyncio.create_task(self._stream_screen())
+                        send_task = asyncio.create_task(self._send_frames_worker(ws))
                         audio_task = asyncio.create_task(self._send_audio_loop(ws))
                         recv_task = asyncio.create_task(self._receive_events_loop(ws))
 
                         done, pending = await asyncio.wait(
-                            [send_task, audio_task, recv_task],
+                            [capture_task, send_task, audio_task, recv_task],
                             return_when=asyncio.FIRST_COMPLETED
                         )
                         for t in pending:

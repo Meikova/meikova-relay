@@ -54,6 +54,7 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS devices (
     id TEXT PRIMARY KEY,
     user_id TEXT,
+    machine_id TEXT,
     device_name TEXT NOT NULL,
     room_id TEXT UNIQUE NOT NULL,
     pin TEXT NOT NULL,
@@ -187,7 +188,10 @@ async function ensureInit() {
       'ALTER TABLE users ADD COLUMN updated_at INTEGER;',
       'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);',
       'CREATE INDEX IF NOT EXISTS idx_users_gateway ON users(gateway_user_id);',
-      'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON auth_sync_queue(status);'
+      'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON auth_sync_queue(status);',
+      'ALTER TABLE devices ADD COLUMN machine_id TEXT;',
+      'CREATE INDEX IF NOT EXISTS idx_devices_machine ON devices(machine_id);',
+      'CREATE INDEX IF NOT EXISTS idx_devices_user_machine ON devices(user_id, machine_id);'
     ];
     for (const sql of migrations) {
       try {
@@ -593,11 +597,12 @@ const DB = {
 
   // --- Device Management ---
   async getDevices(userId) {
+    if (!userId) return [];
     await ensureInit();
     await this.deduplicateDevices(userId);
     const res = await client.execute({
       sql: `
-        SELECT id, device_name, room_id, pin, is_online, last_seen, os_info, resolution 
+        SELECT id, machine_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution 
         FROM devices 
         WHERE user_id = ? 
            OR user_id IN (SELECT id FROM users WHERE gateway_user_id = ? OR id = ?)
@@ -619,7 +624,7 @@ const DB = {
           WHERE user_id = ? AND id NOT IN (
             SELECT id FROM (
               SELECT id, ROW_NUMBER() OVER (
-                PARTITION BY user_id, device_name 
+                PARTITION BY user_id, COALESCE(machine_id, device_name) 
                 ORDER BY is_online DESC, last_seen DESC
               ) as rn 
               FROM devices
@@ -644,9 +649,10 @@ const DB = {
     return (res.rowsAffected || 0) > 0;
   },
 
-  async upsertDevice({ userId, deviceName, roomId, pin, resolution, osInfo }) {
+  async upsertDevice({ userId, machineId, deviceName, roomId, pin, resolution, osInfo }) {
     await ensureInit();
     const now = Date.now();
+    const cleanMachineId = machineId ? String(machineId).trim() : null;
 
     // Verify foreign key integrity: ensure userId actually exists in users table
     let validatedUserId = null;
@@ -665,17 +671,27 @@ const DB = {
     }
 
     let existing = null;
-    if (validatedUserId && deviceName) {
+    // 1. Primary identification: Hardware Machine ID (unique GUID per physical computer)
+    if (cleanMachineId) {
       const res = await client.execute({
-        sql: 'SELECT id, user_id, room_id FROM devices WHERE user_id = ? AND device_name = ?',
-        args: [validatedUserId, deviceName]
+        sql: 'SELECT id, user_id, room_id, machine_id FROM devices WHERE machine_id = ?',
+        args: [cleanMachineId]
       });
       existing = res.rows[0] || null;
     }
+    // 2. Secondary identification: Unique Room ID
     if (!existing && roomId) {
       const res = await client.execute({
-        sql: 'SELECT id, user_id, room_id FROM devices WHERE room_id = ?',
+        sql: 'SELECT id, user_id, room_id, machine_id FROM devices WHERE room_id = ?',
         args: [roomId]
+      });
+      existing = res.rows[0] || null;
+    }
+    // 3. Fallback: By user_id and device_name ONLY if machine_id is not specified
+    if (!existing && validatedUserId && deviceName && !cleanMachineId) {
+      const res = await client.execute({
+        sql: 'SELECT id, user_id, room_id, machine_id FROM devices WHERE user_id = ? AND device_name = ?',
+        args: [validatedUserId, deviceName]
       });
       existing = res.rows[0] || null;
     }
@@ -686,10 +702,12 @@ const DB = {
         await client.execute({
           sql: `
             UPDATE devices 
-            SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?, user_id = COALESCE(?, user_id)
+            SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?,
+                user_id = COALESCE(?, user_id),
+                machine_id = COALESCE(?, machine_id)
             WHERE id = ?
           `,
-          args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, validatedUserId, existing.id]
+          args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, validatedUserId, cleanMachineId, existing.id]
         });
         return existing.id;
       } else {
@@ -697,10 +715,10 @@ const DB = {
         const id = crypto.randomUUID();
         await client.execute({
           sql: `
-            INSERT INTO devices (id, user_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
-            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+            INSERT INTO devices (id, user_id, machine_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
           `,
-          args: [id, validatedUserId, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
+          args: [id, validatedUserId, cleanMachineId, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
         });
         return id;
       }
@@ -711,20 +729,21 @@ const DB = {
           await client.execute({
             sql: `
               UPDATE devices 
-              SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?
+              SET room_id = ?, device_name = ?, pin = ?, resolution = ?, os_info = ?, is_online = 1, last_seen = ?,
+                  machine_id = COALESCE(?, machine_id)
               WHERE id = ?
             `,
-            args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, existing.id]
+            args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, cleanMachineId, existing.id]
           });
           return existing.id;
         } else {
           const id = crypto.randomUUID();
           await client.execute({
             sql: `
-              INSERT INTO devices (id, user_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
-              VALUES (?, NULL, ?, ?, ?, 1, ?, ?, ?)
+              INSERT INTO devices (id, user_id, machine_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
+              VALUES (?, NULL, ?, ?, ?, ?, 1, ?, ?, ?)
             `,
-            args: [id, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
+            args: [id, cleanMachineId, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
           });
           return id;
         }

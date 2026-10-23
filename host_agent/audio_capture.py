@@ -154,7 +154,7 @@ class AudioCapture:
         pos = ctypes.c_uint64()
         qpc = ctypes.c_uint64()
 
-        last_chunk_time = time.time()
+        last_chunk_time = 0.0
         chunk_frames = int(self.sample_rate * 0.04)
         silent_chunk = b'\x00' * (chunk_frames * self.channels * 2)
 
@@ -170,31 +170,45 @@ class AudioCapture:
                     )
                     if hr == 0 and num_frames.value > 0:
                         is_silent = bool(flags.value & 2) or (not p_data.value)
-                        if is_silent:
-                            out_bytes = b'\x00' * (num_frames.value * self.channels * 2)
-                        else:
+                        out_bytes = None
+                        if not is_silent:
                             raw_floats = ctypes.string_at(p_data.value, num_frames.value * nBlockAlign)
                             if wBitsPerSample == 32:
                                 in_array = array.array('f')
                                 in_array.frombytes(raw_floats)
-                                # Convert float32 [-1.0, 1.0] to 16-bit PCM
-                                pcm16 = array.array('h', (int(max(-1.0, min(1.0, x)) * 32767) for x in in_array))
-                                out_bytes = pcm16.tobytes()
+                                # Audio presence check: avoid flooding silent packets
+                                if any(abs(x) > 0.0005 for x in in_array[::8]):
+                                    pcm16 = array.array('h', (int(max(-1.0, min(1.0, x)) * 32767) for x in in_array))
+                                    out_bytes = pcm16.tobytes()
+                                else:
+                                    is_silent = True
                             else:
-                                out_bytes = raw_floats
+                                if any(b != 0 for b in raw_floats[::16]):
+                                    out_bytes = raw_floats
+                                else:
+                                    is_silent = True
 
-                        if self.on_chunk and out_bytes:
-                            self.on_chunk(out_bytes, self.sample_rate, self.channels)
-                            last_chunk_time = time.time()
+                        now = time.time()
+                        if out_bytes and not is_silent:
+                            if self.on_chunk:
+                                self.on_chunk(out_bytes, self.sample_rate, self.channels)
+                            last_chunk_time = now
+                        elif now - last_chunk_time >= 1.0:
+                            # Periodic keepalive instead of flooding 25 silent packets/sec
+                            if self.on_chunk:
+                                self.on_chunk(silent_chunk, self.sample_rate, self.channels)
+                            last_chunk_time = now
 
                         v_call(p_capture, 4, [wintypes.UINT], num_frames.value)
                 else:
                     now = time.time()
-                    if now - last_chunk_time >= 0.04:
+                    if now - last_chunk_time >= 1.0:
+                        # Periodic keepalive when mixer buffer is empty
                         if self.on_chunk:
                             self.on_chunk(silent_chunk, self.sample_rate, self.channels)
                         last_chunk_time = now
-                    time.sleep(0.015)
+                    # Sleep 50ms when idle to eliminate CPU drain and WebSocket congestion
+                    time.sleep(0.05)
         finally:
             v_call(p_client, 11, []) # Stop
             ole32.CoUninitialize()

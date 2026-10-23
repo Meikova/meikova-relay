@@ -29,6 +29,7 @@ def is_headless_display() -> bool:
     if sys.platform == "win32":
         try:
             import ctypes
+            from ctypes import wintypes
             user32 = ctypes.windll.user32
 
             SM_CXVIRTUALSCREEN = 78
@@ -44,9 +45,44 @@ def is_headless_display() -> bool:
             if vw <= 0 or vh <= 0 or sw <= 0 or sh <= 0:
                 return True
 
-            if sw <= 800 and sh <= 600:
-                cmd = 'powershell -NoProfile -Command "(Get-CimInstance WmiMonitorBasicDisplayParams -Namespace root\\wmi -ErrorAction SilentlyContinue | Where-Object { $_.Active }).Count"'
-                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            # Fast check via EnumDisplayDevicesW: detect Microsoft Basic Display Adapter
+            is_basic_adapter = False
+            has_attached_physical_monitor = False
+
+            class DISPLAY_DEVICEW(ctypes.Structure):
+                _fields_ = [
+                    ('cb', wintypes.DWORD),
+                    ('DeviceName', wintypes.WCHAR * 32),
+                    ('DeviceString', wintypes.WCHAR * 128),
+                    ('StateFlags', wintypes.DWORD),
+                    ('DeviceID', wintypes.WCHAR * 128),
+                    ('DeviceKey', wintypes.WCHAR * 128)
+                ]
+
+            dd = DISPLAY_DEVICEW()
+            dd.cb = ctypes.sizeof(dd)
+            i = 0
+            while user32.EnumDisplayDevicesW(None, i, ctypes.byref(dd), 0):
+                if dd.StateFlags & 0x1:  # DISPLAY_DEVICE_ATTACHED_TO_DESKTOP
+                    d_str = dd.DeviceString.lower()
+                    if "basic display" in d_str or "basic render" in d_str or "vnc" in d_str:
+                        is_basic_adapter = True
+                    dd_mon = DISPLAY_DEVICEW()
+                    dd_mon.cb = ctypes.sizeof(dd_mon)
+                    j = 0
+                    while user32.EnumDisplayDevicesW(dd.DeviceName, j, ctypes.byref(dd_mon), 0):
+                        if dd_mon.StateFlags & 0x1:
+                            has_attached_physical_monitor = True
+                        j += 1
+                i += 1
+
+            if is_basic_adapter and not has_attached_physical_monitor:
+                return True
+
+            # Check 1024x768 or lower resolution (typical Microsoft Basic Display Adapter headless mode)
+            if (sw <= 1024 and sh <= 768) or is_basic_adapter:
+                cmd = 'powershell -NoProfile -Command "@(Get-CimInstance WmiMonitorBasicDisplayParams -Namespace root/wmi -ErrorAction SilentlyContinue).Count"'
+                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)
                 count_str = res.stdout.strip()
                 if count_str.isdigit() and int(count_str) == 0:
                     return True
@@ -90,6 +126,8 @@ def get_virtual_display_driver_status() -> Dict[str, Any]:
 
 def generate_headless_placeholder(width: int = 1920, height: int = 1080) -> bytes:
     """Generates an Ambient Dark high-resolution placeholder frame when a host has no physical display."""
+    width = max(640, int(width or 1920))
+    height = max(480, int(height or 1080))
     img = Image.new("RGB", (width, height), (7, 13, 23))
     d = ImageDraw.Draw(img)
 
