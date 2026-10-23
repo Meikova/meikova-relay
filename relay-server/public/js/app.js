@@ -152,6 +152,18 @@
   let hostMonitors = [];
   let gridMonitorOrder = [];
   let monitorTileMap = new Map(); // id -> { tile, canvas, ctx, mon }
+
+  // --- Mobile Controls & Virtual Keyboard DOM ---
+  const mobileVirtualInput = document.getElementById('mobileVirtualInput');
+  const mobileQuickKeysBar = document.getElementById('mobileQuickKeysBar');
+  const btnCloseQuickKeys = document.getElementById('btnCloseQuickKeys');
+  const btnMobileImmersiveExit = document.getElementById('btnMobileImmersiveExit');
+  const btnMobileKeyboard = document.getElementById('btnMobileKeyboard');
+  const btnMobileQuickKeysToggle = document.getElementById('btnMobileQuickKeysToggle');
+  const btnMobileTouchMode = document.getElementById('btnMobileTouchMode');
+  const touchModeLabel = document.getElementById('touchModeLabel');
+  const btnMobileRightClick = document.getElementById('btnMobileRightClick');
+
   const roStatus = document.getElementById('roStatus');
   const roTr = document.getElementById('ro-tr');
   const metricPing = document.getElementById('metricPing');
@@ -2227,6 +2239,16 @@
     filesSection.classList.add('hidden');
     auditSection.classList.add('hidden');
 
+    if (view === 'remote') {
+      document.body.classList.add('remote-active');
+      if (btnMobileImmersiveExit) btnMobileImmersiveExit.classList.remove('hidden');
+    } else {
+      document.body.classList.remove('remote-active');
+      if (btnMobileImmersiveExit) btnMobileImmersiveExit.classList.add('hidden');
+      if (mobileQuickKeysBar) mobileQuickKeysBar.classList.add('hidden');
+      if (btnMobileQuickKeysToggle) btnMobileQuickKeysToggle.classList.remove('active');
+    }
+
     mainNav.querySelectorAll('button').forEach(btn => {
       const isTarget = btn.dataset.view === view;
       btn.classList.toggle('on', isTarget);
@@ -3621,9 +3643,12 @@
 
   function detectClientDisplayCapabilities() {
     return new Promise((resolve) => {
-      const dpr = window.devicePixelRatio || 1;
-      const screenW = Math.round(window.screen.width * dpr);
-      const screenH = Math.round(window.screen.height * dpr);
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                             (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+                             window.innerWidth <= 1024;
+      const dpr = isMobileDevice ? 1 : (window.devicePixelRatio || 1);
+      const screenW = Math.round((isMobileDevice ? window.innerWidth : window.screen.width) * dpr);
+      const screenH = Math.round((isMobileDevice ? window.innerHeight : window.screen.height) * dpr);
       const viewW = Math.round(window.innerWidth * dpr);
       const viewH = Math.round(window.innerHeight * dpr);
 
@@ -3639,7 +3664,7 @@
           else if (fps >= 80) estHz = 90;
           else if (fps >= 68) estHz = 75;
           else estHz = 60;
-          resolve({ screenW, screenH, viewW, viewH, dpr, estHz });
+          resolve({ screenW, screenH, viewW, viewH, dpr, estHz, isMobileDevice });
         } else {
           requestAnimationFrame(check);
         }
@@ -3664,7 +3689,8 @@
       client_dpr: cap.dpr,
       client_fps: cap.estHz,
       viewport_w: cap.viewW,
-      viewport_h: cap.viewH
+      viewport_h: cap.viewH,
+      is_mobile: cap.isMobileDevice
     }));
   }
 
@@ -3673,7 +3699,14 @@
     if (qualitySelector) qualitySelector.value = recommended;
     updateQualityMenuUI(recommended);
 
-    if (msg.suggested_scale === '1to1' || recommended === 'native_1to1') {
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                           (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+                           window.innerWidth <= 1024;
+
+    if (isMobileDevice) {
+      // Mobile touch screens must ALWAYS stay fitted to the viewport
+      setDisplayScaleMode(true);
+    } else if (msg.suggested_scale === '1to1' || recommended === 'native_1to1') {
       setDisplayScaleMode(false);
     } else {
       setDisplayScaleMode(true);
@@ -4075,9 +4108,26 @@
   // Helper to dynamically position deck popovers directly aligned with their trigger button
   function positionDeckDropdown(triggerBtn, dropdownEl) {
     if (!triggerBtn || !dropdownEl) return;
+    const isMobile = window.innerWidth <= 640 || window.innerHeight <= 520;
     const btnRect = triggerBtn.getBoundingClientRect();
     const isDeckAtTop = document.body.classList.contains('deck-at-top') ||
                          (floatingDeck && (floatingDeck.classList.contains('deck--top-pinned') || floatingDeck.classList.contains('deck--top-unpinned')));
+
+    if (isMobile) {
+      dropdownEl.style.left = '50%';
+      dropdownEl.style.right = 'auto';
+      dropdownEl.style.transform = 'translateX(-50%)';
+      dropdownEl.style.width = 'calc(100vw - 20px)';
+      dropdownEl.style.maxWidth = 'calc(100vw - 20px)';
+      if (isDeckAtTop) {
+        dropdownEl.style.top = `${Math.max(8, Math.round(btnRect.bottom + 6))}px`;
+        dropdownEl.style.bottom = 'auto';
+      } else {
+        dropdownEl.style.bottom = `${Math.max(8, Math.round(window.innerHeight - btnRect.top + 6))}px`;
+        dropdownEl.style.top = 'auto';
+      }
+      return;
+    }
 
     const wasHidden = dropdownEl.classList.contains('hidden');
     if (wasHidden) {
@@ -4097,6 +4147,8 @@
     dropdownEl.style.left = `${Math.round(left)}px`;
     dropdownEl.style.right = 'auto';
     dropdownEl.style.transform = 'none';
+    dropdownEl.style.width = '';
+    dropdownEl.style.maxWidth = '';
 
     if (isDeckAtTop) {
       dropdownEl.style.top = `${Math.round(btnRect.bottom + 8)}px`;
@@ -4107,7 +4159,15 @@
     }
   }
 
-  window.addEventListener('resize', () => {
+  function handleViewportResize() {
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                           (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+                           window.innerWidth <= 1024;
+    if (isMobileDevice && isConnected && currentView === 'remote') {
+      panX = 0;
+      panY = 0;
+      applyCanvasTransform();
+    }
     if (protocolMenuDropdown && !protocolMenuDropdown.classList.contains('hidden') && btnProtocolMenu) {
       positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
     }
@@ -4120,6 +4180,12 @@
     if (powerMenuDropdown && !powerMenuDropdown.classList.contains('hidden') && btnPowerMenu) {
       positionDeckDropdown(btnPowerMenu, powerMenuDropdown);
     }
+    if (typeof placeAllIndicators === 'function') placeAllIndicators();
+  }
+
+  window.addEventListener('resize', handleViewportResize);
+  window.addEventListener('orientationchange', () => {
+    setTimeout(handleViewportResize, 150);
   });
 
   // Toggle Quality Popover Menu
@@ -4266,27 +4332,189 @@
 
   remoteSection.addEventListener('mousemove', resetDeckIdle);
   remoteSection.addEventListener('mousedown', resetDeckIdle);
+  remoteSection.addEventListener('touchstart', resetDeckIdle, { passive: true });
+  floatingDeck.addEventListener('touchstart', resetDeckIdle, { passive: true });
 
-  // --- TOUCH PINCH-TO-ZOOM & PAN ---
+  // --- MOUSE & TOUCH TRACKING & COORDINATE CONVERSION ---
+  function getNormalizedCoords(e) {
+    const rect = remoteCanvas.getBoundingClientRect();
+    const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+    const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+    const normX = Math.max(0.0, Math.min(1.0, (clientX - rect.left) / rect.width));
+    const normY = Math.max(0.0, Math.min(1.0, (clientY - rect.top) / rect.height));
+    return {
+      x: normX,
+      y: normY,
+      pixelX: normX * remoteCanvas.width,
+      pixelY: normY * remoteCanvas.height
+    };
+  }
+
+  // --- TOUCH FEEDBACK & RIPPLE GENERATOR ---
+  function showTouchRipple(clientX, clientY, type = 'left') {
+    const ripple = document.createElement('div');
+    ripple.className = `touch-ripple touch-ripple--${type}`;
+    ripple.style.left = `${clientX}px`;
+    ripple.style.top = `${clientY}px`;
+    document.body.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 450);
+  }
+
+  // --- MOBILE TOUCH CONTROLLER (Direct Tap / Virtual Trackpad / 2-Finger Scroll & Zoom) ---
+  let mobileTouchMode = 'direct'; // 'direct' | 'trackpad'
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+  let touchLastX = 0;
+  let touchLastY = 0;
+  let longPressTimer = null;
+  let isLongPressTriggered = false;
+  let lastTapTime = 0;
+  let lastTapX = 0;
+  let lastTapY = 0;
+  let touchMoveThrottle = 0;
+
   remoteCanvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
+    resetDeckIdle();
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      touchStartX = t.clientX;
+      touchStartY = t.clientY;
+      touchLastX = t.clientX;
+      touchLastY = t.clientY;
+      touchStartTime = performance.now();
+      isLongPressTriggered = false;
+
+      // Long-press timer (450ms) for Right Click
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = setTimeout(() => {
+        if (!isConnected) return;
+        isLongPressTriggered = true;
+        if (navigator.vibrate) {
+          try { navigator.vibrate(45); } catch {}
+        }
+        showTouchRipple(touchStartX, touchStartY, 'right');
+        const coords = getNormalizedCoords({ clientX: touchStartX, clientY: touchStartY });
+        ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
+        ws.send(JSON.stringify({ type: 'mouse_down', button: 2 }));
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'mouse_up', button: 2 }));
+          }
+        }, 40);
+      }, 450);
+    } else if (e.touches.length === 2) {
+      if (longPressTimer) clearTimeout(longPressTimer);
       e.preventDefault();
       const p1 = e.touches[0];
       const p2 = e.touches[1];
       touchStartDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
       touchStartScale = scale;
+      touchLastY = (p1.clientY + p2.clientY) / 2;
     }
   }, { passive: false });
 
   remoteCanvas.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2) {
+    resetDeckIdle();
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      const moveDist = Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY);
+      if (moveDist > 10) {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      }
+
+      if (!isConnected) return;
+      const now = performance.now();
+      if (now - touchMoveThrottle < 20) return;
+      touchMoveThrottle = now;
+
+      if (mobileTouchMode === 'direct') {
+        const coords = getNormalizedCoords(t);
+        ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
+      }
+      touchLastX = t.clientX;
+      touchLastY = t.clientY;
+    } else if (e.touches.length === 2) {
+      if (longPressTimer) clearTimeout(longPressTimer);
       e.preventDefault();
       const p1 = e.touches[0];
       const p2 = e.touches[1];
       const dist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
-      if (touchStartDist > 0) {
+      const currentAvgY = (p1.clientY + p2.clientY) / 2;
+
+      // Two-finger scroll detection
+      const scrollDiff = currentAvgY - touchLastY;
+      const distDiff = Math.abs(dist - touchStartDist);
+
+      if (distDiff < 15 && Math.abs(scrollDiff) > 3) {
+        // Pure 2-finger scroll
+        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'mouse_wheel',
+            delta_y: scrollDiff * 2.5
+          }));
+        }
+        touchLastY = currentAvgY;
+      } else if (touchStartDist > 0) {
+        // Pinch zoom
         scale = Math.max(0.5, Math.min(4.0, touchStartScale * (dist / touchStartDist)));
         applyCanvasTransform();
+      }
+    }
+  }, { passive: false });
+
+  remoteCanvas.addEventListener('touchend', (e) => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    if (isLongPressTriggered) {
+      isLongPressTriggered = false;
+      return;
+    }
+
+    if (e.changedTouches.length === 1 && e.touches.length === 0) {
+      const t = e.changedTouches[0];
+      const dist = Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY);
+      const duration = performance.now() - touchStartTime;
+
+      if (dist <= 12 && duration < 450) {
+        e.preventDefault();
+        if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+        const coords = getNormalizedCoords(t);
+        const now = performance.now();
+        const isDoubleTap = (now - lastTapTime < 320) && (Math.hypot(t.clientX - lastTapX, t.clientY - lastTapY) < 25);
+        lastTapTime = now;
+        lastTapX = t.clientX;
+        lastTapY = t.clientY;
+
+        showTouchRipple(t.clientX, t.clientY, 'left');
+
+        // Send mouse position & click
+        ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
+        ws.send(JSON.stringify({ type: 'mouse_down', button: 0 }));
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'mouse_up', button: 0 }));
+          }
+          if (isDoubleTap) {
+            // Second tap for native OS double click
+            setTimeout(() => {
+              if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'mouse_down', button: 0 }));
+                setTimeout(() => {
+                  if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'mouse_up', button: 0 }));
+                  }
+                }, 35);
+              }
+            }, 60);
+          }
+        }, 35);
       }
     }
   }, { passive: false });
@@ -4302,19 +4530,6 @@
     document.querySelectorAll('.monitor-tile canvas').forEach(c => {
       c.style.cursor = currentHostCursor;
     });
-  }
-
-  // --- MOUSE TRACKING & COORDINATE CONVERSION ---
-  function getNormalizedCoords(e) {
-    const rect = remoteCanvas.getBoundingClientRect();
-    const normX = Math.max(0.0, Math.min(1.0, (e.clientX - rect.left) / rect.width));
-    const normY = Math.max(0.0, Math.min(1.0, (e.clientY - rect.top) / rect.height));
-    return {
-      x: normX,
-      y: normY,
-      pixelX: normX * remoteCanvas.width,
-      pixelY: normY * remoteCanvas.height
-    };
   }
 
   let lastMove = 0;
@@ -4996,19 +5211,29 @@
     }
   });
 
-  // Hotkey Buttons on Deck
+  // Hotkey Buttons on Deck & Mobile Quick Keys Bar
   document.querySelectorAll('[data-hotkey]').forEach(btn => {
     btn.addEventListener('click', () => {
       if (!isConnected) return;
       const key = btn.dataset.hotkey;
       if (key === 'win') {
         sendKeySequence([0x5B]);
-      } else if (key === 'taskmgr') {
-        sendHotKeyCombo([0x11, 0x10, 0x1B]); // Ctrl+Shift+Esc
+      } else if (key === 'taskmgr' || key === 'cad') {
+        // Ctrl+Alt+Del for Windows unlock / Task Manager
+        sendHotKeyCombo([0x11, 0x12, 0x2E]);
+        showToast('Đã gửi Ctrl+Alt+Del', 'info', 1200);
       } else if (key === 'alttab') {
         sendHotKeyCombo([0x12, 0x09]); // Alt+Tab
       } else if (key === 'esc') {
         sendKeySequence([0x1B]);
+      } else if (key === 'tab') {
+        sendKeySequence([0x09]);
+      } else if (key === 'space') {
+        sendKeySequence([0x20]);
+      } else if (key === 'enter') {
+        sendKeySequence([0x0D]);
+      } else if (key === 'backspace') {
+        sendKeySequence([0x08]);
       }
     });
   });
@@ -5025,6 +5250,96 @@
     setTimeout(() => {
       [...vks].reverse().forEach(vk => ws.send(JSON.stringify({ type: 'key_up', vk })));
     }, 100);
+  }
+
+  // --- MOBILE SOFT KEYBOARD BRIDGE ---
+  if (btnMobileKeyboard && mobileVirtualInput) {
+    btnMobileKeyboard.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mobileVirtualInput.value = '';
+      mobileVirtualInput.focus();
+      showToast('Đã mở bàn phím ảo di động', 'info', 1200);
+    });
+
+    mobileVirtualInput.addEventListener('input', () => {
+      const text = mobileVirtualInput.value;
+      if (text && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'text_input', text }));
+        mobileVirtualInput.value = '';
+      }
+    });
+
+    mobileVirtualInput.addEventListener('keydown', (e) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (e.key === 'Backspace' || e.keyCode === 8) {
+        e.preventDefault();
+        sendKeySequence([0x08]);
+      } else if (e.key === 'Enter' || e.keyCode === 13) {
+        e.preventDefault();
+        sendKeySequence([0x0D]);
+      } else if (e.key === 'Tab' || e.keyCode === 9) {
+        e.preventDefault();
+        sendKeySequence([0x09]);
+      } else if (e.key === 'Escape' || e.keyCode === 27) {
+        e.preventDefault();
+        sendKeySequence([0x1B]);
+      }
+    });
+  }
+
+  // --- MOBILE QUICK KEYS STRIP CONTROLS ---
+  if (btnMobileQuickKeysToggle && mobileQuickKeysBar) {
+    btnMobileQuickKeysToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = mobileQuickKeysBar.classList.toggle('hidden');
+      btnMobileQuickKeysToggle.classList.toggle('active', !isHidden);
+    });
+  }
+
+  if (btnCloseQuickKeys && mobileQuickKeysBar) {
+    btnCloseQuickKeys.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mobileQuickKeysBar.classList.add('hidden');
+      if (btnMobileQuickKeysToggle) btnMobileQuickKeysToggle.classList.remove('active');
+    });
+  }
+
+  // --- MOBILE IMMERSIVE QUICK EXIT BUTTON ---
+  if (btnMobileImmersiveExit) {
+    btnMobileImmersiveExit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isConnected) {
+        disconnect();
+      } else {
+        switchView(authToken ? 'dashboard' : 'landing', true);
+      }
+    });
+  }
+
+  // --- MOBILE DEDICATED RIGHT-CLICK BUTTON ---
+  if (btnMobileRightClick) {
+    btnMobileRightClick.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: 'mouse_down', button: 2 }));
+      setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'mouse_up', button: 2 }));
+        }
+      }, 40);
+      showToast('Chuột phải', 'info', 1000);
+    });
+  }
+
+  // --- MOBILE TOUCH MODE TOGGLE (Direct Tap vs Virtual Mouse Trackpad) ---
+  if (btnMobileTouchMode && touchModeLabel) {
+    btnMobileTouchMode.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mobileTouchMode = (mobileTouchMode === 'direct') ? 'trackpad' : 'direct';
+      touchModeLabel.textContent = (mobileTouchMode === 'direct') ? 'Chạm' : 'Chuột';
+      btnMobileTouchMode.classList.toggle('active', mobileTouchMode === 'trackpad');
+      showToast(mobileTouchMode === 'direct' ? 'Chế độ cảm ứng: Chạm trực tiếp' : 'Chế độ cảm ứng: Bàn di chuột', 'info', 1500);
+    });
   }
 
   // --- DECK DISPLAY MODES (BOTTOM FLOAT / TOP PINNED / TOP UNPINNED) ---

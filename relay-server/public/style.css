@@ -423,6 +423,22 @@ body.is-desktop-app .topbar {
     display: none; /* Show only infinity icon on phones */
   }
 
+  #userNameDisplay {
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #btnQuickConnect,
+  #btnOpenSessionConfig {
+    display: none !important;
+  }
+
+  .topbar-right {
+    gap: 4px;
+  }
+
   #mainNav {
     position: fixed;
     bottom: 0;
@@ -2140,10 +2156,13 @@ input:-webkit-autofill:active {
 .table-scroll-area {
   max-height: 420px;
   overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .process-table {
   width: 100%;
+  min-width: 540px;
   border-collapse: collapse;
   font-size: var(--step--1);
   text-align: left;
@@ -2739,10 +2758,14 @@ input:-webkit-autofill:active {
   background: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  z-index: 200;
+  z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px env(safe-area-inset-right, 16px) calc(16px + env(safe-area-inset-bottom, 0px)) env(safe-area-inset-left, 16px);
+  box-sizing: border-box;
 }
 
 /* Ambient Dialog Action Buttons */
@@ -5802,3 +5825,351 @@ body.is-desktop-app .desktop-titlebar {
   background: rgba(56, 189, 248, 0.16);
   border-color: rgba(56, 189, 248, 0.5);
 }
+
+/* ------------------------------------------------------------------ MOBILE TOUCH & IMMERSIVE ENGINE */
+
+/* Strictly prevent browser gestures/pinch/scroll from eating canvas touch events */
+#remoteCanvas,
+#laserCanvas,
+.viewport-box {
+  touch-action: none !important;
+  -webkit-touch-callout: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* Desktop hides mobile-only controls */
+.btn-mobile-only {
+  display: none !important;
+}
+
+/* Mobile Quick Keys Strip (Floating bar for touch remote) */
+.mobile-quick-keys {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background: rgba(11, 15, 23, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 9999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 12px rgba(56, 189, 248, 0.2);
+  z-index: 650;
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-quick-keys.hidden {
+  display: none !important;
+}
+
+.mobile-quick-keys::-webkit-scrollbar {
+  display: none !important;
+}
+
+.mqk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px solid var(--line-soft);
+  background: var(--ink-0);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.15s ease;
+}
+
+.mqk-btn:active {
+  background: var(--accent);
+  color: #040810;
+  transform: scale(0.95);
+}
+
+.mqk-btn.mqk-close {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.mqk-btn.mqk-close:active {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* Mobile Quick Exit Button */
+.mobile-immersive-exit {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  left: calc(8px + env(safe-area-inset-left, 0px));
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  z-index: 650;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.2s ease;
+}
+
+.mobile-immersive-exit:active {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border-color: #f87171;
+  transform: scale(0.95);
+}
+
+.mobile-immersive-exit.hidden {
+  display: none !important;
+}
+
+/* Touch Visual Feedback Ripple */
+.touch-ripple {
+  position: fixed;
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
+  margin-top: -16px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  animation: touchRippleAnim 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.touch-ripple--left {
+  border: 2px solid var(--accent);
+  background: rgba(56, 189, 248, 0.2);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.touch-ripple--right {
+  border: 2px solid #a855f7;
+  background: rgba(168, 85, 247, 0.2);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
+}
+
+@keyframes touchRippleAnim {
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Immersive Viewport & Mobile Remote Optimization */
+@media (max-width: 900px), (max-height: 520px) {
+  .btn-mobile-only {
+    display: inline-flex !important;
+  }
+
+  /* When remote session is active on mobile/phone screens */
+  body.remote-active .topbar,
+  body.remote-active #mainNav,
+  body.remote-active .readout--tl,
+  body.remote-active .readout--tr,
+  body.remote-active .readout--bl,
+  body.remote-active .readout--br {
+    display: none !important;
+  }
+
+  body.remote-active .remote-stage {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    z-index: 500 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #000000 !important;
+  }
+
+  body.remote-active .remote-stage.fit-mode #remoteCanvas {
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  body.remote-active .viewport-box {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Mobile Pill Deck */
+  .deck {
+    position: fixed !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: calc(100vw - 12px) !important;
+    width: max-content !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding: 3px 6px !important;
+    gap: 3px !important;
+    border-radius: 9999px !important;
+    z-index: 600 !important;
+  }
+
+  .deck::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .deck__btn {
+    position: relative;
+    height: 30px !important;
+    padding: 0 8px !important;
+    font-size: 10px !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .deck__btn::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    min-width: 44px;
+    min-height: 44px;
+    pointer-events: auto;
+  }
+
+  .deck__btn svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .mqk-btn {
+    position: relative;
+  }
+
+  .mqk-btn::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    min-width: 44px;
+    min-height: 44px;
+    pointer-events: auto;
+  }
+
+  /* Safe Area Insets for Notch / Dynamic Island / Cutout */
+  body.remote-active .remote-stage {
+    padding-left: env(safe-area-inset-left, 0px) !important;
+    padding-right: env(safe-area-inset-right, 0px) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Dropdown Menus & OSK bounded on small screens */
+  .quality-menu,
+  .protocol-menu,
+  .power-menu,
+  .deck-mode-menu {
+    max-width: calc(100vw - 16px) !important;
+    width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 60px) !important;
+    overflow-y: auto !important;
+    z-index: 1200 !important;
+  }
+
+  .quality-menu-list,
+  .protocol-menu-body {
+    max-height: calc(100dvh - 120px) !important;
+    overflow-y: auto !important;
+  }
+
+  .osk-overlay {
+    position: fixed !important;
+    bottom: calc(48px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: calc(100vw - 12px) !important;
+    width: max-content !important;
+    padding: 6px 8px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    z-index: 1200 !important;
+  }
+
+  .osk-key {
+    min-width: 20px !important;
+    height: 28px !important;
+    padding: 0 4px !important;
+    font-size: 10px !important;
+  }
+
+  /* Shelf Drawer Fullscreen on Mobile */
+  .shelf-drawer {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    top: 0 !important;
+    height: 100dvh !important;
+    z-index: 2500 !important;
+  }
+
+  /* Landing Stats & Explorer Toolbars on Small Screens */
+  .landing-stats-strip {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    padding: 8px 12px !important;
+  }
+
+  .stat-divider {
+    display: none !important;
+  }
+
+  .explorer-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .explorer-toolbar > div {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .explorer-toolbar input,
+  .explorer-toolbar select {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+

@@ -222,6 +222,12 @@
 
       // View 3: Remote Desktop & Floating Deck
 
+      'deck.mobile_keyboard': 'Bật bàn phím ảo di động',
+      'deck.keyboard_btn': 'Phím',
+      'deck.quick_keys_title': 'Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)',
+      'deck.quick_keys_btn': 'Phím tắt',
+      'deck.touch_mode_title': 'Chế độ cảm ứng: Chạm trực tiếp / Bàn di chuột ảo',
+      'deck.right_click_title': 'Nhấp chuột phải tại vị trí con trỏ',
       'deck.monitor_title': 'Chọn màn hình truyền phát',
 
       'deck.monitor_all': 'Tất cả màn hình',
@@ -1416,6 +1422,12 @@
 
       // View 3: Remote Desktop & Floating Deck
 
+      'deck.mobile_keyboard': 'Bật bàn phím ảo di động',
+      'deck.keyboard_btn': 'Phím',
+      'deck.quick_keys_title': 'Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)',
+      'deck.quick_keys_btn': 'Phím tắt',
+      'deck.touch_mode_title': 'Chế độ cảm ứng: Chạm trực tiếp / Bàn di chuột ảo',
+      'deck.right_click_title': 'Nhấp chuột phải tại vị trí con trỏ',
       'deck.monitor_title': 'Select display monitor',
 
       'deck.monitor_all': 'All Displays',

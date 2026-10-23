@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.0.45">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.47">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.0.56">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.56">
 </head>
 <body>
 
@@ -1056,6 +1056,28 @@
         <span id="pixelIndicatorText">1:1 PIXEL-PERFECT</span>
       </div>
 
+      <!-- Mobile Native Virtual Keyboard Hidden Focus Bridge -->
+      <input id="mobileVirtualInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="position:fixed; top:-9999px; left:-9999px; opacity:0; width:1px; height:1px; pointer-events:none;" aria-hidden="true">
+
+      <!-- Mobile Quick Keys Strip (Floating bar for touch remote) -->
+      <div id="mobileQuickKeysBar" class="mobile-quick-keys hidden">
+        <button type="button" class="mqk-btn" data-hotkey="cad" title="Mở khóa Windows / Task Manager">Ctrl+Alt+Del</button>
+        <button type="button" class="mqk-btn" data-hotkey="esc" title="Escape">Esc</button>
+        <button type="button" class="mqk-btn" data-hotkey="tab" title="Tab">Tab</button>
+        <button type="button" class="mqk-btn" data-hotkey="win" title="Windows">Win</button>
+        <button type="button" class="mqk-btn" data-hotkey="space" title="Phím cách / Mở khóa">Space</button>
+        <button type="button" class="mqk-btn" data-hotkey="enter" title="Enter">Enter</button>
+        <button type="button" class="mqk-btn" data-hotkey="backspace" title="Xóa lùi">Back</button>
+        <button type="button" class="mqk-btn" data-hotkey="alttab" title="Chuyển cửa sổ">Alt+Tab</button>
+        <button type="button" id="btnCloseQuickKeys" class="mqk-btn mqk-close" title="Đóng phím nhanh">✕</button>
+      </div>
+
+      <!-- Mobile Floating Quick Exit Button (Always reachable in immersive mode) -->
+      <button type="button" id="btnMobileImmersiveExit" class="mobile-immersive-exit hidden" title="Thoát chế độ toàn màn hình">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span>Rời</span>
+      </button>
+
       <!-- Symmetrical Canvas Viewport Box (Single Monitor / Virtual Desktop) -->
       <div class="viewport-box" id="viewportBox">
         <canvas id="remoteCanvas" tabindex="0"></canvas>
@@ -1080,6 +1102,24 @@
 
       <!-- Floating Pill Deck Controller -->
       <footer class="deck" id="floatingDeck">
+        <!-- Mobile Native Keyboard & Touch Mode Controls -->
+        <button type="button" id="btnMobileKeyboard" class="deck__btn btn-mobile-only" title="Mở bàn phím ảo di động" data-i18n-title="deck.mobile_keyboard">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+          <span data-i18n="deck.keyboard_btn">Phím</span>
+        </button>
+        <button type="button" id="btnMobileQuickKeysToggle" class="deck__btn btn-mobile-only" title="Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)" data-i18n-title="deck.quick_keys_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span data-i18n="deck.quick_keys_btn">Phím tắt</span>
+        </button>
+        <button type="button" id="btnMobileTouchMode" class="deck__btn btn-mobile-only" title="Chế độ cảm ứng: Chạm trực tiếp / Bàn di chuột ảo" data-i18n-title="deck.touch_mode_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7v6a7 7 0 0 0 14 0V9a7 7 0 0 0-7-7z"/><line x1="12" y1="6" x2="12" y2="10"/></svg>
+          <span id="touchModeLabel">Chạm</span>
+        </button>
+        <button type="button" id="btnMobileRightClick" class="deck__btn btn-mobile-only" title="Nhấp chuột phải tại vị trí con trỏ" data-i18n-title="deck.right_click_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="7"/><line x1="12" y1="2" x2="12" y2="9"/><path d="M12 2h7" stroke="var(--accent)"/></svg>
+          <span>Chuột phải</span>
+        </button>
+
         <select id="monitorSelector" class="deck__btn" title="Chọn màn hình truyền phát" data-i18n-title="deck.monitor_title">
           <option value="0" data-i18n="deck.monitor_all">Tất cả màn hình</option>
           <option value="1">Màn 1</option>
@@ -2652,9 +2692,9 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.45"></script>
-  <script src="/js/sync_engine.js?v=1.0.45"></script>
-  <script src="/js/app.js?v=1.0.48"></script>
+  <script src="/js/i18n.js?v=1.0.56"></script>
+  <script src="/js/sync_engine.js?v=1.0.56"></script>
+  <script src="/js/app.js?v=1.0.56"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {
