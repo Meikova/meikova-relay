@@ -7186,45 +7186,97 @@
     });
   });
 
-  function updateRelayModalData() {
+  async function updateRelayModalData() {
     const currentOrigin = window.location.origin;
+    const hostname = window.location.hostname;
+    const isTailscale = hostname.startsWith('100.');
+    const isHfSpace = hostname.includes('hf.space') || hostname.includes('huggingface.co');
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+
+    let displayUrl = currentOrigin;
+
+    // On local host (Desktop or dev server), resolve reachable Tailscale/LAN IP from server (matching Harvest & Loop)
+    if (isLocal) {
+      try {
+        const res = await fetch('/api/host-info');
+        if (res.ok) {
+          const info = await res.json();
+          if (info && info.tailscale_url) {
+            displayUrl = info.tailscale_url;
+          } else if (info && info.lan_url && info.lan_ip !== '127.0.0.1') {
+            displayUrl = info.lan_url;
+          }
+        }
+      } catch (_) {}
+    }
+
     const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
     const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
-    const relayWs = defaultWsUrl || currentOrigin.replace(/^http/, 'ws');
+    const relayWs = defaultWsUrl || displayUrl.replace(/^http/, 'ws');
 
-    if (relayHostServerIp) relayHostServerIp.textContent = currentOrigin;
-    if (relayClientGatewayIp) relayClientGatewayIp.textContent = currentOrigin;
+    if (relayHostServerIp) relayHostServerIp.textContent = displayUrl;
+    if (relayClientGatewayIp) relayClientGatewayIp.textContent = displayUrl;
+
+    const relayHostServerTag = document.getElementById('relayHostServerTag');
+    const relayClientGatewayTag = document.getElementById('relayClientGatewayTag');
+    let tagText = 'Máy chủ Web';
+    if (isHfSpace) tagText = 'Hugging Face Space';
+    else if (displayUrl.includes('100.') || isTailscale) tagText = 'Tailscale Mesh';
+    else if (displayUrl.includes('192.168.') || displayUrl.includes('10.') || displayUrl.includes('172.')) tagText = 'Mạng Wi-Fi (LAN)';
+    else if (isLocal) tagText = 'Local Host';
+
+    if (relayHostServerTag) relayHostServerTag.textContent = tagText;
+    if (relayClientGatewayTag) relayClientGatewayTag.textContent = tagText;
+
     if (relayClientLink) {
-      relayClientLink.href = currentOrigin;
-      relayClientLink.textContent = `${currentOrigin} ↗`;
-    }
-    if (relayClientQr) {
-      relayClientQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentOrigin)}`;
+      relayClientLink.href = displayUrl;
+      relayClientLink.textContent = `${displayUrl} ↗`;
     }
 
-    const setupBatUrl = `${currentOrigin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const scanDesc = document.getElementById('relay-client-scan-desc');
+    if (scanDesc) {
+      if (isHfSpace) {
+        scanDesc.textContent = ' để mở trực tiếp qua Hugging Face Space.';
+      } else if (displayUrl.includes('100.') || isTailscale) {
+        scanDesc.textContent = ' (qua Tailscale) để mở bảng điều khiển từ xa trên điện thoại.';
+      } else if (displayUrl.includes('192.168.') || displayUrl.includes('10.') || displayUrl.includes('172.')) {
+        scanDesc.textContent = ' (cùng mạng Wi-Fi) để mở bảng điều khiển từ xa trên điện thoại.';
+      } else {
+        scanDesc.textContent = ' để mở bảng điều khiển từ xa trực tiếp trên điện thoại.';
+      }
+    }
+
+    if (relayClientQr) {
+      relayClientQr.src = `/api/qr?data=${encodeURIComponent(displayUrl)}`;
+      relayClientQr.onerror = () => {
+        relayClientQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(displayUrl)}`;
+      };
+    }
+
+    const setupBatUrl = `${displayUrl}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
     const linkDownloadSetupBat = document.getElementById('linkDownloadSetupBat');
     if (linkDownloadSetupBat) {
       linkDownloadSetupBat.href = setupBatUrl;
     }
 
-    const setupLinuxUrl = `${currentOrigin}/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const btnCopyHostCmd = document.getElementById('btnCopyHostCmd');
+    if (btnCopyHostCmd) {
+      const irmCmd = `irm ${setupBatUrl} | iex`;
+      btnCopyHostCmd.setAttribute('data-cmd', irmCmd);
+      const codeTag = btnCopyHostCmd.closest('.dl-cmd-box')?.querySelector('code');
+      if (codeTag) codeTag.textContent = irmCmd;
+    }
+
+    const setupLinuxUrl = `${displayUrl}/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
     const linkDownloadSetupLinux = document.getElementById('linkDownloadSetupLinux');
     if (linkDownloadSetupLinux) {
       linkDownloadSetupLinux.href = setupLinuxUrl;
     }
 
-    const setupMacUrl = `${currentOrigin}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const setupMacUrl = `${displayUrl}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
     const linkDownloadSetupMac = document.getElementById('linkDownloadSetupMac');
     if (linkDownloadSetupMac) {
       linkDownloadSetupMac.href = setupMacUrl;
-    }
-
-    if (btnCopyHostCmd) {
-      const currentCmd = `irm "${setupBatUrl}" | iex`;
-      btnCopyHostCmd.setAttribute('data-cmd', currentCmd);
-      const codeEl = btnCopyHostCmd.closest('.dl-cmd-box')?.querySelector('code');
-      if (codeEl) codeEl.textContent = currentCmd;
     }
 
     // Winget CLI command toggle between Host and Client & copy on click

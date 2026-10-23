@@ -141,5 +141,37 @@ class TestDownloadEndpoints(unittest.TestCase):
             self.assertIn("full address:s:127.0.0.1:3389", body)
             self.assertIn("screen mode id:i:2", body)
 
+    def test_host_info_endpoints_and_schema(self):
+        import json
+        for ep in ["/api/host-info", "/api/network/host-info"]:
+            url = f"http://127.0.0.1:{self.port}{ep}"
+            with urllib.request.urlopen(url) as resp:
+                self.assertEqual(resp.status, 200)
+                data = json.loads(resp.read().decode("utf-8"))
+                self.assertIn("lan_ip", data)
+                self.assertIn("lan_url", data)
+                self.assertIn("tailscale_ip", data)
+                self.assertIn("tailscale_url", data)
+                self.assertIn("active_url", data)
+                self.assertIn("is_local", data)
+                self.assertTrue(isinstance(data["lan_ip"], str))
+                self.assertTrue(data["lan_url"].startswith("http"))
+
+    def test_qr_endpoint(self):
+        url = f"http://127.0.0.1:{self.port}/api/qr?data=https%3A%2F%2Fexample.com"
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+        opener = urllib.request.build_opener(NoRedirect)
+        try:
+            resp = opener.open(url)
+            self.assertIn(resp.status, [200, 307])
+            if resp.status == 307:
+                self.assertIn("api.qrserver.com", resp.headers.get("Location", ""))
+        except urllib.error.HTTPError as e:
+            self.assertIn(e.code, [200, 307])
+            if e.code == 307:
+                self.assertIn("api.qrserver.com", e.headers.get("Location", ""))
+
 if __name__ == "__main__":
     unittest.main()

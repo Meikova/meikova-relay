@@ -2,6 +2,7 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { WebSocketServer, WebSocket } = require('ws');
 const DB = require('./db');
 
@@ -29,6 +30,28 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
+function getNetworkIps() {
+  let lanIp = '127.0.0.1';
+  let tailscaleIp = null;
+  try {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          if (iface.address.startsWith('100.')) {
+            tailscaleIp = iface.address;
+          } else if (lanIp === '127.0.0.1' && (iface.address.startsWith('192.168.') || iface.address.startsWith('10.') || iface.address.startsWith('172.'))) {
+            lanIp = iface.address;
+          } else if (lanIp === '127.0.0.1') {
+            lanIp = iface.address;
+          }
+        }
+      }
+    }
+  } catch (_) {}
+  return { lanIp, tailscaleIp };
+}
+
 function getClientIp(req) {
   if (!req) return '127.0.0.1';
   const fwd = req.headers['x-forwarded-for'];
@@ -149,6 +172,55 @@ const server = http.createServer(async (req, res) => {
         timestamp: Date.now(),
         activeRooms: rooms.size
       });
+    }
+
+    // 0.1 Host Network Info (Tailscale, LAN IP, Active Origin)
+    if ((pathname === '/api/host-info' || pathname === '/api/network/host-info') && req.method === 'GET') {
+      const { lanIp, tailscaleIp } = getNetworkIps();
+      const hostHeader = req.headers['x-forwarded-host'] || req.headers['host'] || `127.0.0.1:${PORT}`;
+      let port = '';
+      if (hostHeader.includes(':')) {
+        port = hostHeader.split(':').pop();
+      } else {
+        port = String(PORT || 8080);
+      }
+      const proto = req.headers['x-forwarded-proto'] || 'http';
+      const isStandardPort = port === '80' || port === '443';
+      const lanUrl = (!isStandardPort && port) ? `${proto}://${lanIp}:${port}` : `${proto}://${lanIp}`;
+      const tailscaleUrl = tailscaleIp ? ((!isStandardPort && port) ? `${proto}://${tailscaleIp}:${port}` : `${proto}://${tailscaleIp}`) : null;
+      const activeUrl = `${proto}://${hostHeader}`.replace(/\/+$/, '');
+      const isLocal = hostHeader.startsWith('localhost') || hostHeader.startsWith('127.0.0.1');
+
+      return jsonResponse(res, 200, {
+        lan_ip: lanIp,
+        lan_url: lanUrl,
+        lan_origin: lanUrl,
+        tailscale_ip: tailscaleIp,
+        tailscale_url: tailscaleUrl,
+        host: hostHeader,
+        active_url: activeUrl,
+        public_origin: activeUrl,
+        is_local: isLocal
+      });
+    }
+
+    // 0.2 Standard QR Code Generator / Redirect Endpoint
+    if (pathname === '/api/qr' && req.method === 'GET') {
+      let data = (url.searchParams.get('data') || '').trim();
+      const hostHeader = req.headers['x-forwarded-host'] || req.headers['host'] || `127.0.0.1:${PORT}`;
+      const proto = req.headers['x-forwarded-proto'] || 'http';
+      if (!data) {
+        data = `${proto}://${hostHeader}`.replace(/\/+$/, '');
+      }
+      if (data.length > 2048) {
+        return jsonResponse(res, 400, { error: 'data too long' });
+      }
+      const qrTarget = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data)}`;
+      res.writeHead(307, {
+        'Location': qrTarget,
+        'Cache-Control': 'public, max-age=60'
+      });
+      return res.end();
     }
 
     // 1. Auth: Register
