@@ -1,3 +1,22 @@
+# Session Handoff: Remote Viewport UI Optimization (Hide Floating Tabs & Sync /css/style.css)
+
+## 1. Mục tiêu hoàn thành
+- [x] **Khắc phục dải chữ dọc unstyled (PHAMDOANKIEM, HSO-PC...) đè lên màn hình khi remote:**
+  - **Bản chất phần tử:** Đó là thanh chuyển đổi nhanh phiên đa máy (`#remoteSessionTabsBar` cho Vấn đề 3).
+  - **Nguyên nhân vỡ giao diện:** Trong [relay-server/public/index.html](file:///D:/JOB/DEV/meikova/meikova-relay/relay-server/public/index.html), trình duyệt tải CSS qua đường dẫn `/css/style.css`. Trong khi đó, bộ style `.remote-session-bar` mới chỉ được ghi vào `public/style.css` (gốc), tệp con `public/css/style.css` bị thiếu toàn bộ class này. Do đó, thanh tabs bị mất layout flex và position absolute, rơi về block text trôi nổi góc trái màn hình.
+  - **Nguyên nhân tự hiện không mong muốn:** Trong `updateRemoteSessionTabs()`, hàm tự ý gọi `bar.classList.remove('hidden')` mỗi khi remote, cưỡng ép hiển thị danh sách toàn bộ thiết bị trong tài khoản đè lên màn hình làm việc của máy đích.
+  - **Khắc phục:**
+    1. Đưa trạng thái hiển thị về mặc định ẩn: `isSessionTabsBarOpen = false`. Khi kết nối remote bình thường, thanh tabs này 100% ẩn (`display: none !important`), không che khuất màn hình máy trạm.
+    2. Bổ sung nút chuyển đổi máy trạm (`#btnToggleSessionTabs`) trên thanh điều khiển Deck phía dưới đáy màn hình và nút đóng `✕` (`#btnCloseSessionTabsBar`) trên thanh tabs, cho phép người dùng chủ động mở khi thực sự muốn chuyển máy.
+    3. Đồng bộ hoàn chỉnh `style.css` vào cả 3 vị trí: `relay-server/public/style.css`, `relay-server/public/css/style.css`, và `web-client/css/style.css`.
+    4. Nâng Service Worker cache và link stylesheet lên `v1.0.45` để tự động làm mới tài nguyên trên trình duyệt người dùng.
+
+## 2. Kiểm thử & Kiểm chứng (Exit Code 0)
+- `python -m unittest tests/test_topology_architect.py` -> **4/4 PASS (Exit Code 0)**
+- `python -m unittest tests/test_screen_sync.py` -> **6/6 PASS (Exit Code 0)**
+
+---
+
 # Session Handoff: Setup.bat CMD Parenthesis Parser Fix (Headless Mode Display Bug)
 
 ## 1. Mục tiêu hoàn thành
