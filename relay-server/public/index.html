@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.0.44">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.44">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.0.45">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.45">
 </head>
 <body>
 
@@ -1045,6 +1045,9 @@
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Thêm máy</span>
           </button>
+          <button type="button" id="btnCloseSessionTabsBar" class="session-tab-close" title="Đóng thanh chuyển đổi">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       </div>
       <!-- 1:1 Pixel-Perfect & Sync Status Floating Badge -->
@@ -1154,6 +1157,9 @@
         </button>
         <button type="button" id="btnPopoutSession" class="deck__btn" title="Mở trong tab mới / cửa sổ riêng (Popout)" data-i18n-title="deck.popout_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </button>
+        <button type="button" id="btnToggleSessionTabs" class="deck__btn" title="Chuyển đổi nhanh máy trạm (Session Switcher)" data-i18n-title="deck.session_switcher_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M14 9l3 3-3 3"/></svg>
         </button>
 
         <!-- Deck Display Mode Controller (Bottom Float / Top Pinned / Top Auto-Hide) -->
@@ -2646,9 +2652,9 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.44"></script>
-  <script src="/js/sync_engine.js?v=1.0.44"></script>
-  <script src="/js/app.js?v=1.0.44"></script>
+  <script src="/js/i18n.js?v=1.0.45"></script>
+  <script src="/js/sync_engine.js?v=1.0.45"></script>
+  <script src="/js/app.js?v=1.0.45"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {

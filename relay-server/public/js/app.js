@@ -7642,12 +7642,14 @@
   initApp();
 
   // --- MULTI-SESSION TABS & POPOUT ENGINE (Vấn đề 3) ---
+  let isSessionTabsBarOpen = false;
+
   function updateRemoteSessionTabs() {
     const bar = document.getElementById('remoteSessionTabsBar');
     const list = document.getElementById('remoteSessionTabsList');
     if (!bar || !list) return;
 
-    if (currentView !== 'remote' || !currentRoom) {
+    if (currentView !== 'remote' || !currentRoom || !isSessionTabsBarOpen) {
       bar.classList.add('hidden');
       return;
     }
@@ -7703,6 +7705,16 @@
   }
 
   // Bind Session Tab Actions & Popout Button
+  document.getElementById('btnToggleSessionTabs')?.addEventListener('click', () => {
+    isSessionTabsBarOpen = !isSessionTabsBarOpen;
+    updateRemoteSessionTabs();
+  });
+
+  document.getElementById('btnCloseSessionTabsBar')?.addEventListener('click', () => {
+    isSessionTabsBarOpen = false;
+    updateRemoteSessionTabs();
+  });
+
   document.getElementById('btnRemoteNewSessionTab')?.addEventListener('click', () => {
     quickConnectModal?.classList.remove('hidden');
     landingRoomInput?.focus();
