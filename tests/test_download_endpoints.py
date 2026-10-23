@@ -55,6 +55,7 @@ class TestDownloadEndpoints(unittest.TestCase):
             self.assertIn("Meikova Relay Host", content)
             self.assertIn("HEADLESS_MODE=0", content)
             self.assertIn("APP_FLAGS=--gui", content)
+            self.assertIn("Desktop Tray Agent", content)
 
     def test_setup_bat_with_user_id(self):
         url = f"http://127.0.0.1:{self.port}/api/download/setup.bat?account=Developer&userId=usr_abc123"
@@ -66,6 +67,7 @@ class TestDownloadEndpoints(unittest.TestCase):
             self.assertIn('"account": "Developer"', content)
             self.assertIn('set "HEADLESS_BOOL=false"', content)
             self.assertIn('"headless": %HEADLESS_BOOL%', content)
+            self.assertIn("Desktop Tray Agent", content)
 
     def test_setup_bat_headless_download(self):
         url = f"http://127.0.0.1:{self.port}/api/download/setup.bat?account=Tester&headless=1"
@@ -77,6 +79,7 @@ class TestDownloadEndpoints(unittest.TestCase):
             self.assertIn("--service", content)
             self.assertIn("Tester", content)
             self.assertIn("MeikovaRelayHost.exe", content)
+            self.assertIn("Dich vu chay ngam", content)
 
     def test_setup_linux_download_with_account_and_user_id(self):
         url = f"http://127.0.0.1:{self.port}/api/download/setup-linux.sh?account=LinuxUser&userId=usr_linux99"

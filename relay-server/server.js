@@ -1059,10 +1059,10 @@ start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\MeikovaRelayHost.exe" %APP_FLAGS%
 if "%HEADLESS_MODE%"=="1" (
     echo.
     echo ==============================================================
-    echo   [THANH CONG] MAY TRAM DA KHOI CHAY NGAM (HEADLESS / NO TRAY)
+    echo   [THANH CONG] MAY TRAM DA KHOI CHAY NGAM (HEADLESS SERVICE)
     echo   Tai khoan:  ${account}
     echo   Room ID:    %RAND_ROOM%   ^|   PIN: %RAND_PIN%
-    echo   Che do:     Headless Service (Khong cua so, khong tray icon)
+    echo   Che do:     Dich vu chay ngam (Headless Service)
     echo ==============================================================
     exit /b 0
 )
@@ -1072,6 +1072,7 @@ echo ==============================================================
 echo   [THANH CONG] MAY TRAM DA KHOI CHAY VA LIEN KET
 echo   Tai khoan:  ${account}
 echo   Room ID:    %RAND_ROOM%   ^|   PIN: %RAND_PIN%
+echo   Che do:     Desktop Tray Agent (Khay he thong + Cua so Chat truc quan)
 echo.
 echo   Kiem tra bieu tuong Meikova Relay o khay he thong (System Tray).
 echo   Thiet bi se tu dong xuat hien tren trinh duyet trong giay lat.
