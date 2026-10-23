@@ -178,10 +178,6 @@ def set_window_icon(hwnd):
 
         if not icon_path or not icon_path.is_file():
             icon_path = get_client_data_dir() / "meikova_relay_icon.ico"
-            if not icon_path.exists():
-                from host_agent.make_icon import render_unified_icon
-                img = render_unified_icon(256)
-                img.save(str(icon_path), format="ICO", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
 
         user32 = ctypes.windll.user32
         # LR_LOADFROMFILE = 0x0010, IMAGE_ICON = 1, WM_SETICON = 0x0080
@@ -686,13 +682,6 @@ class ClientTray:
 
         if not ico_file or not ico_file.is_file():
             ico_file = get_client_data_dir() / "meikova_relay_icon.ico"
-            if not ico_file.is_file():
-                try:
-                    from host_agent.make_icon import render_unified_icon
-                    img = render_unified_icon(64)
-                    img.save(str(ico_file), format="ICO", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64)])
-                except Exception:
-                    pass
 
         try:
             if ico_file and Path(ico_file).is_file():
@@ -826,8 +815,13 @@ class ClientTray:
     def _setup_pystray(self):
         try:
             import pystray
-            from host_agent.make_icon import render_unified_icon
-            icon_img = render_unified_icon(64)
+            from PIL import Image
+            tray_path = find_client_resource("tray_icon.png") or find_client_resource("host_agent/tray_icon.png") or find_client_resource("icon.png")
+            if tray_path and Path(tray_path).is_file():
+                with Image.open(str(tray_path)) as im:
+                    icon_img = im.resize((64, 64), Image.Resampling.LANCZOS).convert("RGBA")
+            else:
+                icon_img = Image.new("RGBA", (64, 64), (17, 21, 27, 255))
 
             def on_show(icon=None, item=None):
                 self.show_window()
@@ -1080,7 +1074,7 @@ def main(argv=None):
     embedded_server = ClientEmbeddedServer(web_client_dir, target_relay_url=args.url)
     embedded_server.auto_start_local_relay()
     local_base_url = embedded_server.start()
-    app_url = f"{local_base_url}/index.html"
+    app_url = f"{local_base_url}/index.html?platform=desktop"
 
     # AppUserModelID for Windows Taskbar Grouping & Icon
     if sys.platform == "win32":

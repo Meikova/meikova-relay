@@ -111,5 +111,47 @@ class TestRelayStandardization(unittest.TestCase):
             self.assertNotIn("<span>${isDir ? '?' : '? T?i'}</span>", content)
 
 
+
+    def test_10_frameless_titlebar_and_desktop_shell_isolation(self):
+        """Verifies Law 5: Custom desktop titlebar exists and is strictly hidden on web/mobile."""
+        for html_file in [ROOT / "web-client" / "index.html", ROOT / "relay-server" / "public" / "index.html"]:
+            content = html_file.read_text(encoding="utf-8")
+            self.assertIn('id="desktop-titlebar"', content)
+            self.assertIn('id="dt-btn-min"', content)
+            self.assertIn('id="dt-btn-max"', content)
+            self.assertIn('id="dt-btn-close"', content)
+
+        for css_file in [ROOT / "web-client" / "css" / "style.css", ROOT / "relay-server" / "public" / "css" / "style.css"]:
+            content = css_file.read_text(encoding="utf-8")
+            self.assertIn(".desktop-titlebar", content)
+            self.assertIn("display: none !important", content)
+            self.assertIn("body.is-desktop-shell .desktop-titlebar", content)
+
+        for js_file in [ROOT / "web-client" / "js" / "app.js", ROOT / "relay-server" / "public" / "js" / "app.js"]:
+            content = js_file.read_text(encoding="utf-8")
+            self.assertIn("initDesktopTitlebar", content)
+
+    def test_11_forbidden_make_icon_purged(self):
+        """Verifies Law 8: make_icon.py is purged and never imported in codebase."""
+        self.assertFalse((ROOT / "host_agent" / "make_icon.py").exists())
+        py_files = list((ROOT / "host_agent").glob("*.py")) + list((ROOT / "client_desktop").glob("*.py"))
+        for f in py_files:
+            c = f.read_text(encoding="utf-8")
+            self.assertNotIn("make_icon", c, f"Found forbidden make_icon import in {f}")
+
+    def test_12_machine_readable_error_taxonomy(self):
+        """Verifies Law 7: Machine-readable error codes are defined in i18n and server.js."""
+        for i18n_file in [ROOT / "web-client" / "js" / "i18n.js", ROOT / "relay-server" / "public" / "js" / "i18n.js"]:
+            content = i18n_file.read_text(encoding="utf-8")
+            self.assertIn("'RELAY_ROOM_OFFLINE'", content)
+            self.assertIn("'RELAY_INVALID_PIN'", content)
+            self.assertIn("'AUTH_INVALID_CREDENTIALS'", content)
+
+        server_js = ROOT / "relay-server" / "server.js"
+        server_content = server_js.read_text(encoding="utf-8")
+        self.assertIn("'RELAY_ROOM_OFFLINE'", server_content)
+        self.assertIn("'RELAY_INVALID_PIN'", server_content)
+        self.assertIn("'AUTH_INVALID_CREDENTIALS'", server_content)
+
 if __name__ == "__main__":
     unittest.main()

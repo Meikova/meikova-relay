@@ -26,6 +26,32 @@
 </head>
 <body>
 
+  <!-- Desktop Frameless Custom Titlebar (Hidden on Web & Mobile) -->
+  <div id="desktop-titlebar" class="desktop-titlebar pywebview-drag-region" style="display: none;">
+    <div class="desktop-titlebar__lead pywebview-drag-region">
+      <svg class="desktop-titlebar__logo" viewBox="0 0 100 100" width="16" height="16" aria-hidden="true" fill="#83E8AC">
+        <rect width="100" height="100" rx="20" fill="#070D17"/>
+        <path fill-rule="evenodd" d="M12 29H45L57 41L45 53H30V41H40L43 38H24V62H40V74H12Z"/>
+        <path fill-rule="evenodd" d="M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z"/>
+      </svg>
+      <span class="desktop-titlebar__title font-brand">Meikova Relay</span>
+      <span class="desktop-titlebar__status font-mono" id="dt-roomstatus"></span>
+    </div>
+    <div class="desktop-titlebar__drag pywebview-drag-region"></div>
+    <div class="desktop-titlebar__controls">
+      <button type="button" class="dt-btn dt-btn--min" id="dt-btn-min" title="Thu nhỏ (Minimize)" aria-label="Minimize">
+        <svg viewBox="0 0 11 11" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2"><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
+      </button>
+      <button type="button" class="dt-btn dt-btn--max" id="dt-btn-max" title="Phóng to / Khôi phục" aria-label="Maximize">
+        <svg viewBox="0 0 11 11" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2" id="dt-max-icon"><rect x="1.5" y="1.5" width="8" height="8" rx="0.8"/></svg>
+      </button>
+      <button type="button" class="dt-btn dt-btn--close" id="dt-btn-close" title="Đóng (Thu nhỏ vào khay hệ thống)" aria-label="Close">
+        <svg viewBox="0 0 11 11" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+
   <!-- Top Bar (64px Avionics Console) -->
   <header class="topbar">
     <div class="brand-container">

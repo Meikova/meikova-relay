@@ -22,7 +22,6 @@ hiddenimports = [
     "webview",
     "client_desktop.desktop_client",
     "client_desktop.local_db",
-    "host_agent.make_icon",
     "pystray",
     "PIL",
     "PIL.Image",

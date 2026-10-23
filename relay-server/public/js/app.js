@@ -3197,7 +3197,10 @@
             console.log('[MeikovaRelay] Host is restarting, waiting before retry:', msg.message);
             return;
           }
-          showToast(`Lỗi: ${msg.message}`, 'error');
+          const translatedError = (msg.code && typeof t === 'function' && t(msg.code) !== msg.code)
+            ? t(msg.code)
+            : (msg.message || 'Lỗi không xác định');
+          showToast(`Lỗi: ${translatedError}`, 'error');
           disconnect();
         } else if (msg.type === 'session_list') {
           roomSessions = msg.sessions || [];
@@ -7523,3 +7526,109 @@
   // Start app
   initApp();
 })();
+
+
+// --- Desktop Frameless Custom Titlebar & Shell Isolation (Law 5) ---
+function initDesktopTitlebar() {
+  const isDesktopEnv = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return (
+        typeof window.pywebview !== 'undefined' ||
+        params.get('platform') === 'desktop' ||
+        window.isDesktopShell === true
+      );
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const setupTitlebar = () => {
+    if (!isDesktopEnv()) return false;
+    document.body.classList.add('is-desktop-shell');
+    const titlebar = document.getElementById('desktop-titlebar');
+    if (titlebar) {
+      titlebar.style.display = 'flex';
+    }
+
+    const btnMin = document.getElementById('dt-btn-min');
+    const btnMax = document.getElementById('dt-btn-max');
+    const btnClose = document.getElementById('dt-btn-close');
+
+    if (btnMin) {
+      btnMin.onclick = (e) => {
+        e.stopPropagation();
+        if (window.pywebview && window.pywebview.api) {
+          if (typeof window.pywebview.api.minimize_window === 'function') {
+            window.pywebview.api.minimize_window();
+          } else if (typeof window.pywebview.api.minimize === 'function') {
+            window.pywebview.api.minimize();
+          }
+        }
+      };
+    }
+
+    if (btnMax) {
+      btnMax.onclick = async (e) => {
+        e.stopPropagation();
+        try {
+          if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.toggle_maximize === 'function') {
+            const isMax = await window.pywebview.api.toggle_maximize();
+            updateMaxIcon(isMax);
+          }
+        } catch (_) {}
+      };
+    }
+
+    if (btnClose) {
+      btnClose.onclick = (e) => {
+        e.stopPropagation();
+        if (window.pywebview && window.pywebview.api) {
+          if (typeof window.pywebview.api.close_window === 'function') {
+            window.pywebview.api.close_window();
+          } else if (typeof window.pywebview.api.minimize_to_tray === 'function') {
+            window.pywebview.api.minimize_to_tray();
+          }
+        }
+      };
+    }
+
+    if (titlebar) {
+      titlebar.ondblclick = (e) => {
+        if (e.target.closest('.desktop-titlebar__controls')) return;
+        btnMax && btnMax.click();
+      };
+      titlebar.onmousedown = (e) => {
+        if (e.target.closest('.desktop-titlebar__controls')) return;
+        if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.start_drag === 'function') {
+          window.pywebview.api.start_drag();
+        }
+      };
+    }
+    return true;
+  };
+
+  function updateMaxIcon(isMax) {
+    const icon = document.getElementById('dt-max-icon');
+    if (!icon) return;
+    if (isMax) {
+      icon.innerHTML = '<path d="M3 1.5h6v6H3z M1.5 3.5h1.5v5.5h5.5v1.5H1.5z" fill="none" stroke="currentColor" stroke-width="1.1"/>';
+    } else {
+      icon.innerHTML = '<rect x="1.5" y="1.5" width="8" height="8" rx="0.8"/>';
+    }
+  }
+
+  if (!setupTitlebar()) {
+    window.addEventListener('pywebviewready', setupTitlebar);
+    setTimeout(setupTitlebar, 300);
+    setTimeout(setupTitlebar, 1000);
+  }
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDesktopTitlebar);
+  } else {
+    initDesktopTitlebar();
+  }
+}

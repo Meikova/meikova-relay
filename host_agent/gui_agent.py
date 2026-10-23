@@ -247,17 +247,6 @@ def get_tray_icon_image():
     except Exception:
         pass
 
-    try:
-        from host_agent.make_icon import draw_duplex_bridge
-        return draw_duplex_bridge(32)
-    except Exception:
-        pass
-
-    try:
-        from make_icon import draw_duplex_bridge
-        return draw_duplex_bridge(32)
-    except Exception:
-        pass
 
     # Direct embedded rendering of Duplex Bridge so it NEVER depends on files or imports
     try:

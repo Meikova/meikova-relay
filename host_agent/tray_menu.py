@@ -69,20 +69,8 @@ def _render_menu_icon(name: str) -> Optional[Any]:
                         return master
                 except Exception:
                     pass
-        try:
-            from host_agent.make_icon import render_unified_icon
-            master = render_unified_icon(size)
-            _icon_cache[name] = master
-            return master
-        except Exception:
-            try:
-                from host_agent.make_icon import draw_duplex_bridge
-                master = draw_duplex_bridge(size)
-                _icon_cache[name] = master
-                return master
-            except Exception:
-                d.rounded_rectangle([0, 0, size, size], radius=14, fill=(17, 21, 27, 255))
-                return img
+        d.rounded_rectangle([0, 0, size, size], radius=14, fill=(17, 21, 27, 255))
+        return img
 
     elif name == "status_online":
         # Glowing green status beacon

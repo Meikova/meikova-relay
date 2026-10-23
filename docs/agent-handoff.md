@@ -887,3 +887,31 @@ elay-server/public/index.html & web-client: Bổ sung nút #btn-sso-gateway và 
   - `python -m unittest discover tests`: 142/142 tests pass (Exit Code 0).
 - **C?nh b?o k? thu?t:**
   - `meikova_relay.db` ?? ???c b?o v? ho?n to?n kh?i ? nhi?m t? test runner th?ng qua c? ch? `DB_PATH` c?ch ly.
+
+
+## 36. Chuẩn Hóa Toàn Diện 18 Nguyên Tắc Bất Biến Meikova Ecosystem (Relay Compliance Audit)
+- **Mục tiêu hoàn thành:**
+  1. **Điều 5 (Frameless Titlebar & Desktop-Shell-Isolation):**
+     - Đã tích hợp `#desktop-titlebar` vào cả `relay-server/public/index.html` và `web-client/index.html` với logo SVG phát quang chuẩn, tên sản phẩm và bộ 3 nút điều khiển SVG (Thu nhỏ, Phóng to, Đóng - hover đỏ `#EF4444`).
+     - Bổ sung CSS cách ly môi trường (`Desktop-Shell-Isolation`): Mặc định titlebar ẩn hoàn toàn (`display: none !important;`) trên mọi tab trình duyệt web thông thường và Mobile PWA; CHỈ hiển thị dạng Flexbox (`display: flex !important;`) khi chạy trong desktop client (`body.is-desktop-shell` / `body.is-desktop-app`).
+     - Bổ sung hàm JS `initDesktopTitlebar()` trong `public/js/app.js` và `web-client/js/app.js` tự động phát hiện native bridge `window.pywebview` hoặc query parameter `?platform=desktop`, kích hoạt class `.is-desktop-shell` và liên kết trực tiếp các sự kiện nút với `minimize_window()`, `toggle_maximize()`, `close_window()`, và kéo thả native `start_drag()`.
+     - Cập nhật `client_desktop/desktop_client.py` khởi chạy webview với URL có gắn cờ `?platform=desktop`.
+  2. **Điều 8 (Brand-SSOT & Triệt tiêu `make_icon.py`):**
+     - Xóa bỏ vĩnh viễn tệp tạm bợ `host_agent/make_icon.py`.
+     - Loại bỏ hoàn toàn các lệnh import `from host_agent.make_icon import ...` và `from make_icon import ...` trong `client_desktop/desktop_client.py`, `client_desktop/client.spec`, `host_agent/gui_agent.py`, và `host_agent/tray_menu.py`.
+     - Thay thế bằng cơ chế tải trực tiếp các tệp biểu tượng chính thức đã triển khai từ SSOT (`icon.ico`, `tray_icon.png`, `icon.png`).
+     - Kiểm chứng bằng `python D:/JOB/DEV/meikova/scripts/deploy_product_assets.py --check --product relay`: Đạt 60/60 tài sản hợp lệ (100% SHA-256 match, Exit Code 0).
+  3. **Điều 7 (API-Code-Driven-i18n):**
+     - Bổ sung mã lỗi định danh máy đọc được chuẩn Taxonomy (`RELAY_MISSING_CREDENTIALS`, `RELAY_ROOM_OFFLINE`, `RELAY_INVALID_PIN`, `RELAY_SESSION_NOT_FOUND`, `AUTH_INVALID_CREDENTIALS`, `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_UNAUTHORIZED`, `AUTH_SESSION_EXPIRED`, `VALIDATION_FAILED`, `RESOURCE_NOT_FOUND`, `SYSTEM_INTERNAL_ERROR`) vào các gói phản hồi WebSocket và REST API trong `relay-server/server.js`.
+     - Mở rộng từ điển `i18n.js` (cả Tiếng Việt và Tiếng Anh) hỗ trợ tự động dịch từ mã lỗi sang thông điệp người dùng tại client.
+  4. **Bổ sung Bộ Test Tiêu Chuẩn Hóa:**
+     - Mở rộng `tests/test_relay_standardization.py` với các bài test:
+       * `test_10_frameless_titlebar_and_desktop_shell_isolation`
+       * `test_11_forbidden_make_icon_purged`
+       * `test_12_machine_readable_error_taxonomy`
+     - Tất cả 12/12 bài kiểm tra tiêu chuẩn hóa đều vượt qua xuất sắc (Exit Code 0).
+- **Lệnh kiểm tra đã chạy & Exit Code:**
+  - `python -m unittest tests/test_relay_standardization.py`: 12/12 tests pass (Exit Code 0).
+  - `python D:/JOB/DEV/meikova/scripts/deploy_product_assets.py --check --product relay`: 60/60 assets match (Exit Code 0).
+- **Tuân thủ quy tắc Git:**
+  - Kho `meikova-relay`: Nghiêm cấm push lên remote. Chỉ commit local.

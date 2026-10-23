@@ -5549,3 +5549,109 @@ input:-webkit-autofill:active {
   text-decoration: underline;
   opacity: 0.9;
 }
+
+
+/* Desktop Frameless Custom Titlebar & Desktop-Shell-Isolation (Law 5) */
+:root {
+  --desktop-titlebar-h: 0px;
+}
+
+body.is-desktop-shell,
+body.is-desktop-app {
+  --desktop-titlebar-h: 32px;
+}
+
+.desktop-titlebar {
+  display: none !important;
+  height: 32px;
+  background: #070D17;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+  position: relative;
+  z-index: 99998;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+body.is-desktop-shell .desktop-titlebar,
+body.is-desktop-app .desktop-titlebar {
+  display: flex !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-titlebar {
+    display: none !important;
+  }
+}
+
+.desktop-titlebar__lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  height: 100%;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.desktop-titlebar__logo {
+  flex-shrink: 0;
+  display: block;
+}
+
+.desktop-titlebar__title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+}
+
+.desktop-titlebar__status {
+  font-size: 10.5px;
+  color: var(--accent, #22C55E);
+  opacity: 0.85;
+  margin-left: 6px;
+}
+
+.desktop-titlebar__drag {
+  flex: 1;
+  height: 100%;
+  cursor: default;
+}
+
+.desktop-titlebar__controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  -webkit-app-region: no-drag;
+  margin-left: auto;
+}
+
+.dt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  padding: 0;
+  outline: none;
+}
+
+.dt-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.dt-btn--close:hover {
+  background: #EF4444 !important;
+  color: #ffffff !important;
+}
