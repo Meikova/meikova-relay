@@ -1,3 +1,21 @@
+# Session Handoff: Machine Session Isolation & Auto-Connect Guard (Vấn đề 2 Fix)
+
+## 1. Mục tiêu hoàn thành
+- [x] **Vấn đề 2 (Đăng nhập cùng 1 tài khoản trên 2 máy A và B, A kết nối C thì B tự kết nối C):**
+  - **Nguyên nhân gốc rễ 1 (Auto-Connect Guard):** Trong `initApp()` (`relay-server/public/js/app.js`), client kiểm tra `route.room` và tự động kết nối `startRemoteSession(defaultWsUrl, route.room, savedPin)` bất kỳ khi nào `route.room` tồn tại trong URL/history, dù không có cờ `direct=1`. Đã chuẩn hóa: CHỈ tự động kết nối khi có tham số `direct=1` (`route.direct === true`). Ngược lại, điều hướng an toàn về `dashboard`.
+  - **Nguyên nhân gốc rễ 2 (Nhầm lẫn danh tính Session Manager):** `server.js` (`/api/rooms/:roomId/sessions`) và `app.js` (`renderSessionManagerList`) so sánh quyền sở hữu phiên `isSelf` dựa trên `userId` hoặc `username`. Khi 2 máy đăng nhập cùng 1 tài khoản, Máy 2 thấy Máy 1 là `isSelf: true` ("BẠN / Phiên của bạn"), ẩn nút "Ngắt phiên" và gây ngộ nhận Máy 2 đang kết nối. Đã sửa: Định danh `isSelf` chặt chẽ theo `machineId` phần cứng hoặc `sessionId` vật lý.
+  - **Nguyên nhân gốc rễ 3 (Truyền Machine GUID):** Bổ sung UUID vật lý bền vững `localStorage.getItem('meikova_relay_client_machine_id')`, truyền qua WebSocket `init_client` và HTTP header `X-Machine-Id` trong mọi `apiFetch()`.
+  - **Nguyên nhân gốc rễ 4 (Multi-Client Streaming Stability):** Trong `host_service.py`, khi nhận event `client_disconnected`, kiểm tra `clientCount = event.get("clientCount", 0)`. Host chỉ dừng video/audio stream khi `clientCount <= 0`. Nếu vẫn còn client khác đang kết nối, host tiếp tục stream liên tục, không bị đen màn hình.
+  - **Đồng bộ CSS & Service Worker Cache:** Hợp nhất `remote-session-bar` và `desktop-titlebar` vào cả `relay-server/public/style.css` lẫn `web-client/css/style.css`. Nâng cache Service Worker lên `v1.0.44`.
+
+## 2. Kiểm thử & Kiểm chứng (Exit Code 0)
+- `python -m unittest tests/test_topology_architect.py` -> **4/4 PASS (Exit Code 0)**
+- `python -m unittest tests/test_screen_sync.py` -> **6/6 PASS (Exit Code 0)**
+- `python tests/self_test_capture.py` -> **PASS (Exit Code 0)**
+- Git commit gắn cờ `[build]` kích hoạt CI runner đóng gói đa nền tảng.
+
+---
+
 # Session Handoff: Host Engine & Media Specialist (Subagent 1)
 
 ## 1. Mục tiêu hoàn thành
