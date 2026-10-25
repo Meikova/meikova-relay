@@ -1,3 +1,5 @@
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 """
 Unit tests for host_agent/protocol_prober.py.
 Tests port probing, protocol identification, banner parsing, and matrix aggregation.

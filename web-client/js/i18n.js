@@ -54,13 +54,13 @@
 
       'nav.screen': 'Màn hình',
 
-      'nav.files': 'Tệp & Thư mục',
+      'nav.files': 'Tệp',
 
       'nav.terminal': 'Terminal',
 
-      'nav.tasks': 'Tiến trình',
+      'nav.tasks': 'Tác vụ',
 
-      'nav.audit': 'Nhật ký (Audit)',
+      'nav.audit': 'Nhật ký',
 
       'nav.aria_label': 'Phân hệ điều khiển',
 
@@ -88,9 +88,9 @@
 
       'dl_modal.close_title': 'Đóng',
 
-      'dl_modal.tab_host': 'Máy trạm (Host Agent)',
+      'dl_modal.tab_host': 'Máy trạm (Host)',
 
-      'dl_modal.tab_client': 'Máy điều khiển (Viewer Client)',
+      'dl_modal.tab_client': 'Điều khiển (Viewer)',
 
       'dl_modal.host_role_hint': 'MÁY BỊ ĐIỀU KHIỂN: Cài đặt trên máy tính cần truy cập hoặc hỗ trợ từ xa.',
 
@@ -222,9 +222,15 @@
 
       // View 3: Remote Desktop & Floating Deck
 
+      'deck.mobile_keyboard': 'Bật bàn phím ảo di động',
+      'deck.keyboard_btn': 'Phím',
+      'deck.quick_keys_title': 'Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)',
+      'deck.quick_keys_btn': 'Phím tắt',
+      'deck.touch_mode_title': 'Chế độ cảm ứng: Chạm trực tiếp / Bàn di chuột ảo',
+      'deck.right_click_title': 'Nhấp chuột phải tại vị trí con trỏ',
       'deck.monitor_title': 'Chọn màn hình truyền phát',
 
-      'deck.monitor_all': 'Tất cả màn hình',
+      'deck.monitor_all': 'Tất cả',
 
       'deck.monitor_single': 'Màn {num}',
 
@@ -384,6 +390,9 @@
       'deck.mode_menu_title': 'VỊ TRÍ & HIỂN THỊ DECK',
 
       'deck.mode_bottom': 'Dạng đáy nổi (Mặc định)',
+      'deck.mode_bottom_float': 'Dạng đáy nổi (Mặc định)',
+      'deck.waiting_signal': 'ĐANG CHỜ TÍN HIỆU MÁY TRẠM...',
+      'deck.waiting_hint': 'Đảm bảo ứng dụng Meikova Relay Host đang hoạt động',
 
       'deck.mode_bottom_desc': 'Thanh pill lơ lửng ở đáy màn hình',
 
@@ -466,6 +475,7 @@
       'files.btn_cancel': 'Hủy',
 
       'files.edit_path_title': 'Chỉnh sửa đường dẫn trực tiếp',
+    'files.btn_edit_path': 'Đường dẫn',
 
       'files.btn_up': 'Lên',
 
@@ -914,6 +924,8 @@
       'landing.qc_room_placeholder': 'Nhập Room ID (VD: RD-4821)',
 
       'landing.qc_pin_placeholder': 'PIN (nếu có)',
+      'landing.tab_room': 'Hỗ trợ (Room ID)',
+      'landing.tab_unattended': 'Quản trị (24/7)',
 
       'landing.qc_btn_connect': 'Kết nối ngay',
 
@@ -1248,11 +1260,11 @@
 
       'nav.screen': 'Screen',
 
-      'nav.files': 'Files & Folders',
+      'nav.files': 'Files',
 
       'nav.terminal': 'Terminal',
 
-      'nav.tasks': 'Processes',
+      'nav.tasks': 'Tasks',
 
       'nav.audit': 'Audit Logs',
 
@@ -1282,9 +1294,9 @@
 
       'dl_modal.close_title': 'Close',
 
-      'dl_modal.tab_host': 'Host Agent (Station)',
+      'dl_modal.tab_host': 'Host Agent',
 
-      'dl_modal.tab_client': 'Viewer Client (Controller)',
+      'dl_modal.tab_client': 'Viewer Client',
 
       'dl_modal.host_role_hint': 'CONTROLLED MACHINE: Install on computers that need remote access or support.',
 
@@ -1416,9 +1428,15 @@
 
       // View 3: Remote Desktop & Floating Deck
 
+      'deck.mobile_keyboard': 'Bật bàn phím ảo di động',
+      'deck.keyboard_btn': 'Phím',
+      'deck.quick_keys_title': 'Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)',
+      'deck.quick_keys_btn': 'Phím tắt',
+      'deck.touch_mode_title': 'Chế độ cảm ứng: Chạm trực tiếp / Bàn di chuột ảo',
+      'deck.right_click_title': 'Nhấp chuột phải tại vị trí con trỏ',
       'deck.monitor_title': 'Select display monitor',
 
-      'deck.monitor_all': 'All Displays',
+      'deck.monitor_all': 'All Screens',
 
       'deck.monitor_single': 'Display {num}',
 
@@ -1578,6 +1596,9 @@
       'deck.mode_menu_title': 'DECK POSITION & DISPLAY MODE',
 
       'deck.mode_bottom': 'Bottom Floating Deck (Default)',
+      'deck.mode_bottom_float': 'Bottom Floating Deck (Default)',
+      'deck.waiting_signal': 'WAITING FOR HOST SIGNAL...',
+      'deck.waiting_hint': 'Ensure Meikova Relay Host agent is running',
 
       'deck.mode_bottom_desc': 'Floating pill deck docked at bottom',
 
@@ -1660,6 +1681,7 @@
       'files.btn_cancel': 'Cancel',
 
       'files.edit_path_title': 'Edit path directly',
+    'files.btn_edit_path': 'Path',
 
       'files.btn_up': 'Up',
 
@@ -2108,6 +2130,8 @@
       'landing.qc_room_placeholder': 'Enter Room ID (e.g. RD-4821)',
 
       'landing.qc_pin_placeholder': 'PIN (optional)',
+      'landing.tab_room': 'Support (Room ID)',
+      'landing.tab_unattended': 'Unattended (24/7)',
 
       'landing.qc_btn_connect': 'Connect Now',
 

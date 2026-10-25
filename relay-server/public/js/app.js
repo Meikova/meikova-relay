@@ -1,6 +1,28 @@
 // Meikova Relay Enterprise — Ambient Instrument Web Application
 (function () {
   'use strict';
+  // PWA Cache Storage Purge on Version Bump
+  try {
+    const PWA_VER = '1.0.70';
+    const lastPwaVer = localStorage.getItem('meikova_pwa_ver');
+    if (lastPwaVer && lastPwaVer !== PWA_VER && 'caches' in window) {
+      localStorage.setItem('meikova_pwa_ver', PWA_VER);
+      caches.keys().then(names => Promise.all(names.map(n => caches.delete(n))));
+    } else if (!lastPwaVer) {
+      localStorage.setItem('meikova_pwa_ver', PWA_VER);
+    }
+  } catch (_) {}
+
+
+  // Synchronize true viewport height for iOS Safari & PWA standalone (WebKit Bug 244501 override)
+  function syncTrueViewportHeight() {
+    const vh = window.innerHeight;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  }
+  syncTrueViewportHeight();
+  window.addEventListener('DOMContentLoaded', syncTrueViewportHeight);
+  window.addEventListener('load', syncTrueViewportHeight);
+  window.addEventListener('orientationchange', () => setTimeout(syncTrueViewportHeight, 200));
 
   // --- DOM Navigation & Views ---
   const mainNav = document.getElementById('mainNav');
@@ -767,7 +789,11 @@
     const onBtn = seg.querySelector('button.on');
     const ind = seg.querySelector('.seg__ind');
     if (!ind) return;
-    if (window.innerWidth < 768 && seg.id === 'mainNav') return;
+    if (window.innerWidth < 768 && seg.id === 'mainNav') {
+      ind.style.opacity = '0';
+      ind.style.setProperty('--ind-w', '0px');
+      return;
+    }
     if (!onBtn) {
       ind.style.setProperty('--ind-w', '0px');
       ind.style.opacity = '0';
@@ -893,6 +919,8 @@
   window.addEventListener('meikova-lang-changed', () => {
     syncUrlWithState(true);
     updateRoStatus();
+    const connOverlay = document.getElementById('canvasConnectingOverlay');
+    if (connOverlay) connOverlay.classList.remove('hidden');
     updateTerminalStatusBadge();
     requestAnimationFrame(placeAllIndicators);
     if (currentView === 'dashboard') {
@@ -2241,7 +2269,12 @@
 
     if (view === 'remote') {
       document.body.classList.add('remote-active');
-      if (btnMobileImmersiveExit) btnMobileImmersiveExit.classList.remove('hidden');
+      const isMobileRemote = window.innerWidth <= 900 || (window.innerHeight <= 520 && window.innerWidth <= 1024);
+      if (btnMobileImmersiveExit && isMobileRemote) {
+        btnMobileImmersiveExit.classList.remove('hidden');
+      } else if (btnMobileImmersiveExit) {
+        btnMobileImmersiveExit.classList.add('hidden');
+      }
     } else {
       document.body.classList.remove('remote-active');
       if (btnMobileImmersiveExit) btnMobileImmersiveExit.classList.add('hidden');
@@ -2287,6 +2320,8 @@
     }
 
     updateRoStatus();
+    const connOverlay = document.getElementById('canvasConnectingOverlay');
+    if (connOverlay) connOverlay.classList.remove('hidden');
 
     if (updateUrl) {
       syncUrlWithState(false);
@@ -2313,11 +2348,26 @@
     switchView(view, true);
   });
 
+  // Standalone PWA detection and styling sync
+  function syncStandaloneMode() {
+    const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) {
+      document.documentElement.classList.add('is-pwa-standalone');
+      document.body.classList.add('is-pwa-standalone');
+    }
+  }
+  syncStandaloneMode();
+
   // Nav placement sync: on mobile, attach #mainNav to document.body to prevent WebKit containing-block clipping
   function syncNavPlacement() {
+    syncStandaloneMode();
     const isMobile = window.innerWidth <= 767;
     const nav = document.getElementById('mainNav');
     const topbar = document.querySelector('.topbar');
+    if (btnMobileImmersiveExit && currentView === 'remote') {
+      const isMobileRemote = window.innerWidth <= 900 || (window.innerHeight <= 520 && window.innerWidth <= 1024);
+      btnMobileImmersiveExit.classList.toggle('hidden', !isMobileRemote);
+    }
     if (!nav || !topbar) return;
     if (isMobile && nav.parentElement === topbar) {
       document.body.appendChild(nav);
@@ -3229,7 +3279,15 @@
     } else {
       syncUrlWithState(false);
     }
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                           (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+                           window.innerWidth <= 1024;
+    if (isMobileDevice) {
+      setDisplayScaleMode(true);
+    }
     roStatus.textContent = `${roomId} // ${t('ro.connecting')}`;
+    const connOverlay = document.getElementById('canvasConnectingOverlay');
+    if (connOverlay) connOverlay.classList.remove('hidden');
 
     if (ws) {
       ws.close();
@@ -3288,6 +3346,8 @@
           }
           roStatus.textContent = `${roomId} // ${t('ro.connected')}`;
           updateRoStatus();
+    const connOverlay = document.getElementById('canvasConnectingOverlay');
+    if (connOverlay) connOverlay.classList.remove('hidden');
           updateTerminalStatusBadge();
           if (msg.hostMeta) {
             updateHostResolution(msg.hostMeta.width, msg.hostMeta.height);
@@ -3607,6 +3667,8 @@
       laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
     }
     updateRoStatus();
+    const connOverlay = document.getElementById('canvasConnectingOverlay');
+    if (connOverlay) connOverlay.classList.remove('hidden');
     if (window.history && window.history.replaceState) {
       window.history.replaceState({ view: 'dashboard' }, '', '/dashboard');
     }
@@ -3759,6 +3821,30 @@
     }
   }
 
+  function decodeBlob(blob) {
+    // 1. Try createImageBitmap without options first (options dictionary breaks WebKit on iOS Safari & PWA)
+    if (typeof createImageBitmap === 'function') {
+      return createImageBitmap(blob).catch(() => fallbackDecodeImage(blob));
+    }
+    return fallbackDecodeImage(blob);
+  }
+
+  function fallbackDecodeImage(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = (e) => {
+        URL.revokeObjectURL(url);
+        reject(e);
+      };
+      img.src = url;
+    });
+  }
+
   async function renderQueuedFrame() {
     if (!pendingFrameBlob) {
       isFrameRendering = false;
@@ -3768,7 +3854,10 @@
     pendingFrameBlob = null;
 
     try {
-      const bitmap = await createImageBitmap(blobToRender, { imageOrientation: 'none', premultiplyAlpha: 'none' });
+      const imgObj = await decodeBlob(blobToRender);
+      const width = imgObj.naturalWidth || imgObj.width;
+      const height = imgObj.naturalHeight || imgObj.height;
+
       if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
         // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
         const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
@@ -3786,16 +3875,23 @@
               tileItem.canvas.width = sw;
               tileItem.canvas.height = sh;
             }
-            tileItem.ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+            tileItem.ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
           }
         });
       } else {
-        if (remoteCanvas.width !== bitmap.width || remoteCanvas.height !== bitmap.height) {
-          updateHostResolution(bitmap.width, bitmap.height);
+        if (remoteCanvas.width !== width || remoteCanvas.height !== height) {
+          updateHostResolution(width, height);
         }
-        ctx.drawImage(bitmap, 0, 0);
+        ctx.drawImage(imgObj, 0, 0);
+        const connOverlay = document.getElementById('canvasConnectingOverlay');
+        if (connOverlay && !connOverlay.classList.contains('hidden')) {
+          connOverlay.classList.add('hidden');
+        }
       }
-      bitmap.close();
+
+      if (typeof imgObj.close === 'function') {
+        imgObj.close();
+      }
 
       // Honest Real-Time Measured Rendered FPS calculation
       frameCount++;
@@ -3814,7 +3910,13 @@
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() }));
       }
-    } catch {}
+    } catch (err) {
+      console.warn('[MeikovaRelay] Frame render fallback error:', err);
+      // Still send ACK so host pipeline does not freeze indefinitely on decode error
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() }));
+      }
+    }
 
     if (pendingFrameBlob) {
       requestAnimationFrame(renderQueuedFrame);
@@ -4181,6 +4283,7 @@
   }
 
   function handleViewportResize() {
+    syncTrueViewportHeight();
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
                            window.innerWidth <= 1024;
@@ -5472,7 +5575,8 @@
       if (deckModeDropdown) {
         deckModeDropdown.classList.add('hidden');
       }
-      const label = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t(`deck.mode_${mode.replace('-', '_')}`) : mode;
+      const i18nKey = mode === 'bottom-float' ? 'deck.mode_bottom' : `deck.mode_${mode.replace('-', '_')}`;
+      const label = (typeof i18n !== 'undefined' && i18n.t) ? (i18n.t(i18nKey) || i18n.t(`deck.mode_${mode.replace('-', '_')}`)) : mode;
       showToast(label, 'info');
     });
   });
@@ -7162,12 +7266,14 @@
       if (isHidden) {
         explorerPathInputWrap.classList.remove('hidden');
         explorerBreadcrumbs.classList.add('hidden');
+        btnTogglePathInput.classList.add('hidden');
         explorerDirectPathInput.value = remoteCurrentPath;
         explorerDirectPathInput.focus();
         explorerDirectPathInput.select();
       } else {
         explorerPathInputWrap.classList.add('hidden');
         explorerBreadcrumbs.classList.remove('hidden');
+        btnTogglePathInput.classList.remove('hidden');
       }
     });
   }
@@ -7179,6 +7285,7 @@
         requestBrowsePath(pathVal);
         explorerPathInputWrap.classList.add('hidden');
         explorerBreadcrumbs.classList.remove('hidden');
+        btnTogglePathInput?.classList.remove('hidden');
       }
     });
   }
@@ -7203,6 +7310,7 @@
     btnCancelDirectPath.addEventListener('click', () => {
       explorerPathInputWrap.classList.add('hidden');
       explorerBreadcrumbs.classList.remove('hidden');
+      btnTogglePathInput?.classList.remove('hidden');
     });
   }
 

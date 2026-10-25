@@ -140,7 +140,24 @@ class TcpTunnelManager:
                 "protocol": protocol,
                 "error": str(e)
             })
+            await self.send_ws({
+                "type": "tunnel_closed",
+                "tunnel_id": tunnel_id
+            })
             return False
+
+    async def handle_open(self, tunnel_id: str, port: int, protocol: str = "tcp") -> bool:
+        """Alias for open_tunnel with (tunnel_id, port, protocol) signature."""
+        return await self.open_tunnel(tunnel_id, protocol, port)
+
+    async def handle_close(self, tunnel_id: str):
+        """Alias for close_tunnel."""
+        await self.close_tunnel(tunnel_id)
+
+    @property
+    def _tunnels(self):
+        """Backward-compatible alias for self.sessions."""
+        return self.sessions
 
     async def handle_data(self, tunnel_id: str, data_b64: str):
         """Dispatches data received from WebSocket into TCP socket."""

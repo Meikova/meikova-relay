@@ -32,18 +32,25 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+_interactive_desktop_attached = False
+
 def ensure_interactive_desktop() -> bool:
-    """Attaches process and thread to winsta0\\default so windows & tray icon appear on the active user desktop."""
+    """Attaches process and thread to winsta0\\default so windows and tray icon appear on the active user desktop."""
+    global _interactive_desktop_attached
+    if _interactive_desktop_attached:
+        return True
     if sys.platform == "win32":
         try:
             import ctypes
             u = ctypes.windll.user32
-            hw = u.OpenWindowStationW('winsta0', False, 0x000F037F)
+            hw = u.OpenWindowStationW("winsta0", False, 0x000F037F)
             if hw:
                 u.SetProcessWindowStation(hw)
-            hd = u.OpenDesktopW('default', 0, False, 0x000F01FF)
+                u.CloseWindowStation(hw)
+            hd = u.OpenDesktopW("default", 0, False, 0x000F01FF)
             if hd:
                 u.SetThreadDesktop(hd)
+            _interactive_desktop_attached = True
             return True
         except Exception:
             pass
@@ -1838,15 +1845,46 @@ class HostApi:
             return tmpl.format(**kwargs)
         return tmpl
 
-    def _eval_js(self, js: str):
-        if not self._window or self._is_quitting:
+    def _init_js_worker(self):
+        import queue
+        if hasattr(self, '_js_queue'):
             return
-        def _worker():
+        self._js_queue = queue.Queue(maxsize=100)
+        def _js_worker_loop():
+            while not getattr(self, '_is_quitting', False):
+                try:
+                    code = self._js_queue.get(timeout=0.2)
+                    if self._window and not getattr(self, '_is_quitting', False):
+                        try:
+                            self._window.evaluate_js(code)
+                        except Exception:
+                            pass
+                    self._js_queue.task_done()
+                except queue.Empty:
+                    continue
+                except Exception:
+                    pass
+        self._js_thread = threading.Thread(target=_js_worker_loop, daemon=True, name="HostGuiJsWorker")
+        self._js_thread.start()
+
+    def _eval_js(self, js: str):
+        if not self._window or getattr(self, '_is_quitting', False):
+            return
+        if not hasattr(self, '_js_queue'):
+            self._init_js_worker()
+        try:
+            self._js_queue.put_nowait(js)
+        except Exception:
+            # Queue full: prune oldest item then enqueue
             try:
-                self._window.evaluate_js(js)
+                self._js_queue.get_nowait()
+                self._js_queue.task_done()
             except Exception:
                 pass
-        threading.Thread(target=_worker, daemon=True).start()
+            try:
+                self._js_queue.put_nowait(js)
+            except Exception:
+                pass
 
     def _log(self, msg: str):
         t_str = time.strftime("%H:%M:%S")

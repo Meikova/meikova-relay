@@ -13,7 +13,7 @@
   <base href="/">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#11151B">
+  <meta name="theme-color" content="#070D17">
   <meta name="color-scheme" content="dark">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.0.57">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.57">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.0.70">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.70">
 </head>
 <body>
 
@@ -82,7 +82,7 @@
       </button>
       <button type="button" data-view="files" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-        <span data-i18n="nav.files">Tệp &amp; Thư mục</span>
+        <span data-i18n="nav.files">Tệp</span>
       </button>
       <button type="button" data-view="terminal" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
@@ -90,11 +90,11 @@
       </button>
       <button type="button" data-view="tasks" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-        <span data-i18n="nav.tasks">Tiến trình</span>
+        <span data-i18n="nav.tasks">Tác vụ</span>
       </button>
       <button type="button" data-view="audit" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        <span data-i18n="nav.audit">Nhật ký (Audit)</span>
+        <span data-i18n="nav.audit">Nhật ký</span>
       </button>
     </nav>
 
@@ -324,8 +324,8 @@
               <!-- Segmented Access Mode Switcher -->
               <div class="cockpit-tabs-wrap">
                 <div class="seg cockpit-seg">
-                  <button type="button" class="on" id="btnCockpitTabInstant">Hỗ Trợ Tức Thì (Room ID)</button>
-                  <button type="button" id="btnCockpitTabUnattended">Quản Trị Thường Trực (24/7)</button>
+                  <button type="button" class="on" id="btnCockpitTabInstant" data-i18n="landing.tab_room">Hỗ trợ (Room ID)</button>
+                  <button type="button" id="btnCockpitTabUnattended" data-i18n="landing.tab_unattended">Quản trị (24/7)</button>
                 </div>
               </div>
 
@@ -1084,6 +1084,13 @@
       <div class="viewport-box" id="viewportBox">
         <canvas id="remoteCanvas" tabindex="0"></canvas>
         <canvas id="laserCanvas"></canvas>
+        <div id="canvasConnectingOverlay" class="canvas-connecting-overlay">
+          <div class="connecting-spinner-box">
+            <svg class="connecting-spinner" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10" stroke-opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10" stroke="var(--accent)"/></svg>
+            <div class="connecting-text mono-font" data-i18n="deck.waiting_signal">ĐANG CHỜ TÍN HIỆU MÁY TRẠM...</div>
+            <div class="connecting-subtext" data-i18n="deck.waiting_hint">Đảm bảo ứng dụng Meikova Relay Host đang hoạt động</div>
+          </div>
+        </div>
       </div>
 
       <!-- Multi-Monitor Interactive Drag-and-Drop Grid Stage -->
@@ -1123,7 +1130,7 @@
         </button>
 
         <select id="monitorSelector" class="deck__btn" title="Chọn màn hình truyền phát" data-i18n-title="deck.monitor_title">
-          <option value="0" data-i18n="deck.monitor_all">Tất cả màn hình</option>
+          <option value="0" data-i18n="deck.monitor_all">Tất cả</option>
           <option value="1">Màn 1</option>
         </select>
 
@@ -1566,9 +1573,7 @@
           <button id="btnClearTerminal" class="btn-pill" data-i18n="terminal.btn_clear">Xóa màn hình</button>
         </div>
       </div>
-      <div id="terminalScreen" class="terminal-screen mono-font" tabindex="0" title="Nhấn vào màn hình để gõ lệnh trực tiếp" data-i18n-title="terminal.screen_title">
-        <div id="terminalOutput"></div>
-        <div class="terminal-prompt-row">
+      <div id="terminalScreen" class="terminal-screen mono-font" tabindex="0" title="Nhấn vào màn hình để gõ lệnh trực tiếp" data-i18n-title="terminal.screen_title"><div id="terminalOutput"></div><div class="terminal-prompt-row">
           <span class="terminal-prompt-prefix">PS &gt;&nbsp;</span>
           <span id="terminalInputEcho" class="terminal-input-echo"></span>
           <span class="terminal-cursor">▋</span>
@@ -1650,16 +1655,20 @@
         <!-- Explorer Header: Breadcrumb & Actions -->
         <div class="explorer-topbar">
           <div class="breadcrumb-container" id="explorerBreadcrumbs">
-            <!-- Breadcrumb segments injected here -->
+            <span class="breadcrumb-item active">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
+              <span data-i18n="files.drives_list">Danh sách ổ đĩa</span>
+            </span>
           </div>
+          <button id="btnTogglePathInput" class="btn-pill" title="Nhập đường dẫn trực tiếp" data-i18n-title="files.edit_path_title" style="flex-shrink: 0; padding: 4px 8px; font-size: 0.75rem;">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span class="hide-mobile" data-i18n="files.btn_edit_path">Đường dẫn</span>
+          </button>
           <div class="explorer-path-input-wrap hidden" id="explorerPathInputWrap">
             <input type="text" id="explorerDirectPathInput" class="instrument-input mono-font" placeholder="Nhập đường dẫn đầy đủ (vd: C:\Windows)..." data-i18n-placeholder="files.path_placeholder" style="flex: 1; padding: 6px 12px; font-size: 0.8rem;">
             <button id="btnGoDirectPath" class="btn-pill" style="border-color: var(--accent); color: var(--accent); padding: 6px 12px;" data-i18n="files.btn_go">Đến</button>
             <button id="btnCancelDirectPath" class="btn-pill" style="padding: 6px 12px;" data-i18n="files.btn_cancel">Hủy</button>
           </div>
-          <button id="btnTogglePathInput" class="btn-pill" title="Chỉnh sửa đường dẫn trực tiếp" data-i18n-title="files.edit_path_title">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
         </div>
 
         <!-- Explorer Toolbar -->
@@ -1675,11 +1684,11 @@
             </button>
             <button id="btnExpNewFolder" class="btn-pill" title="Tạo thư mục mới" data-i18n-title="files.btn_new_folder_title">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-              <span data-i18n="files.btn_new_folder">Thư mục mới</span>
+              <span data-i18n="files.btn_new_folder">Thư mục</span>
             </button>
             <button id="btnExpUpload" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Tải tệp tin lên thư mục này" data-i18n-title="files.btn_upload_title">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span data-i18n="files.btn_upload">Tải tệp lên</span>
+              <span data-i18n="files.btn_upload">Tải lên</span>
             </button>
             <button id="btnExpPaste" class="btn-pill hidden" style="border-color: #38BDF8; color: #38BDF8; font-weight: 600;" title="Dán tệp/thư mục đã sao chép/cắt vào thư mục này" data-i18n-title="files.btn_paste_title">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
@@ -2269,11 +2278,11 @@
         <div class="seg dl-tab-seg" id="dlTabSegment" role="tablist">
           <button type="button" class="on" id="tabBtnHost" role="tab" aria-selected="true" data-dl-tab="host">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            <span data-i18n="dl_modal.tab_host">Máy trạm (Host Agent)</span>
+            <span data-i18n="dl_modal.tab_host">Máy trạm (Host)</span>
           </button>
           <button type="button" id="tabBtnClient" role="tab" aria-selected="false" data-dl-tab="client">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-            <span data-i18n="dl_modal.tab_client">Máy điều khiển (Viewer Client)</span>
+            <span data-i18n="dl_modal.tab_client">Điều khiển (Viewer)</span>
           </button>
         </div>
       </div>
@@ -2437,7 +2446,7 @@
         </div>
       </div>
 
-      <!-- Tab 2: Máy điều khiển (Viewer Client) -->
+      <!-- Tab 2: Điều khiển (Viewer) -->
       <div id="dlTabPaneClient" class="dl-tab-pane hidden">
         <!-- Dải Telemetry Viewer URL -->
         <div class="mobile-modal__sub-box" id="relay-client-sub-box">
@@ -2694,13 +2703,22 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.57"></script>
-  <script src="/js/sync_engine.js?v=1.0.57"></script>
-  <script src="/js/app.js?v=1.0.57"></script>
+  <script src="/js/i18n.js?v=1.0.70"></script>
+  <script src="/js/sync_engine.js?v=1.0.70"></script>
+  <script src="/js/app.js?v=1.0.70"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.register('/sw.js').then((reg) => {
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+              reg.update().catch(() => {});
+            }
+          });
+        }).catch(() => {});
+      });
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
       });
     }
   </script>

@@ -1,5 +1,5 @@
-// Meikova Relay PWA Service Worker (v1.0.57)
-const CACHE_NAME = 'meikova-relay-cache-v1.0.57';
+// Meikova Relay PWA Service Worker (v1.0.70)
+const CACHE_NAME = 'meikova-relay-cache-v1.0.70';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -8,7 +8,8 @@ const APP_SHELL = [
   '/css/tokens.css',
   '/css/style.css',
   '/js/app.js',
-  '/js/sync_engine.js'
+  '/js/sync_engine.js',
+  '/js/i18n.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -50,19 +51,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Chiến lược Stale-While-Revalidate cho App Shell và static assets
+  // Chiến lược Network-First với Cache Fallback cho App Shell và static assets
   event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            cache.put(event.request, networkResponse.clone()).catch(() => {});
-          }
-          return networkResponse;
-        }).catch(() => cachedResponse);
-
-        return cachedResponse || fetchPromise;
-      });
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {});
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request);
+      })
   );
 });

@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_agent.py'],
+    ['D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\gui_agent.py'],
     pathex=[],
     binaries=[],
-    datas=[('D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_view.html', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_view.html', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.png', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icon.png', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icons', 'host_agent/tray_icons'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icons', 'tray_icons')],
-    hiddenimports=['mss', 'mss.windows', 'websockets', 'PIL', 'PIL.Image', 'PIL.ImageGrab'],
+    datas=[('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\gui_view.html', 'host_agent'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\gui_view.html', '.'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\icon.ico', 'host_agent'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\icon.ico', '.'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\icon.png', 'host_agent'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\icon.png', '.'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\tray_icon.png', 'host_agent'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\tray_icon.png', '.'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\tray_icons', 'host_agent/tray_icons'), ('D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\tray_icons', 'tray_icons')],
+    hiddenimports=['mss', 'websockets', 'PIL', 'PIL.Image', 'PIL.ImageGrab', 'mss.windows'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico'],
+    icon=['D:\\JOB\\DEV\\meikova\\meikova-relay\\host_agent\\icon.ico'],
 )

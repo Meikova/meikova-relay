@@ -1296,6 +1296,9 @@
       div.className = 'log-line';
       div.innerHTML = `<span class="log-time">[${timeStr}]</span>${msg}`;
       box.appendChild(div);
+      while (box.children.length > 100) {
+        box.removeChild(box.firstChild);
+      }
       box.scrollTop = box.scrollHeight;
     }
 

@@ -2,6 +2,8 @@ import sys
 import time
 import threading
 import ctypes
+user32 = getattr(ctypes, 'windll', None).user32 if hasattr(ctypes, 'windll') else None
+gdi32 = getattr(ctypes, 'windll', None).gdi32 if hasattr(ctypes, 'windll') else None
 from typing import Callable, Optional
 
 class CursorManager:
@@ -32,6 +34,8 @@ class CursorManager:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._handle_to_css = {}
+        self._current_desktop_handle = None
+        self._consecutive_cursor_fails = 0
 
         if sys.platform == "win32":
             self._init_windows()
@@ -88,11 +92,26 @@ class CursorManager:
             ci.cbSize = ctypes.sizeof(CURSORINFO)
 
             if not user32.GetCursorInfo(ctypes.byref(ci)):
+                self._consecutive_cursor_fails += 1
+                old_h = self._current_desktop_handle
                 hDesk = user32.OpenInputDesktop(0, False, 0x01FF)
                 if hDesk:
-                    user32.SetThreadDesktop(hDesk)
+                    if user32.SetThreadDesktop(hDesk):
+                        if old_h and old_h != hDesk:
+                            try:
+                                user32.CloseDesktop(old_h)
+                            except Exception:
+                                pass
+                        self._current_desktop_handle = hDesk
+                    else:
+                        try:
+                            user32.CloseDesktop(hDesk)
+                        except Exception:
+                            pass
                 if not user32.GetCursorInfo(ctypes.byref(ci)):
                     return "default"
+            else:
+                self._consecutive_cursor_fails = 0
 
             # Check if cursor is hidden
             if not (ci.flags & 1): # CURSOR_SHOWING
@@ -148,6 +167,12 @@ class CursorManager:
         self._thread.start()
 
     def stop_listener(self):
+        if getattr(self, "_current_desktop_handle", None) and user32:
+            try:
+                user32.CloseDesktop(self._current_desktop_handle)
+            except Exception:
+                pass
+            self._current_desktop_handle = None
         self._running = False
         if self._thread and self._thread.is_alive():
             try:
@@ -165,7 +190,11 @@ class CursorManager:
                         self.on_cursor_change(curr)
             except Exception:
                 pass
-            time.sleep(0.05) # 50ms polling loop
+            # Adaptive backoff: if cursor query is failing (screen locked/off), back off to 500ms
+            if getattr(self, "_consecutive_cursor_fails", 0) > 3:
+                time.sleep(0.5)
+            else:
+                time.sleep(0.05) # 50ms polling loop
 
     def __del__(self):
         self.stop_listener()
