@@ -393,23 +393,19 @@ class HostService:
             self.capture.grayscale = True
             self.frame_interval = 1.0 / 25.0
         elif preset == "ultra_120":
-            # Legacy alias mapped to speed_60
             self.capture.quality = 58
             self.capture.max_width = 1280
             self.capture.resample_filter = "nearest"
             self.capture.subsampling = 2
             self.capture.grayscale = False
             self.frame_interval = 1.0 / 60.0
-            preset = "speed_60"
         elif preset == "crisp_2k_4k":
-            # Legacy alias mapped to native_1to1
-            self.capture.quality = 90
-            self.capture.max_width = None
+            self.capture.quality = 95
+            self.capture.max_width = 2560
             self.capture.resample_filter = "bilinear"
             self.capture.subsampling = 0
             self.capture.grayscale = False
             self.frame_interval = 1.0 / 30.0
-            preset = "native_1to1"
         else: # balanced default
             preset = "balanced"
             self.capture.quality = 70
@@ -532,19 +528,19 @@ class HostService:
                     frame = None
 
                 if frame:
-                    # Flow control 1: Transport write buffer check (< 128KB prevents bufferbloat)
+                    # Flow control 1: Transport write buffer check (< 1MB prevents bufferbloat while allowing HD/4K bursts)
                     transport = getattr(ws, "transport", None)
                     if transport and hasattr(transport, "get_write_buffer_size"):
-                        if transport.get_write_buffer_size() > 128 * 1024:
+                        if transport.get_write_buffer_size() > 1024 * 1024:
                             await asyncio.sleep(0.005)
                             continue
 
-                    # Flow control 2: In-flight frame limit (Guacamole / WebRTC ACK model)
-                    if self.frames_in_flight >= 2:
+                    # Flow control 2: In-flight frame limit (adaptive pipeline allowing up to 4 frames in flight for WAN RTT)
+                    if self.frames_in_flight >= 4:
                         if self.ack_event is not None:
                             self.ack_event.clear()
                             try:
-                                await asyncio.wait_for(self.ack_event.wait(), timeout=0.04)
+                                await asyncio.wait_for(self.ack_event.wait(), timeout=0.20)
                             except asyncio.TimeoutError:
                                 self.frames_in_flight = 0
                         else:
@@ -605,6 +601,8 @@ class HostService:
                             self.on_status_change("reconnecting", detail=msg)
                         except Exception:
                             pass
+                    # Stop agent to prevent ping-pong reconnection loop against newer active instance
+                    self.running = False
                     break
 
                 # System & Room Control
@@ -682,10 +680,11 @@ class HostService:
                     self.frames_in_flight = max(0, self.frames_in_flight - 1)
                     if self.ack_event is not None and not self.ack_event.is_set():
                         self.ack_event.set()
-                    client_ts = event.get("ts")
-                    if client_ts:
-                        rtt_ms = (time.time() * 1000) - client_ts
-                        if rtt_ms > 0:
+                    # Only calculate RTT if timestamp originated from host
+                    host_ts = event.get("host_ts")
+                    if host_ts:
+                        rtt_ms = (time.time() * 1000) - host_ts
+                        if 0 < rtt_ms < 5000:
                             self._update_congestion_control(rtt_ms)
                     continue
 
@@ -832,6 +831,29 @@ class HostService:
                     preset = event.get("preset", "balanced")
                     applied = self.apply_quality_preset(preset)
                     logger.info(f"Applied Quality Preset: {applied} (Quality: {self.capture.quality}, Interval: {self.frame_interval})")
+                    # 1. Drain stale frame backlog immediately
+                    if self.frame_queue is not None:
+                        while not self.frame_queue.empty():
+                            try:
+                                self.frame_queue.get_nowait()
+                            except (asyncio.QueueEmpty, ValueError):
+                                break
+                    # 2. Reset hash cache and force immediate capture at new preset
+                    self.capture._last_frame_hash = None
+                    fresh_frame = await asyncio.to_thread(self.capture.capture_frame, True)
+                    if fresh_frame and self.frame_queue is not None:
+                        try:
+                            self.frame_queue.put_nowait(fresh_frame)
+                        except asyncio.QueueFull:
+                            pass
+                    # 3. Send confirmation ACK with applied metrics
+                    await ws.send(json.dumps({
+                        "type": "quality_preset_applied",
+                        "preset": applied,
+                        "quality": self.capture.quality,
+                        "max_width": self.capture.max_width,
+                        "fps": int(round(1.0 / self.frame_interval))
+                    }))
                     continue
 
                 # Auto-Negotiate & Sync Optimal Resolution
@@ -1147,6 +1169,12 @@ class HostService:
                     await ws.send(json.dumps({"type": "chat_ack", "status": "delivered"}))
                 elif ev_type == "ping":
                     await ws.send(json.dumps({"type": "pong", "ts": event.get("ts", 0)}))
+                elif ev_type == "pong":
+                    ping_ts = event.get("ts", 0)
+                    if ping_ts:
+                        rtt_ms = (time.time() - ping_ts) * 1000
+                        if 0 < rtt_ms < 5000:
+                            self._update_congestion_control(rtt_ms)
 
     async def start(self):
         self.loop = asyncio.get_running_loop()

@@ -1,5 +1,5 @@
-// Meikova Relay PWA Service Worker (v1.0.72)
-const CACHE_NAME = 'meikova-relay-cache-v1.0.72';
+// Meikova Relay PWA Service Worker (v1.0.73)
+const CACHE_NAME = 'meikova-relay-cache-v1.0.73';
 const APP_SHELL = [
   '/',
   '/index.html',

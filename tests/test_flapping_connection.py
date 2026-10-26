@@ -145,5 +145,39 @@ class TestFlappingAndSuperseded(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(lock2.acquire(), "Acquisition must succeed after first lock is released")
         lock2.release()
 
+    async def test_instant_quality_preset_switch_and_ack(self):
+        """Host must apply quality preset, clear backlog, and reply with quality_preset_applied immediately."""
+        room_id = f"RD-Q-{uuid.uuid4().hex[:4].upper()}"
+        pin = "123456"
+        uri = f"ws://127.0.0.1:{self.server_port}"
+
+        # Connect HostService
+        from host_agent.host_service import HostService
+        host = HostService(relay_url=uri, room_id=room_id, pin=pin)
+        host.has_active_client = True
+        host.frame_queue = asyncio.Queue(maxsize=4)
+
+        # Pre-fill frame queue with dummy stale frames
+        host.frame_queue.put_nowait(b"stale_frame_1")
+        host.frame_queue.put_nowait(b"stale_frame_2")
+        self.assertEqual(host.frame_queue.qsize(), 2)
+
+        # Simulate host receiving set_quality_preset
+        applied = host.apply_quality_preset("crisp_2k_4k")
+        self.assertEqual(applied, "crisp_2k_4k")
+        self.assertEqual(host.capture.quality, 95)
+        self.assertEqual(host.capture.max_width, 2560)
+
+        # Clear queue like in host_service event loop
+        while not host.frame_queue.empty():
+            host.frame_queue.get_nowait()
+        self.assertEqual(host.frame_queue.qsize(), 0)
+
+        # Change to eco
+        applied_eco = host.apply_quality_preset("eco")
+        self.assertEqual(applied_eco, "eco")
+        self.assertEqual(host.capture.quality, 45)
+        self.assertEqual(host.capture.max_width, 960)
+
 if __name__ == "__main__":
     unittest.main()

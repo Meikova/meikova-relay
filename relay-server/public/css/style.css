@@ -1506,31 +1506,95 @@ input:-webkit-autofill:active {
   justify-content: center;
   transform-origin: center center;
   transition: transform 0.1s var(--ease-out);
+  min-width: 0;
+  min-height: 0;
 }
 
-/* Default: 1:1 Pixel-Perfect Replica (True Native Unscaled Resolution) */
+/* Base Canvas Rules */
 #remoteCanvas {
   display: block;
   outline: none;
   cursor: default;
+}
+
+#laserCanvas {
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Fit-to-Screen Mode (Default): Responsive auto-scaling constrained by viewport */
+.remote-stage.fit-mode {
+  overflow: hidden;
+}
+
+.remote-stage.fit-mode .viewport-box {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.remote-stage.fit-mode #remoteCanvas {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  flex-shrink: 1;
+  image-rendering: auto;
+}
+
+.remote-stage.fit-mode #laserCanvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* 1:1 Pixel-Perfect Replica (True Native Unscaled Resolution) */
+.remote-stage:not(.fit-mode) .viewport-box {
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remote-stage:not(.fit-mode) #remoteCanvas {
   max-width: none;
   max-height: none;
   width: auto;
   height: auto;
+  flex-shrink: 0;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   image-rendering: pixelated;
-  flex-shrink: 0;
 }
 
-#laserCanvas {
+.remote-stage:not(.fit-mode) #laserCanvas {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  z-index: 10;
+  max-width: none;
+  max-height: none;
+  transform: none;
 }
 
 /* Remote Canvas Connecting / Waiting Signal Overlay */
@@ -1577,15 +1641,7 @@ input:-webkit-autofill:active {
   max-width: 280px;
 }
 
-/* Fit-to-Screen Mode */
-.remote-stage.fit-mode #remoteCanvas {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  image-rendering: auto;
-}
+/* Fit-to-Screen Mode defined above */
 
 /* 1:1 Pixel-Perfect Floating Status Pill */
 .pixel-indicator-badge {

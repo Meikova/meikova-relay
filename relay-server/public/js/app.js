@@ -548,6 +548,7 @@
   const floatingDeck = document.getElementById('floatingDeck');
   const monitorSelector = document.getElementById('monitorSelector');
   const qualitySelector = document.getElementById('qualitySelector');
+  let hasUserManuallySelectedQuality = false;
   const btnQualityMenu = document.getElementById('btnQualityMenu');
   const btnProtocolMenu = document.getElementById('btnProtocolMenu');
   const protocolCurrentLabel = document.getElementById('protocolCurrentLabel');
@@ -3397,6 +3398,11 @@
             if (hn) hn.textContent = msg.deviceName;
           }
           syncDisplayProfileWithHost(true);
+        } else if (msg.type === 'quality_preset_applied') {
+          if (qualitySelector && qualitySelector.value !== msg.preset) {
+            qualitySelector.value = msg.preset;
+          }
+          updateQualityMenuUI(msg.preset);
         } else if (msg.type === 'display_profile_matched') {
           handleDisplayProfileMatched(msg);
         } else if (msg.type === 'monitors_list') {
@@ -3779,8 +3785,10 @@
 
   function handleDisplayProfileMatched(msg) {
     const recommended = msg.recommended_preset || 'speed_60';
-    if (qualitySelector) qualitySelector.value = recommended;
-    updateQualityMenuUI(recommended);
+    if (!hasUserManuallySelectedQuality || (qualitySelector && qualitySelector.value === 'auto_sync')) {
+      if (qualitySelector) qualitySelector.value = recommended;
+      updateQualityMenuUI(recommended);
+    }
 
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
@@ -4343,6 +4351,7 @@
   document.querySelectorAll('.quality-menu-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const preset = btn.getAttribute('data-preset');
+      hasUserManuallySelectedQuality = (preset !== 'auto_sync');
       if (qualitySelector) {
         qualitySelector.value = preset;
         qualitySelector.dispatchEvent(new Event('change'));
@@ -4356,6 +4365,7 @@
   // --- QUALITY & RESOLUTION PRESET ---
   qualitySelector.addEventListener('change', () => {
     const activePreset = qualitySelector.value;
+    hasUserManuallySelectedQuality = (activePreset !== 'auto_sync');
     updateQualityMenuUI(activePreset);
     if (!isConnected) return;
     const preset = qualitySelector.value;
