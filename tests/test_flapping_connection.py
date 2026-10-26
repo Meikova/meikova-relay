@@ -46,6 +46,8 @@ class TestFlappingAndSuperseded(unittest.IsolatedAsyncioTestCase):
         while time.time() - start_time < 8.0:
             if cls.server_process.poll() is not None:
                 _, err = cls.server_process.communicate()
+                if cls.server_process.stdout: cls.server_process.stdout.close()
+                if cls.server_process.stderr: cls.server_process.stderr.close()
                 err_text = err.decode("utf-8", errors="replace")
                 raise unittest.SkipTest(f"Relay server failed to start: {err_text}")
             try:
@@ -64,6 +66,8 @@ class TestFlappingAndSuperseded(unittest.IsolatedAsyncioTestCase):
             cls.server_process.terminate()
             try:
                 cls.server_process.wait(timeout=2.0)
+                if cls.server_process.stdout: cls.server_process.stdout.close()
+                if cls.server_process.stderr: cls.server_process.stderr.close()
             except Exception:
                 cls.server_process.kill()
         if cls.temp_db_path and os.path.exists(cls.temp_db_path):

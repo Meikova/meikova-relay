@@ -51,6 +51,8 @@ class TestTursoRelay(unittest.TestCase):
         while time.time() - start_time < 10.0:
             if cls.server_process.poll() is not None:
                 _, err = cls.server_process.communicate()
+                if cls.server_process.stdout: cls.server_process.stdout.close()
+                if cls.server_process.stderr: cls.server_process.stderr.close()
                 raise RuntimeError(f"Server crashed on startup: {err.decode('utf-8', errors='replace')}")
             try:
                 with socket.create_connection(("127.0.0.1", cls.port), timeout=0.2):
@@ -68,6 +70,8 @@ class TestTursoRelay(unittest.TestCase):
             cls.server_process.terminate()
             try:
                 cls.server_process.wait(timeout=3)
+                if cls.server_process.stdout: cls.server_process.stdout.close()
+                if cls.server_process.stderr: cls.server_process.stderr.close()
             except subprocess.TimeoutExpired:
                 cls.server_process.kill()
 

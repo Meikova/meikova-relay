@@ -284,20 +284,58 @@ def generate_checksums(dist_dir: Path) -> Path:
     return checksums_file
 
 
-def compile_inno_setup(iss_file: Path, dist_dir: Path = DIST_DIR):
-    """Compiles an Inno Setup .iss script using ISCC.exe if available."""
-    iscc = shutil.which("ISCC.exe")
-    if not iscc and sys.platform == "win32":
-        default_iscc = Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe")
-        if default_iscc.exists():
-            iscc = str(default_iscc)
-    
+def find_iscc() -> str:
+    """Dynamically resolves ISCC.exe via PATH, Windows Registry, or standard environment variables."""
+    iscc = shutil.which("ISCC.exe") or shutil.which("iscc")
+    if iscc:
+        return iscc
+    if sys.platform != "win32":
+        return ""
+    try:
+        import winreg
+        for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            for subkey in (
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 7_is1",
+                r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1",
+                r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 7_is1",
+            ):
+                try:
+                    with winreg.OpenKey(root, subkey) as k:
+                        loc, _ = winreg.QueryValueEx(k, "InstallLocation")
+                        if loc:
+                            p = Path(loc) / "ISCC.exe"
+                            if p.exists():
+                                return str(p)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    env_dirs = [
+        os.environ.get("LOCALAPPDATA"),
+        os.environ.get("ProgramFiles"),
+        os.environ.get("ProgramFiles(x86)"),
+        os.environ.get("ProgramW6432"),
+    ]
+    for base in env_dirs:
+        if not base:
+            continue
+        for ver in ("Inno Setup 6", "Inno Setup 7"):
+            for cand in (Path(base) / "Programs" / ver / "ISCC.exe", Path(base) / ver / "ISCC.exe"):
+                if cand.exists():
+                    return str(cand)
+    return ""
+
+
+def compile_inno_setup(iss_file: Path, dist_dir: Path = DIST_DIR, version: str = VERSION):
+    """Compiles an Inno Setup .iss script using ISCC.exe dynamically."""
+    iscc = find_iscc()
     if not iscc:
         print(f"[!] ISCC.exe not found. Skipping Inno Setup compile for {iss_file.name}")
         return None
     
-    print(f"[*] Compiling Inno Setup script {iss_file.name}...")
-    res = subprocess.run([iscc, str(iss_file)], cwd=REPO_ROOT)
+    print(f"[*] Compiling Inno Setup script {iss_file.name} (version {version})...")
+    res = subprocess.run([iscc, f"/DMyAppVersion={version}", str(iss_file)], cwd=REPO_ROOT)
     if res.returncode != 0:
         print(f"[!] ISCC compilation failed with code {res.returncode}")
         return None
@@ -426,11 +464,14 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
         # Inno Setup Windows Installers (Host & Client)
         iss_host = REPO_ROOT / "installer_host.iss"
         if iss_host.exists() and exe_path.exists():
-            compile_inno_setup(iss_host, dist_dir)
+            compile_inno_setup(iss_host, dist_dir, version=version)
+            setup_exe = dist_dir / "MeikovaRelayHost-Setup.exe"
+            if setup_exe.exists():
+                shutil.copy2(setup_exe, REPO_ROOT / "relay-server" / "MeikovaRelayHost-Setup.exe")
         iss_client = REPO_ROOT / "installer_client.iss"
         client_exe = dist_dir / "MeikovaRelayClient.exe"
         if iss_client.exists() and client_exe.exists():
-            compile_inno_setup(iss_client, dist_dir)
+            compile_inno_setup(iss_client, dist_dir, version=version)
 
         print(f"[+] Windows artifacts: {exe_path.name}, {zip_path.name}, agent-package.zip")
 

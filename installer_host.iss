@@ -2,7 +2,9 @@
 ; Package: Meikova Relay Host (Workstation Remote Host Agent)
 
 #define MyAppName "Meikova Relay Host"
-#define MyAppVersion "1.0.56"
+#ifndef MyAppVersion
+#define MyAppVersion "1.0.74"
+#endif
 #define MyAppPublisher "Meikova Platform"
 #define MyAppURL "https://meikova.org"
 #define MyAppExeName "MeikovaRelayHost.exe"
@@ -25,7 +27,7 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\icon.ico
 DisableProgramGroupPage=yes
 

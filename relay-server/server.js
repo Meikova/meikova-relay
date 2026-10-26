@@ -2167,6 +2167,10 @@ exit /b 0
 
     const artifactMap = {
 
+      '/api/download/MeikovaRelayHost-Setup.exe': { name: 'MeikovaRelayHost-Setup.exe', type: 'application/vnd.microsoft.portable-executable' },
+
+      '/api/download/meikova-relay-host-setup.exe': { name: 'MeikovaRelayHost-Setup.exe', type: 'application/vnd.microsoft.portable-executable' },
+
       '/api/download/MeikovaRelayHost.exe': { name: 'MeikovaRelayHost.exe', type: 'application/vnd.microsoft.portable-executable' },
 
       '/api/download/meikova-relay-host.exe': { name: 'MeikovaRelayHost.exe', type: 'application/vnd.microsoft.portable-executable' },

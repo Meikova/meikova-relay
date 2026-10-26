@@ -70,6 +70,10 @@ jobs:
         run: |
           python -m unittest discover tests
 
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress
+
       - name: Build Standalone Windows Executable & Package
         run: |
           python scripts/build.py --target windows
@@ -84,6 +88,10 @@ jobs:
             Write-Error "dist\MeikovaRelayHost-windows-x64.zip was not created."
             exit 1
           }
+          if (-not (Test-Path "dist\MeikovaRelayHost-Setup.exe")) {
+            Write-Error "dist\MeikovaRelayHost-Setup.exe was not created."
+            exit 1
+          }
           Get-ChildItem "dist\*" | Select-Object Name, Length
 
       - name: Upload Windows Artifacts
@@ -92,6 +100,7 @@ jobs:
           name: meikova-relay-host-windows
           path: |
             dist/MeikovaRelayHost.exe
+            dist/MeikovaRelayHost-Setup.exe
             dist/MeikovaRelayHost-windows-x64.zip
             dist/SHA256SUMS.txt
 
@@ -119,6 +128,7 @@ jobs:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           files: |
             dist/MeikovaRelayHost.exe
+            dist/MeikovaRelayHost-Setup.exe
             dist/MeikovaRelayHost-windows-x64.zip
             dist/SHA256SUMS.txt
           draft: false

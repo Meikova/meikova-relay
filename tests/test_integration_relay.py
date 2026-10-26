@@ -34,6 +34,8 @@ class TestIntegrationRelay(unittest.IsolatedAsyncioTestCase):
             while time.time() - start_time < 8.0:
                 if cls.server_process.poll() is not None:
                     _, err = cls.server_process.communicate()
+                    if cls.server_process.stdout: cls.server_process.stdout.close()
+                    if cls.server_process.stderr: cls.server_process.stderr.close()
                     err_text = err.decode('utf-8', errors='replace')
                     raise unittest.SkipTest(f"Relay server failed to start: {err_text}")
                 try:
@@ -52,6 +54,8 @@ class TestIntegrationRelay(unittest.IsolatedAsyncioTestCase):
         if cls.server_process:
             cls.server_process.terminate()
             cls.server_process.wait()
+            if cls.server_process.stdout: cls.server_process.stdout.close()
+            if cls.server_process.stderr: cls.server_process.stderr.close()
         if cls.temp_db_path:
             for ext in ["", "-wal", "-shm"]:
                 try:

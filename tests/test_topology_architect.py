@@ -53,6 +53,8 @@ class TestTopologyArchitect(unittest.IsolatedAsyncioTestCase):
         while time.time() - start_time < 8.0:
             if cls.server_process.poll() is not None:
                 _, err = cls.server_process.communicate()
+                if cls.server_process.stdout: cls.server_process.stdout.close()
+                if cls.server_process.stderr: cls.server_process.stderr.close()
                 err_text = err.decode("utf-8", errors="replace")
                 raise unittest.SkipTest(f"Relay server failed to start: {err_text}")
             try:
@@ -70,6 +72,8 @@ class TestTopologyArchitect(unittest.IsolatedAsyncioTestCase):
         if cls.server_process:
             cls.server_process.terminate()
             stdout, stderr = cls.server_process.communicate()
+            if cls.server_process.stdout: cls.server_process.stdout.close()
+            if cls.server_process.stderr: cls.server_process.stderr.close()
             print("\n--- SERVER STDOUT ---\n", stdout.decode("utf-8", errors="replace"))
             print("\n--- SERVER STDERR ---\n", stderr.decode("utf-8", errors="replace"))
         if cls.temp_db_path:
