@@ -157,7 +157,40 @@ npm start
 
 ---
 
-## 6. Kiểm thử và xác minh chất lượng (Testing)
+## 6. Triển khai Docker (Container-Native)
+
+Dự án hỗ trợ triển khai máy chủ độc lập 100% thông qua Docker và Docker Compose, tích hợp sẵn Node.js 22-slim và công cụ đường hầm cloudflared:
+
+`ash
+# Khởi chạy máy chủ relay
+docker compose up -d
+
+# Xem logs trực tiếp
+docker compose logs -f
+
+# Tự động mở Cloudflare Quick Tunnel xuyên tường lửa/NAT
+AUTO_TUNNEL=1 docker compose up -d
+`
+
+Máy chủ lắng nghe tại cổng 8080 (HTTP + WebSocket). Dữ liệu được lưu trữ bền vững tại ./data/meikova-relay.db.
+
+---
+
+## 7. Đường hầm Cloudflare Quick Tunnel (Universal Tunnel Bridge)
+
+Tích hợp sẵn Cloudflare Quick Tunnel (	rycloudflare.com) cho phép truy cập Web UI và kết nối máy trạm từ Internet không cần cấu hình port forwarding:
+
+- **Khởi động kèm Tunnel:** 
+ode server.js --tunnel (hoặc AUTO_TUNNEL=1 trong Docker)
+- **Quản trị API:**
+  - GET /api/tunnel/status - Trạng thái hoạt động và URL công khai (https://*.trycloudflare.com)
+  - POST /api/tunnel/start - Bật đường hầm
+  - POST /api/tunnel/stop - Tắt đường hầm
+  - POST /api/tunnel/restart - Khởi động lại đường hầm
+
+---
+
+## 8. Kiểm thử và xác minh chất lượng (Testing)
 
 Hệ thống tuân thủ quy chuẩn kiểm thử nghiêm ngặt:
 
@@ -171,14 +204,14 @@ Kết quả kiểm thử tự động:
 
 ---
 
-## 8. Giấy phép bản quyền (License)
+## 9. Giấy phép bản quyền (License)
 
 Dự án được phát hành theo giấy phép mã nguồn mở **MIT License**.
 Bản quyền thuộc về **Meikova Relay Team © 2026**.
 
 ---
 
-## 9. Hệ sinh thái Meikova
+## 10. Hệ sinh thái Meikova
 
 - [Meikova Harvest](https://github.com/Meikova/meikova-harvest) - Hệ sinh thái trích xuất và tải đa phương tiện đa nền tảng.
 - [Meikova Loop](https://github.com/Meikova/meikova-loop) - DJ mashup và infinite soundscape engine chạy trên web, desktop và mobile.
