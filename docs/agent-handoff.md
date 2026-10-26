@@ -43,12 +43,24 @@
      * Bổ sung hàm định cỡ động `fitCanvasToViewport()`: Tự động tính toán tỷ lệ `scaleFactor = Math.min(containerW / hostW, containerH / hostH)` và gán kích thước hiển thị chính xác theo pixel cho `#remoteCanvas` và `#laserCanvas`, bảo đảm hình ảnh luôn lấp đầy tối đa khung trình duyệt mà không bị méo tỷ lệ và không để lộ viền đen thừa thãi.
      * Thêm mã định danh yêu cầu `req_id` cho `set_quality_preset` để loại bỏ xung đột phản hồi bất đồng bộ khi chuyển đổi nhanh giữa các cấu hình A -> B -> C.
 
+
+4. **Tích hợp Cloudflare Quick Tunnel (Multiplatform One-Click WAN) & Phân giải nguồn động (Dynamic Origin)**:
+   - **Mục tiêu**: Kích hoạt Cloudflare Quick Tunnel trực tiếp trên Web UI không cần mở port modem hay cấu hình DNS; phân giải động origin cho file .bat, QR code và installer.
+   - **Thực thi**:
+     * Backend (`relay-server/tunnel_manager.js`): Quản lý vòng đời tiến trình `cloudflared`, tự động phát hiện binary đa nền tảng (Windows/Linux/macOS), cung cấp REST API (`/api/tunnel/status`, `/api/tunnel/start`, `/api/tunnel/stop`, `/api/tunnel/toggle`).
+     * Tích hợp `active_url`: Tự động ghi đè URL tunnel công khai vào `/api/host-info` khi tunnel kích hoạt.
+     * Tối giản giao diện & Căn trái (Less Text, More Signal): Modal Cloudflare Tunnel căn trái, gọn gàng (460px), loại bỏ chữ rườm rà. Nút bấm tinh gọn 'Bật' / 'Tắt', nhãn 'PUBLIC URL', QR code di động.
+     * Xóa khoảng trống thừa trong `i18n.js`: Rút gọn từ 2893 dòng xuống 1667 dòng, bổ sung từ điển i18n đầy đủ cho cả `vi` và `en`.
+     * Chuẩn responsive: Co giãn mượt mà trên di động và tablet (`max-width: 1320px`, `max-width: 767px`, `min-width: 0` trên input, touch target >= 44x44px).
+
 ## Trạng thái kiểm chứng (Verification)
-- **Kiểm thử tự động toàn diện**: 167 bài kiểm thử unit tests vượt qua 100% (**Exit Code 0**, 1 skipped).
+- **Kiểm thử tự động toàn diện**: 175 bài kiểm thử unit tests vượt qua 100% (**Exit Code 0**, 1 skipped).
 - **Kiểm thử chuyên biệt mới**:
+  * `tests/test_tunnel_manager.py`: Passed (4/4).
   * `tests/test_vietnamese_input.py`: Passed (3/3).
   * `tests/test_streaming_pipeline.py`: Passed (4/4).
   * `tests/test_screen_sync.py`: Passed (9/9).
+- **GitHub Actions CI/CD**: Hoàn thành vượt qua 100% cả 3 nền tảng (Windows, Linux, macOS).
 - **Bản dựng Native Windows**:
   * Đóng gói thành công `MeikovaRelayHost.exe` (v1.0.74, 31.8 MB).
   * Đã đồng bộ sang `relay-server/MeikovaRelayHost.exe` và `dist/MeikovaRelayHost-windows-x64.zip`.
