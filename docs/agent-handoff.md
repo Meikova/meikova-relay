@@ -1,44 +1,53 @@
-# Meikova Relay - Session Handoff (v1.0.70)
+# Meikova Relay - Session Handoff (v1.0.71)
 
 ## Mục tiêu hoàn thành
-1. **Khắc phục triệt để rò rỉ bộ nhớ & GDI handle gây đơ lag máy tính (MeikovaRelayHost.exe)**:
-   - **Hiện tượng**: `MeikovaRelayHost.exe` ngốn tới **27.58 GB RAM ảo (Commit)**, **37,586 handles**, chạm kịch trần **10,000 GDI objects** (`GDIProcessHandleQuota`). Hệ thống Windows bị dồn sang SSD đẩy `pagefile.sys` lên 50 GB gây nghẽn bộ nhớ ảo (Paging Thrashing), làm tụt FPS từ 60 FPS xuống 1 FPS và RTT tăng vọt lên 508ms.
-   - **4 Nguyên nhân gốc rễ và giải pháp triệt để**:
-     1. `host_agent/cursor_manager.py`: Vòng lặp 50ms (20 Hz) gọi `user32.OpenInputDesktop(0, False, 0x01FF)` khi màn hình khóa hoặc truy vấn con trỏ lỗi mà không hề gọi `user32.CloseDesktop(old_h)` (rò rỉ 72,000 handles/giờ). Khắc phục: Quản lý vòng đời handle desktop, đóng handle cũ bằng `CloseDesktop` khi chuyển desktop, đồng thời backoff 500ms khi truy vấn con trỏ liên tục thất bại.
-     2. `host_agent/screen_capture.py`: Trong `NativeWin32Capture`, `CreateDIBSection` tạo bitmap được chọn vào DC bằng `SelectObject(mem_dc, hBmp)`. Khi đổi kích thước hoặc đóng, gọi `DeleteObject(hBmp)`. Theo Win32 GDI spec, `DeleteObject` trả về `FALSE` nếu bitmap đang được chọn trong DC! DIBSection 8.3 MB bị kẹt vĩnh viễn trong kernel GDI table, tích lũy tới kịch trần 10,000 objects. Khắc phục: Lưu `self.old_hBmp`, gọi `SelectObject(mem_dc, old_hBmp)` unselect trước khi `DeleteObject(hBmp)`, giải phóng sạch `ReleaseDC(0, src_dc)`.
-     3. `host_agent/gui_agent.py`: `_eval_js()` tạo một `threading.Thread` mới cho từng log và sự kiện (hàng vạn thread qua 24h). Khắc phục: Dùng 1 daemon worker thread duy nhất với `queue.Queue(maxsize=100)` chặn tràn bộ đệm. Thêm cờ `_interactive_desktop_attached` chỉ chạy 1 lần trong `ensure_interactive_desktop()`.
-     4. `host_agent/gui_view.html`: Hàm `addLog()` chèn vô hạn `div.log-line` làm WebView2 phình to DOM tree. Khắc phục: Bổ sung ring-buffer giới hạn tối đa 100 dòng log (`while (box.children.length > 100) box.removeChild(box.firstChild)`).
-   - **Biên dịch & Triển khai thực tế**:
-     * Biên dịch sạch lại `MeikovaRelayHost.exe` bằng PyInstaller (Python 3.12).
-     * Triển khai tệp thực thi mới (31.4 MB) vào `%LOCALAPPDATA%\MeikovaRelayHost\MeikovaRelayHost.exe`.
-     * **Kết quả đo lường thực tế sau khi sửa**:
-       - RAM Commit: **88.6 MB** (giảm từ **26,299 MB** -> giảm **99.6%**).
-       - Handles: **106 / 825** (giảm từ **37,586**).
-       - GDI Objects: **0 / 102** (giảm từ **10,000** - không còn chạm quota).
-       - Khung hình capture: Trở lại mượt mà 30 - 60 FPS, RTT dưới 30ms.
+1. **Khắc phục triệt để lỗi kết nối chập chờn, máy trạm Offline & Authentication rejected (v1.0.71)**:
+   - **Hiện tượng**:
+     * Log máy trạm (Host Agent): Liên tục lặp lại `[09:05:24] Đã đăng ký phòng RD-1815 trên Relay Server`, `[09:05:25] Đã đăng ký phòng RD-1815 trên Relay Server`, sau đó `[09:05:26] Mất kết nối với Relay Server... (Chi tiết: Authentication rejected)`.
+     * Người xem (Viewer/Client): Mắc kẹt tại `XÁC THỰC...`, thông báo `Lỗi: Máy trạm đang Offline hoặc không tồn tại`.
+   - **Phân tích nguyên nhân gốc rễ**:
+     1. **Xung đột 2 tiến trình chạy song song (Process Collision & No OS Mutex)**:
+        * Khi khởi động Windows hoặc nhấp đúp nhanh, 2 tiến trình `MeikovaRelayHost.exe --gui` (PID 37180 và PID 35420) được bật cách nhau chỉ 2 giây.
+        * Cơ chế IPC cũ dùng TCP loopback port `48123` tốn 2-3 giây để khởi tạo WebView2 rồi mới lắng nghe socket. Cả 2 tiến trình đều vượt qua vòng kiểm tra trước khi kịp bind cổng.
+        * Khi tiến trình thứ 2 bind lỗi (Address already in use), code cũ bọc `except Exception: pass` nuốt lỗi ngầm làm **cả 2 tiến trình cùng chạy song song**.
+        * Cả 2 tiến trình đều giữ chung cấu hình `room_id = RD-1815` và liên tục gửi `init_host` lên máy chủ Cloud Relay (`meikova-relay.onrender.com`), tranh giành phòng và đá kết nối của nhau.
+     2. **Lỗi Race Condition & Ghost Session Invalidation trên Relay Server (`server.js`)**:
+        * Trong `relay-server/server.js`, khi nhận `init_host` trùng `roomId`, máy chủ gán đè `room.hostWs = ws2` mà không ngắt socket cũ `ws1`.
+        * Khi socket cũ `ws1` bị timeout hoặc ngắt kết nối, sự kiện `ws1.on('close')` kích hoạt hàm `closeRoomClients(currentRoomId)`.
+        * Hàm `closeRoomClients` **không kiểm tra danh tính socket** (`room.hostWs === ws`), dẫn đến việc sự kiện đóng của `ws1` **xóa sạch `room.hostWs = null`** và đá văng toàn bộ Client khỏi phòng, mặc dù `ws2` đang hoạt động hoàn hảo.
+        * Khách hàng kết nối vào phòng nhận ngay mã lỗi `RELAY_ROOM_OFFLINE` ("Máy trạm đang Offline hoặc không tồn tại").
+     3. **Rò rỉ socket và thread khi tắt/khởi động lại dịch vụ (`host_service.py` & `gui_agent.py`)**:
+        * Trong `host_service.py`, hàm `stop()` không thực sự đóng `self.ws` do logic `_graceful_close()` bị thụt nhầm vào `__del__()` (nơi không bao giờ được GC gọi kịp do circular references).
+        * Trong `gui_agent.py`, `start_service()` thiếu re-entrancy lock, dẫn đến việc kích hoạt nhiều `_service_thread` cùng lúc.
 
-2. **Triệt tiêu hoàn toàn khoảng trống đáy trang trên iPhone PWA (v1.0.70)**:
-   - **Hiện tượng**: Trên mobile web (Safari browser tab) hiển thị 48px sát chân rất đẹp, nhưng khi thêm vào màn hình chính dạng PWA Standalone (`display-mode: standalone`), chân trang bị thừa một khoảng đen trống hoác lớn phía dưới các nút điều hướng.
-   - **Nguyên nhân gốc rễ**:
-     1. Trên Safari Mobile Web, `env(safe-area-inset-bottom)` bằng 0px nên thanh nav bar cao đúng 48px, các nút phủ kín thanh, không có khoảng trống.
-     2. Khi cài vào màn hình chính dạng PWA Standalone, `env(safe-area-inset-bottom)` trên iPhone tự động kích hoạt 34px. CSS cũ đưa trực tiếp `34px` này vào `padding-bottom` và cộng vào `height: calc(48px + 34px) = 82px`, đồng thời đẩy `.stage` lên cao thêm 34px. Hậu quả là gần một nửa thanh điều hướng (34px / 82px) trở thành một dải đen chết vô dụng dưới đáy.
-     3. Kèm theo lỗi `position: fixed` cũ trên `html, body` làm WebKit co ngắn viewport khiến khoảng hở bị nhân đôi lên tới 74pt.
-   - **Giải pháp triệt để**:
-     1. Khóa chuẩn chiều cao bottom nav mobile: `--bottom-nav-h: 48px; --bottom-nav-total-h: var(--bottom-nav-h);`.
-     2. `#mainNav`: `height: 48px !important; padding: 2px !important; align-items: center !important; bottom: 0 !important;`. Toàn bộ 7 nút tab cao 44px nằm căn giữa đều đặn, phủ kín thanh nav bar, sát mép kính dưới cùng. Không có bất kỳ khoảng đệm đen dư thừa nào.
-     3. `.stage`: Khóa tiếp giáp liền khối tại `bottom: 48px !important; width: 100% !important;`, triệt tiêu hoàn toàn khe hở giữa màn hình nội dung và thanh điều hướng.
-     4. Thêm logic tự động xóa CacheStorage cũ (`meikova_pwa_ver !== '1.0.70'`) ngay khi app khởi chạy để loại bỏ nguy cơ kẹt cache PWA trên iOS.
-     5. Cập nhật `sw.js` và query string toàn bộ asset lên `v1.0.70`.
+   - **Giải pháp kỹ thuật triệt để**:
+     1. **Khóa đơn phiên toàn hệ điều hành bằng Win32 Named Mutex (`SingleInstanceLock`)**:
+        * Xây dựng `SingleInstanceLock` sử dụng `kernel32.CreateMutexW` kèm kiểm tra lỗi `ERROR_ALREADY_EXISTS (183)`.
+        * Nếu phát hiện phiên bản khác đang chạy, gửi lệnh `SHOW` qua loopback IPC (thử lại 15 lần trong 3s phòng trường hợp tiến trình chính đang khởi tạo) và thoát ngay lập tức (`sys.exit(0)`).
+        * Xử lý đóng handle an toàn ngay khi phát hiện `ERROR_ALREADY_EXISTS` để không rò rỉ mutex handle trong Windows kernel. Hỗ trợ fallback `msvcrt.locking` và POSIX `fcntl.flock`.
+     2. **Đồng bộ vòng đời Host Socket trên Relay Server (`relay-server/server.js`)**:
+        * Khi nhận `init_host` mới cho phòng đang mở, máy chủ gửi gói tin `{ type: 'superseded', message: '...' }` và đóng socket cũ một cách minh bạch.
+        * Cập nhật `closeRoomClients(roomId, reason, expectedHostWs)`: Chỉ gán `room.hostWs = null` và đá Client nếu socket đang đóng thực sự là socket đại diện hợp lệ (`room.hostWs === expectedHostWs`). Nếu là socket cũ bị thay thế, bỏ qua không phá vỡ phòng của host mới.
+     3. **Bảo toàn vòng đời HostService & Bắt lỗi minh bạch**:
+        * Chuyển logic đóng socket `_graceful_close()` vào trực tiếp `HostService.stop()`.
+        * Thêm `_service_lock = threading.Lock()` trong `HostApi` chặn tuyệt đối race condition đa luồng khi bật/tắt dịch vụ.
+        * Bóc tách chi tiết thông điệp từ `ack` (`ack.get("message") or ack.get("error") or ack.get("detail") or str(ack_raw)`) để ghi log tường minh, không bao giờ rơi vào fallback mù mờ.
+        * Bổ sung xử lý sự kiện `type == 'superseded'` trong `_receive_events_loop()` để host cũ dừng truyền dữ liệu ngay lập tức.
+     4. **Nâng cấp phiên bản toàn hệ thống**:
+        * Bump phiên bản đồng bộ `1.0.71` across `package.json`, `sw.js`, `index.html`.
+        * Đóng gói lại `agent-package.zip`.
+
+2. **Duy trì toàn vẹn các tối ưu từ phiên v1.0.70**:
+   - Zero-gap navigation bar 48px cho iPhone PWA.
+   - Zero GDI/RAM leak (RAM Commit < 100MB, GDI < 110).
 
 ## Trạng thái kiểm chứng (Verification)
-- **Selenium Headless Mobile Emulation (iPhone 14 - 390x844)**:
-  * `mainNav` bounding rect: `x=0, y=796, w=390, h=48` (Gap below nav: **0px**).
-  * Standalone Mode: `Gap below nav: 0px`.
-  * Đủ 7 tab buttons: `landing`, `dashboard`, `remote`, `files`, `terminal`, `tasks`, `audit` (`displayed=True`, `w=55, h=44`).
-- **Python Unit Test Suite**:
-  * `tests/test_leak_regression.py`: **4/4 tests PASS (OK, Exit Code 0)**.
-  * `tests/test_tcp_tunnel.py`: **4/4 tests PASS (OK, Exit Code 0)**.
-  * `tests/test_screen_sync.py`: **9/9 tests PASS (OK, Exit Code 0)**.
-  * `tests/test_pwa_manifest.py`: **1/1 test PASS (OK, Exit Code 0)**.
-  * `tests/test_i18n.py`: **6/6 tests PASS (OK, Exit Code 0)**.
-  * Tổng cộng: **24/24 tests PASS (100% Exit Code 0)**.
+- **Unit Test Mới (`tests/test_flapping_connection.py`)**:
+  * `test_superseded_host_does_not_offline_room`: **PASS (Exit Code 0)**. Host 1 kết nối, Host 2 kết nối, Host 1 nhận `superseded` và đóng. Client kết nối thành công, không gặp lỗi `RELAY_ROOM_OFFLINE`.
+  * `test_single_instance_lock`: **PASS (Exit Code 0)**. Khóa thứ hai bị từ chối; sau khi khóa thứ nhất giải phóng, khóa thứ hai chiếm giữ thành công.
+- **Toàn bộ Test Suite Cốt lõi**:
+  * `tests.test_flapping_connection`: 2/2 PASS.
+  * `tests.test_multi_client_sessions`: 2/2 PASS.
+  * `tests.test_tcp_tunnel`: 4/4 PASS.
+  * `tests.test_leak_regression`: 4/4 PASS.
+  * Tổng cộng: **12/12 core tests PASS (100% Exit Code 0)**.

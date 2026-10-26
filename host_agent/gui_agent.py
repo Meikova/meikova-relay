@@ -1769,6 +1769,7 @@ class HostApi:
         self._connected_client_info: Optional[str] = None
         self._tray_icon = None
         self._is_quitting = False
+        self._service_lock = threading.Lock()
         self._chat_window: Optional[HostChatWindow] = None
 
     @property
@@ -1984,8 +1985,10 @@ class HostApi:
             pass
 
     def start_service(self):
-        if self._is_running:
-            return
+        with self._service_lock:
+            if self._is_running:
+                return
+            self._is_running = True
 
         relay_url = self._config.get("relay") or self._config.get("relay_url") or "wss://meikova-relay.onrender.com"
         room_id = self._config.get("room_id") or "RD-8888"
@@ -2049,16 +2052,18 @@ class HostApi:
         self._log(self.t("log_service_started", room_id=room_id))
 
     def stop_service(self):
-        if self._host_service:
-            try:
-                self._host_service.stop()
-            except Exception:
-                pass
+        with self._service_lock:
+            if self._host_service:
+                try:
+                    self._host_service.stop()
+                except Exception:
+                    pass
+                self._host_service = None
 
-        PowerManager.prevent_sleep(False)
-        self._is_running = False
-        self._connected_client_info = None
-        self._eval_js("window.__onServiceStatus && window.__onServiceStatus('stopped');")
+            PowerManager.prevent_sleep(False)
+            self._is_running = False
+            self._connected_client_info = None
+            self._eval_js("window.__onServiceStatus && window.__onServiceStatus('stopped');")
         self._log(self.t("log_service_stopped"))
 
     def _on_service_status(self, status: str, detail: str = ""):
@@ -2330,6 +2335,77 @@ Categories=Network;RemoteAccess;
             self._config["lang"] = lang
             self._save_config()
             self._log(f"Switched language to {'Tiếng Việt' if lang == 'vi' else 'English'}")
+
+class SingleInstanceLock:
+    """System-wide single instance lock using Win32 Named Mutex on Windows and flock/lockfile on POSIX."""
+    def __init__(self, name: str = "MeikovaRelayHost_AppMutex"):
+        self.name = name
+        self.mutex = None
+        self.is_primary = False
+        self._lock_file = None
+
+    def acquire(self) -> bool:
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                from ctypes import wintypes
+                ERROR_ALREADY_EXISTS = 183
+                kernel32 = ctypes.windll.kernel32
+                kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+                kernel32.CreateMutexW.restype = wintypes.HANDLE
+                self.mutex = kernel32.CreateMutexW(None, True, f"Local\\{self.name}")
+                last_err = kernel32.GetLastError()
+                if last_err == ERROR_ALREADY_EXISTS:
+                    if self.mutex:
+                        kernel32.CloseHandle(self.mutex)
+                        self.mutex = None
+                    self.is_primary = False
+                    return False
+                self.is_primary = True
+                return True
+            except Exception:
+                pass
+
+        try:
+            lock_dir = _get_default_config_path().parent
+            lock_dir.mkdir(parents=True, exist_ok=True)
+            lock_path = lock_dir / f".{self.name}.lock"
+            self._lock_file = open(lock_path, "w")
+            if sys.platform == "win32":
+                import msvcrt
+                try:
+                    msvcrt.locking(self._lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                    self.is_primary = True
+                    return True
+                except (IOError, OSError):
+                    self.is_primary = False
+                    return False
+            else:
+                import fcntl
+                try:
+                    fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    self.is_primary = True
+                    return True
+                except (IOError, OSError):
+                    self.is_primary = False
+                    return False
+        except Exception:
+            return True
+
+    def release(self):
+        if sys.platform == "win32" and self.mutex:
+            try:
+                import ctypes
+                ctypes.windll.kernel32.CloseHandle(self.mutex)
+                self.mutex = None
+            except Exception:
+                pass
+        if self._lock_file:
+            try:
+                self._lock_file.close()
+                self._lock_file = None
+            except Exception:
+                pass
 
 IPC_PORT = 48123
 
@@ -2673,9 +2749,16 @@ def main():
             print("[INFO] Máy trạm đang dừng (offline).")
             sys.exit(0)
 
-    # Single-instance check: if another instance is already running, activate its window
-    resp = send_ipc_command("SHOW")
-    if resp:
+    # System-wide single instance check (Named Mutex / lockfile)
+    global _single_instance_lock
+    _single_instance_lock = SingleInstanceLock("MeikovaRelayHost_AppMutex")
+    if not _single_instance_lock.acquire():
+        # Another instance is already running or initializing. Try IPC SHOW command with retry.
+        for _ in range(15):
+            resp = send_ipc_command("SHOW")
+            if resp:
+                break
+            time.sleep(0.2)
         print("[INFO] Meikova Relay Host đã đang chạy. Đã kích hoạt mở cửa sổ quản lý.")
         sys.exit(0)
 

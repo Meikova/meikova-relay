@@ -2931,11 +2931,17 @@ function broadcastSessionList(room, targetWs = null) {
 
 
 
-async function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết nối') {
+async function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết nối', expectedHostWs = null) {
 
   if (!roomId || !rooms.has(roomId)) return;
 
   const room = rooms.get(roomId);
+
+  if (expectedHostWs && room.hostWs && room.hostWs !== expectedHostWs) {
+    console.log(`[closeRoomClients] Skipped for room ${roomId}: active hostWs differs from closing socket`);
+    return;
+  }
+
   removeAllEdgesForRoom(room);
 
   try {
@@ -2948,7 +2954,9 @@ async function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết 
 
   }
 
-  room.hostWs = null;
+  if (!expectedHostWs || room.hostWs === expectedHostWs) {
+    room.hostWs = null;
+  }
 
 
 
@@ -3159,6 +3167,18 @@ wss.on('connection', (ws, req) => {
       const room = getOrCreateRoom(roomId);
 
       room.pin = pin;
+
+      // Cleanly supersede existing host connection for same room if active
+      if (room.hostWs && room.hostWs !== ws && room.hostWs.readyState === WebSocket.OPEN) {
+        console.log(`[Host Superseded] Terminating previous host socket for room ${roomId}`);
+        try {
+          room.hostWs.send(JSON.stringify({
+            type: 'superseded',
+            message: 'Phiên kết nối máy trạm đã được thay thế bởi phiên mới hơn'
+          }));
+          room.hostWs.close(1000, 'Superseded by newer host');
+        } catch (e) {}
+      }
 
       room.hostWs = ws;
 
@@ -3807,7 +3827,7 @@ wss.on('connection', (ws, req) => {
 
       });
 
-      await closeRoomClients(currentRoomId, 'Máy trạm đã tắt dịch vụ');
+      await closeRoomClients(currentRoomId, 'Máy trạm đã tắt dịch vụ', ws);
 
       return;
 
@@ -4437,27 +4457,35 @@ wss.on('connection', (ws, req) => {
 
       if (role === 'host') {
 
-        console.log(`[Host Offline] Room: ${currentRoomId}`);
+        if (room && room.hostWs === ws) {
 
-        await DB.logAudit({
+          console.log(`[Host Offline] Room: ${currentRoomId}`);
 
-          action: 'HOST_OFFLINE',
+          await DB.logAudit({
 
-          roomId: currentRoomId,
+            action: 'HOST_OFFLINE',
 
-          clientIp: ws.clientIp,
+            roomId: currentRoomId,
 
-          clientDevice: ws.clientDevice,
+            clientIp: ws.clientIp,
 
-          targetDevice: room?.hostMeta?.deviceName,
+            clientDevice: ws.clientDevice,
 
-          targetOs: room?.hostMeta?.osInfo,
+            targetDevice: room?.hostMeta?.deviceName,
 
-          details: { status: 'offline' }
+            targetOs: room?.hostMeta?.osInfo,
 
-        });
+            details: { status: 'offline' }
 
-        await closeRoomClients(currentRoomId, 'Máy trạm đã ngắt kết nối');
+          });
+
+          await closeRoomClients(currentRoomId, 'Máy trạm đã ngắt kết nối', ws);
+
+        } else {
+
+          console.log(`[Stale Host Socket Closed] Room: ${currentRoomId} - ignored because active host is different`);
+
+        }
 
       } else if (role === 'client') {
 

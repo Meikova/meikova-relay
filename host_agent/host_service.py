@@ -200,28 +200,30 @@ class HostService:
         except Exception:
             pass
 
+        ws = getattr(self, "ws", None)
+        loop = getattr(self, "loop", None)
+        if ws and loop and loop.is_running():
+            async def _graceful_close():
+                try:
+                    await ws.send(json.dumps({"type": "host_closing", "room_id": self.room_id}))
+                except Exception:
+                    pass
+                try:
+                    await ws.close(code=1000, reason="Host stopped by user")
+                except Exception:
+                    pass
+
+            try:
+                fut = asyncio.run_coroutine_threadsafe(_graceful_close(), loop)
+                fut.result(timeout=1.5)
+            except Exception as e:
+                logger.warning(f"Error during graceful close: {e}")
+
     def __del__(self):
         try:
             self.stop()
         except Exception:
             pass
-
-        if getattr(self, "ws", None) and getattr(self, "loop", None) and self.loop.is_running():
-            async def _graceful_close():
-                try:
-                    await self.ws.send(json.dumps({"type": "host_closing", "room_id": self.room_id}))
-                except Exception:
-                    pass
-                try:
-                    await self.ws.close(code=1000, reason="Host stopped by user")
-                except Exception:
-                    pass
-
-            try:
-                fut = asyncio.run_coroutine_threadsafe(_graceful_close(), self.loop)
-                fut.result(timeout=1.5)
-            except Exception as e:
-                logger.warning(f"Error during graceful close: {e}")
 
     async def _send_ws_tunnel_msg(self, msg: dict):
         if self.ws and getattr(self.ws, "open", False):
@@ -594,6 +596,16 @@ class HostService:
                     continue
 
                 ev_type = event.get("type")
+
+                if ev_type == "superseded":
+                    msg = event.get("message", "Phiên kết nối máy trạm đã được thay thế bởi phiên mới")
+                    logger.warning(f"[Relay] Superseded by newer session: {msg}")
+                    if self.on_status_change:
+                        try:
+                            self.on_status_change("reconnecting", detail=msg)
+                        except Exception:
+                            pass
+                    break
 
                 # System & Room Control
                 if ev_type == "client_connected":
@@ -1190,8 +1202,8 @@ class HostService:
                         ack_raw = await ws.recv()
                         ack = json.loads(ack_raw) if isinstance(ack_raw, str) else {}
                         if ack.get("status") != "ok":
-                            err_msg = ack.get("message", "Authentication rejected")
-                            logger.error(f"Relay authentication rejected: {err_msg}")
+                            err_msg = ack.get("message") or ack.get("error") or ack.get("detail") or (str(ack_raw) if ack_raw else "Authentication rejected")
+                            logger.error(f"Relay authentication rejected: {err_msg} (raw: {ack_raw})")
                             if self.on_status_change:
                                 try:
                                     self.on_status_change("reconnecting", detail=err_msg)
