@@ -7316,6 +7316,7 @@ body.is-desktop-app .desktop-titlebar {
 }
 .tunnel-url-input {
   flex: 1;
+  min-width: 0;
   background: #090e16;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
@@ -7334,6 +7335,25 @@ body.is-desktop-app .desktop-titlebar {
   border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: 12px;
   padding: 14px 16px;
+}
+
+@media (max-width: 1320px) {
+  #btnNavTunnel #navTunnelText {
+    display: none;
+  }
+  #btnNavTunnel {
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 767px) {
+  #btnNavTunnel {
+    padding: 0 8px;
+    min-height: 36px;
+  }
+  .tunnel-qr-row {
+    flex-wrap: wrap;
+  }
 }
 
 /* Zero-override visibility guarantee */

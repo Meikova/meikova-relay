@@ -8233,15 +8233,19 @@
 
     let isOperating = false;
 
+    let lastTunnelState = null;
+    const ti = (key, fallback) => (typeof t === 'function' ? (t(key) || fallback) : fallback);
+
     function renderTunnelStatus(st) {
       if (!st) return;
+      lastTunnelState = st;
       if (st.running && st.url) {
         btnNavTunnel.classList.add('is-active');
         if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--running';
         if (tunnelStatusBadgeDot) tunnelStatusBadgeDot.className = 'status-dot tunnel-dot tunnel-dot--running';
-        if (tunnelStatusText) tunnelStatusText.textContent = 'Đang hoạt động (Online)';
-        if (tunnelStatusDetail) tunnelStatusDetail.textContent = 'Đã kết nối Cloudflare Edge thành công';
-        if (btnToggleTunnelText) btnToggleTunnelText.textContent = 'Tắt Tunnel';
+        if (tunnelStatusText) tunnelStatusText.textContent = ti('tunnel.status_running', 'Đang chạy');
+        if (tunnelStatusDetail) tunnelStatusDetail.textContent = '';
+        if (btnToggleTunnelText) btnToggleTunnelText.textContent = ti('tunnel.action_stop', 'Tắt');
         if (btnToggleTunnel) {
           btnToggleTunnel.classList.add('is-running');
           btnToggleTunnel.disabled = false;
@@ -8253,9 +8257,9 @@
       } else if (st.status === 'starting') {
         if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
         if (tunnelStatusBadgeDot) tunnelStatusBadgeDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
-        if (tunnelStatusText) tunnelStatusText.textContent = 'Đang khởi động...';
-        if (tunnelStatusDetail) tunnelStatusDetail.textContent = 'Đang đàm phán Quick Tunnel với Cloudflare Edge...';
-        if (btnToggleTunnelText) btnToggleTunnelText.textContent = 'Đang kết nối...';
+        if (tunnelStatusText) tunnelStatusText.textContent = ti('tunnel.status_starting', 'Đang kết nối...');
+        if (tunnelStatusDetail) tunnelStatusDetail.textContent = '';
+        if (btnToggleTunnelText) btnToggleTunnelText.textContent = ti('tunnel.action_connecting', 'Đang bật...');
         if (btnToggleTunnel) btnToggleTunnel.disabled = true;
       } else {
         btnNavTunnel.classList.remove('is-active');
@@ -8263,9 +8267,9 @@
         if (tunnelStatusBadgeDot) {
           tunnelStatusBadgeDot.className = st.status === 'failed' ? 'status-dot tunnel-dot tunnel-dot--failed' : 'status-dot tunnel-dot tunnel-dot--idle';
         }
-        if (tunnelStatusText) tunnelStatusText.textContent = st.status === 'failed' ? 'Lỗi kết nối' : 'Đang tắt';
-        if (tunnelStatusDetail) tunnelStatusDetail.textContent = st.error || 'Sẵn sàng kích hoạt đường hầm trực tiếp';
-        if (btnToggleTunnelText) btnToggleTunnelText.textContent = 'Bật Tunnel';
+        if (tunnelStatusText) tunnelStatusText.textContent = st.status === 'failed' ? ti('tunnel.status_failed', 'Lỗi') : ti('tunnel.status_idle', 'Đang tắt');
+        if (tunnelStatusDetail) tunnelStatusDetail.textContent = st.error || '';
+        if (btnToggleTunnelText) btnToggleTunnelText.textContent = ti('tunnel.action_start', 'Bật');
         if (btnToggleTunnel) {
           btnToggleTunnel.classList.remove('is-running');
           btnToggleTunnel.disabled = false;
@@ -8295,7 +8299,7 @@
       if (isOperating) return;
       isOperating = true;
       if (btnToggleTunnel) btnToggleTunnel.disabled = true;
-      if (btnToggleTunnelText) btnToggleTunnelText.textContent = 'Đang xử lý...';
+      if (btnToggleTunnelText) btnToggleTunnelText.textContent = ti('tunnel.action_processing', 'Đang xử lý...');
 
       try {
         const res = await fetch('/api/tunnel/toggle', { method: 'POST' });
@@ -8375,6 +8379,10 @@
       renderTunnelStatus(st);
       try { updateRelayModalData(); } catch (_) {}
     };
+
+    window.addEventListener('meikova-lang-changed', () => {
+      if (lastTunnelState) renderTunnelStatus(lastTunnelState);
+    });
 
     // Initial background check
     fetchTunnelStatus();
