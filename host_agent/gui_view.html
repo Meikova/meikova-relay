@@ -80,6 +80,19 @@
       letter-spacing: 0.08em;
       color: var(--text);
       font-family: 'Consolas', 'JetBrains Mono', monospace;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .host-version-pill {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #38BDF8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 1px 6px;
+      border-radius: 9999px;
     }
     .titlebar-spacer {
       flex: 1;
@@ -833,7 +846,7 @@
           <path fill-rule="evenodd" d="M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z"/>
         </g>
       </svg>
-      <span class="titlebar-title">MEIKOVA RELAY HOST</span>
+      <span class="titlebar-title">MEIKOVA RELAY HOST <span class="host-version-pill" id="txtHostVersion">v1.0.72</span></span>
     </div>
     <div class="titlebar-spacer pywebview-drag-region"></div>
     <div class="titlebar-actions">
@@ -1718,8 +1731,14 @@
       if (window.pywebview && window.pywebview.api && window.pywebview.api.get_initial_data) {
         try {
           const res = await window.pywebview.api.get_initial_data();
-          if (res && res.config) {
-            window.__initData(res.config, res.autostart, res.is_running, res.service_installed, res.deployment);
+          if (res) {
+            if (res.version) {
+              const el = document.getElementById('txtHostVersion');
+              if (el) el.textContent = res.version;
+            }
+            if (res.config) {
+              window.__initData(res.config, res.autostart, res.is_running, res.service_installed, res.deployment);
+            }
           }
         } catch (err) {
           console.error("Bridge init error:", err);

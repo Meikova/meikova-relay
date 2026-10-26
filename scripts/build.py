@@ -329,7 +329,16 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         "--hidden-import", "PIL.ImageGrab",
     ]
     if target_os == "windows":
-        hidden_args.extend(["--hidden-import", "mss.windows"])
+        hidden_args.extend([
+            "--hidden-import", "mss.windows",
+            "--hidden-import", "webview",
+            "--hidden-import", "webview.platforms.winforms",
+            "--hidden-import", "webview.platforms.edgechromium",
+            "--hidden-import", "clr",
+            "--hidden-import", "clr_loader",
+            "--hidden-import", "pythonnet",
+            "--collect-all", "webview",
+        ])
     elif target_os == "linux":
         hidden_args.extend(["--hidden-import", "mss.linux"])
     elif target_os == "macos":

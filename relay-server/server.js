@@ -1923,29 +1923,13 @@ cd /d "%TARGET_DIR%"
 
 echo [1/3] Kiem tra va cap nhat ban Standalone Desktop (.exe)...
 
-taskkill /f /im MeikovaRelayHost.exe >nul 2>&1
-
-timeout /t 1 /nobreak >nul 2>&1
+powershell -ExecutionPolicy Bypass -Command "Stop-Process -Name MeikovaRelayHost -Force -ErrorAction SilentlyContinue; Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match 'gui_agent\\.py' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 600"
 
 
 
-powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', '%TARGET_DIR%\\MeikovaRelayHost.exe.new') } catch {}"
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', '%TARGET_DIR%\\MeikovaRelayHost.exe.new'); if ((Get-Item '%TARGET_DIR%\\MeikovaRelayHost.exe.new').Length -gt 5000000) { Move-Item -Path '%TARGET_DIR%\\MeikovaRelayHost.exe.new' -Destination '%TARGET_DIR%\\MeikovaRelayHost.exe' -Force } } catch {}"
 
-if exist "%TARGET_DIR%\\MeikovaRelayHost.exe.new" (
-
-    for %%I in ("%TARGET_DIR%\\MeikovaRelayHost.exe.new") do if %%~zI GTR 5000000 (
-
-        taskkill /f /im MeikovaRelayHost.exe >nul 2>&1
-
-        timeout /t 1 /nobreak >nul 2>&1
-
-        move /y "%TARGET_DIR%\\MeikovaRelayHost.exe.new" "%TARGET_DIR%\\MeikovaRelayHost.exe" >nul 2>&1
-
-    )
-
-    if exist "%TARGET_DIR%\\MeikovaRelayHost.exe.new" del /f /q "%TARGET_DIR%\\MeikovaRelayHost.exe.new" >nul 2>&1
-
-)
+if exist "%TARGET_DIR%\\MeikovaRelayHost.exe.new" del /f /q "%TARGET_DIR%\\MeikovaRelayHost.exe.new" >nul 2>&1
 
 
 
@@ -2078,6 +2062,8 @@ goto :FINISH_SETUP
 
 
 :RUN_STANDALONE
+powershell -ExecutionPolicy Bypass -Command "Stop-Process -Name MeikovaRelayHost -Force -ErrorAction SilentlyContinue; Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match 'gui_agent\\.py' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 300"
+
 
 reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\\"%TARGET_DIR%\\MeikovaRelayHost.exe\\" --autostart" /f >nul 2>&1
 

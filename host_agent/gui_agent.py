@@ -18,6 +18,8 @@ from typing import Optional
 import multiprocessing
 multiprocessing.freeze_support()
 
+APP_VERSION = "1.0.72"
+
 # Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":
     try:
@@ -1901,6 +1903,7 @@ class HostApi:
         cfg_copy["relay_url"] = cfg_copy.get("relay") or "wss://meikova-relay.onrender.com"
         return {
             "config": cfg_copy,
+            "version": f"v{APP_VERSION}",
             "autostart": is_autostart_enabled(),
             "service_installed": is_windows_service_installed(),
             "deployment": get_deployment_status(),
@@ -2735,6 +2738,14 @@ def main():
         run_service_headless()
         return
 
+    if "--version" in sys.argv or "-v" in sys.argv:
+        print(f"Meikova Relay Host v{APP_VERSION}")
+        sys.exit(0)
+
+    if "--restart" in sys.argv or "--reload" in sys.argv:
+        send_ipc_command("STOP")
+        time.sleep(0.6)
+
     if "--stop" in sys.argv or "--quit" in sys.argv:
         resp = send_ipc_command("STOP")
         if resp:
@@ -2816,6 +2827,13 @@ def main():
     try:
         launch_webview_app(autostart=autostart)
     except Exception as e:
+        try:
+            with open(get_app_data_dir() / "gui.log", "a", encoding="utf-8") as f:
+                import traceback
+                f.write(f"WebView2 launch failed at {time.strftime('%Y-%m-%d %H:%M:%S')}: {e}\n")
+                traceback.print_exc(file=f)
+        except Exception:
+            pass
         print(f"[WARN] WebView2 launch failed ({e}), falling back to Tkinter GUI.")
         root = tk.Tk()
         app = MeikovaRelayHostGUI(root)
