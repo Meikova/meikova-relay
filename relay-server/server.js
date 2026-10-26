@@ -11,6 +11,7 @@ const os = require('os');
 const { WebSocketServer, WebSocket } = require('ws');
 
 const DB = require('./db');
+const { tunnelManager } = require('./tunnel_manager');
 
 
 
@@ -356,11 +357,15 @@ const server = http.createServer(async (req, res) => {
 
       const tailscaleUrl = tailscaleIp ? ((!isStandardPort && port) ? `${proto}://${tailscaleIp}:${port}` : `${proto}://${tailscaleIp}`) : null;
 
-      const activeUrl = `${proto}://${hostHeader}`.replace(/\/+$/, '');
+      let activeUrl = `${proto}://${hostHeader}`.replace(/\/+$/, '');
 
       const isLocal = hostHeader.startsWith('localhost') || hostHeader.startsWith('127.0.0.1');
 
+      const tunnelStatus = tunnelManager.getStatus();
 
+      if (tunnelStatus.running && tunnelStatus.url) {
+        activeUrl = tunnelStatus.url;
+      }
 
       return jsonResponse(res, 200, {
 
@@ -380,7 +385,9 @@ const server = http.createServer(async (req, res) => {
 
         public_origin: activeUrl,
 
-        is_local: isLocal
+        is_local: isLocal,
+
+        tunnel: tunnelStatus
 
       });
 
@@ -388,7 +395,44 @@ const server = http.createServer(async (req, res) => {
 
 
 
-    // 0.2 Standard QR Code Generator / Redirect Endpoint
+    // 0.15 Cloudflare Quick Tunnel API (Multi-Platform One-Click WAN)
+
+    if (pathname === '/api/tunnel/status' && req.method === 'GET') {
+      return jsonResponse(res, 200, tunnelManager.getStatus());
+    }
+
+    if (pathname === '/api/tunnel/start' && req.method === 'POST') {
+      try {
+        const st = await tunnelManager.start(PORT);
+        broadcastTunnelUpdate(st);
+        return jsonResponse(res, 200, { ok: true, ...st });
+      } catch (err) {
+        return jsonResponse(res, 500, { ok: false, error: err.message, ...tunnelManager.getStatus() });
+      }
+    }
+
+    if (pathname === '/api/tunnel/stop' && req.method === 'POST') {
+      const st = tunnelManager.stop();
+      broadcastTunnelUpdate(st);
+      return jsonResponse(res, 200, { ok: true, ...st });
+    }
+
+    if (pathname === '/api/tunnel/toggle' && req.method === 'POST') {
+      try {
+        let st;
+        if (tunnelManager.status === 'running') {
+          st = tunnelManager.stop();
+        } else {
+          st = await tunnelManager.start(PORT);
+        }
+        broadcastTunnelUpdate(st);
+        return jsonResponse(res, 200, { ok: true, ...st });
+      } catch (err) {
+        return jsonResponse(res, 500, { ok: false, error: err.message, ...tunnelManager.getStatus() });
+      }
+    }
+
+        // 0.2 Standard QR Code Generator / Redirect Endpoint
 
     if (pathname === '/api/qr' && req.method === 'GET') {
 
@@ -2855,6 +2899,18 @@ function removeAllEdgesForRoom(room) {
 
 
 
+
+function broadcastTunnelUpdate(tunnelStatus) {
+  const msg = JSON.stringify({ type: 'tunnel_update', tunnel: tunnelStatus });
+  if (wss && wss.clients) {
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try { client.send(msg); } catch (_) {}
+      }
+    });
+  }
+}
+
 function broadcastSessionList(room, targetWs = null) {
 
   if (!room || !room.clients) return;
@@ -4569,6 +4625,12 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`* Database:             ${adapterInfo.isTurso ? 'Turso Cloud SQLite' : 'SQLite WAL (meikova_relay.db)'}`);
 
   console.log(`====================================================`);
+
+  if (process.argv.includes('--tunnel') || process.env.AUTO_TUNNEL === '1') {
+    tunnelManager.start(PORT)
+      .then(st => console.log(`* Cloudflare Tunnel:    ${st.url}`))
+      .catch(e => console.error(`* Tunnel Auto-start:    [!] ${e.message}`));
+  }
 
 });
 

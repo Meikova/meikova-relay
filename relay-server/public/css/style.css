@@ -7215,6 +7215,127 @@ body.is-desktop-app .desktop-titlebar {
   }
 }
 
+
+/* ------------------------------------------------------------------ Cloudflare Quick Tunnel UI */
+.btn-tunnel-pill {
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  color: #60a5fa !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-tunnel-pill:hover {
+  border-color: rgba(59, 130, 246, 0.8) !important;
+  box-shadow: 0 0 14px -2px rgba(59, 130, 246, 0.35);
+}
+.btn-tunnel-pill.is-active {
+  border-color: rgba(34, 197, 94, 0.6) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 14px -2px rgba(34, 197, 94, 0.4);
+}
+.tunnel-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #64748b;
+  transition: background 0.25s, box-shadow 0.25s;
+}
+.tunnel-dot--idle {
+  background: #64748b;
+  box-shadow: none;
+}
+.tunnel-dot--starting {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: pulse-tunnel 1.2s infinite;
+}
+.tunnel-dot--running {
+  background: #22c55e;
+  box-shadow: 0 0 10px #22c55e;
+}
+.tunnel-dot--failed {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+@keyframes pulse-tunnel {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.tunnel-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+.tunnel-switch-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.btn-tunnel-action {
+  padding: 8px 18px;
+  font-weight: 600;
+  border-radius: 9999px;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  cursor: pointer;
+}
+.btn-tunnel-action.is-running {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #f87171 !important;
+}
+.tunnel-active-box {
+  background: rgba(34, 197, 94, 0.04);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.tunnel-field-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.tunnel-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.tunnel-url-input {
+  flex: 1;
+  background: #090e16;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #22c55e;
+  font-size: 0.82rem;
+  appearance: none;
+  outline: none;
+}
+.tunnel-url-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 12px -2px var(--accent-glow);
+}
+.tunnel-missing-box {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
 /* Zero-override visibility guarantee */
 .hidden,
 section.hidden,
