@@ -300,17 +300,159 @@ class ScreenCapture:
         return (self.monitors[0]["width"], self.monitors[0]["height"])
 
     def close(self):
-        if gdi32:
-            if self.hBmp:
-                if self.old_hBmp and self.mem_dc:
-                    gdi32.SelectObject(self.mem_dc, self.old_hBmp)
-                    self.old_hBmp = None
-                gdi32.DeleteObject(self.hBmp)
-                self.hBmp = None
-            if self.mem_dc:
-                gdi32.DeleteDC(self.mem_dc)
-                self.mem_dc = None
-        if user32 and self.src_dc:
-            user32.ReleaseDC(0, self.src_dc)
-            self.src_dc = None
+        """Releases native capture contexts."""
+        if self._native_cap is not None:
+            try:
+                self._native_cap.close()
+            except Exception:
+                pass
+            self._native_cap = None
+        if self._sct is not None:
+            try:
+                self._sct.close()
+            except Exception:
+                pass
+            self._sct = None
+
+    def capture_frame(self, force: bool = False) -> Optional[bytes]:
+        """
+        Captures the specified monitor desktop, encodes to JPEG, and returns raw bytes.
+        Returns None if frame is identical to previous frame (skip static frames),
+        except sending keepalive frames periodically (4 FPS) to prevent client stream starvation.
+        """
+        try:
+            self._attach_window_station()
+
+            left, top, w, h = 0, 0, 1920, 1080
+            if self.active_monitor_id == 0:
+                if user32:
+                    left = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+                    top = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+                    w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+                    h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+                if w <= 0 or h <= 0:
+                    left, top = 0, 0
+                    w = user32.GetSystemMetrics(SM_CXSCREEN) if user32 else 1920
+                    h = user32.GetSystemMetrics(SM_CYSCREEN) if user32 else 1080
+            else:
+                for m in self.monitors:
+                    if m["id"] == self.active_monitor_id:
+                        left, top, w, h = m["x"], m["y"], m["width"], m["height"]
+                        break
+
+            now = time.time()
+            img = None
+
+            # Primary Tier 1: Zero-allocation Win32 GDI DIBSection capture
+            if self._native_cap is not None:
+                try:
+                    native_img, raw_buf, cursor_changed = self._native_cap.grab(left, top, w, h)
+                    if native_img is not None and raw_buf is not None:
+                        curr_hash = hash(memoryview(raw_buf)[::256].tobytes())
+                        is_static = (not force and not cursor_changed and curr_hash == self._last_frame_hash)
+                        if is_static:
+                            # Keepalive idle frame: maintain minimum 4 FPS so video stream & HUD stay alive
+                            if now - self._last_frame_sent_time > 0.25:
+                                self._last_frame_sent_time = now
+                            else:
+                                return None
+                        else:
+                            self._last_frame_hash = curr_hash
+                            self._last_frame_sent_time = now
+                        img = native_img
+                except Exception:
+                    self._native_cap = None
+
+            # Fallback Tier 2: mss direct grab
+            if img is None and self._sct is not None:
+                try:
+                    if self.active_monitor_id == 0:
+                        mon_target = self._sct.monitors[0]
+                    elif 1 <= self.active_monitor_id < len(self._sct.monitors):
+                        mon_target = self._sct.monitors[self.active_monitor_id]
+                    else:
+                        mon_target = self._sct.monitors[0]
+
+                    shot = self._sct.grab(mon_target)
+                    curr_hash = hash(memoryview(shot.raw)[::256].tobytes())
+                    if not force and curr_hash == self._last_frame_hash:
+                        if now - self._last_frame_sent_time > 0.25:
+                            self._last_frame_sent_time = now
+                        else:
+                            return None
+                    else:
+                        self._last_frame_hash = curr_hash
+                        self._last_frame_sent_time = now
+
+                    img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+                except Exception:
+                    self._sct = None
+
+            # Fallback Tier 3: Pillow ImageGrab (Cross-platform)
+            if img is None:
+                bbox = (left, top, left + w, top + h) if self.active_monitor_id != 0 else None
+                try:
+                    img = ImageGrab.grab(bbox=bbox, all_screens=True)
+                except Exception:
+                    img = ImageGrab.grab(bbox=bbox, all_screens=(self.active_monitor_id == 0))
+
+                if img is None:
+                    if self.is_headless:
+                        return generate_headless_placeholder(1920, 1080)
+                    return None
+
+                curr_hash = hash(memoryview(img.tobytes())[::256].tobytes())
+                if not force and curr_hash == self._last_frame_hash:
+                    if now - self._last_frame_sent_time > 0.25:
+                        self._last_frame_sent_time = now
+                    else:
+                        return None
+                else:
+                    self._last_frame_hash = curr_hash
+                    self._last_frame_sent_time = now
+
+            # Intelligent downscaling for virtual desktop (multi-monitor combined):
+            effective_max_w = self.max_width
+            if not effective_max_w and self.active_monitor_id == 0 and img.width > 2560:
+                effective_max_w = 2560
+
+            # Resize if maximum width is set (saves bandwidth)
+            if effective_max_w and img.width > effective_max_w:
+                aspect = img.height / img.width
+                new_w = effective_max_w
+                new_h = int(new_w * aspect)
+                # NEAREST is 10x faster for ECO/speed modes (1.4ms vs 14ms)
+                use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or self.quality <= 58
+                resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
+                img = img.resize((new_w, new_h), resample)
+
+            if getattr(self, "grayscale", False):
+                if img.mode != 'L':
+                    img = img.convert('L')
+            else:
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+            self._buffer.seek(0)
+            self._buffer.truncate(0)
+            save_kwargs = {
+                "format": "JPEG",
+                "quality": self.quality,
+                "optimize": False,
+                "fastdct": True,
+            }
+            if not getattr(self, "grayscale", False):
+                save_kwargs["subsampling"] = getattr(self, "subsampling", 2)
+
+            img.save(self._buffer, **save_kwargs)
+            return self._buffer.getvalue()
+
+        except Exception:
+            if getattr(self, 'is_headless', False):
+                try:
+                    w_res, h_res = getattr(self, 'resolution', (1920, 1080))
+                    return generate_headless_placeholder(w_res, h_res)
+                except Exception:
+                    pass
+            return None
 
