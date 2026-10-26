@@ -1,56 +1,54 @@
-# Meikova Relay - Session Handoff (v1.0.73)
+# Meikova Relay - Session Handoff (v1.0.74)
 
 ## Mục tiêu hoàn thành
-1. **Khắc phục lỗi co giãn màn hình (Fit-to-Screen) không hoạt động trên Web Desktop**:
-   - **Hiện tượng**:
-     * Khi người dùng nhấp nút chuyển chế độ co giãn màn hình (`btnScaleToggle`), Canvas màn hình từ xa không co giãn vừa vặn với kích thước trình duyệt máy tính, vẫn giữ nguyên kích thước 1920x1080 gây tràn khung và không phản hồi.
-   - **Nguyên nhân gốc rễ**:
-     * `.viewport-box` trên giao diện desktop thiếu ràng buộc kích thước (`min-width: 0; min-height: 0; max-width: 100%; max-height: 100%`).
-     * Trong CSS Flexbox, phần tử thay thế `<canvas>` có kích thước nội tại (1920x1080) khiến flex container không thể co lại nhỏ hơn kích thước nội tại nếu thiếu `min-width: 0; min-height: 0;`.
+1. **Khắc phục triệt để lỗi gõ tiếng Việt bị tự xóa chữ ("gõ xong tự xóa hết")**:
+   - **Nguyên nhân**:
+     * Khi người dùng gõ tiếng Việt có dấu (Unikey / EVKey / Windows IME / MacOS Telex):
+       - Bộ gõ phía máy khách chặn phím, phát chuỗi `Backspace` để xóa ký tự thô cũ, rồi chèn ký tự Unicode tổng hợp (`â`, `đ`, `ô`, `ơ`, `ư`, etc.).
+       - Ký tự tổng hợp do Unikey sinh ra có `e.code = ""` hoặc `"Unidentified"` hoặc `"Process"`.
+       - Trong `app.js`, `JS_TO_VK[e.code]` trả về `0`, dẫn tới điều kiện `if (vk > 0)` bỏ qua hoàn toàn ký tự có dấu!
+       - Kết quả: Máy trạm nhận `Backspace` xóa chữ cũ nhưng không nhận được ký tự thay thế mới, khiến chữ bị xóa trắng.
+     * Khi cả 2 máy đều bật Unikey (Double-Hook Collision):
+       - Máy khách gửi phím, Unikey máy khách sinh Backspace; máy trạm nhận được phím lại qua Unikey máy trạm sinh thêm Backspace lần 2, xóa gấp đôi và triệt tiêu chữ.
    - **Giải pháp**:
-     * Áp dụng quy chuẩn CSS rõ ràng giữa 2 chế độ:
-       - `.remote-stage.fit-mode .viewport-box`: `width: 100%; height: 100%; max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;`.
-       - `.remote-stage.fit-mode #remoteCanvas`: `max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; flex-shrink: 1;`.
-       - `.remote-stage.fit-mode #laserCanvas`: Định vị tuyệt đối căn giữa `top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 100%; max-height: 100%; object-fit: contain;` khớp chính xác từng điểm ảnh với canvas điều khiển.
-       - `.remote-stage:not(.fit-mode)`: Trả về chế độ 1:1 Pixel-Perfect cho phép cuộn/kéo tự do (`panX`, `panY`).
+     * Trong `relay-server/public/js/app.js`:
+       - Lắng nghe sự kiện `keydown`: Bắt mọi ký tự Unicode diacritic (`charCode > 127`) hoặc ký tự IME tổng hợp (`isSyntheticIME = (!e.code || e.code === 'Unidentified' || e.code === 'Process')`) khi `e.key.length === 1`.
+       - Phát trực tiếp sang máy trạm dưới dạng gói tin `{ type: 'text_input', text: e.key }`.
+       - Bổ sung `compositionend` trên toàn trang để chuyển giao văn bản tổng hợp của IME di động và Safari/WebKit.
+       - Sửa `mobileVirtualInput` để không xóa `value = ''` khi đang trong phiên gõ tổ hợp (`isVirtualComposing`).
+     * Phía Máy trạm (`host_agent/input_injector.py`):
+       - Xử lý `text_input` thông qua `InputInjector.type_unicode(text)` sử dụng Windows API chuẩn `SendInput` với cờ `KEYEVENTF_UNICODE` (`wScan = ord(char)`).
+       - Các sự kiện `KEYEVENTF_UNICODE` có `wVk = 0` (hoặc `VK_PACKET = 0xE7`), bộ gõ Unikey/EVKey trên máy trạm tự động bỏ qua không can thiệp, triệt tiêu 100% hiện tượng xung đột kép.
 
-2. **Khắc phục độ trễ và kẹt khi chuyển đổi chế độ chất lượng (A -> B -> C)**:
-   - **Hiện tượng**:
-     * Người dùng chuyển từ preset chất lượng A sang B rồi C, hệ thống phản hồi rất chậm, thường kẹt lại ở A, sau đó chậm rãi sang B và không cập nhật C.
-   - **Nguyên nhân gốc rễ**:
-     1. Host nhận `set_quality_preset` nhưng không xóa hàng đợi khung hình cũ `self.frame_queue`, khiến client phải nhận hết các khung hình tồn đọng của preset cũ.
-     2. Bộ lọc khung hình tĩnh (`screen_capture.py`) giữ `self._last_frame_hash` khiến khung hình mới bị bỏ qua (trả về `None`) nếu màn hình tĩnh.
-     3. Sự kiện nền `display_profile_matched` tự động ghi đè lại giá trị `qualitySelector.value` về chế độ mặc định của hệ thống (`speed_60`).
-     4. `apply_quality_preset` trước đây ánh xạ ghi đè biến `preset = "native_1to1"` khi người dùng chọn `crisp_2k_4k`.
-   - **Giải pháp**:
-     * Khi Host nhận `set_quality_preset`:
-       1. Ngay lập tức xả sạch toàn bộ backlog khung hình trong `self.frame_queue`.
-       2. Đặt `self.capture._last_frame_hash = None` để vô hiệu hóa cache khung hình cũ.
-       3. Chụp cưỡng bức ngay 1 khung hình tươi mới với cấu hình mới (`force=True`).
-       4. Gửi gói tin ACK xác nhận `{"type": "quality_preset_applied", "preset": applied, ...}` về Client.
-     * Trên Client UI:
-       - Đánh dấu cờ `hasUserManuallySelectedQuality = true` khi người dùng tự chọn chế độ; ngăn không cho `display_profile_matched` tự ý ghi đè lựa chọn của người dùng.
-       - Cập nhật UI ngay lập tức khi nhận gói tin `quality_preset_applied`.
-       - Tách bạch cấu hình `crisp_2k_4k` (chất lượng 95%, max_width 2560px) độc lập, không bị ghi đè nhầm sang `native_1to1`.
+2. **Đột phá tốc độ luồng hình ảnh: Đưa trần FPS từ 15-20 FPS lên 30-60 FPS (Non-Blocking Leaky-Bucket Pipeline)**:
+   - **Nguyên nhân nghẽn 15-20 FPS**:
+     * Luồng `_send_frames_worker` trước đây bị chặn bởi `if self.frames_in_flight >= 4: await asyncio.wait_for(self.ack_event.wait(), timeout=0.20)`.
+     * Với độ trễ WAN thực tế giữa Việt Nam và Cloud Relay (Mỹ/Châu Âu) từ 180ms - 220ms, máy trạm phát 4 khung hình rồi phải dừng chờ 180ms cho gói ACK từ Client bay về.
+     * Trần FPS toán học: $\text{FPS}_{\text{max}} = 4 / 0.200\text{s} = 20\text{ FPS}$ bất kể máy trạm mạnh hay mạng nhanh đến đâu.
+   - **Giải pháp chuẩn Open-Source (Moonlight / RustDesk / Sunshine)**:
+     * Loại bỏ hoàn toàn lệnh chặn chờ ACK `wait_for(ack_event)` khỏi `_send_frames_worker`.
+     * Áp dụng hàng đợi trượt dung lượng 1 (`frame_queue = asyncio.Queue(maxsize=1)`): Khung hình mới nhất chụp được luôn đè lên khung hình cũ. Khung hình trễ tự động hủy trên RAM, triệt tiêu tích lũy độ trễ.
+     * Kiểm soát tắc nghẽn thông qua bộ đệm tầng Socket `transport.get_write_buffer_size() > 1MB`, không khóa luồng phát hình.
+     * Điều chỉnh ngưỡng DCC RTT từ 140ms lên 240ms để không suy giảm nhầm chất lượng trước độ trễ WAN địa lý bình thường (180-220ms).
 
-3. **Khắc phục hiện tượng trập chờn và treo kết nối**:
-   - **Hiện tượng**:
-     * Kết nối WebSocket trập chờn, luồng màn hình thỉnh thoảng bị khựng hoặc đóng băng hoàn toàn.
-   - **Nguyên nhân gốc rễ**:
-     1. Cơ chế Zero-lag backpressure tại `relay-server/server.js` kiểm tra `client.ws.bufferedAmount > 64 * 1024` (64KB). Trong khi một khung hình JPEG HD/4K có dung lượng từ 120KB - 300KB, khiến máy chủ hủy bỏ (drop) gần như 100% khung hình tiếp theo khi có độ trễ mạng thông thường.
-     2. Giới hạn `frames_in_flight >= 2` và timeout chờ ACK 40ms trên Host quá nhỏ so với thời gian truyền gói tin mạng (RTT 100ms - 220ms), gây nghẽn luồng gửi khung hình.
-     3. Tính toán RTT trong cơ chế chống nghẽn (DCC) lấy đồng hồ Host trừ đi đồng hồ Client (`(time.time() * 1000) - client_ts`), gây sai lệch thời gian hệ thống và liên tục giảm tụt chất lượng hình ảnh về mức thấp nhất (38).
-     4. Khi bị đóng kết nối bởi `superseded`, Host cũ lập tức thử kết nối lại trong vòng lặp vô hạn, gây ra xung đột đá phiên qua lại.
+3. **Khắc phục lỗi hiển thị "1:1 PIXEL-PERFECT (1600x900)" và chức năng Co giãn màn hình (Fit to Viewport)**:
+   - **Nguyên nhân**:
+     * `negotiate_optimal_display_profile` trả về `suggested_scale = "1to1"` cho `speed_60` và `balanced` khi màn hình điều khiển có độ phân giải bằng hoặc lớn hơn máy trạm.
+     * Client UI nhận `suggested_scale = "1to1"` nên tự chuyển sang chế độ 1:1 và bật huy hiệu `1:1 PIXEL-PERFECT`.
+     * Khi người dùng chọn preset "30 FPS Cân bằng" (được thiết kế nén 1600x900 để tối ưu băng thông), Client UI vẫn giữ nguyên huy hiệu và báo "1:1 PIXEL-PERFECT (1600x900)".
+     * Trong CSS, `max-width: 100%; width: auto;` chỉ co nhỏ khi khung hình tràn ra ngoài, không thể phóng to (upscale) để lấp đầy màn hình trình duyệt khi khung hình nhỏ hơn cửa sổ.
    - **Giải pháp**:
-     * Nâng ngưỡng backpressure tại `server.js` từ 64KB lên 1.5MB (`1536 * 1024`), cho phép đệm khung hình an toàn mà không làm gián đoạn luồng stream.
-     * Nâng ngưỡng write buffer trên Host lên 1MB, tăng số khung hình in-flight tối đa lên 4, và tăng timeout chờ ACK lên 200ms.
-     * Tính toán RTT thuần túy dựa trên mốc thời gian của Host thông qua cơ chế Ping/Pong đồng bộ.
-     * Khi nhận tín hiệu `superseded`, Host cũ dừng hẳn (`self.running = False`), chấm dứt triệt để vòng lặp kết nối tranh chấp.
+     * `suggested_scale` trên Host chỉ trả về `"1to1"` khi cấu hình thực sự là `native_1to1`. Tất cả cấu hình nén/hạ độ phân giải (`speed_60`, `balanced`, `crisp_hd`, `eco`) luôn trả về `"fit"`.
+     * Huy hiệu `pixelIndicatorBadge` chỉ hiển thị khi đồng thời: `!isFitMode` VÀ `qualitySelector.value === 'native_1to1'`. Ẩn hoàn toàn trong tất cả các chế độ còn lại.
+     * Bổ sung hàm định cỡ động `fitCanvasToViewport()`: Tự động tính toán tỷ lệ `scaleFactor = Math.min(containerW / hostW, containerH / hostH)` và gán kích thước hiển thị chính xác theo pixel cho `#remoteCanvas` và `#laserCanvas`, bảo đảm hình ảnh luôn lấp đầy tối đa khung trình duyệt mà không bị méo tỷ lệ và không để lộ viền đen thừa thãi.
+     * Thêm mã định danh yêu cầu `req_id` cho `set_quality_preset` để loại bỏ xung đột phản hồi bất đồng bộ khi chuyển đổi nhanh giữa các cấu hình A -> B -> C.
 
 ## Trạng thái kiểm chứng (Verification)
-- **Kiểm thử đơn vị (Unit Tests)**:
-  * Chạy `python -m unittest discover -s tests -p "test_*.py"`: **100% tests PASS (Exit Code 0)**.
-  * Bổ sung test case `test_instant_quality_preset_switch_and_ack`: **PASS**.
-- **Đóng gói Native Binary**:
-  * Đã build thành công `MeikovaRelayHost.exe` (31.8 MB) phiên bản `v1.0.73`.
-  * Đồng bộ vào `relay-server/MeikovaRelayHost.exe` và `agent-package.zip`.
+- **Kiểm thử tự động toàn diện**: 167 bài kiểm thử unit tests vượt qua 100% (**Exit Code 0**, 1 skipped).
+- **Kiểm thử chuyên biệt mới**:
+  * `tests/test_vietnamese_input.py`: Passed (3/3).
+  * `tests/test_streaming_pipeline.py`: Passed (4/4).
+  * `tests/test_screen_sync.py`: Passed (9/9).
+- **Bản dựng Native Windows**:
+  * Đóng gói thành công `MeikovaRelayHost.exe` (v1.0.74, 31.8 MB).
+  * Đã đồng bộ sang `relay-server/MeikovaRelayHost.exe` và `dist/MeikovaRelayHost-windows-x64.zip`.

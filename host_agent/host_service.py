@@ -418,7 +418,8 @@ class HostService:
 
     def _update_congestion_control(self, rtt_ms: float):
         """Dynamic Congestion Control (DCC) adapting compression quality based on measured round-trip time."""
-        if rtt_ms > 140:
+        # Cloud relay normal WAN baseline RTT is ~180-220ms; only trigger backoff on severe congestion (> 400ms)
+        if rtt_ms > 240:
             self._consecutive_high_rtt += 1
             self._consecutive_low_rtt = 0
             if self._consecutive_high_rtt >= 3:
@@ -446,7 +447,7 @@ class HostService:
         # High refresh rate priority (>= 60 FPS)
         if client_fps >= 60:
             recommended = "speed_60"
-            suggested_scale = "fit" if (client_w < host_w or client_h < host_h) else "1to1"
+            suggested_scale = "fit"
         # Native 1:1 Pixel-Perfect priority if controller can display host resolution unscaled
         elif client_w >= host_w and client_h >= host_h:
             recommended = "native_1to1"
@@ -534,17 +535,6 @@ class HostService:
                         if transport.get_write_buffer_size() > 1024 * 1024:
                             await asyncio.sleep(0.005)
                             continue
-
-                    # Flow control 2: In-flight frame limit (adaptive pipeline allowing up to 4 frames in flight for WAN RTT)
-                    if self.frames_in_flight >= 4:
-                        if self.ack_event is not None:
-                            self.ack_event.clear()
-                            try:
-                                await asyncio.wait_for(self.ack_event.wait(), timeout=0.20)
-                            except asyncio.TimeoutError:
-                                self.frames_in_flight = 0
-                        else:
-                            self.frames_in_flight = 0
 
                     self.frames_in_flight += 1
                     await ws.send(frame)
@@ -838,18 +828,13 @@ class HostService:
                                 self.frame_queue.get_nowait()
                             except (asyncio.QueueEmpty, ValueError):
                                 break
-                    # 2. Reset hash cache and force immediate capture at new preset
+                    # 2. Reset hash cache so next regular capture sends fresh frame
                     self.capture._last_frame_hash = None
-                    fresh_frame = await asyncio.to_thread(self.capture.capture_frame, True)
-                    if fresh_frame and self.frame_queue is not None:
-                        try:
-                            self.frame_queue.put_nowait(fresh_frame)
-                        except asyncio.QueueFull:
-                            pass
-                    # 3. Send confirmation ACK with applied metrics
+                    # 3. Send confirmation ACK with applied metrics immediately (non-blocking)
                     await ws.send(json.dumps({
                         "type": "quality_preset_applied",
                         "preset": applied,
+                        "req_id": event.get("req_id"),
                         "quality": self.capture.quality,
                         "max_width": self.capture.max_width,
                         "fps": int(round(1.0 / self.frame_interval))

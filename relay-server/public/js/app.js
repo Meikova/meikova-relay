@@ -3399,10 +3399,14 @@
           }
           syncDisplayProfileWithHost(true);
         } else if (msg.type === 'quality_preset_applied') {
-          if (qualitySelector && qualitySelector.value !== msg.preset) {
-            qualitySelector.value = msg.preset;
+          if (!msg.req_id || msg.req_id >= qualityPresetReqId) {
+            if (qualitySelector && qualitySelector.value !== msg.preset) {
+              qualitySelector.value = msg.preset;
+            }
+            updateQualityMenuUI(msg.preset);
+            updatePixelIndicator();
+            fitCanvasToViewport();
           }
-          updateQualityMenuUI(msg.preset);
         } else if (msg.type === 'display_profile_matched') {
           handleDisplayProfileMatched(msg);
         } else if (msg.type === 'monitors_list') {
@@ -3696,6 +3700,44 @@
     }, 2000);
   }
 
+  function updatePixelIndicator() {
+    if (!pixelIndicatorBadge || !pixelIndicatorText) return;
+    const isActuallyNative1to1 = (!isFitMode && qualitySelector && qualitySelector.value === 'native_1to1');
+    if (isActuallyNative1to1) {
+      pixelIndicatorText.textContent = `1:1 PIXEL-PERFECT (${hostResolution.width}x${hostResolution.height})`;
+      pixelIndicatorBadge.classList.remove('hidden');
+    } else {
+      pixelIndicatorBadge.classList.add('hidden');
+    }
+  }
+
+  function fitCanvasToViewport() {
+    if (!remoteCanvas || !remoteSection) return;
+    if (!isFitMode) {
+      remoteCanvas.style.width = '';
+      remoteCanvas.style.height = '';
+      if (laserCanvas) {
+        laserCanvas.style.width = '';
+        laserCanvas.style.height = '';
+      }
+      return;
+    }
+    const containerW = remoteSection.clientWidth;
+    const containerH = remoteSection.clientHeight;
+    if (!containerW || !containerH || !hostResolution.width || !hostResolution.height) return;
+
+    const scaleFactor = Math.min(containerW / hostResolution.width, containerH / hostResolution.height);
+    const displayW = Math.round(hostResolution.width * scaleFactor);
+    const displayH = Math.round(hostResolution.height * scaleFactor);
+
+    remoteCanvas.style.width = `${displayW}px`;
+    remoteCanvas.style.height = `${displayH}px`;
+    if (laserCanvas) {
+      laserCanvas.style.width = `${displayW}px`;
+      laserCanvas.style.height = `${displayH}px`;
+    }
+  }
+
   function updateHostResolution(w, h) {
     hostResolution.width = w;
     hostResolution.height = h;
@@ -3704,10 +3746,8 @@
     laserCanvas.width = w;
     laserCanvas.height = h;
     metricRes.textContent = `${w}x${h}`;
-
-    if (pixelIndicatorText && !isFitMode) {
-      pixelIndicatorText.textContent = `1:1 PIXEL-PERFECT (${w}x${h})`;
-    }
+    updatePixelIndicator();
+    fitCanvasToViewport();
   }
 
   function setDisplayScaleMode(fit) {
@@ -3719,15 +3759,8 @@
     panX = 0;
     panY = 0;
     applyCanvasTransform();
-
-    if (pixelIndicatorBadge && pixelIndicatorText) {
-      if (!isFitMode) {
-        pixelIndicatorText.textContent = `1:1 PIXEL-PERFECT (${hostResolution.width}x${hostResolution.height})`;
-        pixelIndicatorBadge.classList.remove('hidden');
-      } else {
-        pixelIndicatorBadge.classList.add('hidden');
-      }
-    }
+    updatePixelIndicator();
+    fitCanvasToViewport();
   }
 
   function detectClientDisplayCapabilities() {
@@ -3797,7 +3830,7 @@
     if (isMobileDevice) {
       // Mobile touch screens must ALWAYS stay fitted to the viewport
       setDisplayScaleMode(true);
-    } else if (msg.suggested_scale === '1to1' || recommended === 'native_1to1') {
+    } else if (recommended === 'native_1to1') {
       setDisplayScaleMode(false);
     } else {
       setDisplayScaleMode(true);
@@ -4292,6 +4325,9 @@
 
   function handleViewportResize() {
     syncTrueViewportHeight();
+    if (currentView === 'remote') {
+      fitCanvasToViewport();
+    }
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
                            window.innerWidth <= 1024;
@@ -4362,6 +4398,8 @@
     });
   });
 
+  let qualityPresetReqId = 0;
+
   // --- QUALITY & RESOLUTION PRESET ---
   qualitySelector.addEventListener('change', () => {
     const activePreset = qualitySelector.value;
@@ -4374,9 +4412,16 @@
       return;
     }
 
+    if (preset === 'native_1to1') {
+      setDisplayScaleMode(false);
+    } else {
+      setDisplayScaleMode(true);
+    }
+
     ws.send(JSON.stringify({
       type: 'set_quality_preset',
-      preset: preset
+      preset: preset,
+      req_id: ++qualityPresetReqId
     }));
 
     const presetKeyMap = {
@@ -5293,7 +5338,7 @@
     } catch {}
   });
 
-  // --- KEYBOARD CAPTURE (PREVENT LEAKS INTO TEXT INPUTS) ---
+  // --- KEYBOARD CAPTURE (PREVENT LEAKS INTO TEXT INPUTS & FULL VIETNAMESE SUPPORT) ---
   window.addEventListener('keydown', (e) => {
     if (!isConnected || currentView !== 'remote') return;
 
@@ -5308,6 +5353,22 @@
     // Let browser paste event capture client clipboard, sync to host, and trigger remote paste!
     if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyV' || e.key === 'v' || e.key === 'V')) {
       return;
+    }
+
+    // Intercept printable Unicode diacritics & synthetic IME/Unikey replacement keys:
+    // Unikey synthesizes Backspaces then injects replacement characters like â, đ, ê, ơ, ư, etc.
+    // In browser, these synthetic keys have charCode > 127 or unmapped/empty e.code ('', 'Unidentified', 'Process')
+    if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key && e.key.length === 1) {
+      const charCode = e.key.charCodeAt(0);
+      const isUnicodeDiacritic = charCode > 127;
+      const isSyntheticIME = (!e.code || e.code === 'Unidentified' || e.code === 'Process');
+      if (isUnicodeDiacritic || isSyntheticIME) {
+        ws.send(JSON.stringify({
+          type: 'text_input',
+          text: e.key
+        }));
+        return;
+      }
     }
 
     const vk = JS_TO_VK[e.code] || 0;
@@ -5332,6 +5393,13 @@
       return;
     }
 
+    // Skip synthetic/Unicode characters already handled via text_input
+    if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key && e.key.length === 1) {
+      if (e.key.charCodeAt(0) > 127 || !e.code || e.code === 'Unidentified' || e.code === 'Process') {
+        return;
+      }
+    }
+
     const vk = JS_TO_VK[e.code] || 0;
     if (vk > 0) {
       if (['Tab', 'AltLeft', 'AltRight', 'Backspace'].includes(e.code)) {
@@ -5342,6 +5410,19 @@
         code: e.code,
         vk: vk
       }));
+    }
+  });
+
+  // Capture IME composition completion (MacOS Telex, Windows IME, Android Gboard)
+  window.addEventListener('compositionend', (e) => {
+    if (!isConnected || currentView !== 'remote') return;
+    const activeEl = document.activeElement;
+    const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (activeEl && activeEl.isContentEditable)) {
+      return;
+    }
+    if (e.data && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'text_input', text: e.data }));
     }
   });
 
@@ -5388,6 +5469,8 @@
 
   // --- MOBILE SOFT KEYBOARD BRIDGE ---
   if (btnMobileKeyboard && mobileVirtualInput) {
+    let isVirtualComposing = false;
+
     btnMobileKeyboard.addEventListener('click', (e) => {
       e.stopPropagation();
       mobileVirtualInput.value = '';
@@ -5395,7 +5478,21 @@
       showToast('Đã mở bàn phím ảo di động', 'info', 1200);
     });
 
-    mobileVirtualInput.addEventListener('input', () => {
+    mobileVirtualInput.addEventListener('compositionstart', () => {
+      isVirtualComposing = true;
+    });
+
+    mobileVirtualInput.addEventListener('compositionend', (e) => {
+      isVirtualComposing = false;
+      const text = e.data || mobileVirtualInput.value;
+      if (text && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'text_input', text }));
+      }
+      mobileVirtualInput.value = '';
+    });
+
+    mobileVirtualInput.addEventListener('input', (e) => {
+      if (isVirtualComposing || e.isComposing) return;
       const text = mobileVirtualInput.value;
       if (text && ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'text_input', text }));
