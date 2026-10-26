@@ -2700,12 +2700,16 @@ def main():
     ensure_interactive_desktop()
     if sys.platform == "win32":
         try:
+            if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+                sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+                sys.stderr.reconfigure(encoding="utf-8", errors="replace")
             import ctypes
             if ctypes.windll.kernel32.AttachConsole(-1):
                 if sys.stdout is None or not hasattr(sys.stdout, "write"):
-                    sys.stdout = open("CONOUT$", "w", encoding="utf-8")
+                    sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace")
                 if sys.stderr is None or not hasattr(sys.stderr, "write"):
-                    sys.stderr = open("CONOUT$", "w", encoding="utf-8")
+                    sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace")
         except Exception:
             pass
 
