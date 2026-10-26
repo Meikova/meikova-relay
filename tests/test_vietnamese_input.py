@@ -8,6 +8,7 @@ from host_agent.input_injector import InputInjector
 from host_agent.input_mapper import InputMapper
 
 class TestVietnameseInput(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == "win32", "Win32 SendInput unicode injection tests")
     def test_unicode_normalization_and_characters(self):
         # Vietnamese text with combined accents and special characters
         sample_text = "Tiếng Việt có dấu: ă, â, đ, ê, ô, ơ, ư, ã, ả, ạ, á, à"
@@ -26,6 +27,7 @@ class TestVietnameseInput(unittest.TestCase):
         self.assertIn(ord('ă'), scans)
         self.assertIn(ord('ê'), scans)
 
+    @unittest.skipUnless(sys.platform == "win32", "Win32 SendInput unicode injection tests")
     def test_type_unicode_multiline_newlines(self):
         text = "Dong 1\nDong 2\r\nDong 3"
         down_vks = []
