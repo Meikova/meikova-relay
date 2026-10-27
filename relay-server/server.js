@@ -3689,6 +3689,15 @@ wss.on('connection', (ws, req) => {
 
       }));
 
+      if (room.curtainActive) {
+        ws.send(JSON.stringify({
+          type: 'privacy_curtain_response',
+          enabled: true,
+          success: true,
+          message: 'Màn hình máy trạm đang trong Chế độ Riêng tư.'
+        }));
+      }
+
 
 
 
@@ -4474,7 +4483,13 @@ wss.on('connection', (ws, req) => {
 
       if (room && room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
 
-        room.hostWs.send(message.toString());
+        if (type === 'toggle_privacy_curtain') {
+          data.sessionId = ws.sessionId;
+          data.username = ws.username;
+          room.hostWs.send(JSON.stringify(data));
+        } else {
+          room.hostWs.send(message.toString());
+        }
 
       }
 
@@ -4521,6 +4536,10 @@ wss.on('connection', (ws, req) => {
       }
 
       if (room && room.clients) {
+
+        if (type === 'privacy_curtain_response') {
+          room.curtainActive = !!data.enabled;
+        }
 
         const msgStr = message.toString();
 

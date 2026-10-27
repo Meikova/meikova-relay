@@ -9,6 +9,7 @@ except (ImportError, ValueError):
 # Win32 Constants
 INPUT_MOUSE = 0
 INPUT_KEYBOARD = 1
+MEIKOVA_INPUT_MAGIC = 0x4D45494B  # Magic token to pass privacy curtain hooks
 
 MOUSEEVENTF_MOVE = 0x0001
 MOUSEEVENTF_LEFTDOWN = 0x0002
@@ -120,7 +121,7 @@ class InputInjector:
             inp.u.mi.mouseData = 0
             inp.u.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK
             inp.u.mi.time = 0
-            inp.u.mi.dwExtraInfo = 0
+            inp.u.mi.dwExtraInfo = MEIKOVA_INPUT_MAGIC
             return cls._send(inp)
 
         # Cross-platform fallback for Linux / macOS
@@ -143,6 +144,7 @@ class InputInjector:
             inp = INPUT()
             inp.type = INPUT_MOUSE
             inp.u.mi.dwFlags = flag
+            inp.u.mi.dwExtraInfo = MEIKOVA_INPUT_MAGIC
             return InputInjector._send(inp)
 
         try:
@@ -165,6 +167,7 @@ class InputInjector:
             inp = INPUT()
             inp.type = INPUT_MOUSE
             inp.u.mi.dwFlags = flag
+            inp.u.mi.dwExtraInfo = MEIKOVA_INPUT_MAGIC
             return InputInjector._send(inp)
 
         try:
@@ -183,6 +186,7 @@ class InputInjector:
             inp.u.mi.dwFlags = MOUSEEVENTF_WHEEL
             w_delta = int(delta_y * 1.2)
             inp.u.mi.mouseData = w_delta
+            inp.u.mi.dwExtraInfo = MEIKOVA_INPUT_MAGIC
             return InputInjector._send(inp)
 
         try:
@@ -207,7 +211,7 @@ class InputInjector:
             inp.u.ki.wScan = 0
             inp.u.ki.dwFlags = flags
             inp.u.ki.time = 0
-            inp.u.ki.dwExtraInfo = 0
+            inp.u.ki.dwExtraInfo = MEIKOVA_INPUT_MAGIC
             return InputInjector._send(inp)
 
         try:
@@ -232,7 +236,7 @@ class InputInjector:
             inp.u.ki.wScan = 0
             inp.u.ki.dwFlags = flags
             inp.u.ki.time = 0
-            inp.u.ki.dwExtraInfo = 0
+            inp.u.ki.dwExtraInfo = MEIKOVA_INPUT_MAGIC
             return InputInjector._send(inp)
 
         try:
@@ -265,6 +269,7 @@ class InputInjector:
                 inp_down.u.ki.wVk = 0
                 inp_down.u.ki.wScan = ord(char)
                 inp_down.u.ki.dwFlags = KEYEVENTF_UNICODE
+                inp_down.u.ki.dwExtraInfo = MEIKOVA_INPUT_MAGIC
                 InputInjector._send(inp_down)
 
                 # Key up
@@ -273,6 +278,7 @@ class InputInjector:
                 inp_up.u.ki.wVk = 0
                 inp_up.u.ki.wScan = ord(char)
                 inp_up.u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
+                inp_up.u.ki.dwExtraInfo = MEIKOVA_INPUT_MAGIC
                 InputInjector._send(inp_up)
             return
 

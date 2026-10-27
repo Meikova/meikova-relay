@@ -182,6 +182,7 @@ class HostService:
         # Protocol Negotiation Matrix & TCP Tunnel Manager
         self.protocol_matrix = {}
         self.tunnel_manager = TcpTunnelManager(send_ws_fn=self._send_ws_tunnel_msg)
+        self.curtain_active_sessions = set()
 
     def stop(self):
         """Gracefully stop HostService, notifying relay server and tearing down connections."""
@@ -189,6 +190,7 @@ class HostService:
         self.running = False
         self.has_active_client = False
         self.audio_enabled = False
+        self.curtain_active_sessions.clear()
         try:
             privacy_curtain.disable()
             InputInjector.set_block_input(False)
@@ -690,14 +692,46 @@ class HostService:
                         "type": "terminal_output",
                         "data": f"=== MEIKOVA RELAY POWERSHELL (UTF-8) SẴN SÀNG ===\r\nThiết bị: {self.device_name} | Thư mục: {cwd}\r\nPS {cwd}> "
                     }))
+                    if privacy_curtain.is_active:
+                        await ws.send(json.dumps({
+                            "type": "privacy_curtain_response",
+                            "enabled": True,
+                            "activeSessions": list(self.curtain_active_sessions),
+                            "success": True,
+                            "message": "Màn hình máy trạm đang trong Chế độ Riêng tư."
+                        }))
                     continue
 
                 elif ev_type == "client_disconnected":
                     client_count = event.get("clientCount", 0)
-                    logger.info(f"[-] Client disconnected. Remaining active clients: {client_count}")
+                    sess_id = event.get("sessionId") or event.get("session_id")
+                    logger.info(f"[-] Client disconnected ({sess_id}). Remaining active clients: {client_count}")
+                    if sess_id:
+                        self.curtain_active_sessions.discard(sess_id)
+
+                    # Fail-safe auto-exit: if all clients left, or all requesting sessions disconnected
+                    if client_count <= 0 or not self.curtain_active_sessions:
+                        if privacy_curtain.is_active:
+                            logger.info("[PrivacyCurtain] Auto-disabling curtain mode: requesting client disconnected.")
+                            privacy_curtain.disable()
+                            InputInjector.set_block_input(False)
+                            self.curtain_active_sessions.clear()
+                            if ws and not ws.closed:
+                                try:
+                                    await ws.send(json.dumps({
+                                        "type": "privacy_curtain_response",
+                                        "enabled": False,
+                                        "activeSessions": [],
+                                        "success": True,
+                                        "message": "Đã tự động tắt Chế độ Riêng tư do người điều khiển ngắt kết nối."
+                                    }))
+                                except Exception:
+                                    pass
+
                     if client_count <= 0:
                         self.has_active_client = False
                         self.audio_enabled = False
+                        self.curtain_active_sessions.clear()
                         privacy_curtain.disable()
                         InputInjector.set_block_input(False)
                         self.audio_capture.stop()
@@ -1285,15 +1319,22 @@ class HostService:
                 # Privacy Curtain Mode (Blank host monitor & block physical input)
                 elif ev_type == "toggle_privacy_curtain":
                     enabled = bool(event.get("enabled", False))
+                    sess_id = event.get("sessionId") or event.get("session_id") or "default"
                     if enabled:
+                        self.curtain_active_sessions.add(sess_id)
                         res = privacy_curtain.enable()
                         InputInjector.set_block_input(True)
                     else:
-                        res = privacy_curtain.disable()
-                        InputInjector.set_block_input(False)
+                        self.curtain_active_sessions.discard(sess_id)
+                        if not self.curtain_active_sessions:
+                            res = privacy_curtain.disable()
+                            InputInjector.set_block_input(False)
+                        else:
+                            res = {"success": True, "active": True, "message": "Chế độ riêng tư vẫn duy trì do phiên khác đang yêu cầu."}
                     await ws.send(json.dumps({
                         "type": "privacy_curtain_response",
                         "enabled": privacy_curtain.is_active,
+                        "activeSessions": list(self.curtain_active_sessions),
                         "success": res.get("success", True),
                         "message": res.get("message", "")
                     }))
@@ -1403,6 +1444,10 @@ class HostService:
                             t.cancel()
                         self.audio_capture.stop()
                         self.audio_playback.stop()
+                        # Fail-safe: ensure privacy curtain and input block are immediately disabled on disconnect
+                        self.curtain_active_sessions.clear()
+                        privacy_curtain.disable()
+                        InputInjector.set_block_input(False)
                     await self.tunnel_manager.close_all()
 
                 except (websockets.ConnectionClosed, ConnectionRefusedError, OSError, ssl.SSLError) as e:
@@ -1439,6 +1484,9 @@ class HostService:
                             pass
                     await asyncio.sleep(5)
         finally:
+            self.curtain_active_sessions.clear()
+            privacy_curtain.disable()
+            InputInjector.set_block_input(False)
             PowerManager.prevent_sleep(False)
 
 def resolve_config_path() -> Optional[Path]:
