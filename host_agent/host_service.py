@@ -126,6 +126,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger("HostAgent")
 
+def is_current_user_admin() -> bool:
+    """Checks whether the current host agent process has Administrator/root privileges."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            return False
+    else:
+        try:
+            return os.geteuid() == 0
+        except Exception:
+            return False
+
 class HostService:
     """Manages outbound WebSocket connection to Relay Server and streams desktop + handles all remote events."""
 
@@ -627,6 +641,27 @@ class HostService:
                 logger.warning(f"Audio stream error (non-fatal): {e}")
                 await asyncio.sleep(0.1)
 
+    async def handle_control_event(self, raw_msg: str, ws):
+        """Processes a single incoming control event message through the host event loop."""
+        class _SingleMsgStream:
+            def __init__(self, msg, ws_target):
+                self._msg = msg
+                self._sent = False
+                self.ws = ws_target
+            def __aiter__(self):
+                return self
+            async def __anext__(self):
+                if not self._sent:
+                    self._sent = True
+                    return self._msg
+                raise StopAsyncIteration
+            async def send(self, data):
+                return await self.ws.send(data)
+            def __getattr__(self, name):
+                return getattr(self.ws, name)
+
+        await self._receive_events_loop(_SingleMsgStream(raw_msg, ws))
+
     async def _receive_events_loop(self, ws: websockets.WebSocketClientProtocol):
         logger.info("Event listener started")
         async for raw_msg in ws:
@@ -1061,12 +1096,33 @@ class HostService:
                 # Power Management
                 elif ev_type == "power_action":
                     action = event.get("action")
+                    is_admin = is_current_user_admin()
+                    ok = True
                     if action == "lock":
                         PowerManager.lock_workstation()
-                    elif action == "restart":
-                        PowerManager.restart_machine()
-                    elif action == "shutdown":
-                        PowerManager.shutdown_machine()
+                    elif action in ("restart", "shutdown"):
+                        if sys.platform == "win32" and not is_admin:
+                            logger.warning(f"[HostService] power_action {action} rejected: Administrator privileges required")
+                            ok = False
+                            await ws.send(json.dumps({
+                                "type": "power_action_response",
+                                "action": action,
+                                "success": False,
+                                "requires_admin": True,
+                                "error": "ADMIN_PRIVILEGES_REQUIRED",
+                                "message": "Khởi động lại / tắt máy trạm yêu cầu quyền Quản trị viên (Admin)."
+                            }))
+                            continue
+                        elif action == "restart":
+                            PowerManager.restart_machine()
+                        elif action == "shutdown":
+                            PowerManager.shutdown_machine()
+                    await ws.send(json.dumps({
+                        "type": "power_action_response",
+                        "action": action,
+                        "success": ok,
+                        "requires_admin": False
+                    }))
                     continue
 
                 # File Browser
@@ -1354,17 +1410,65 @@ class HostService:
                     InputInjector.type_unicode(event["text"])
                 elif ev_type == "block_input":
                     blocked = bool(event.get("blocked", False))
-                    ok = InputInjector.set_block_input(blocked)
-                    await ws.send(json.dumps({"type": "block_input_response", "blocked": blocked, "success": ok}))
+                    is_admin = is_current_user_admin()
+                    if sys.platform == "win32" and not is_admin:
+                        logger.warning("[HostService] block_input rejected: Administrator privileges required")
+                        await ws.send(json.dumps({
+                            "type": "block_input_response",
+                            "blocked": False,
+                            "success": False,
+                            "requires_admin": True,
+                            "error": "ADMIN_PRIVILEGES_REQUIRED",
+                            "message": "Khóa chuột & bàn phím yêu cầu quyền Quản trị viên (Admin) trên máy trạm."
+                        }))
+                    else:
+                        ok = InputInjector.set_block_input(blocked)
+                        await ws.send(json.dumps({
+                            "type": "block_input_response",
+                            "blocked": blocked if ok else False,
+                            "success": ok,
+                            "requires_admin": False
+                        }))
                 elif ev_type == "system_hotkey":
-                    combo = str(event.get("combo", "")).strip()
-                    ok = InputInjector.trigger_system_hotkey(combo)
-                    await ws.send(json.dumps({"type": "system_hotkey_response", "combo": combo, "success": ok}))
+                    combo = str(event.get("combo", "")).strip().lower()
+                    is_admin = is_current_user_admin()
+                    if combo in ("cad", "ctrl_alt_del") and sys.platform == "win32" and not is_admin:
+                        logger.info(f"[HostService] CAD hotkey requested without admin rights, attempting fallback...")
+                        ok = InputInjector.trigger_system_hotkey(combo)
+                        await ws.send(json.dumps({
+                            "type": "system_hotkey_response",
+                            "combo": combo,
+                            "success": ok,
+                            "requires_admin": not is_admin,
+                            "message": "Gửi tổ hợp phím SAS (Ctrl+Alt+Del) yêu cầu quyền Quản trị viên (Admin)." if not ok else ""
+                        }))
+                    else:
+                        ok = InputInjector.trigger_system_hotkey(combo)
+                        await ws.send(json.dumps({
+                            "type": "system_hotkey_response",
+                            "combo": combo,
+                            "success": ok,
+                            "requires_admin": False
+                        }))
 
                 # Privacy Curtain Mode (Blank host monitor & block physical input)
                 elif ev_type == "toggle_privacy_curtain":
                     enabled = bool(event.get("enabled", False))
                     sess_id = event.get("sessionId") or event.get("session_id") or "default"
+                    is_admin = is_current_user_admin()
+                    if enabled and sys.platform == "win32" and not is_admin:
+                        logger.warning("[HostService] toggle_privacy_curtain rejected: Administrator privileges required")
+                        await ws.send(json.dumps({
+                            "type": "privacy_curtain_response",
+                            "enabled": False,
+                            "activeSessions": list(self.curtain_active_sessions),
+                            "success": False,
+                            "requires_admin": True,
+                            "error": "ADMIN_PRIVILEGES_REQUIRED",
+                            "message": "Chế độ màn hình riêng tư yêu cầu quyền Quản trị viên (Admin) trên máy trạm."
+                        }))
+                        continue
+
                     if enabled:
                         self.curtain_active_sessions.add(sess_id)
                         res = privacy_curtain.enable()
@@ -1381,6 +1485,7 @@ class HostService:
                         "enabled": privacy_curtain.is_active,
                         "activeSessions": list(self.curtain_active_sessions),
                         "success": res.get("success", True),
+                        "requires_admin": False,
                         "message": res.get("message", "")
                     }))
                     continue

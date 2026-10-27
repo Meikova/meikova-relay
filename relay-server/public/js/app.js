@@ -3764,7 +3764,12 @@
             }
           }
         } else if (msg.type === 'block_input_response') {
-          if (msg.success !== false) {
+          if (msg.requires_admin) {
+            isInputBlocked = false;
+            btnToggleBlockInput?.classList.remove('btn-active', 'is-locked');
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            showToast(t('toast.requires_admin_block_input') || t('toast.requires_admin'), 'warning');
+          } else if (msg.success !== false) {
             isInputBlocked = !!msg.blocked;
             btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
             btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
@@ -3773,21 +3778,41 @@
                 ? (typeof t === 'function' ? t('toast.block_input_on') : 'Đang khóa chuột & phím máy đích')
                 : (typeof t === 'function' ? t('toast.block_input_off') : 'Khóa chuột & phím máy đích');
             }
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
             showToast(isInputBlocked ? t('toast.block_input_on') : t('toast.block_input_off'), isInputBlocked ? 'warning' : 'success');
           } else {
             btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
             btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
             showToast(t('toast.block_input_error') || 'Không thể thay đổi trạng thái khóa bàn phím & chuột', 'error');
           }
         } else if (msg.type === 'privacy_curtain_response') {
-          isCurtainActive = !!msg.enabled;
-          btnToggleCurtain?.classList.toggle('is-curtain-active', isCurtainActive);
-          curtainSvgOff?.classList.toggle('hidden', isCurtainActive);
-          curtainSvgOn?.classList.toggle('hidden', !isCurtainActive);
-          if (msg.success) {
-            showToast(isCurtainActive ? t('toast.curtain_enabled') : t('toast.curtain_disabled'), isCurtainActive ? 'warning' : 'success');
+          if (msg.requires_admin) {
+            isCurtainActive = false;
+            btnToggleCurtain?.classList.remove('is-curtain-active', 'btn-active');
+            curtainSvgOff?.classList.remove('hidden');
+            curtainSvgOn?.classList.add('hidden');
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            showToast(t('toast.requires_admin_curtain') || t('toast.requires_admin'), 'warning');
           } else {
-            showToast(t('toast.curtain_error', { error: msg.error || 'Failed' }), 'error');
+            isCurtainActive = !!msg.enabled;
+            btnToggleCurtain?.classList.toggle('is-curtain-active', isCurtainActive);
+            curtainSvgOff?.classList.toggle('hidden', isCurtainActive);
+            curtainSvgOn?.classList.toggle('hidden', !isCurtainActive);
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            if (msg.success) {
+              showToast(isCurtainActive ? t('toast.curtain_enabled') : t('toast.curtain_disabled'), isCurtainActive ? 'warning' : 'success');
+            } else {
+              showToast(t('toast.curtain_error', { error: msg.error || 'Failed' }), 'error');
+            }
+          }
+        } else if (msg.type === 'system_hotkey_response') {
+          if (msg.requires_admin) {
+            showToast(t('toast.requires_admin_hotkey') || t('toast.requires_admin'), 'warning');
+          }
+        } else if (msg.type === 'power_action_response') {
+          if (msg.requires_admin) {
+            showToast(t('toast.requires_admin_power') || t('toast.requires_admin'), 'warning');
           }
         } else if (msg.type === 'host_disconnected') {
           if (isAwaitingRemoteRestart) {
@@ -6972,13 +6997,15 @@
   let oskCtrl = false;
   let oskAlt = false;
 
-  btnToggleOSK.addEventListener('click', () => {
-    oskOverlay.classList.toggle('hidden');
-    btnToggleOSK.classList.toggle('btn-active', !oskOverlay.classList.contains('hidden'));
+  btnToggleOSK?.addEventListener('click', () => {
+    if (oskOverlay) {
+      oskOverlay.classList.toggle('hidden');
+      btnToggleOSK?.classList.toggle('btn-active', !oskOverlay.classList.contains('hidden'));
+    }
     updateKeyboardMenuUI();
   });
 
-  oskOverlay.addEventListener('click', (e) => {
+  oskOverlay?.addEventListener('click', (e) => {
     const keyBtn = e.target.closest('.osk-key');
     if (!keyBtn || !isConnected) return;
     const key = keyBtn.dataset.key;

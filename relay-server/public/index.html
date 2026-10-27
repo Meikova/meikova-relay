@@ -22,7 +22,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
   <link rel="stylesheet" href="/css/tokens.css?v=1.0.74">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.79">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.80">
 </head>
 <body>
 
@@ -1250,7 +1250,24 @@
         <button id="btnDeckPinQuick" class="deck__btn hidden" title="Ghim / Bỏ ghim thanh điều khiển" data-i18n-title="deck.pin_quick_title">
           <svg id="deckSvgPinActive" viewBox="0 0 24 24" style="color: var(--accent);"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 7l4 4v4l2 2 2-2v-4l4-4M9 3h6"/></svg>
           <svg id="deckSvgPinInactive" viewBox="0 0 24 24" class="hidden"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 7l4 4v4l2 2 2-2v-4l4-4M9 3h6"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
+                </button>
+
+        <div style="width: 1px; height: 16px; background: var(--line);"></div>
+
+        <button id="btnToggleAudio" class="deck__btn" title="Bật/Tắt truyền âm thanh máy trạm (Live Audio Stream)" data-i18n-title="deck.audio_title">
+          <svg id="audioSvgMuted" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          <svg id="audioSvgPlaying" viewBox="0 0 24 24" class="hidden" style="color: var(--accent);"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </button>
+        <button id="btnToggleMic" class="deck__btn" title="Bật/Tắt micro nói sang máy trạm (Live Voice Intercom)" data-i18n-title="deck.mic_title">
+          <svg id="micSvgMuted" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M19 10v2a7 7 0 0 1-.14 1.38M12 19a6.97 6.97 0 0 1-5-2.07M5 10v2a7 7 0 0 0 2 5"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <svg id="micSvgActive" viewBox="0 0 24 24" class="hidden" style="color: #22C55E;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <button id="btnToggleOSK" class="deck__btn" title="Mở bàn phím ảo" data-i18n-title="deck.osk_title">
+          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+        </button>
+
+        <div style="width: 1px; height: 16px; background: var(--line);"></div>
+
         <button type="button" id="btnShortcutsMenu" class="deck__btn" title="Tổ hợp phím &amp; Lệnh hệ thống (Shortcuts)" data-i18n-title="deck.shortcuts_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
@@ -1275,12 +1292,7 @@
           <button id="btnSnippetsMenu"></button>
           <button id="btnToggleBlockInput"></button>
           <button id="btnToggleCurtain"><svg id="curtainSvgOff"></svg><svg id="curtainSvgOn" class="hidden"></svg></button>
-        </div> class="deck__btn" title="Tổ hợp phím &amp; Lệnh hệ thống (Shortcuts)" data-i18n-title="deck.shortcuts_title">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
-            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M8 16h8"/>
-          </svg>
-        </button>
+        </div>
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
 
@@ -3264,9 +3276,9 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.79"></script>
+  <script src="/js/i18n.js?v=1.0.80"></script>
   <script src="/js/sync_engine.js?v=1.0.74"></script>
-  <script src="/js/app.js?v=1.0.79"></script>
+  <script src="/js/app.js?v=1.0.80"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {
