@@ -1917,6 +1917,14 @@
             </button>
           </div>
           <textarea id="clipboardViewer" class="instrument-input mono-font" rows="8" placeholder="Chưa có dữ liệu clipboard..." data-i18n-placeholder="shelf.clip_placeholder" style="width: 100%; resize: vertical;"></textarea>
+          <div id="shelfClipImageContainer" class="hidden" style="margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: rgba(0,0,0,0.25); text-align: center;">
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0 0 6px 0;" data-i18n="shelf.clip_image_title">Ảnh trong bộ nhớ tạm:</p>
+            <img id="shelfClipImagePreview" alt="Clipboard Preview" style="max-height: 140px; max-width: 100%; border-radius: 6px; object-fit: contain; border: 1px solid var(--line-highlight);" />
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+              <span id="shelfClipImageMeta" style="font-size: 0.72rem; color: var(--text-muted); font-family: monospace;"></span>
+              <button type="button" id="btnDownloadClipImage" class="btn-pill-sm" style="font-size: 0.72rem; padding: 3px 10px; border-color: var(--accent); color: var(--accent);" data-i18n="shelf.btn_download_clip_image">Tải ảnh</button>
+            </div>
+          </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;">
             <button type="button" id="btnPushClipboard" class="btn-pill" style="height: 38px; background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; font-size: 0.85rem; box-shadow: var(--glow); justify-content: center; margin: 0;" data-i18n="shelf.btn_push_clip">Đẩy clipboard</button>
             <button type="button" id="btnTypeDirect" class="btn-pill" style="height: 38px; border-color: var(--line-highlight); font-weight: 500; font-size: 0.85rem; justify-content: center; margin: 0;" title="Gõ trực tiếp ký tự Unicode vào ứng dụng đang mở (PowerPoint, Word, Notepad...)" data-i18n="shelf.btn_type_direct" data-i18n-title="shelf.type_direct_title">Gõ trực tiếp</button>
