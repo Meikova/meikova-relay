@@ -2324,7 +2324,7 @@ input:-webkit-autofill:active {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: var(--space-2);
-  z-index: 110;
+  z-index: 1500;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -2333,6 +2333,7 @@ input:-webkit-autofill:active {
   -webkit-backdrop-filter: blur(16px);
   min-width: 320px;
   max-width: 380px;
+  box-sizing: border-box;
 }
 
 .deck-at-top .quality-menu {
@@ -2439,8 +2440,12 @@ input:-webkit-autofill:active {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: 380px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .quality-menu-item {
@@ -6955,17 +6960,21 @@ body.is-desktop-app .desktop-titlebar {
   .deck {
     position: fixed !important;
     bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+    left: 6px !important;
+    right: 6px !important;
+    transform: none !important;
+    width: fit-content !important;
     max-width: calc(100vw - 12px) !important;
-    width: max-content !important;
+    margin-inline: auto !important;
     overflow-x: auto !important;
+    overscroll-behavior-x: contain !important;
     -webkit-overflow-scrolling: touch !important;
     scrollbar-width: none !important;
     padding: 3px 6px !important;
     gap: 3px !important;
     border-radius: 9999px !important;
     z-index: 600 !important;
+    box-sizing: border-box !important;
   }
 
   .deck::-webkit-scrollbar {
@@ -7018,24 +7027,71 @@ body.is-desktop-app .desktop-titlebar {
   /* Dropdown Menus & OSK bounded on small screens */
   .quality-menu,
   .resolution-menu,
+  .shortcuts-menu,
+  .tools-menu,
+  .snippets-menu,
   .monitor-menu,
   .protocol-menu,
   .power-menu,
   .deck-mode-menu,
   .keyboard-menu {
-    max-width: calc(100vw - 16px) !important;
-    width: calc(100vw - 16px) !important;
-    max-height: calc(100dvh - 60px) !important;
-    overflow-y: auto !important;
-    z-index: 1200 !important;
+    max-width: min(calc(100vw - 16px), 520px) !important;
+    width: min(calc(100vw - 16px), 520px) !important;
+    max-height: calc(100dvh - 56px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    overscroll-behavior: contain !important;
+    z-index: 1500 !important;
+    box-sizing: border-box !important;
+  }
+
+  .quality-menu-header {
+    flex-shrink: 0 !important;
   }
 
   .quality-menu-list,
   .resolution-menu .quality-menu-list,
+  .shortcuts-menu .quality-menu-list,
+  .tools-menu .quality-menu-list,
+  .snippets-menu .quality-menu-list,
   .monitor-menu .quality-menu-list,
   .protocol-menu-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
     max-height: calc(100dvh - 120px) !important;
     overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .virtual-devices-footer {
+    flex-shrink: 0 !important;
+  }
+
+  /* Compact items in mobile landscape */
+  .quality-menu-item {
+    padding: 5px 8px !important;
+    gap: 8px !important;
+  }
+  .quality-item-title {
+    font-size: 11.5px !important;
+    line-height: 1.25 !important;
+  }
+  .quality-item-desc {
+    font-size: 9.5px !important;
+    line-height: 1.25 !important;
+  }
+  .quality-item-badge,
+  .quality-item-icon {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 9.5px !important;
+    flex-shrink: 0 !important;
+  }
+  .quality-item-icon svg {
+    width: 13px !important;
+    height: 13px !important;
   }
 
   .osk-overlay {

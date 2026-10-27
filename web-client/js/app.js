@@ -4735,27 +4735,64 @@
     });
   }
 
+  const DECK_DROPDOWNS = [
+    { getDropdown: () => monitorMenuDropdown, getBtn: () => btnMonitorMenu },
+    { getDropdown: () => resolutionMenuDropdown, getBtn: () => btnResolutionMenu },
+    { getDropdown: () => qualityMenuDropdown, getBtn: () => btnQualityMenu },
+    { getDropdown: () => protocolMenuDropdown, getBtn: () => btnProtocolMenu },
+    { getDropdown: () => shortcutsMenuDropdown, getBtn: () => btnShortcutsMenu },
+    { getDropdown: () => moreToolsMenuDropdown, getBtn: () => btnMoreToolsMenu, onInactive: () => updateToolsMenuState?.() },
+    { getDropdown: () => snippetsMenuDropdown, getBtn: () => btnSnippetsMenu },
+    { getDropdown: () => keyboardMenuDropdown, getBtn: () => btnMobileKeyboard, onInactive: () => updateKeyboardMenuUI?.() },
+    { getDropdown: () => powerMenuDropdown, getBtn: () => btnPowerMenu },
+    { getDropdown: () => deckModeDropdown, getBtn: () => btnDeckDisplayMode },
+  ];
+
+  function closeAllDeckDropdowns(exceptDropdown = null) {
+    for (const item of DECK_DROPDOWNS) {
+      const d = item.getDropdown();
+      const b = item.getBtn();
+      if (d && d !== exceptDropdown) {
+        d.classList.add('hidden');
+        if (item.onInactive) {
+          item.onInactive();
+        } else if (b) {
+          b.classList.remove('btn-active');
+        }
+      }
+    }
+  }
+
   // Helper to dynamically position deck popovers directly aligned with their trigger button
   function positionDeckDropdown(triggerBtn, dropdownEl) {
     if (!triggerBtn || !dropdownEl) return;
-    const isMobile = window.innerWidth <= 640 || window.innerHeight <= 520;
-    const btnRect = triggerBtn.getBoundingClientRect();
     const isDeckAtTop = document.body.classList.contains('deck-at-top') ||
                          (floatingDeck && (floatingDeck.classList.contains('deck--top-pinned') || floatingDeck.classList.contains('deck--top-unpinned')));
+    const isMobile = window.innerWidth <= 640 || window.innerHeight <= 520;
+    const btnRect = triggerBtn.getBoundingClientRect();
 
+    // Dynamically calculate maximum safe vertical space so popover never overflows viewport
+    let maxAvailHeight = 380;
+    if (isDeckAtTop) {
+      const topOffset = Math.max(8, Math.round(btnRect.bottom + 6));
+      dropdownEl.style.top = `${topOffset}px`;
+      dropdownEl.style.bottom = 'auto';
+      maxAvailHeight = Math.max(140, Math.floor(window.innerHeight - topOffset - 12));
+    } else {
+      const bottomOffset = Math.max(8, Math.round(window.innerHeight - btnRect.top + 6));
+      dropdownEl.style.bottom = `${bottomOffset}px`;
+      dropdownEl.style.top = 'auto';
+      maxAvailHeight = Math.max(140, Math.floor(btnRect.top - 12));
+    }
+    dropdownEl.style.maxHeight = `${maxAvailHeight}px`;
+
+    // Horizontal placement
     if (isMobile) {
       dropdownEl.style.left = '50%';
       dropdownEl.style.right = 'auto';
       dropdownEl.style.transform = 'translateX(-50%)';
-      dropdownEl.style.width = 'calc(100vw - 20px)';
-      dropdownEl.style.maxWidth = 'calc(100vw - 20px)';
-      if (isDeckAtTop) {
-        dropdownEl.style.top = `${Math.max(8, Math.round(btnRect.bottom + 6))}px`;
-        dropdownEl.style.bottom = 'auto';
-      } else {
-        dropdownEl.style.bottom = `${Math.max(8, Math.round(window.innerHeight - btnRect.top + 6))}px`;
-        dropdownEl.style.top = 'auto';
-      }
+      dropdownEl.style.width = 'min(calc(100vw - 16px), 520px)';
+      dropdownEl.style.maxWidth = 'min(calc(100vw - 16px), 520px)';
       return;
     }
 
@@ -4778,15 +4815,7 @@
     dropdownEl.style.right = 'auto';
     dropdownEl.style.transform = 'none';
     dropdownEl.style.width = '';
-    dropdownEl.style.maxWidth = '';
-
-    if (isDeckAtTop) {
-      dropdownEl.style.top = `${Math.round(btnRect.bottom + 8)}px`;
-      dropdownEl.style.bottom = 'auto';
-    } else {
-      dropdownEl.style.bottom = `${Math.round(window.innerHeight - btnRect.top + 8)}px`;
-      dropdownEl.style.top = 'auto';
-    }
+    dropdownEl.style.maxWidth = 'min(94vw, 480px)';
   }
 
   // Desktop Wheel & Drag-to-Scroll on Floating Deck
@@ -4801,20 +4830,12 @@
     }, { passive: false });
 
     floatingDeck.addEventListener('scroll', () => {
-      if (monitorMenuDropdown && !monitorMenuDropdown.classList.contains('hidden') && btnMonitorMenu) {
-        positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
-      }
-      if (resolutionMenuDropdown && !resolutionMenuDropdown.classList.contains('hidden') && btnResolutionMenu) {
-        positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
-      }
-      if (qualityMenuDropdown && !qualityMenuDropdown.classList.contains('hidden') && btnQualityMenu) {
-        positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
-      }
-      if (protocolMenuDropdown && !protocolMenuDropdown.classList.contains('hidden') && btnProtocolMenu) {
-        positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
-      }
-      if (keyboardMenuDropdown && !keyboardMenuDropdown.classList.contains('hidden') && btnMobileKeyboard) {
-        positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
+      for (const item of DECK_DROPDOWNS) {
+        const d = item.getDropdown();
+        const b = item.getBtn();
+        if (d && !d.classList.contains('hidden') && b) {
+          positionDeckDropdown(b, d);
+        }
       }
     }, { passive: true });
 
@@ -4861,26 +4882,12 @@
       panY = 0;
       applyCanvasTransform();
     }
-    if (protocolMenuDropdown && !protocolMenuDropdown.classList.contains('hidden') && btnProtocolMenu) {
-      positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
-    }
-    if (qualityMenuDropdown && !qualityMenuDropdown.classList.contains('hidden') && btnQualityMenu) {
-      positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
-    }
-    if (resolutionMenuDropdown && !resolutionMenuDropdown.classList.contains('hidden') && btnResolutionMenu) {
-      positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
-    }
-    if (monitorMenuDropdown && !monitorMenuDropdown.classList.contains('hidden') && btnMonitorMenu) {
-      positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
-    }
-    if (deckModeDropdown && !deckModeDropdown.classList.contains('hidden') && btnDeckDisplayMode) {
-      positionDeckDropdown(btnDeckDisplayMode, deckModeDropdown);
-    }
-    if (powerMenuDropdown && !powerMenuDropdown.classList.contains('hidden') && btnPowerMenu) {
-      positionDeckDropdown(btnPowerMenu, powerMenuDropdown);
-    }
-    if (keyboardMenuDropdown && !keyboardMenuDropdown.classList.contains('hidden') && btnMobileKeyboard) {
-      positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
+    for (const item of DECK_DROPDOWNS) {
+      const d = item.getDropdown();
+      const b = item.getBtn();
+      if (d && !d.classList.contains('hidden') && b) {
+        positionDeckDropdown(b, d);
+      }
     }
     if (typeof placeAllIndicators === 'function') placeAllIndicators();
   }
@@ -4896,27 +4903,12 @@
       e.stopPropagation();
       if (qualityMenuDropdown) {
         const isOpening = qualityMenuDropdown.classList.contains('hidden');
-        qualityMenuDropdown.classList.toggle('hidden');
+        closeAllDeckDropdowns(isOpening ? qualityMenuDropdown : null);
+        qualityMenuDropdown.classList.toggle('hidden', !isOpening);
         btnQualityMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
-          monitorMenuDropdown?.classList.add('hidden');
-          btnMonitorMenu?.classList.remove('btn-active');
-          resolutionMenuDropdown?.classList.add('hidden');
-          btnResolutionMenu?.classList.remove('btn-active');
-          if (protocolMenuDropdown) {
-            protocolMenuDropdown.classList.add('hidden');
-            if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
-          }
         }
-      }
-      if (powerMenuDropdown) {
-        powerMenuDropdown.classList.add('hidden');
-        if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
-      }
-      if (deckModeDropdown) {
-        deckModeDropdown.classList.add('hidden');
-        if (btnDeckDisplayMode) btnDeckDisplayMode.classList.remove('btn-active');
       }
     });
   }
@@ -6303,27 +6295,11 @@
     btnMobileKeyboard.addEventListener('click', (e) => {
       e.stopPropagation();
       const isOpening = keyboardMenuDropdown.classList.contains('hidden');
-      monitorMenuDropdown?.classList.add('hidden');
-      btnMonitorMenu?.classList.remove('btn-active');
-      resolutionMenuDropdown?.classList.add('hidden');
-      btnResolutionMenu?.classList.remove('btn-active');
-      qualityMenuDropdown?.classList.add('hidden');
-      btnQualityMenu?.classList.remove('btn-active');
-      protocolMenuDropdown?.classList.add('hidden');
-      btnProtocolMenu?.classList.remove('btn-active');
-      powerMenuDropdown?.classList.add('hidden');
-      btnPowerMenu?.classList.remove('btn-active');
-      deckModeDropdown?.classList.add('hidden');
-      btnDeckDisplayMode?.classList.remove('btn-active');
-      snippetsMenuDropdown?.classList.add('hidden');
-      btnSnippetsMenu?.classList.remove('btn-active');
-
+      closeAllDeckDropdowns(isOpening ? keyboardMenuDropdown : null);
       keyboardMenuDropdown.classList.toggle('hidden', !isOpening);
+      updateKeyboardMenuUI();
       if (isOpening) {
-        updateKeyboardMenuUI();
         positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
-      } else {
-        updateKeyboardMenuUI();
       }
     });
 
@@ -6548,23 +6524,12 @@
       e.stopPropagation();
       if (deckModeDropdown) {
         const isOpening = deckModeDropdown.classList.contains('hidden');
-        deckModeDropdown.classList.toggle('hidden');
+        closeAllDeckDropdowns(isOpening ? deckModeDropdown : null);
+        deckModeDropdown.classList.toggle('hidden', !isOpening);
         btnDeckDisplayMode.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnDeckDisplayMode, deckModeDropdown);
         }
-      }
-      if (powerMenuDropdown) {
-        powerMenuDropdown.classList.add('hidden');
-        if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
-      }
-      if (qualityMenuDropdown) {
-        qualityMenuDropdown.classList.add('hidden');
-        if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
-      }
-      if (protocolMenuDropdown) {
-        protocolMenuDropdown.classList.add('hidden');
-        if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
       }
     });
   }
@@ -6753,26 +6718,11 @@
       e.stopPropagation();
       if (protocolMenuDropdown) {
         const isOpening = protocolMenuDropdown.classList.contains('hidden');
-        protocolMenuDropdown.classList.toggle('hidden');
+        closeAllDeckDropdowns(isOpening ? protocolMenuDropdown : null);
+        protocolMenuDropdown.classList.toggle('hidden', !isOpening);
         btnProtocolMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
-          monitorMenuDropdown?.classList.add('hidden');
-          btnMonitorMenu?.classList.remove('btn-active');
-          resolutionMenuDropdown?.classList.add('hidden');
-          btnResolutionMenu?.classList.remove('btn-active');
-          if (qualityMenuDropdown) {
-            qualityMenuDropdown.classList.add('hidden');
-            if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
-          }
-          if (powerMenuDropdown) {
-            powerMenuDropdown.classList.add('hidden');
-            if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
-          }
-          if (deckModeDropdown) {
-            deckModeDropdown.classList.add('hidden');
-            if (btnDeckDisplayMode) btnDeckDisplayMode.classList.remove('btn-active');
-          }
         }
       }
     });
@@ -6868,23 +6818,12 @@
     e.stopPropagation();
     if (powerMenuDropdown) {
       const isOpening = powerMenuDropdown.classList.contains('hidden');
-      powerMenuDropdown.classList.toggle('hidden');
+      closeAllDeckDropdowns(isOpening ? powerMenuDropdown : null);
+      powerMenuDropdown.classList.toggle('hidden', !isOpening);
       btnPowerMenu.classList.toggle('btn-active', isOpening);
       if (isOpening) {
         positionDeckDropdown(btnPowerMenu, powerMenuDropdown);
       }
-    }
-    if (deckModeDropdown) {
-      deckModeDropdown.classList.add('hidden');
-      if (btnDeckDisplayMode) btnDeckDisplayMode.classList.remove('btn-active');
-    }
-    if (qualityMenuDropdown) {
-      qualityMenuDropdown.classList.add('hidden');
-      if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
-    }
-    if (protocolMenuDropdown) {
-      protocolMenuDropdown.classList.add('hidden');
-      if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
     }
   });
 
@@ -6932,23 +6871,11 @@
           ], 0);
         }
         const isOpening = monitorMenuDropdown.classList.contains('hidden');
-        monitorMenuDropdown.classList.toggle('hidden');
+        closeAllDeckDropdowns(isOpening ? monitorMenuDropdown : null);
+        monitorMenuDropdown.classList.toggle('hidden', !isOpening);
         btnMonitorMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
-          resolutionMenuDropdown?.classList.add('hidden');
-          btnResolutionMenu?.classList.remove('btn-active');
-          qualityMenuDropdown?.classList.add('hidden');
-          btnQualityMenu?.classList.remove('btn-active');
-          protocolMenuDropdown?.classList.add('hidden');
-          btnProtocolMenu?.classList.remove('btn-active');
-          keyboardMenuDropdown?.classList.add('hidden');
-          powerMenuDropdown?.classList.add('hidden');
-          btnPowerMenu?.classList.remove('btn-active');
-          deckModeDropdown?.classList.add('hidden');
-          btnDeckDisplayMode?.classList.remove('btn-active');
-          snippetsMenuDropdown?.classList.add('hidden');
-          btnSnippetsMenu?.classList.remove('btn-active');
         }
       }
     });
@@ -6959,20 +6886,11 @@
       e.stopPropagation();
       if (resolutionMenuDropdown) {
         const isOpening = resolutionMenuDropdown.classList.contains('hidden');
-        resolutionMenuDropdown.classList.toggle('hidden');
+        closeAllDeckDropdowns(isOpening ? resolutionMenuDropdown : null);
+        resolutionMenuDropdown.classList.toggle('hidden', !isOpening);
         btnResolutionMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
-          monitorMenuDropdown?.classList.add('hidden');
-          btnMonitorMenu?.classList.remove('btn-active');
-          qualityMenuDropdown?.classList.add('hidden');
-          btnQualityMenu?.classList.remove('btn-active');
-          protocolMenuDropdown?.classList.add('hidden');
-          btnProtocolMenu?.classList.remove('btn-active');
-          powerMenuDropdown?.classList.add('hidden');
-          btnPowerMenu?.classList.remove('btn-active');
-          deckModeDropdown?.classList.add('hidden');
-          btnDeckDisplayMode?.classList.remove('btn-active');
         }
       }
     });
@@ -7022,45 +6940,19 @@
   }
 
   document.addEventListener('click', (e) => {
-    if (monitorMenuDropdown && !monitorMenuDropdown.contains(e.target) && e.target !== btnMonitorMenu && (!btnMonitorMenu || !btnMonitorMenu.contains(e.target))) {
-      monitorMenuDropdown.classList.add('hidden');
-      if (btnMonitorMenu) btnMonitorMenu.classList.remove('btn-active');
+    const isInsideAnyDropdown = DECK_DROPDOWNS.some(item => {
+      const d = item.getDropdown();
+      const b = item.getBtn();
+      return (d && d.contains(e.target)) || (b && b.contains(e.target));
+    });
+    if (!isInsideAnyDropdown) {
+      closeAllDeckDropdowns();
     }
-    if (resolutionMenuDropdown && !resolutionMenuDropdown.contains(e.target) && e.target !== btnResolutionMenu && (!btnResolutionMenu || !btnResolutionMenu.contains(e.target))) {
-      resolutionMenuDropdown.classList.add('hidden');
-      if (btnResolutionMenu) btnResolutionMenu.classList.remove('btn-active');
-    }
-    if (powerMenuDropdown && !powerMenuDropdown.contains(e.target) && e.target !== btnPowerMenu && (!btnPowerMenu || !btnPowerMenu.contains(e.target))) {
-      powerMenuDropdown.classList.add('hidden');
-      if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
-    }
-    if (deckModeDropdown && !deckModeDropdown.contains(e.target) && e.target !== btnDeckDisplayMode && (!btnDeckDisplayMode || !btnDeckDisplayMode.contains(e.target))) {
-      deckModeDropdown.classList.add('hidden');
-      if (btnDeckDisplayMode) btnDeckDisplayMode.classList.remove('btn-active');
-    }
-    if (protocolMenuDropdown && !protocolMenuDropdown.contains(e.target) && e.target !== btnProtocolMenu && (!btnProtocolMenu || !btnProtocolMenu.contains(e.target))) {
-      protocolMenuDropdown.classList.add('hidden');
-      if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
-    }
-    if (qualityMenuDropdown && !qualityMenuDropdown.contains(e.target) && e.target !== btnQualityMenu && (!btnQualityMenu || !btnQualityMenu.contains(e.target))) {
-      qualityMenuDropdown.classList.add('hidden');
-      if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
-    }
-    if (snippetsMenuDropdown && !snippetsMenuDropdown.contains(e.target) && e.target !== btnSnippetsMenu && (!btnSnippetsMenu || !btnSnippetsMenu.contains(e.target))) {
-      snippetsMenuDropdown.classList.add('hidden');
-      if (btnSnippetsMenu) btnSnippetsMenu.classList.remove('btn-active');
-    }
-    if (shortcutsMenuDropdown && !shortcutsMenuDropdown.contains(e.target) && e.target !== btnShortcutsMenu && (!btnShortcutsMenu || !btnShortcutsMenu.contains(e.target))) {
-      shortcutsMenuDropdown.classList.add('hidden');
-      if (btnShortcutsMenu) btnShortcutsMenu.classList.remove('btn-active');
-    }
-    if (moreToolsMenuDropdown && !moreToolsMenuDropdown.contains(e.target) && e.target !== btnMoreToolsMenu && (!btnMoreToolsMenu || !btnMoreToolsMenu.contains(e.target))) {
-      moreToolsMenuDropdown.classList.add('hidden');
-      updateToolsMenuState();
-    }
-    if (keyboardMenuDropdown && !keyboardMenuDropdown.contains(e.target) && e.target !== btnMobileKeyboard && (!btnMobileKeyboard || !btnMobileKeyboard.contains(e.target))) {
-      keyboardMenuDropdown.classList.add('hidden');
-      updateKeyboardMenuUI();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeAllDeckDropdowns();
     }
   });
 
@@ -7764,19 +7656,11 @@
       e.stopPropagation();
       if (shortcutsMenuDropdown) {
         const isOpening = shortcutsMenuDropdown.classList.contains('hidden');
-        shortcutsMenuDropdown.classList.toggle('hidden');
+        closeAllDeckDropdowns(isOpening ? shortcutsMenuDropdown : null);
+        shortcutsMenuDropdown.classList.toggle('hidden', !isOpening);
         btnShortcutsMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnShortcutsMenu, shortcutsMenuDropdown);
-          moreToolsMenuDropdown?.classList.add('hidden');
-          snippetsMenuDropdown?.classList.add('hidden');
-          btnSnippetsMenu?.classList.remove('btn-active');
-          qualityMenuDropdown?.classList.add('hidden');
-          btnQualityMenu?.classList.remove('btn-active');
-          protocolMenuDropdown?.classList.add('hidden');
-          btnProtocolMenu?.classList.remove('btn-active');
-          powerMenuDropdown?.classList.add('hidden');
-          btnPowerMenu?.classList.remove('btn-active');
         }
       }
     });
@@ -7810,23 +7694,12 @@
       e.stopPropagation();
       if (moreToolsMenuDropdown) {
         const isOpening = moreToolsMenuDropdown.classList.contains('hidden');
-        moreToolsMenuDropdown.classList.toggle('hidden');
+        closeAllDeckDropdowns(isOpening ? moreToolsMenuDropdown : null);
+        moreToolsMenuDropdown.classList.toggle('hidden', !isOpening);
         if (isOpening) {
           positionDeckDropdown(btnMoreToolsMenu, moreToolsMenuDropdown);
-          updateToolsMenuState();
-          shortcutsMenuDropdown?.classList.add('hidden');
-          btnShortcutsMenu?.classList.remove('btn-active');
-          snippetsMenuDropdown?.classList.add('hidden');
-          btnSnippetsMenu?.classList.remove('btn-active');
-          qualityMenuDropdown?.classList.add('hidden');
-          btnQualityMenu?.classList.remove('btn-active');
-          protocolMenuDropdown?.classList.add('hidden');
-          btnProtocolMenu?.classList.remove('btn-active');
-          powerMenuDropdown?.classList.add('hidden');
-          btnPowerMenu?.classList.remove('btn-active');
-        } else {
-          updateToolsMenuState();
         }
+        updateToolsMenuState();
       }
     });
   }
@@ -7925,17 +7798,11 @@
       e.stopPropagation();
       if (snippetsMenuDropdown) {
         const isOpening = snippetsMenuDropdown.classList.contains('hidden');
-        snippetsMenuDropdown.classList.toggle('hidden');
+        closeAllDeckDropdowns(isOpening ? snippetsMenuDropdown : null);
+        snippetsMenuDropdown.classList.toggle('hidden', !isOpening);
         btnSnippetsMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnSnippetsMenu, snippetsMenuDropdown);
-        positionDeckDropdown(btnShortcutsMenu, shortcutsMenuDropdown);
-          qualityMenuDropdown?.classList.add('hidden');
-          btnQualityMenu?.classList.remove('btn-active');
-          protocolMenuDropdown?.classList.add('hidden');
-          btnProtocolMenu?.classList.remove('btn-active');
-          powerMenuDropdown?.classList.add('hidden');
-          btnPowerMenu?.classList.remove('btn-active');
         }
       }
     });
