@@ -751,8 +751,12 @@
 
       // Session Activity & Inactivity Timeout
 
-      'session.modal_title': 'Cấu hình phiên hoạt động',
-      'session.modal_subtitle': 'Tự động ngắt kết nối và đăng xuất an toàn khi không hoạt động',
+      'session.modal_title': 'Cài đặt hệ thống',
+      'session.modal_subtitle': 'Cấu hình thời gian chờ phiên và tùy chọn thông báo toast',
+      'settings.toasts_label': 'Thông báo Toast',
+      'settings.toasts_hint': 'Bật hoặc tắt popup thông báo góc màn hình. Tắt đi để làm việc yên tĩnh.',
+      'deck.settings_title': 'Cài đặt hệ thống & Toast...',
+      'deck.settings_desc': 'Tùy chọn bật tắt thông báo toast và thời gian chờ phiên',
       'session.remote_idle_label': 'Thời gian chờ ngắt kết nối (X phút)',
       'session.remote_idle_hint': 'Tự động ngắt phiên điều khiển máy trạm khi không có thao tác chuột/phím',
       'session.global_idle_label': 'Thời gian chờ tự động đăng xuất (Y phút)',
@@ -760,11 +764,11 @@
       'session.sliding_hint': 'Cơ chế trượt: Mọi thao tác chuột/phím sẽ tự làm mới token và gia hạn phiên để tránh văng.',
       'session.btn_cancel': 'Hủy',
       'session.btn_save': 'Lưu cấu hình',
-      'session.toast_saved': 'Đã lưu cấu hình phiên: X={x} phút, Y={y} phút',
+      'session.toast_saved': 'Đã lưu cấu hình: X={x} phút, Y={y} phút',
       'session.toast_remote_disconnected': 'Đã tự động ngắt kết nối máy trạm do không có thao tác trong {min} phút',
       'session.toast_global_logout': 'Đã tự động đăng xuất tài khoản do không hoạt động trong {min} phút',
-      'topbar.session_cfg': 'Phiên',
-      'topbar.session_cfg_title': 'Cấu hình thời gian chờ phiên (X/Y phút)',
+      'topbar.session_cfg': 'Cài đặt',
+      'topbar.session_cfg_title': 'Cài đặt hệ thống & Cấu hình phiên',
 
       // --- Desktop Window Controls ---
       'desktop.btn_min': 'Thu nhỏ',
@@ -1669,14 +1673,10 @@
 
       'session.modal_title': 'System Settings',
       'session.modal_subtitle': 'Configure session timeouts and toast notification preferences',
-      'session.btn_save': 'Save Settings',
       'settings.toasts_label': 'Toast Notifications',
       'settings.toasts_hint': 'Toggle status popup toasts at screen corner. Turn off for silent mode.',
       'deck.settings_title': 'System Settings & Toasts...',
       'deck.settings_desc': 'Toggle toast notifications and session timeouts',
-      'topbar.session_cfg': 'Settings',
-      'topbar.session_cfg_title': 'System Settings & Session Config',
-      'session.modal_subtitle': 'Auto-disconnect and secure logout when idle or inactive',
       'session.remote_idle_label': 'Inactivity Disconnect Timeout (X min)',
       'session.remote_idle_hint': 'Auto-disconnects workstation remote session when mouse/keys are idle',
       'session.global_idle_label': 'Auto-Logout Timeout (Y min)',
@@ -1684,11 +1684,11 @@
       'session.sliding_hint': 'Sliding session: Any user activity auto-refreshes token to prevent unexpected session drop.',
       'session.btn_cancel': 'Cancel',
       'session.btn_save': 'Save Settings',
-      'session.toast_saved': 'Saved session settings: X={x} min, Y={y} min',
+      'session.toast_saved': 'Saved system settings: X={x} min, Y={y} min',
       'session.toast_remote_disconnected': 'Workstation session disconnected due to {min} min inactivity',
       'session.toast_global_logout': 'Account logged out due to {min} min inactivity',
-      'topbar.session_cfg': 'Session',
-      'topbar.session_cfg_title': 'Configure session timeouts (X/Y min)',
+      'topbar.session_cfg': 'Settings',
+      'topbar.session_cfg_title': 'System Settings & Session Config',
 
       // --- Desktop Window Controls ---
       'desktop.btn_min': 'Minimize',

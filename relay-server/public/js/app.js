@@ -2796,6 +2796,9 @@
     if (cfgEnableToasts) {
       cfgEnableToasts.checked = localStorage.getItem('meikova_toast_enabled') !== 'false';
     }
+    if (window.MeikovaI18n && typeof window.MeikovaI18n.applyTranslations === 'function' && sessionConfigModal) {
+      window.MeikovaI18n.applyTranslations(sessionConfigModal);
+    }
     sessionConfigModal?.classList.remove('hidden');
   }
 
