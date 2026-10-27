@@ -23,7 +23,7 @@ try:
         _tjpeg = turbojpeg.TurboJPEG()
         _HAS_TURBOJPEG = True
     except RuntimeError:
-        # Auto-detect failed — try common install paths on Windows
+        # Auto-detect failed — try common install paths on Windows, Linux, macOS
         _lib_candidates = []
         if sys.platform == 'win32':
             meipass = getattr(sys, '_MEIPASS', None)
@@ -39,6 +39,26 @@ try:
                 _lib_candidates.insert(1, os.path.join(meipass, "host_agent", "turbojpeg.dll"))
             if exe_dir:
                 _lib_candidates.insert(0, os.path.join(exe_dir, "turbojpeg.dll"))
+        elif sys.platform.startswith('linux'):
+            _lib_candidates = [
+                "/usr/lib/x86_64-linux-gnu/libturbojpeg.so.0",
+                "/usr/lib/x86_64-linux-gnu/libturbojpeg.so",
+                "/usr/lib/aarch64-linux-gnu/libturbojpeg.so.0",
+                "/usr/lib/aarch64-linux-gnu/libturbojpeg.so",
+                "/usr/lib64/libturbojpeg.so.0",
+                "/usr/lib64/libturbojpeg.so",
+                "/usr/lib/libturbojpeg.so.0",
+                "/usr/lib/libturbojpeg.so",
+                "/usr/local/lib/libturbojpeg.so.0",
+                "/usr/local/lib/libturbojpeg.so",
+            ]
+        elif sys.platform == 'darwin':
+            _lib_candidates = [
+                "/opt/homebrew/lib/libturbojpeg.dylib",
+                "/opt/homebrew/opt/jpeg-turbo/lib/libturbojpeg.dylib",
+                "/usr/local/lib/libturbojpeg.dylib",
+                "/usr/local/opt/jpeg-turbo/lib/libturbojpeg.dylib",
+            ]
         for _lp in _lib_candidates:
             if os.path.isfile(_lp):
                 try:
