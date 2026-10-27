@@ -88,7 +88,7 @@ class PrivacyCurtain:
             logger.info("[PrivacyCurtain] Linux Privacy Curtain activated.")
             return {"success": True, "active": True, "message": "Đã bật Chế độ Riêng tư trên Linux."}
 
-        elif sys.platform.darwin:
+        elif sys.platform == "darwin":
             self._ensure_posix_thread(self._macos_curtain_thread, "MeikovaCurtainMacOS")
             logger.info("[PrivacyCurtain] macOS Privacy Curtain activated.")
             return {"success": True, "active": True, "message": "Đã bật Chế độ Riêng tư trên macOS."}

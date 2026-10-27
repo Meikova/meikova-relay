@@ -5,6 +5,7 @@ import json
 import urllib.request
 import urllib.error
 import socket
+import uuid
 from pathlib import Path
 import os
 
@@ -85,7 +86,7 @@ class TestTursoRelay(unittest.TestCase):
             self.assertEqual(data.get("relay"), "online")
 
     def test_02_auth_register_and_login_turso(self):
-        rand = f"py_turso_{int(time.time())}"
+        rand = f"py_turso_{uuid.uuid4().hex[:8]}_{int(time.time())}"
         reg_url = f"http://127.0.0.1:{self.port}/api/auth/register"
         payload = json.dumps({"username": rand, "password": "securePass123!"}).encode("utf-8")
         req = urllib.request.Request(reg_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
@@ -119,7 +120,7 @@ class TestTursoRelay(unittest.TestCase):
     def test_03_audit_logs_query(self):
         # Query audit logs endpoint using admin / auth token
         reg_url = f"http://127.0.0.1:{self.port}/api/auth/register"
-        rand = f"audit_usr_{int(time.time())}"
+        rand = f"audit_usr_{uuid.uuid4().hex[:8]}_{int(time.time())}"
         payload = json.dumps({"username": rand, "password": "securePass123!"}).encode("utf-8")
         req = urllib.request.Request(reg_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
         with urllib.request.urlopen(req, timeout=20) as res:
@@ -138,7 +139,7 @@ class TestTursoRelay(unittest.TestCase):
     def test_04_sync_endpoints(self):
         # Test offline-first sync push & pull
         reg_url = f"http://127.0.0.1:{self.port}/api/auth/register"
-        rand = f"sync_usr_{int(time.time())}"
+        rand = f"sync_usr_{uuid.uuid4().hex[:8]}_{int(time.time())}"
         payload = json.dumps({"username": rand, "password": "securePass123!"}).encode("utf-8")
         req = urllib.request.Request(reg_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
         with urllib.request.urlopen(req, timeout=20) as res:

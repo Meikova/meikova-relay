@@ -11,9 +11,7 @@ from unittest.mock import patch
 from input_injector import InputInjector
 
 class TestSystemHotkeys(unittest.TestCase):
-    @patch("ctypes.windll.user32.LockWorkStation", return_value=1, create=True)
-    @patch("subprocess.Popen")
-    def test_hotkey_combinations_supported(self, mock_popen, mock_lock):
+    def test_hotkey_combinations_supported(self):
         combos = [
             "cad", "lock", "taskmgr", "win_d", "win_e", "win_r",
             "win_x", "win_v", "win_shift_s", "win_i", "win_a",
