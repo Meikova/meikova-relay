@@ -15,15 +15,18 @@ class TestPrivacyCurtain(unittest.TestCase):
     def test_curtain_enable_and_disable_lifecycle(self):
         """Tests enabling and immediately disabling privacy curtain lifecycle."""
         curtain = PrivacyCurtain()
-        res_enable = curtain.enable()
-        self.assertIsInstance(res_enable, dict)
-        self.assertTrue(res_enable.get("success", False))
-        self.assertTrue(curtain.is_active)
+        try:
+            res_enable = curtain.enable()
+            self.assertIsInstance(res_enable, dict)
+            self.assertTrue(res_enable.get("success", False))
+            self.assertTrue(curtain.is_active)
 
-        res_disable = curtain.disable()
-        self.assertIsInstance(res_disable, dict)
-        self.assertTrue(res_disable.get("success", False))
-        self.assertFalse(curtain.is_active)
+            res_disable = curtain.disable()
+            self.assertIsInstance(res_disable, dict)
+            self.assertTrue(res_disable.get("success", False))
+            self.assertFalse(curtain.is_active)
+        finally:
+            curtain.disable_all()
 
 if __name__ == "__main__":
     unittest.main()

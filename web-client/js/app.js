@@ -68,11 +68,11 @@
 
   function executePasteAction() {
     if (!remoteCurrentPath) {
-      showToast('Vui lòng chọn thư mục đích trên máy trạm', 'info');
+      showToast(t('toast.select_dest_folder'), 'info');
       return;
     }
     if (!explorerClipboard || !explorerClipboard.path) {
-      showToast('Khay nhớ tạm trống. Vui lòng sao chép hoặc cắt một mục trước.', 'info');
+      showToast(t('toast.clip_empty_action'), 'info');
       return;
     }
     if (explorerClipboard.action === 'copy') {
@@ -81,14 +81,14 @@
         src_path: explorerClipboard.path,
         dst_dir: remoteCurrentPath
       }));
-      showToast(`Đang sao chép "${explorerClipboard.name}" vào thư mục hiện tại...`, 'info');
+      showToast(t('toast.copying_item', { name: explorerClipboard.name }), 'info');
     } else if (explorerClipboard.action === 'cut') {
       ws.send(JSON.stringify({
         type: 'file_move_request',
         src_path: explorerClipboard.path,
         dst_dir: remoteCurrentPath
       }));
-      showToast(`Đang di chuyển "${explorerClipboard.name}" vào thư mục hiện tại...`, 'info');
+      showToast(t('toast.moving_item', { name: explorerClipboard.name }), 'info');
     }
   }
 
@@ -159,7 +159,7 @@
   // --- Remote Canvas & Viewport DOM ---
   const viewportBox = document.getElementById('viewportBox');
   const remoteCanvas = document.getElementById('remoteCanvas');
-  const ctx = remoteCanvas.getContext('2d');
+  const ctx = remoteCanvas.getContext('2d', { alpha: false, desynchronized: true }) || remoteCanvas.getContext('2d');
   const laserCanvas = document.getElementById('laserCanvas');
   const laserCtx = laserCanvas.getContext('2d');
   const monitorGrid = document.getElementById('monitorGrid');
@@ -185,6 +185,13 @@
   const btnMobileTouchMode = document.getElementById('btnMobileTouchMode');
   const touchModeLabel = document.getElementById('touchModeLabel');
   const btnMobileRightClick = document.getElementById('btnMobileRightClick');
+  const keyboardMenuDropdown = document.getElementById('keyboardMenuDropdown');
+  const btnOptPhoneKeyboard = document.getElementById('btnOptPhoneKeyboard');
+  const btnOptVirtualOSK = document.getElementById('btnOptVirtualOSK');
+  const checkPhoneKeyboard = document.getElementById('checkPhoneKeyboard');
+  const checkVirtualOSK = document.getElementById('checkVirtualOSK');
+  const keyboardCurrentLabel = document.getElementById('keyboardCurrentLabel');
+  const btnCloseOSK = document.getElementById('btnCloseOSK');
 
   const roStatus = document.getElementById('roStatus');
   const roTr = document.getElementById('ro-tr');
@@ -208,6 +215,10 @@
 
   function showToast(message, type = 'info', duration = 3500) {
     if (!toastContainer) return;
+    const isToastEnabled = localStorage.getItem('meikova_toast_enabled') !== 'false';
+    if (!isToastEnabled && type !== 'error') {
+      return;
+    }
     const resolvedMsg = (window.MeikovaI18n && typeof window.MeikovaI18n.t === 'function')
       ? window.MeikovaI18n.t(message)
       : message;
@@ -547,7 +558,12 @@
   // --- Floating Deck Controls DOM ---
   const floatingDeck = document.getElementById('floatingDeck');
   const monitorSelector = document.getElementById('monitorSelector');
+  const btnMonitorMenu = document.getElementById('btnMonitorMenu');
+  const monitorCurrentLabel = document.getElementById('monitorCurrentLabel');
+  const monitorMenuDropdown = document.getElementById('monitorMenuDropdown');
+  const monitorMenuList = document.getElementById('monitorMenuList');
   const qualitySelector = document.getElementById('qualitySelector');
+  let hasUserManuallySelectedQuality = false;
   const btnQualityMenu = document.getElementById('btnQualityMenu');
   const btnProtocolMenu = document.getElementById('btnProtocolMenu');
   const protocolCurrentLabel = document.getElementById('protocolCurrentLabel');
@@ -568,6 +584,13 @@
   let protocolRoutingMode = 'auto'; // 'auto' | 'bypass' | 'native'
   const qualityCurrentLabel = document.getElementById('qualityCurrentLabel');
   const qualityMenuDropdown = document.getElementById('qualityMenuDropdown');
+  const btnResolutionMenu = document.getElementById('btnResolutionMenu');
+  const resolutionCurrentLabel = document.getElementById('resolutionCurrentLabel');
+  const resolutionMenuDropdown = document.getElementById('resolutionMenuDropdown');
+  const vdDisplayBadge = document.getElementById('vdDisplayBadge');
+  const btnInstallVDisplay = document.getElementById('btnInstallVDisplay');
+  const vdAudioBadge = document.getElementById('vdAudioBadge');
+  const btnInstallVAudio = document.getElementById('btnInstallVAudio');
   const btnSyncDisplay = document.getElementById('btnSyncDisplay');
   const btnScaleToggle = document.getElementById('btnScaleToggle');
   const pixelIndicatorBadge = document.getElementById('pixelIndicatorBadge');
@@ -655,6 +678,45 @@
   const btnPushClipboard = document.getElementById('btnPushClipboard');
   const btnTypeDirect = document.getElementById('btnTypeDirect');
   const btnToggleBlockInput = document.getElementById('btnToggleBlockInput');
+
+  // --- Advanced Utilities DOM ---
+  const btnToggleCurtain = document.getElementById('btnToggleCurtain');
+  const curtainSvgOff = document.getElementById('curtainSvgOff');
+  const curtainSvgOn = document.getElementById('curtainSvgOn');
+  const btnToggleWhiteboard = document.getElementById('btnToggleWhiteboard');
+  const whiteboardCanvas = document.getElementById('whiteboardCanvas');
+  const wbCtx = whiteboardCanvas ? whiteboardCanvas.getContext('2d') : null;
+  const whiteboardToolbar = document.getElementById('whiteboardToolbar');
+  const btnWbLaserFade = document.getElementById('btnWbLaserFade');
+  const btnWbClearAll = document.getElementById('btnWbClearAll');
+  const btnSnippetsMenu = document.getElementById('btnSnippetsMenu');
+  const snippetsMenuDropdown = document.getElementById('snippetsMenuDropdown');
+  const btnShortcutsMenu = document.getElementById('btnShortcutsMenu');
+  const shortcutsMenuDropdown = document.getElementById('shortcutsMenuDropdown');
+  const btnMoreToolsMenu = document.getElementById('btnMoreToolsMenu');
+  const moreToolsMenuDropdown = document.getElementById('moreToolsMenuDropdown');
+  const toolsActiveIndicator = document.getElementById('toolsActiveIndicator');
+  const btnDropdownWhiteboard = document.getElementById('btnDropdownWhiteboard');
+  const btnDropdownLaser = document.getElementById('btnDropdownLaser');
+  const btnDropdownScreenshot = document.getElementById('btnDropdownScreenshot');
+  const btnDropdownRecord = document.getElementById('btnDropdownRecord');
+  const btnDropdownCam = document.getElementById('btnDropdownCam');
+  const btnDropdownBlockInput = document.getElementById('btnDropdownBlockInput');
+  const btnDropdownCurtain = document.getElementById('btnDropdownCurtain');
+  const btnDropdownSnippets = document.getElementById('btnDropdownSnippets');
+
+  const badgeWhiteboardActive = document.getElementById('badgeWhiteboardActive');
+  const badgeLaserActive = document.getElementById('badgeLaserActive');
+  const badgeRecordActive = document.getElementById('badgeRecordActive');
+  const badgeCamActive = document.getElementById('badgeCamActive');
+  const badgeBlockInputActive = document.getElementById('badgeBlockInputActive');
+  const badgeCurtainActive = document.getElementById('badgeCurtainActive');
+  const modalSendPassword = document.getElementById('modalSendPassword');
+  const inputSecurePassword = document.getElementById('inputSecurePassword');
+  const btnConfirmSendPassword = document.getElementById('btnConfirmSendPassword');
+  const btnCancelSendPassword = document.getElementById('btnCancelSendPassword');
+  const btnCloseSendPassword = document.getElementById('btnCloseSendPassword');
+  const btnOpenPasswordModal = document.getElementById('btnOpenPasswordModal');
   const shelfChatTab = document.getElementById('shelfChatTab');
   const chatHistory = document.getElementById('chatHistory');
   const chatInputForm = document.getElementById('chatInputForm');
@@ -700,6 +762,16 @@
   let restartReconnectTimer = null;
   let restartAttemptCount = 0;
 
+  // Resilient Session Auto-Reconnect State
+  let isAutoReconnecting = false;
+  let autoReconnectTimer = null;
+  let autoReconnectAttempts = 0;
+  const MAX_AUTO_RECONNECT_ATTEMPTS = 12;
+  let lastSessionRelay = '';
+  let lastSessionRoom = '';
+  let lastSessionPin = '';
+  let isUserInitiatedDisconnect = false;
+
   // Zoom & Pan
   let scale = 1.0;
   let panX = 0;
@@ -740,6 +812,21 @@
   let auditPage = 0;
   const auditLimit = 25;
   let auditTotal = 0;
+
+  // Privacy Curtain State
+  let isCurtainActive = false;
+
+  // Live Whiteboard State
+  let isWhiteboardActive = false;
+  let wbCurrentTool = 'pen'; // 'pen' | 'highlighter' | 'arrow' | 'eraser'
+  let wbCurrentColor = '#06B6D4';
+  let wbLaserFade = false;
+  let wbDrawing = false;
+  let wbStartPos = { x: 0, y: 0 };
+  let wbLastPos = { x: 0, y: 0 };
+  let wbStrokes = [];
+  let wbAnimFrameId = null;
+
   let auditSearchDebounce = null;
 
   // Key code mapping
@@ -1120,7 +1207,7 @@
           renderUserBadge();
           if (targetView !== 'landing' && targetView !== 'auth' && !isExplicitDirectConnect) {
             switchView('landing', true);
-            showToast('Phiên đăng nhập đã hết hạn', 'info');
+            showToast(t('toast.session_expired'), 'info');
           }
         }
       } catch (err) {
@@ -1235,7 +1322,7 @@
     }
 
     try {
-      showToast('Đang kết nối đăng nhập Google...', 'info');
+      showToast(t('toast.google_connecting'), 'info');
       const source = isMobileDevice ? 'mobile' : 'web';
       const res = await apiFetch(`/api/auth/google/url?source=${source}`);
       if (!res.success || !res.auth_url) {
@@ -1263,7 +1350,7 @@
           window.removeEventListener('message', onMessage);
           clearInterval(pollTimer);
           handleAuthSuccess(event.data);
-          showToast('Đăng nhập Google thành công!', 'success');
+          showToast(t('toast.google_success'), 'success');
         }
       };
       window.addEventListener('message', onMessage);
@@ -1278,7 +1365,7 @@
             window.removeEventListener('message', onMessage);
             try { if (popup && !popup.closed) popup.close(); } catch (_) {}
             handleAuthSuccess(pollRes);
-            showToast('Đăng nhập Google thành công!', 'success');
+            showToast(t('toast.google_success'), 'success');
           }
         } catch (_) {}
       }, 1200);
@@ -1288,7 +1375,7 @@
         window.removeEventListener('message', onMessage);
       }, 180000);
     } catch (e) {
-      showToast(`Lỗi: ${e.message}`, 'error');
+      showToast(t('toast.generic_error', { message: e.message }), 'error');
     }
   }
 
@@ -1307,7 +1394,7 @@
       } else {
         window.open(res.auth_url, '_blank');
       }
-      showToast('Đang mở trình duyệt ngoài để xác thực Google...', 'info');
+      showToast(t('toast.google_opening_browser'), 'info');
 
       const ticket = res.ticket;
       const pollTimer = setInterval(async () => {
@@ -1316,13 +1403,13 @@
           if (pollRes.success && pollRes.token) {
             clearInterval(pollTimer);
             handleAuthSuccess(pollRes);
-            showToast('Đăng nhập Google thành công!', 'success');
+            showToast(t('toast.google_success'), 'success');
           }
         } catch (_) {}
       }, 1500);
       setTimeout(() => clearInterval(pollTimer), 180000);
     } catch (e) {
-      showToast(`Lỗi: ${e.message}`, 'error');
+      showToast(t('toast.generic_error', { message: e.message }), 'error');
     }
   }
 
@@ -1364,7 +1451,7 @@
         const { token, user } = event.data;
         if (token) {
           handleAuthSuccess({ token, user });
-          showToast('Đăng nhập Meikova ID thành công!', 'success');
+          showToast(t('toast.meikova_id_success'), 'success');
         }
       }
     });
@@ -2121,7 +2208,7 @@
         inputRoom.value = 'RD-8924';
         inputRoom.dispatchEvent(new Event('input', { bubbles: true }));
         inputPin?.focus();
-        showToast('Đã điền mã máy mẫu: RD-8924');
+        showToast(t('toast.demo_room_filled'), 'info');
       };
     }
 
@@ -2230,6 +2317,10 @@
 
   function updateRoStatus() {
     if (!roStatus) return;
+    const roTl = document.getElementById('ro-tl');
+    if (roTl) {
+      roTl.style.display = currentView === 'landing' ? 'none' : '';
+    }
     if (currentView === 'landing') {
       roStatus.textContent = t('ro.landing');
     } else if (currentView === 'auth') {
@@ -2258,6 +2349,7 @@
 
   function switchView(view, updateUrl = true) {
     currentView = view;
+    document.body.classList.toggle('view-landing', view === 'landing');
     landingSection?.classList.add('hidden');
     authSection.classList.add('hidden');
     dashboardSection.classList.add('hidden');
@@ -2455,7 +2547,7 @@
           if (copySvgIcon) copySvgIcon.innerHTML = '<rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>';
         }, 2000);
       } catch {
-        showToast('Sao chép thất bại');
+        showToast(t('toast.copy_failed'), 'error');
       }
     }
   });
@@ -2511,7 +2603,7 @@
           if (copyLinuxBtnText) copyLinuxBtnText.textContent = typeof t === 'function' ? t('landing.dl_linux_sh_copy') : 'Sao chép lệnh Linux';
         }, 2000);
       } catch {
-        showToast('Sao chép thất bại');
+        showToast(t('toast.copy_failed'), 'error');
       }
     }
   });
@@ -2532,7 +2624,7 @@
           if (copyMacosBtnText) copyMacosBtnText.textContent = typeof t === 'function' ? t('landing.dl_macos_sh_copy') : 'Sao chép lệnh macOS';
         }, 2000);
       } catch {
-        showToast('Sao chép thất bại');
+        showToast(t('toast.copy_failed'), 'error');
       }
     }
   });
@@ -2720,15 +2812,33 @@
   const cfgTimeoutRemote = document.getElementById('cfgTimeoutRemote');
   const cfgTimeoutGlobal = document.getElementById('cfgTimeoutGlobal');
 
+  function openSettingsModal() {
+    if (cfgTimeoutRemote && cfgTimeoutGlobal) {
+      cfgTimeoutRemote.value = timeoutRemoteMin;
+      cfgTimeoutGlobal.value = timeoutGlobalMin;
+    }
+    const cfgEnableToasts = document.getElementById('cfgEnableToasts');
+    if (cfgEnableToasts) {
+      cfgEnableToasts.checked = localStorage.getItem('meikova_toast_enabled') !== 'false';
+    }
+    if (window.MeikovaI18n && typeof window.MeikovaI18n.applyTranslations === 'function' && sessionConfigModal) {
+      window.MeikovaI18n.applyTranslations(sessionConfigModal);
+    }
+    sessionConfigModal?.classList.remove('hidden');
+  }
+
+  const btnDeckOpenSettings = document.getElementById('btnDeckOpenSettings');
+  if (btnDeckOpenSettings) {
+    btnDeckOpenSettings.addEventListener('click', () => {
+      snippetsMenuDropdown?.classList.add('hidden');
+      btnSnippetsMenu?.classList.remove('btn-active');
+      openSettingsModal();
+    });
+  }
+
   if (btnOpenSessionConfig && sessionConfigModal && cfgTimeoutRemote && cfgTimeoutGlobal) {
     btnOpenSessionConfig.addEventListener('click', () => {
-      if (isConnected && (currentRoom || currentRoomId)) {
-        openSessionManagerModal(currentRoom || currentRoomId, hostResolution ? `Trạm (${hostResolution.width}x${hostResolution.height})` : currentRoomId);
-      } else {
-        cfgTimeoutRemote.value = timeoutRemoteMin;
-        cfgTimeoutGlobal.value = timeoutGlobalMin;
-        sessionConfigModal.classList.remove('hidden');
-      }
+      openSettingsModal();
     });
 
     btnCancelSessionCfg?.addEventListener('click', () => {
@@ -2746,21 +2856,26 @@
       const x = parseInt(cfgTimeoutRemote.value, 10);
       const y = parseInt(cfgTimeoutGlobal.value, 10);
       if (isNaN(x) || x < 1) {
-        showToast('Thời gian X phải từ 1 phút trở lên', 'warning');
+        showToast(t('toast.min_time_x'), 'warning');
         return;
       }
       if (isNaN(y) || y < 2) {
-        showToast('Thời gian Y phải từ 2 phút trở lên', 'warning');
+        showToast(t('toast.min_time_y'), 'warning');
         return;
       }
       timeoutRemoteMin = x;
       timeoutGlobalMin = y;
       localStorage.setItem('meikova_relay_timeout_remote_min', String(x));
       localStorage.setItem('meikova_relay_timeout_global_min', String(y));
+
+      const cfgEnableToasts = document.getElementById('cfgEnableToasts');
+      const isToastChecked = cfgEnableToasts ? cfgEnableToasts.checked : true;
+      localStorage.setItem('meikova_toast_enabled', isToastChecked ? 'true' : 'false');
+
       sessionConfigModal.classList.add('hidden');
       showToast(
         (window.t ? t('session.toast_saved', { x, y }) : null) ||
-        `Đã lưu cấu hình phiên: X=${x} phút, Y=${y} phút`,
+        `Đã lưu cài đặt hệ thống (Toasts: ${isToastChecked ? 'Bật' : 'Tắt'})`,
         'success'
       );
     });
@@ -2842,7 +2957,7 @@
         btn.style.color = '';
       }, 2000);
     }).catch(() => {
-      showToast('Sao chép thất bại', 'error');
+      showToast(t('toast.copy_failed'), 'error');
     });
   }
 
@@ -3094,16 +3209,16 @@
           });
 
           if (res && res.success) {
-            showToast(`Đã ngắt phiên của "${uName}" thành công!`, 'success');
+            showToast(t('toast.session_killed_user', { user: uName }), 'success');
             await refreshSessionManagerList();
             loadDeviceFleet(true);
           } else {
-            showToast(`Lỗi: ${res?.message || 'Không thể ngắt phiên'}`, 'error');
+            showToast(t('toast.generic_error', { message: res?.message || 'Error' }), 'error');
             btn.disabled = false;
             btn.textContent = 'Ngắt phiên';
           }
         } catch (err) {
-          showToast(`Lỗi: ${err.message}`, 'error');
+          showToast(t('toast.generic_error', { message: err.message }), 'error');
           btn.disabled = false;
           btn.textContent = 'Ngắt phiên';
         }
@@ -3151,7 +3266,7 @@
           <div class="device-card-header">
             <span class="device-name brand-font">${escapeHtml(d.device_name)}</span>
             <span class="status-badge ${isOnline ? 'online' : 'offline'}">
-              <span class="status-dot"></span> <span data-i18n="${isOnline ? 'dashboard.status_online' : 'dashboard.status_offline'}">${isOnline ? onlineLabel : offlineLabel}</span>
+              <span class="status-dot"></span><span data-i18n="${isOnline ? 'dashboard.status_online' : 'dashboard.status_offline'}">${isOnline ? onlineLabel : offlineLabel}</span>
             </span>
           </div>
           <div class="device-specs">
@@ -3265,8 +3380,15 @@
   });
 
   // --- REMOTE DESKTOP SESSION ---
-  function startRemoteSession(relayUrl, roomId, pin) {
-    resetSessionMetrics();
+  function startRemoteSession(relayUrl, roomId, pin, isAutoReconnect = false) {
+    if (!isAutoReconnect) {
+      stopAutoReconnect();
+      isUserInitiatedDisconnect = false;
+      lastSessionRelay = relayUrl;
+      lastSessionRoom = roomId;
+      lastSessionPin = pin || '';
+      resetSessionMetrics();
+    }
     currentRoom = roomId;
     currentRoomId = roomId;
     currentPin = pin || '';
@@ -3297,8 +3419,11 @@
     try {
       ws = new WebSocket(relayUrl);
       ws.binaryType = 'blob';
+      ws.onerror = (err) => {
+        console.warn('[Client WS Error]:', err);
+      };
     } catch (err) {
-      showToast(`Không thể kết nối WebSocket: ${err.message}`, 'error');
+      showToast(t('toast.ws_error', { error: err.message }), 'error');
       return;
     }
 
@@ -3332,8 +3457,21 @@
           return;
         }
 
+        if (msg.type === 'tunnel_update') {
+          if (typeof window.onTunnelUpdate === 'function') {
+            window.onTunnelUpdate(msg.tunnel);
+          }
+          return;
+        }
+
         if (msg.status === 'ok' && msg.role === 'client') {
           isConnected = true;
+          if (isAutoReconnecting) {
+            stopAutoReconnect();
+            showToast(t('toast.auto_reconnected') || 'Đã kết nối lại thành công!', 'success', 2500);
+          }
+          const connOverlay = document.getElementById('canvasConnectingOverlay');
+          if (connOverlay) connOverlay.classList.add('hidden');
           mySessionId = msg.session_id || null;
           if (typeof updateRemoteSessionTabs === 'function') {
             updateRemoteSessionTabs();
@@ -3342,12 +3480,10 @@
           lastGlobalActivity = Date.now();
           if (isAwaitingRemoteRestart) {
             stopRestartReconnectPolling();
-            showToast('Máy trạm đã khởi động lại và kết nối thành công!', 'success');
+            showToast(t('toast.restart_success'), 'success');
           }
           roStatus.textContent = `${roomId} // ${t('ro.connected')}`;
           updateRoStatus();
-    const connOverlay = document.getElementById('canvasConnectingOverlay');
-    if (connOverlay) connOverlay.classList.remove('hidden');
           updateTerminalStatusBadge();
           if (msg.hostMeta) {
             updateHostResolution(msg.hostMeta.width, msg.hostMeta.height);
@@ -3358,6 +3494,7 @@
             }
           }
           startPingLoop();
+          syncDisplayProfileWithHost(true);
         } else if (msg.status === 'error') {
           if (isAwaitingRemoteRestart) {
             console.log('[MeikovaRelay] Host is restarting, waiting before retry:', msg.message);
@@ -3366,7 +3503,7 @@
           const translatedError = (msg.code && typeof t === 'function' && t(msg.code) !== msg.code)
             ? t(msg.code)
             : (msg.message || 'Lỗi không xác định');
-          showToast(`Lỗi: ${translatedError}`, 'error');
+          showToast(t('toast.generic_error', { message: translatedError }), 'error');
           disconnect();
         } else if (msg.type === 'session_list') {
           roomSessions = msg.sessions || [];
@@ -3386,7 +3523,7 @@
           showToast(msg.message || 'Phiên kết nối của bạn đã bị ngắt bởi quản trị viên.', 'error');
           disconnect();
         } else if (msg.type === 'kill_session_success') {
-          showToast('Đã ngắt phiên kết nối đối phương thành công.', 'success');
+          showToast(t('toast.peer_session_killed'), 'success');
           refreshSessionManagerList();
           loadDeviceFleet(true);
         } else if (msg.type === 'host_ready') {
@@ -3396,11 +3533,48 @@
             const hn = document.getElementById('chatHostName');
             if (hn) hn.textContent = msg.deviceName;
           }
-          syncDisplayProfileWithHost(true);
+          if (!hasUserManuallySelectedQuality) {
+            syncDisplayProfileWithHost(true);
+          }
+        } else if (msg.type === 'quality_preset_applied') {
+          if (!msg.req_id || msg.req_id >= qualityPresetReqId) {
+            if (qualitySelector && qualitySelector.value !== msg.preset) {
+              qualitySelector.value = msg.preset;
+            }
+            updateQualityMenuUI(msg.preset);
+            updatePixelIndicator();
+            fitCanvasToViewport();
+            const presetFallbackVi = {
+              'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
+              'auto_sync': 'Tự động tối ưu (Auto-Sync)',
+              'ultra_120': '120 FPS Siêu mượt',
+              'speed_60': '60 FPS Mượt mà (720p)',
+              'crisp_2k_4k': '2K / 4K Cực nét (95%)',
+              'crisp_hd': 'HD Nét (1080p // 85%)',
+              'balanced': '30 FPS Cân bằng (900p)',
+              'eco': 'Tiết kiệm băng thông (540p)',
+              'grayscale': 'Tiết kiệm băng thông (Đơn sắc)'
+            };
+            const fName = presetFallbackVi[msg.preset] || msg.preset;
+            showToast(t('toast.preset_activated', { preset: fName }), 'success');
+          }
         } else if (msg.type === 'display_profile_matched') {
           handleDisplayProfileMatched(msg);
         } else if (msg.type === 'monitors_list') {
           populateMonitors(msg.monitors, msg.active_id);
+          if (vdDisplayBadge) {
+            if (msg.is_headless) {
+              vdDisplayBadge.textContent = (typeof t === 'function') ? t('virtual.display_headless') : 'KHÔNG MÀN HÌNH';
+              vdDisplayBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+              vdDisplayBadge.style.color = '#ef4444';
+              btnInstallVDisplay?.classList.remove('hidden');
+            } else {
+              vdDisplayBadge.textContent = (typeof t === 'function') ? t('virtual.display_active') : 'SẴN SÀNG';
+              vdDisplayBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+              vdDisplayBadge.style.color = '#22c55e';
+              btnInstallVDisplay?.classList.add('hidden');
+            }
+          }
         } else if (msg.type === 'cursor_update') {
           applyHostCursor(msg.cursor);
         } else if (msg.type === 'clipboard_sync') {
@@ -3411,12 +3585,20 @@
           if (navigator.clipboard && navigator.clipboard.writeText && msg.text) {
             navigator.clipboard.writeText(msg.text).catch(() => {});
           }
+        } else if (msg.type === 'clipboard_sync_image') {
+          handleIncomingClipboardImage(msg.data, msg.mime);
+        } else if (msg.type === 'clipboard_sync_files') {
+          handleIncomingClipboardFiles(msg.files);
         } else if (msg.type === 'clipboard_sync_ack') {
-          if (msg.success) {
-            showToast('Đã đồng bộ sang bộ nhớ tạm của máy trạm!', 'success');
-          } else {
-            showToast('Không thể cập nhật bộ nhớ tạm trên máy trạm', 'error');
+          if (!msg.success) {
+            showToast(t('toast.clip_update_failed'), 'error');
           }
+        } else if (msg.type === 'clipboard_sync_image_ack') {
+          if (!msg.success) {
+            showToast(t('toast.clip_image_paste_failed'), 'error');
+          }
+        } else if (msg.type === 'clipboard_sync_files_ack') {
+          // Silent ack for high-frequency clipboard sync
         } else if (msg.type === 'terminal_output') {
           handleTerminalOutput(msg.data || '');
         } else if (msg.type === 'telemetry_response') {
@@ -3434,17 +3616,17 @@
           requestBrowsePath(remoteCurrentPath);
         } else if (msg.type === 'file_create_folder_response') {
           if (msg.result && msg.result.success) {
-            showToast('Đã tạo thư mục mới thành công', 'success');
+            showToast(t('toast.mkdir_success'), 'success');
             requestBrowsePath(remoteCurrentPath);
           } else {
-            showToast(`Lỗi tạo thư mục: ${msg.result?.error || 'Không xác định'}`, 'error');
+            showToast(t('toast.mkdir_failed', { error: msg.result?.error || 'Unknown' }), 'error');
           }
         } else if (msg.type === 'file_copy_response') {
           if (msg.result && msg.result.success) {
             showToast(t('files.copy_success') || 'Đã sao chép tệp/thư mục thành công', 'success');
             requestBrowsePath(remoteCurrentPath);
           } else {
-            showToast(`Lỗi sao chép: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
+            showToast(t('toast.file_copy_failed', { error: msg.result?.error || 'Failed' }), 'error');
           }
         } else if (msg.type === 'file_move_response') {
           if (msg.result && msg.result.success) {
@@ -3453,14 +3635,14 @@
             updatePasteButtonState();
             requestBrowsePath(remoteCurrentPath);
           } else {
-            showToast(`Lỗi di chuyển: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
+            showToast(t('toast.file_move_failed', { error: msg.result?.error || 'Failed' }), 'error');
           }
         } else if (msg.type === 'file_rename_response') {
           if (msg.result && msg.result.success) {
             showToast(t('files.rename_success') || 'Đã đổi tên tệp/thư mục thành công', 'success');
             requestBrowsePath(remoteCurrentPath);
           } else {
-            showToast(`Lỗi đổi tên: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
+            showToast(t('toast.file_rename_failed', { error: msg.result?.error || 'Failed' }), 'error');
           }
         } else if (msg.type === 'file_read_response') {
           handleFileReadResponse(msg);
@@ -3476,7 +3658,7 @@
         } else if (msg.type === 'file_upload_result') {
           uploadProgressContainer.classList.add('hidden');
           if (expTransferProgress) expTransferProgress.classList.add('hidden');
-          showToast(`Đã truyền tệp thành công: ${msg.result.filename}`, 'success');
+          showToast(t('toast.upload_success', { filename: msg.result.filename }), 'success');
           requestBrowsePath(remoteCurrentPath);
         } else if (msg.type === 'file_download_start') {
           activeDownloads[msg.transfer_id] = {
@@ -3510,11 +3692,11 @@
             downloadBlob(blob, dl.filename);
             delete activeDownloads[msg.transfer_id];
             if (expTransferProgress) expTransferProgress.classList.add('hidden');
-            showToast(`Đã tải xuống thành công: ${dl.filename}`, 'success');
+            showToast(t('toast.download_success', { filename: dl.filename }), 'success');
           }
         } else if (msg.type === 'file_download_error') {
           if (expTransferProgress) expTransferProgress.classList.add('hidden');
-          showToast(`Lỗi tải tệp: ${msg.message}`, 'error');
+          showToast(t('toast.upload_failed', { error: msg.message }), 'error');
           delete activeDownloads[msg.transfer_id];
         } else if (msg.type === 'pong') {
           const rtt = Math.round(performance.now() - lastPingSend);
@@ -3529,7 +3711,7 @@
             if (chatUnreadDot) chatUnreadDot.classList.remove('hidden');
             if (tabChatUnreadDot) tabChatUnreadDot.classList.remove('hidden');
             playChatNotificationSound();
-            showToast(`${msg.sender || 'Máy trạm'}: ${msg.message}`, 'info');
+            showToast(`${msg.sender || t('shelf.chat_welcome_title')}: ${msg.message}`, 'info');
           }
         } else if (msg.type === 'audio_chunk') {
           if (isAudioStreaming && msg.data) {
@@ -3546,7 +3728,7 @@
               cancelText: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.dismiss_btn') : 'Để sau'
             }).then(confirmed => {
               if (confirmed) {
-                showToast('Đang yêu cầu máy trạm cài đặt Loa Ảo (VB-Audio Cable)...', 'info');
+                showToast(t('toast.installing_vb_audio'), 'info');
                 ws.send(JSON.stringify({ type: 'install_virtual_audio' }));
               }
             });
@@ -3559,6 +3741,13 @@
           } else {
             showToast(msg.message || 'Cài đặt Loa Ảo thất bại.', 'error');
           }
+        } else if (msg.type === 'screen_resolution_result') {
+          if (msg.success) {
+            showToast(t('toast.resolution_changed', { res: `${msg.width}x${msg.height}` }), 'success');
+            updateResolutionUi(msg.width, msg.height);
+          } else {
+            showToast(t('toast.resolution_failed'), 'error');
+          }
         } else if (msg.type === 'virtual_display_result') {
           if (msg.success) {
             showToast(msg.message || 'Đã kích hoạt Màn hình ảo thành công!', 'success');
@@ -3569,19 +3758,77 @@
           updateMicUi(msg.enabled);
         } else if (msg.type === 'audio_capabilities') {
           console.log('[MeikovaRelay] Host audio capabilities:', msg);
+          if (vdAudioBadge) {
+            if (msg.has_output_device === false) {
+              vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_missing') : 'CHƯA CÓ LOA';
+              vdAudioBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+              vdAudioBadge.style.color = '#ef4444';
+              btnInstallVAudio?.classList.remove('hidden');
+            } else {
+              vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_active') : 'SẴN SÀNG';
+              vdAudioBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+              vdAudioBadge.style.color = '#22c55e';
+              btnInstallVAudio?.classList.add('hidden');
+            }
+          }
         } else if (msg.type === 'block_input_response') {
-          isInputBlocked = msg.blocked;
-          btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
-          if (btnToggleBlockInput) {
-            btnToggleBlockInput.title = isInputBlocked ? 'Đang khóa chuột & phím máy đích' : 'Khóa chuột & phím máy đích';
+          if (msg.requires_admin) {
+            isInputBlocked = false;
+            btnToggleBlockInput?.classList.remove('btn-active', 'is-locked');
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            showToast(t('toast.requires_admin_block_input') || t('toast.requires_admin'), 'warning');
+          } else if (msg.success !== false) {
+            isInputBlocked = !!msg.blocked;
+            btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
+            btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
+            if (btnToggleBlockInput) {
+              btnToggleBlockInput.title = isInputBlocked
+                ? (typeof t === 'function' ? t('toast.block_input_on') : 'Đang khóa chuột & phím máy đích')
+                : (typeof t === 'function' ? t('toast.block_input_off') : 'Khóa chuột & phím máy đích');
+            }
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            showToast(isInputBlocked ? t('toast.block_input_on') : t('toast.block_input_off'), isInputBlocked ? 'warning' : 'success');
+          } else {
+            btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
+            btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            showToast(t('toast.block_input_error') || 'Không thể thay đổi trạng thái khóa bàn phím & chuột', 'error');
+          }
+        } else if (msg.type === 'privacy_curtain_response') {
+          if (msg.requires_admin) {
+            isCurtainActive = false;
+            btnToggleCurtain?.classList.remove('is-curtain-active', 'btn-active');
+            curtainSvgOff?.classList.remove('hidden');
+            curtainSvgOn?.classList.add('hidden');
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            showToast(t('toast.requires_admin_curtain') || t('toast.requires_admin'), 'warning');
+          } else {
+            isCurtainActive = !!msg.enabled;
+            btnToggleCurtain?.classList.toggle('is-curtain-active', isCurtainActive);
+            curtainSvgOff?.classList.toggle('hidden', isCurtainActive);
+            curtainSvgOn?.classList.toggle('hidden', !isCurtainActive);
+            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            if (msg.success) {
+              showToast(isCurtainActive ? t('toast.curtain_enabled') : t('toast.curtain_disabled'), isCurtainActive ? 'warning' : 'success');
+            } else {
+              showToast(t('toast.curtain_error', { error: msg.error || 'Failed' }), 'error');
+            }
+          }
+        } else if (msg.type === 'system_hotkey_response') {
+          if (msg.requires_admin) {
+            showToast(t('toast.requires_admin_hotkey') || t('toast.requires_admin'), 'warning');
+          }
+        } else if (msg.type === 'power_action_response') {
+          if (msg.requires_admin) {
+            showToast(t('toast.requires_admin_power') || t('toast.requires_admin'), 'warning');
           }
         } else if (msg.type === 'host_disconnected') {
           if (isAwaitingRemoteRestart) {
             handleRemoteRestartReconnecting();
             return;
           }
-          showToast(msg.message || 'Máy trạm đã ngắt kết nối!', 'error');
-          disconnect();
+          // Host transient offline - try to auto-reconnect for up to 30s instead of immediately booting user
+          handleAutoReconnecting();
         }
       } catch (err) {
         console.error('WS parse error:', err);
@@ -3593,10 +3840,17 @@
         handleRemoteRestartReconnecting();
         return;
       }
-      if (isConnected) {
-        const reason = ev && ev.reason ? `Máy trạm đã ngắt kết nối (${ev.reason})` : 'Mất kết nối với máy trạm';
-        showToast(reason, 'error');
+      if (isUserInitiatedDisconnect) {
+        disconnect();
+        return;
       }
+      // If was connected or already reconnecting, attempt resilient auto-reconnect
+      if (isConnected || isAutoReconnecting || (lastSessionRoom && currentView === 'remote')) {
+        handleAutoReconnecting();
+        return;
+      }
+      const reason = ev && ev.reason ? `Máy trạm đã ngắt kết nối (${ev.reason})` : 'Mất kết nối với máy trạm';
+      showToast(reason, 'error');
       disconnect();
     };
   }
@@ -3613,7 +3867,7 @@
 
     if (restartReconnectTimer) return;
 
-    showToast('Máy trạm đang khởi động lại. Đang tự động kết nối lại...', 'info', 4000);
+    showToast(t('toast.rebooting_reconnecting'), 'info', 4000);
     restartAttemptCount = 0;
 
     restartReconnectTimer = setInterval(() => {
@@ -3637,7 +3891,71 @@
     restartAttemptCount = 0;
   }
 
+  function stopAutoReconnect() {
+    if (autoReconnectTimer) {
+      clearTimeout(autoReconnectTimer);
+      autoReconnectTimer = null;
+    }
+    isAutoReconnecting = false;
+    autoReconnectAttempts = 0;
+  }
+
+  function handleAutoReconnecting() {
+    if (isUserInitiatedDisconnect || !lastSessionRoom) {
+      disconnect();
+      return;
+    }
+    if (isAutoReconnecting && autoReconnectTimer) return;
+
+    isAutoReconnecting = true;
+    isConnected = false;
+
+    if (ws) {
+      try {
+        ws.onopen = null;
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        ws.close();
+      } catch {}
+      ws = null;
+    }
+
+    const connOverlay = document.getElementById('canvasConnectingOverlay');
+    if (connOverlay) {
+      connOverlay.classList.remove('hidden');
+      const connMsg = connOverlay.querySelector('p');
+      if (connMsg) {
+        connMsg.textContent = t('toast.auto_reconnecting') || 'Mất kết nối tạm thời. Đang tự động kết nối lại...';
+      }
+    }
+
+    const targetRoom = lastSessionRoom || currentRoomId || 'ROOM';
+    roStatus.textContent = `${targetRoom} // ${t('ro.reconnecting')} (${autoReconnectAttempts + 1}/${MAX_AUTO_RECONNECT_ATTEMPTS})`;
+
+    if (autoReconnectAttempts === 0) {
+      showToast(t('toast.auto_reconnecting') || 'Mất kết nối tạm thời. Đang tự động kết nối lại...', 'warning', 3000);
+    }
+
+    autoReconnectTimer = setTimeout(() => {
+      autoReconnectTimer = null;
+      if (!isAutoReconnecting || isUserInitiatedDisconnect) return;
+
+      autoReconnectAttempts++;
+      if (autoReconnectAttempts > MAX_AUTO_RECONNECT_ATTEMPTS) {
+        stopAutoReconnect();
+        showToast(t('toast.auto_reconnect_failed') || 'Không thể kết nối lại sau 12 lần thử. Đã ngắt kết nối.', 'error', 4000);
+        disconnect();
+        return;
+      }
+
+      roStatus.textContent = `${targetRoom} // ${t('ro.reconnecting')} (${autoReconnectAttempts}/${MAX_AUTO_RECONNECT_ATTEMPTS})`;
+      startRemoteSession(lastSessionRelay || defaultWsUrl, targetRoom, lastSessionPin, true);
+    }, autoReconnectAttempts === 0 ? 800 : 2500);
+  }
+
   function disconnect() {
+    stopAutoReconnect();
     stopRestartReconnectPolling();
     isConnected = false;
     resetSessionMetrics();
@@ -3660,6 +3978,16 @@
     }
     stopRecording();
     stopWebcam();
+    isCurtainActive = false;
+    btnToggleCurtain?.classList.remove('is-curtain-active');
+    curtainSvgOff?.classList.remove('hidden');
+    curtainSvgOn?.classList.add('hidden');
+    isInputBlocked = false;
+    btnToggleBlockInput?.classList.remove('btn-active', 'is-locked');
+    if (isWhiteboardActive) {
+      toggleWhiteboard(false);
+    }
+    clearWhiteboard();
     if (remoteCanvas && ctx) {
       ctx.clearRect(0, 0, remoteCanvas.width, remoteCanvas.height);
     }
@@ -3675,7 +4003,11 @@
     switchView('dashboard', true);
   }
 
-  btnDisconnect.addEventListener('click', disconnect);
+  btnDisconnect.addEventListener('click', () => {
+    isUserInitiatedDisconnect = true;
+    stopAutoReconnect();
+    disconnect();
+  });
 
   function startPingLoop() {
     if (pingIntervalId) clearInterval(pingIntervalId);
@@ -3690,6 +4022,52 @@
     }, 2000);
   }
 
+  function updatePixelIndicator() {
+    if (!pixelIndicatorBadge || !pixelIndicatorText) return;
+    const isActuallyNative1to1 = (!isFitMode && qualitySelector && qualitySelector.value === 'native_1to1');
+    if (isActuallyNative1to1) {
+      pixelIndicatorText.textContent = `1:1 PIXEL-PERFECT (${hostResolution.width}x${hostResolution.height})`;
+      pixelIndicatorBadge.classList.remove('hidden');
+    } else {
+      pixelIndicatorBadge.classList.add('hidden');
+    }
+  }
+
+  function fitCanvasToViewport() {
+    if (!remoteCanvas || !remoteSection) return;
+    if (!isFitMode) {
+      remoteCanvas.style.width = '';
+      remoteCanvas.style.height = '';
+      if (laserCanvas) {
+        laserCanvas.style.width = '';
+        laserCanvas.style.height = '';
+      }
+      if (whiteboardCanvas) {
+        whiteboardCanvas.style.width = '';
+        whiteboardCanvas.style.height = '';
+      }
+      return;
+    }
+    const containerW = remoteSection.clientWidth;
+    const containerH = remoteSection.clientHeight;
+    if (!containerW || !containerH || !hostResolution.width || !hostResolution.height) return;
+
+    const scaleFactor = Math.min(containerW / hostResolution.width, containerH / hostResolution.height);
+    const displayW = Math.round(hostResolution.width * scaleFactor);
+    const displayH = Math.round(hostResolution.height * scaleFactor);
+
+    remoteCanvas.style.width = `${displayW}px`;
+    remoteCanvas.style.height = `${displayH}px`;
+    if (laserCanvas) {
+      laserCanvas.style.width = `${displayW}px`;
+      laserCanvas.style.height = `${displayH}px`;
+    }
+    if (whiteboardCanvas) {
+      whiteboardCanvas.style.width = `${displayW}px`;
+      whiteboardCanvas.style.height = `${displayH}px`;
+    }
+  }
+
   function updateHostResolution(w, h) {
     hostResolution.width = w;
     hostResolution.height = h;
@@ -3697,11 +4075,17 @@
     remoteCanvas.height = h;
     laserCanvas.width = w;
     laserCanvas.height = h;
-    metricRes.textContent = `${w}x${h}`;
-
-    if (pixelIndicatorText && !isFitMode) {
-      pixelIndicatorText.textContent = `1:1 PIXEL-PERFECT (${w}x${h})`;
+    if (whiteboardCanvas) {
+      whiteboardCanvas.width = w;
+      whiteboardCanvas.height = h;
+      if (typeof redrawWhiteboard === 'function') redrawWhiteboard();
     }
+    metricRes.textContent = `${w}x${h}`;
+    if (typeof updateResolutionUi === 'function') {
+      updateResolutionUi(w, h);
+    }
+    updatePixelIndicator();
+    fitCanvasToViewport();
   }
 
   function setDisplayScaleMode(fit) {
@@ -3713,15 +4097,8 @@
     panX = 0;
     panY = 0;
     applyCanvasTransform();
-
-    if (pixelIndicatorBadge && pixelIndicatorText) {
-      if (!isFitMode) {
-        pixelIndicatorText.textContent = `1:1 PIXEL-PERFECT (${hostResolution.width}x${hostResolution.height})`;
-        pixelIndicatorBadge.classList.remove('hidden');
-      } else {
-        pixelIndicatorBadge.classList.add('hidden');
-      }
-    }
+    updatePixelIndicator();
+    fitCanvasToViewport();
   }
 
   function detectClientDisplayCapabilities() {
@@ -3758,12 +4135,12 @@
 
   async function syncDisplayProfileWithHost(silent = false) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      if (!silent) showToast('Chưa kết nối máy trạm', 'info');
+      if (!silent) showToast(t('toast.not_connected'), 'info');
       return;
     }
     const cap = await detectClientDisplayCapabilities();
     if (!silent) {
-      showToast(`Đang phân tích màn hình: ${cap.screenW}x${cap.screenH} @ ${cap.estHz}Hz...`, 'info');
+      showToast(t('toast.screen_analyzing', { info: `${cap.screenW}x${cap.screenH} @ ${cap.estHz}Hz` }), 'info');
     }
     ws.send(JSON.stringify({
       type: 'sync_display_profile',
@@ -3779,8 +4156,10 @@
 
   function handleDisplayProfileMatched(msg) {
     const recommended = msg.recommended_preset || 'speed_60';
-    if (qualitySelector) qualitySelector.value = recommended;
-    updateQualityMenuUI(recommended);
+    if (!hasUserManuallySelectedQuality || (qualitySelector && qualitySelector.value === 'auto_sync')) {
+      if (qualitySelector) qualitySelector.value = recommended;
+      updateQualityMenuUI(recommended);
+    }
 
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
@@ -3789,7 +4168,7 @@
     if (isMobileDevice) {
       // Mobile touch screens must ALWAYS stay fitted to the viewport
       setDisplayScaleMode(true);
-    } else if (msg.suggested_scale === '1to1' || recommended === 'native_1to1') {
+    } else if (recommended === 'native_1to1') {
       setDisplayScaleMode(false);
     } else {
       setDisplayScaleMode(true);
@@ -3805,19 +4184,42 @@
       'grayscale': 'Tiết kiệm băng thông'
     };
     const label = labelMap[recommended] || recommended;
-    showToast(`Đã đồng bộ tối ưu: Trạm ${msg.host_res[0]}x${msg.host_res[1]} ↔ Điều khiển ${msg.client_res[0]}x${msg.client_res[1]} @ ${msg.client_fps}Hz -> Cấu hình cao nhất: ${label}`, 'success');
+    showToast(t('toast.profile_matched', { host_res: `${msg.host_res[0]}x${msg.host_res[1]}`, client_res: `${msg.client_res[0]}x${msg.client_res[1]}`, fps: msg.client_fps, label: label }), 'success');
   }
 
   let pendingFrameBlob = null;
   let isFrameRendering = false;
+  let lastDecodedBitmap = null;
+  let lastDecodedBlobSize = -1;
+  let lastDecodedSig = '';
+
+  async function computeFastBlobSig(blob) {
+    if (!blob || !blob.size || typeof blob.slice !== 'function') return '';
+    try {
+      const mid = Math.max(0, (blob.size >> 1) - 16);
+      const ab = await blob.slice(mid, mid + 32).arrayBuffer();
+      const u8 = new Uint8Array(ab);
+      let s = '';
+      for (let i = 0; i < u8.length; i += 4) {
+        s += u8[i].toString(16) + '-';
+      }
+      return s;
+    } catch (_) {
+      return '';
+    }
+  }
 
   function handleIncomingFrame(blob) {
-    // Retain newest frame; drop stale intermediate frames to eliminate rendering latency backlog
+    // If an unrendered frame is superseded, immediately ACK it so host frames_in_flight never stalls
+    if (pendingFrameBlob !== null && ws && ws.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() })); } catch (_) {}
+    }
     pendingFrameBlob = blob;
 
     if (!isFrameRendering) {
       isFrameRendering = true;
-      requestAnimationFrame(renderQueuedFrame);
+      // Start JPEG decode immediately on background worker thread without waiting for next VSync tick
+      renderQueuedFrame();
     }
   }
 
@@ -3854,43 +4256,58 @@
     pendingFrameBlob = null;
 
     try {
-      const imgObj = await decodeBlob(blobToRender);
-      const width = imgObj.naturalWidth || imgObj.width;
-      const height = imgObj.naturalHeight || imgObj.height;
-
-      if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
-        // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
-        const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
-        const vy = Math.min(...hostMonitors.map(m => m.rect[1]));
-
-        hostMonitors.forEach(m => {
-          const tileItem = monitorTileMap.get(m.id);
-          if (tileItem) {
-            const sx = Math.max(0, m.rect[0] - vx);
-            const sy = Math.max(0, m.rect[1] - vy);
-            const sw = Math.max(1, m.rect[2] - m.rect[0]);
-            const sh = Math.max(1, m.rect[3] - m.rect[1]);
-
-            if (tileItem.canvas.width !== sw || tileItem.canvas.height !== sh) {
-              tileItem.canvas.width = sw;
-              tileItem.canvas.height = sh;
-            }
-            tileItem.ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
-          }
-        });
-      } else {
-        if (remoteCanvas.width !== width || remoteCanvas.height !== height) {
-          updateHostResolution(width, height);
-        }
-        ctx.drawImage(imgObj, 0, 0);
-        const connOverlay = document.getElementById('canvasConnectingOverlay');
-        if (connOverlay && !connOverlay.classList.contains('hidden')) {
-          connOverlay.classList.add('hidden');
+      let isSameStaticFrame = false;
+      let currSig = '';
+      if (lastDecodedBitmap !== null && blobToRender.size === lastDecodedBlobSize && lastDecodedSig) {
+        currSig = await computeFastBlobSig(blobToRender);
+        if (currSig && currSig === lastDecodedSig) {
+          isSameStaticFrame = true;
         }
       }
 
-      if (typeof imgObj.close === 'function') {
-        imgObj.close();
+      if (!isSameStaticFrame) {
+        if (!currSig) currSig = await computeFastBlobSig(blobToRender);
+        const imgObj = await decodeBlob(blobToRender);
+        const width = imgObj.naturalWidth || imgObj.width;
+        const height = imgObj.naturalHeight || imgObj.height;
+
+        if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
+          // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
+          const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
+          const vy = Math.min(...hostMonitors.map(m => m.rect[1]));
+
+          hostMonitors.forEach(m => {
+            const tileItem = monitorTileMap.get(m.id);
+            if (tileItem) {
+              const sx = Math.max(0, m.rect[0] - vx);
+              const sy = Math.max(0, m.rect[1] - vy);
+              const sw = Math.max(1, m.rect[2] - m.rect[0]);
+              const sh = Math.max(1, m.rect[3] - m.rect[1]);
+
+              if (tileItem.canvas.width !== sw || tileItem.canvas.height !== sh) {
+                tileItem.canvas.width = sw;
+                tileItem.canvas.height = sh;
+              }
+              tileItem.ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
+            }
+          });
+        } else {
+          if (remoteCanvas.width !== width || remoteCanvas.height !== height) {
+            updateHostResolution(width, height);
+          }
+          ctx.drawImage(imgObj, 0, 0);
+          const connOverlay = document.getElementById('canvasConnectingOverlay');
+          if (connOverlay && !connOverlay.classList.contains('hidden')) {
+            connOverlay.classList.add('hidden');
+          }
+        }
+
+        if (lastDecodedBitmap && lastDecodedBitmap !== imgObj && typeof lastDecodedBitmap.close === 'function') {
+          try { lastDecodedBitmap.close(); } catch (_) {}
+        }
+        lastDecodedBitmap = imgObj;
+        lastDecodedBlobSize = blobToRender.size;
+        lastDecodedSig = currSig;
       }
 
       // Honest Real-Time Measured Rendered FPS calculation
@@ -3919,23 +4336,104 @@
     }
 
     if (pendingFrameBlob) {
-      requestAnimationFrame(renderQueuedFrame);
+      renderQueuedFrame();
     } else {
       isFrameRendering = false;
     }
   }
 
   // --- MULTI-MONITOR SELECTION & INTERACTIVE GRID ---
+  function updateMonitorMenuUI(activeId = 0) {
+    const idNum = parseInt(activeId, 10) || 0;
+    if (monitorSelector) monitorSelector.value = String(idNum);
+
+    if (monitorCurrentLabel) {
+      if (idNum === 0) {
+        monitorCurrentLabel.textContent = (typeof t === 'function' && t('deck.monitor_all')) ? t('deck.monitor_all') : 'Tất cả';
+      } else {
+        const mon = hostMonitors.find(m => m.id === idNum);
+        monitorCurrentLabel.textContent = mon ? (mon.name || `Màn ${idNum}`) : `Màn ${idNum}`;
+      }
+    }
+
+    if (monitorMenuList) {
+      monitorMenuList.querySelectorAll('.quality-menu-item').forEach(item => {
+        const itemMonId = parseInt(item.dataset.monId, 10);
+        const isActive = itemMonId === idNum;
+        item.classList.toggle('active', isActive);
+        const check = item.querySelector('.quality-check');
+        if (check) check.classList.toggle('hidden', !isActive);
+      });
+    }
+  }
+
   function populateMonitors(monitors, activeId = 0) {
     if (!monitors || monitors.length === 0) return;
     hostMonitors = monitors;
-    const countStr = monitors.length > 1 ? ` (${monitors.length} màn)` : '';
-    let html = `<option value="0" ${activeId === 0 ? 'selected' : ''}>Tất cả màn hình${countStr}</option>`;
-    html += monitors.map(m => `
-      <option value="${m.id}" ${m.id == activeId ? 'selected' : ''}>${escapeHtml(m.name)} (${m.width}x${m.height})</option>
-    `).join('');
+    const currentActiveId = parseInt(activeId, 10) || 0;
+    if (monitorSelector) monitorSelector.value = String(currentActiveId);
 
-    monitorSelector.innerHTML = html;
+    const countStr = monitors.length > 1 ? ` (${monitors.length} màn)` : '';
+    const allTitle = (typeof t === 'function' && t('deck.monitor_all_title'))
+      ? t('deck.monitor_all_title', { count: monitors.length })
+      : `Tất cả màn hình${countStr}`;
+    const allDesc = (typeof t === 'function' && t('deck.monitor_all_desc'))
+      ? t('deck.monitor_all_desc')
+      : 'Truyền phát toàn bộ không gian làm việc đa màn hình';
+
+    let html = `
+      <button type="button" class="quality-menu-item ${currentActiveId === 0 ? 'active' : ''}" data-mon-id="0">
+        <span class="quality-item-badge">ALL</span>
+        <div class="quality-item-text">
+          <div class="quality-item-title">${escapeHtml(allTitle)}</div>
+          <div class="quality-item-desc">${escapeHtml(allDesc)}</div>
+        </div>
+        <span class="quality-check ${currentActiveId === 0 ? '' : 'hidden'}">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+      </button>
+    `;
+
+    monitors.forEach(m => {
+      const isAct = (m.id === currentActiveId);
+      const monName = m.name || `Màn hình ${m.id}`;
+      const monDesc = `${m.width} x ${m.height} // Màn hình #${m.id}`;
+      html += `
+        <button type="button" class="quality-menu-item ${isAct ? 'active' : ''}" data-mon-id="${m.id}">
+          <span class="quality-item-badge">M${m.id}</span>
+          <div class="quality-item-text">
+            <div class="quality-item-title">${escapeHtml(monName)}</div>
+            <div class="quality-item-desc">${escapeHtml(monDesc)}</div>
+          </div>
+          <span class="quality-check ${isAct ? '' : 'hidden'}">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+        </button>
+      `;
+    });
+
+    if (monitorMenuList) {
+      monitorMenuList.innerHTML = html;
+      monitorMenuList.querySelectorAll('.quality-menu-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const monId = parseInt(btn.dataset.monId, 10);
+          updateMonitorMenuUI(monId);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
+
+          if (!isConnected || !ws) return;
+          if (monId !== 0 && isGridMode) {
+            setGridMode(false);
+          }
+          ws.send(JSON.stringify({
+            type: 'switch_monitor',
+            monitor_id: monId
+          }));
+        });
+      });
+    }
+
+    updateMonitorMenuUI(currentActiveId);
 
     // Show/hide Grid button on floating deck
     if (monitors.length > 1) {
@@ -4010,7 +4508,7 @@
       tile.querySelector('.btn-tile-focus').addEventListener('click', (e) => {
         e.stopPropagation();
         setGridMode(false);
-        monitorSelector.value = String(mon.id);
+        updateMonitorMenuUI(mon.id);
         ws.send(JSON.stringify({ type: 'switch_monitor', monitor_id: mon.id }));
       });
 
@@ -4157,8 +4655,8 @@
       btnToggleGrid?.classList.add('active');
       renderGridTiles();
       // Ensure host streams all monitors so sub-rectangles can be extracted
-      if (monitorSelector.value !== "0") {
-        monitorSelector.value = "0";
+      if (monitorSelector && monitorSelector.value !== "0") {
+        updateMonitorMenuUI(0);
         ws.send(JSON.stringify({ type: 'switch_monitor', monitor_id: 0 }));
       }
     } else {
@@ -4205,22 +4703,31 @@
     }));
   });
 
+  let currentFpsLimit = 0;
+  let currentEncoderMode = 'auto';
+  let isStaticCacheEnabled = true;
+
   const QUALITY_SHORT_LABELS = {
+    'auto_sync': 'SYNC',
     'native_1to1': '1:1',
-    'auto_sync': 'AUTO',
-    'ultra_120': '120 FPS',
-    'speed_60': '60 FPS',
-    'crisp_2k_4k': '4K',
-    'crisp_hd': 'HD',
-    'balanced': '30 FPS',
-    'grayscale': 'ECO'
+    'crisp_2k_4k': 'ULTRA',
+    'crisp_hd': 'HIGH',
+    'balanced': 'STD',
+    'speed_60': 'FAST',
+    'grayscale': 'ECO',
+    'ultra_120': 'FAST',
+    'extreme_144': 'FAST',
+    'native_120_1to1': '1:1',
+    'wan_60_turbo': 'FAST'
   };
 
   function updateQualityMenuUI(preset) {
     if (qualityCurrentLabel) {
-      qualityCurrentLabel.textContent = QUALITY_SHORT_LABELS[preset] || preset.toUpperCase();
+      const baseLbl = QUALITY_SHORT_LABELS[preset] || preset.toUpperCase();
+      const fpsLbl = currentFpsLimit > 0 ? `${currentFpsLimit}FPS` : 'AUTO';
+      qualityCurrentLabel.textContent = preset === 'auto_sync' ? (currentFpsLimit > 0 ? `SYNC · ${fpsLbl}` : 'AUTO SYNC') : `${baseLbl} · ${fpsLbl}`;
     }
-    document.querySelectorAll('.quality-menu-item').forEach(item => {
+    document.querySelectorAll('#qualityMenuDropdown .quality-menu-item').forEach(item => {
       const isThis = item.getAttribute('data-preset') === preset;
       item.classList.toggle('active', isThis);
       const check = item.querySelector('.quality-check');
@@ -4282,8 +4789,70 @@
     }
   }
 
+  // Desktop Wheel & Drag-to-Scroll on Floating Deck
+  if (floatingDeck) {
+    floatingDeck.addEventListener('wheel', (e) => {
+      if (floatingDeck.scrollWidth > floatingDeck.clientWidth) {
+        if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+          e.preventDefault();
+          floatingDeck.scrollLeft += e.deltaY;
+        }
+      }
+    }, { passive: false });
+
+    floatingDeck.addEventListener('scroll', () => {
+      if (monitorMenuDropdown && !monitorMenuDropdown.classList.contains('hidden') && btnMonitorMenu) {
+        positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
+      }
+      if (resolutionMenuDropdown && !resolutionMenuDropdown.classList.contains('hidden') && btnResolutionMenu) {
+        positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
+      }
+      if (qualityMenuDropdown && !qualityMenuDropdown.classList.contains('hidden') && btnQualityMenu) {
+        positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
+      }
+      if (protocolMenuDropdown && !protocolMenuDropdown.classList.contains('hidden') && btnProtocolMenu) {
+        positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
+      }
+      if (keyboardMenuDropdown && !keyboardMenuDropdown.classList.contains('hidden') && btnMobileKeyboard) {
+        positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
+      }
+    }, { passive: true });
+
+    let isDeckDragging = false;
+    let deckStartX = 0;
+    let deckScrollLeft = 0;
+
+    floatingDeck.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button, select, input, a, .quality-menu')) return;
+      isDeckDragging = true;
+      deckStartX = e.pageX - floatingDeck.offsetLeft;
+      deckScrollLeft = floatingDeck.scrollLeft;
+      floatingDeck.style.cursor = 'grabbing';
+      floatingDeck.style.userSelect = 'none';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDeckDragging) return;
+      e.preventDefault();
+      const x = e.pageX - floatingDeck.offsetLeft;
+      const walk = (x - deckStartX) * 1.5;
+      floatingDeck.scrollLeft = deckScrollLeft - walk;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDeckDragging) {
+        isDeckDragging = false;
+        floatingDeck.style.cursor = '';
+        floatingDeck.style.removeProperty('user-select');
+      }
+    });
+  }
+
   function handleViewportResize() {
     syncTrueViewportHeight();
+    if (currentView === 'remote') {
+      fitCanvasToViewport();
+    }
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
                            window.innerWidth <= 1024;
@@ -4298,11 +4867,20 @@
     if (qualityMenuDropdown && !qualityMenuDropdown.classList.contains('hidden') && btnQualityMenu) {
       positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
     }
+    if (resolutionMenuDropdown && !resolutionMenuDropdown.classList.contains('hidden') && btnResolutionMenu) {
+      positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
+    }
+    if (monitorMenuDropdown && !monitorMenuDropdown.classList.contains('hidden') && btnMonitorMenu) {
+      positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
+    }
     if (deckModeDropdown && !deckModeDropdown.classList.contains('hidden') && btnDeckDisplayMode) {
       positionDeckDropdown(btnDeckDisplayMode, deckModeDropdown);
     }
     if (powerMenuDropdown && !powerMenuDropdown.classList.contains('hidden') && btnPowerMenu) {
       positionDeckDropdown(btnPowerMenu, powerMenuDropdown);
+    }
+    if (keyboardMenuDropdown && !keyboardMenuDropdown.classList.contains('hidden') && btnMobileKeyboard) {
+      positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
     }
     if (typeof placeAllIndicators === 'function') placeAllIndicators();
   }
@@ -4322,6 +4900,10 @@
         btnQualityMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
+          resolutionMenuDropdown?.classList.add('hidden');
+          btnResolutionMenu?.classList.remove('btn-active');
           if (protocolMenuDropdown) {
             protocolMenuDropdown.classList.add('hidden');
             if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
@@ -4339,10 +4921,60 @@
     });
   }
 
+  function sendFpsAndEncoderConfig() {
+    const badge = document.getElementById('fpsLimitCurrentBadge');
+    if (badge) {
+      badge.textContent = currentFpsLimit > 0 ? `LOCKED ${currentFpsLimit} FPS` : 'AUTO (120 LAN / 60 WAN)';
+    }
+    if (qualitySelector) {
+      updateQualityMenuUI(qualitySelector.value || 'balanced');
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'set_fps_limit',
+        fps_limit: currentFpsLimit,
+        encoder_mode: currentEncoderMode,
+        static_cache: isStaticCacheEnabled
+      }));
+    }
+  }
+
+  document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentFpsLimit = parseInt(pill.getAttribute('data-fps-limit') || '0', 10) || 0;
+      document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(p => p.classList.toggle('active', p === pill));
+      sendFpsAndEncoderConfig();
+      showToast(currentFpsLimit > 0 ? `Đã khóa giới hạn tốc độ: ${currentFpsLimit} FPS` : 'Chế độ FPS: Tự động (120 FPS LAN / 60 FPS WAN)', 'info');
+    });
+  });
+
+  document.querySelectorAll('#encoderModePills .encoder-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentEncoderMode = pill.getAttribute('data-encoder-mode') || 'auto';
+      document.querySelectorAll('#encoderModePills .encoder-pill').forEach(p => p.classList.toggle('active', p === pill));
+      sendFpsAndEncoderConfig();
+      showToast(`Bộ nén hình ảnh SIMD: ${currentEncoderMode.toUpperCase()}`, 'info');
+    });
+  });
+
+  const btnToggleStaticCache = document.getElementById('btnToggleStaticCache');
+  if (btnToggleStaticCache) {
+    btnToggleStaticCache.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isStaticCacheEnabled = !isStaticCacheEnabled;
+      btnToggleStaticCache.classList.toggle('active', isStaticCacheEnabled);
+      sendFpsAndEncoderConfig();
+      showToast(isStaticCacheEnabled ? 'Đã bật Zero-CPU Cached Frame (0% CPU khi màn hình tĩnh)' : 'Đã tắt Zero-CPU Cached Frame', 'info');
+    });
+  }
+
   // Quality Preset Selection in Menu
-  document.querySelectorAll('.quality-menu-item').forEach(btn => {
+  document.querySelectorAll('#qualityMenuDropdown .quality-menu-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const preset = btn.getAttribute('data-preset');
+      hasUserManuallySelectedQuality = (preset !== 'auto_sync');
       if (qualitySelector) {
         qualitySelector.value = preset;
         qualitySelector.dispatchEvent(new Event('change'));
@@ -4353,9 +4985,12 @@
     });
   });
 
+  let qualityPresetReqId = 0;
+
   // --- QUALITY & RESOLUTION PRESET ---
   qualitySelector.addEventListener('change', () => {
     const activePreset = qualitySelector.value;
+    hasUserManuallySelectedQuality = (activePreset !== 'auto_sync');
     updateQualityMenuUI(activePreset);
     if (!isConnected) return;
     const preset = qualitySelector.value;
@@ -4364,9 +4999,20 @@
       return;
     }
 
+    if (preset === 'native_1to1') {
+      setDisplayScaleMode(false);
+    }
+
+    // Flush stale pending frame immediately
+    pendingFrameBlob = null;
+
     ws.send(JSON.stringify({
       type: 'set_quality_preset',
-      preset: preset
+      preset: preset,
+      fps_limit: currentFpsLimit,
+      encoder_mode: currentEncoderMode,
+      static_cache: isStaticCacheEnabled,
+      req_id: ++qualityPresetReqId
     }));
 
     const presetKeyMap = {
@@ -4381,24 +5027,20 @@
       'grayscale': 'deck.quality_grayscale'
     };
     const presetFallbackVi = {
-      'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
-      'auto_sync': 'Tự động tối ưu (Auto-Sync)',
-      'ultra_120': '120 FPS Siêu mượt',
-      'speed_60': '60 FPS Mượt mà (720p)',
-      'crisp_2k_4k': '2K / 4K Cực nét (95%)',
-      'crisp_hd': 'HD Nét (1080p // 85%)',
-      'balanced': '30 FPS Cân bằng (900p)',
-      'eco': 'Tiết kiệm băng thông (540p)',
-      'grayscale': 'Tiết kiệm băng thông (Đơn sắc)'
+      'native_1to1': '1:1 Chuẩn gốc (Lossless 4:4:4)',
+      'auto_sync': 'Tự động đồng bộ (Auto-Sync)',
+      'ultra_120': 'Ưu tiên Phản hồi (Low-Latency)',
+      'speed_60': 'Ưu tiên Phản hồi (Low-Latency Q58)',
+      'crisp_2k_4k': 'Siêu nét 2K / 4K (Ultra Q95)',
+      'crisp_hd': 'Sắc nét Cao (High Q82)',
+      'balanced': 'Tiêu chuẩn (Balanced Q70)',
+      'eco': 'Tiết kiệm Băng thông (ECO)',
+      'grayscale': 'Tiết kiệm Băng thông (ECO Q40)'
     };
     const key = presetKeyMap[preset] || ('deck.quality_' + preset);
     const friendlyName = (window.MeikovaI18n ? window.MeikovaI18n.t(key) : null) || presetFallbackVi[preset] || preset;
 
-    if (preset === 'native_1to1') {
-      showToast('Chế độ 1:1 Chuẩn gốc: Hiển thị nguyên bản từng điểm ảnh (Pixel-Perfect)', 'success');
-    } else {
-      showToast(`Đã chuyển cấu hình: ${friendlyName}`, 'info');
-    }
+    showToast(t('toast.preset_switching', { preset: friendlyName }), 'info');
   });
 
   // --- 1-CLICK DISPLAY AUTO-SYNC ---
@@ -4419,7 +5061,7 @@
         if (navigator.keyboard && navigator.keyboard.lock) {
           await navigator.keyboard.lock(['AltLeft', 'AltRight', 'Tab', 'Escape', 'MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight']);
         }
-        showToast('Toàn màn hình: Đã khóa phím hệ thống (Alt+Tab, Win hoạt động trên máy trạm)', 'info');
+        showToast(t('toast.fullscreen_keys_locked'), 'info');
       } catch (err) {
         remoteSection.requestFullscreen().catch(() => {});
       }
@@ -4484,7 +5126,7 @@
     setTimeout(() => ripple.remove(), 450);
   }
 
-  // --- MOBILE TOUCH CONTROLLER (Direct Tap / Virtual Trackpad / 2-Finger Scroll & Zoom) ---
+  // --- MOBILE TOUCH CONTROLLER (Direct Tap / Multi-touch Gestures: 2-Finger Pan & Pinch, 2-Finger Tap Right Click, Hold-and-Drag) ---
   let mobileTouchMode = 'direct'; // 'direct' | 'trackpad'
   let touchStartX = 0;
   let touchStartY = 0;
@@ -4493,10 +5135,23 @@
   let touchLastY = 0;
   let longPressTimer = null;
   let isLongPressTriggered = false;
+  let isHoldDragActive = false;
   let lastTapTime = 0;
   let lastTapX = 0;
   let lastTapY = 0;
   let touchMoveThrottle = 0;
+
+  // Two-finger multi-touch tracking
+  let touchStartMidX = 0;
+  let touchStartMidY = 0;
+  let touchLastMidX = 0;
+  let touchLastMidY = 0;
+  let twoFingerTouchStartTime = 0;
+  let twoFingerMoved = false;
+
+  // Three-finger tracking
+  let threeFingerTouchStartTime = 0;
+  let threeFingerMoved = false;
 
   remoteCanvas.addEventListener('touchstart', (e) => {
     resetDeckIdle();
@@ -4508,33 +5163,52 @@
       touchLastY = t.clientY;
       touchStartTime = performance.now();
       isLongPressTriggered = false;
+      isHoldDragActive = false;
 
-      // Long-press timer (450ms) for Right Click
+      // 380ms Hold timer: activates Hold-and-Drag (Mouse Left Down) if user holds and then moves
       if (longPressTimer) clearTimeout(longPressTimer);
       longPressTimer = setTimeout(() => {
         if (!isConnected) return;
         isLongPressTriggered = true;
+        isHoldDragActive = true;
         if (navigator.vibrate) {
-          try { navigator.vibrate(45); } catch {}
+          try { navigator.vibrate(35); } catch {}
         }
-        showTouchRipple(touchStartX, touchStartY, 'right');
+        showTouchRipple(touchStartX, touchStartY, 'left');
         const coords = getNormalizedCoords({ clientX: touchStartX, clientY: touchStartY });
         ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
-        ws.send(JSON.stringify({ type: 'mouse_down', button: 2 }));
-        setTimeout(() => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'mouse_up', button: 2 }));
-          }
-        }, 40);
-      }, 450);
+        ws.send(JSON.stringify({ type: 'mouse_down', button: 0 }));
+      }, 380);
     } else if (e.touches.length === 2) {
-      if (longPressTimer) clearTimeout(longPressTimer);
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      if (isHoldDragActive) {
+        isHoldDragActive = false;
+        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'mouse_up', button: 0 }));
+        }
+      }
       e.preventDefault();
       const p1 = e.touches[0];
       const p2 = e.touches[1];
       touchStartDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
       touchStartScale = scale;
-      touchLastY = (p1.clientY + p2.clientY) / 2;
+      touchStartMidX = (p1.clientX + p2.clientX) / 2;
+      touchStartMidY = (p1.clientY + p2.clientY) / 2;
+      touchLastMidX = touchStartMidX;
+      touchLastMidY = touchStartMidY;
+      twoFingerTouchStartTime = performance.now();
+      twoFingerMoved = false;
+    } else if (e.touches.length === 3) {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      e.preventDefault();
+      threeFingerTouchStartTime = performance.now();
+      threeFingerMoved = false;
     }
   }, { passive: false });
 
@@ -4543,7 +5217,7 @@
     if (e.touches.length === 1) {
       const t = e.touches[0];
       const moveDist = Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY);
-      if (moveDist > 10) {
+      if (!isHoldDragActive && moveDist > 12) {
         if (longPressTimer) {
           clearTimeout(longPressTimer);
           longPressTimer = null;
@@ -4555,38 +5229,48 @@
       if (now - touchMoveThrottle < 20) return;
       touchMoveThrottle = now;
 
-      if (mobileTouchMode === 'direct') {
-        const coords = getNormalizedCoords(t);
+      const coords = getNormalizedCoords(t);
+      if (isHoldDragActive) {
+        // Dragging with left mouse button held down (select text, move window, drag file)
+        ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
+      } else if (mobileTouchMode === 'direct') {
         ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
       }
       touchLastX = t.clientX;
       touchLastY = t.clientY;
     } else if (e.touches.length === 2) {
-      if (longPressTimer) clearTimeout(longPressTimer);
       e.preventDefault();
       const p1 = e.touches[0];
       const p2 = e.touches[1];
-      const dist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
-      const currentAvgY = (p1.clientY + p2.clientY) / 2;
+      const currDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+      const currMidX = (p1.clientX + p2.clientX) / 2;
+      const currMidY = (p1.clientY + p2.clientY) / 2;
 
-      // Two-finger scroll detection
-      const scrollDiff = currentAvgY - touchLastY;
-      const distDiff = Math.abs(dist - touchStartDist);
+      const dx = currMidX - touchLastMidX;
+      const dy = currMidY - touchLastMidY;
+      const distDiff = Math.abs(currDist - touchStartDist);
+      const midDist = Math.hypot(currMidX - touchStartMidX, currMidY - touchStartMidY);
 
-      if (distDiff < 15 && Math.abs(scrollDiff) > 3) {
-        // Pure 2-finger scroll
-        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'mouse_wheel',
-            delta_y: scrollDiff * 2.5
-          }));
-        }
-        touchLastY = currentAvgY;
-      } else if (touchStartDist > 0) {
-        // Pinch zoom
-        scale = Math.max(0.5, Math.min(4.0, touchStartScale * (dist / touchStartDist)));
-        applyCanvasTransform();
+      if (midDist > 8 || distDiff > 10) {
+        twoFingerMoved = true;
       }
+
+      // Two-finger Pan: Fluidly move remote desktop viewport
+      panX += dx;
+      panY += dy;
+
+      // Two-finger Pinch Zoom (anchored scale adjustment)
+      if (touchStartDist > 0 && distDiff > 8) {
+        const targetScale = touchStartScale * (currDist / touchStartDist);
+        scale = Math.max(0.4, Math.min(5.0, targetScale));
+      }
+
+      applyCanvasTransform();
+
+      touchLastMidX = currMidX;
+      touchLastMidY = currMidY;
+    } else if (e.touches.length === 3) {
+      threeFingerMoved = true;
     }
   }, { passive: false });
 
@@ -4595,17 +5279,71 @@
       clearTimeout(longPressTimer);
       longPressTimer = null;
     }
-    if (isLongPressTriggered) {
+
+    // 1. Release Hold & Drag if it was active
+    if (isHoldDragActive) {
+      isHoldDragActive = false;
       isLongPressTriggered = false;
+      if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'mouse_up', button: 0 }));
+      }
       return;
     }
 
+    // 2. Three-finger Tap -> Toggle Preferred Keyboard (Phone Native Soft KB or Virtual OSK)
+    if (e.touches.length === 0 && threeFingerTouchStartTime > 0) {
+      const elapsed3 = performance.now() - threeFingerTouchStartTime;
+      threeFingerTouchStartTime = 0;
+      if (elapsed3 < 320 && !threeFingerMoved) {
+        e.preventDefault();
+        if (navigator.vibrate) try { navigator.vibrate([25, 40, 25]); } catch {}
+        const pref = localStorage.getItem('meikova_keyboard_pref') || 'phone';
+        if (pref === 'osk') {
+          if (oskOverlay) {
+            const isHidden = oskOverlay.classList.contains('hidden');
+            oskOverlay.classList.toggle('hidden', !isHidden);
+            btnToggleOSK?.classList.toggle('btn-active', isHidden);
+            updateKeyboardMenuUI();
+          }
+        } else {
+          if (document.activeElement === mobileVirtualInput) {
+            closeMobileSoftKeyboard();
+          } else {
+            openMobileSoftKeyboard();
+          }
+        }
+        return;
+      }
+    }
+
+    // 3. Two-finger Tap -> Right Click at Midpoint
+    if (e.touches.length === 0 && twoFingerTouchStartTime > 0) {
+      const elapsed2 = performance.now() - twoFingerTouchStartTime;
+      twoFingerTouchStartTime = 0;
+      if (elapsed2 < 300 && !twoFingerMoved) {
+        e.preventDefault();
+        if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+        if (navigator.vibrate) try { navigator.vibrate(45); } catch {}
+        showTouchRipple(touchStartMidX, touchStartMidY, 'right');
+        const coords = getNormalizedCoords({ clientX: touchStartMidX, clientY: touchStartMidY });
+        ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
+        ws.send(JSON.stringify({ type: 'mouse_down', button: 2 }));
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'mouse_up', button: 2 }));
+          }
+        }, 40);
+        return;
+      }
+    }
+
+    // 4. Single-finger Tap -> Left Click or Double Click
     if (e.changedTouches.length === 1 && e.touches.length === 0) {
       const t = e.changedTouches[0];
       const dist = Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY);
       const duration = performance.now() - touchStartTime;
 
-      if (dist <= 12 && duration < 450) {
+      if (dist <= 12 && duration < 380) {
         e.preventDefault();
         if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
 
@@ -4788,7 +5526,7 @@
   async function toggleWebcam() {
     if (isWebcamActive) {
       stopWebcam();
-      showToast('Đã tắt Face Cam', 'info');
+      showToast(t('toast.cam_off'), 'info');
     } else {
       await startWebcam();
     }
@@ -4796,7 +5534,7 @@
 
   async function startWebcam() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast('Trình duyệt không hỗ trợ webcam', 'error');
+      showToast(t('toast.webcam_not_supported'), 'error');
       return;
     }
     try {
@@ -4811,9 +5549,9 @@
       camSvgOff.classList.add('hidden');
       camSvgOn.classList.remove('hidden');
       btnToggleCam.classList.add('btn-active');
-      showToast('Đã bật Face Cam (PiP)', 'success');
+      showToast(t('toast.cam_on'), 'success');
     } catch (err) {
-      showToast(`Không thể mở webcam: ${err.message}`, 'error');
+      showToast(t('toast.cam_error', { error: err.message }), 'error');
       stopWebcam();
     }
   }
@@ -4844,7 +5582,7 @@
   // --- SESSION RECORDING (WEBM) ---
   btnRecord.addEventListener('click', () => {
     if (!isConnected) {
-      showToast('Vui lòng kết nối vào máy trạm trước khi ghi hình!', 'info');
+      showToast(t('toast.connect_before_record'), 'info');
       return;
     }
     if (isRecording) {
@@ -4941,19 +5679,19 @@
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
         downloadBlob(blob, `meikova-relay-session-${Date.now()}.webm`);
         recordedChunks = [];
-        showToast('Đã lưu tệp ghi hình webm', 'success');
+        showToast(t('toast.record_saved'), 'success');
       };
       mediaRecorder.start();
       isRecording = true;
       btnRecord.classList.add('btn-active');
-      btnRecord.title = 'Đang ghi hình...';
-      showToast(isWebcamActive ? 'Bắt đầu ghi hình (màn hình + Face Cam)' : 'Bắt đầu ghi hình màn hình', 'info');
+      btnRecord.title = t('deck.recording_title');
+      showToast(isWebcamActive ? t('toast.record_with_cam') : t('toast.record_started'), 'info');
     } catch (err) {
       if (recAnimId) {
         cancelAnimationFrame(recAnimId);
         recAnimId = null;
       }
-      showToast(`Không thể bắt đầu ghi hình: ${err.message}`, 'error');
+      showToast(t('toast.generic_error', { message: err.message }), 'error');
     }
   }
 
@@ -4966,20 +5704,20 @@
       mediaRecorder.stop();
       isRecording = false;
       btnRecord.classList.remove('btn-active');
-      btnRecord.title = 'Ghi hình phiên làm việc';
+      btnRecord.title = t('deck.btn_record_title');
     }
   }
 
   // --- CANVAS SCREENSHOT (PNG) ---
   btnScreenshot.addEventListener('click', () => {
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     remoteCanvas.toBlob((blob) => {
       if (blob) {
         downloadBlob(blob, `meikova-relay-screen-${Date.now()}.png`);
-        showToast('Đã chụp và lưu ảnh màn hình png', 'success');
+        showToast(t('toast.screenshot_saved'), 'success');
       }
     }, 'image/png');
   });
@@ -5044,7 +5782,7 @@
 
   function toggleAudioStream(enable) {
     if (!isConnected || !ws) {
-      showToast('Vui lòng kết nối vào máy trạm trước khi bật âm thanh', 'info');
+      showToast(t('toast.connect_before_audio'), 'info');
       return;
     }
     const targetState = (enable !== undefined) ? enable : !isAudioStreaming;
@@ -5081,7 +5819,7 @@
 
   async function startMicStream() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast('Trình duyệt không hỗ trợ thu âm Microphone', 'error');
+      showToast(t('toast.mic_not_supported'), 'error');
       return;
     }
     try {
@@ -5138,9 +5876,9 @@
         sample_rate: micAudioContext.sampleRate,
         channels: 1
       }));
-      showToast('Đang truyền giọng nói tới loa máy trạm...', 'success');
+      showToast(t('toast.voice_transmitting'), 'success');
     } catch (err) {
-      showToast(`Không thể truy cập Microphone: ${err.message}`, 'error');
+      showToast(t('toast.generic_error', { message: err.message }), 'error');
       stopMicStream();
     }
   }
@@ -5174,12 +5912,12 @@
 
   function toggleMicStream() {
     if (!isConnected || !ws) {
-      showToast('Vui lòng kết nối vào máy trạm trước khi bật micro', 'info');
+      showToast(t('toast.connect_before_mic'), 'info');
       return;
     }
     if (isMicStreaming) {
       stopMicStream();
-      showToast('Đã dừng micro nói sang máy trạm', 'info');
+      showToast(t('toast.voice_stopped'), 'info');
     } else {
       startMicStream();
     }
@@ -5208,30 +5946,62 @@
     const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
     if (tag === 'input' || tag === 'textarea' || (activeEl && activeEl.isContentEditable)) return;
 
-    // A. Handle file paste onto Remote Desktop screen or File Explorer
-    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
-      e.preventDefault();
-      const files = await getFilesFromDataTransfer(e.clipboardData);
-      if (files.length > 0) {
-        if (currentView === 'remote') {
-          showToast(`Đang dán ${files.length} tệp lên màn hình máy trạm...`, 'info');
-          files.forEach(f => uploadFileToHost(f, 'desktop'));
-        } else if (currentView === 'files') {
-          showToast(`Đang dán ${files.length} tệp vào thư mục hiện tại...`, 'info');
-          files.forEach(f => uploadFileToHost(f, remoteCurrentPath));
-        }
-      }
-      return;
-    }
-
-    // B. Handle File Explorer internal clipboard paste (Ctrl+V)
+    // A. Handle File Explorer internal clipboard paste (Ctrl+V)
     if (currentView === 'files' && explorerClipboard && explorerClipboard.path) {
       e.preventDefault();
       executePasteAction();
       return;
     }
 
-    // C. Handle text clipboard paste to remote screen
+    // B. Check if user is pasting an IMAGE
+    let imageItem = null;
+    if (e.clipboardData?.items) {
+      for (let i = 0; i < e.clipboardData.items.length; i++) {
+        const it = e.clipboardData.items[i];
+        if (it.type.startsWith('image/')) {
+          imageItem = it.getAsFile();
+          break;
+        }
+      }
+    }
+    if (!imageItem && e.clipboardData?.files?.length === 1 && e.clipboardData.files[0].type.startsWith('image/')) {
+      imageItem = e.clipboardData.files[0];
+    }
+
+    if (imageItem && currentView === 'remote' && ws && ws.readyState === WebSocket.OPEN) {
+      e.preventDefault();
+      showToast(t('toast.pasting_image'), 'info');
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = reader.result.split(',')[1];
+        ws.send(JSON.stringify({
+          type: 'clipboard_sync_image',
+          data: b64,
+          mime: imageItem.type,
+          auto_paste: true
+        }));
+      };
+      reader.readAsDataURL(imageItem);
+      return;
+    }
+
+    // C. Handle regular file paste onto Remote Desktop screen or File Explorer
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      e.preventDefault();
+      const files = await getFilesFromDataTransfer(e.clipboardData);
+      if (files.length > 0) {
+        if (currentView === 'remote') {
+          showToast(t('toast.transferring_files_desktop', { count: files.length }), 'info');
+          files.forEach(f => uploadFileToHost(f, 'desktop'));
+        } else if (currentView === 'files') {
+          showToast(t('toast.pasting_files_cur_dir', { count: files.length }), 'info');
+          files.forEach(f => uploadFileToHost(f, remoteCurrentPath));
+        }
+      }
+      return;
+    }
+
+    // D. Handle text clipboard paste to remote screen (Instant auto-paste on host)
     if (currentView !== 'remote') return;
     e.preventDefault();
     const pastedText = e.clipboardData?.getData('text');
@@ -5239,28 +6009,107 @@
       lastSyncedClientClipboard = pastedText;
       ws.send(JSON.stringify({
         type: 'clipboard_sync',
-        text: pastedText
+        text: pastedText,
+        auto_paste: true
       }));
-      // Trigger Ctrl+V on the remote workstation
-      setTimeout(() => {
-        sendHotKeyCombo([0x11, 0x56]); // Ctrl+V
-      }, 50);
     }
   });
+
+
+  // --- Universal Multi-Type Clipboard Synchronization Engine ---
+  let currentClipboardImageData = null;
+
+  function handleIncomingClipboardImage(b64Data, mime) {
+    if (!b64Data) return;
+    mime = mime || 'image/png';
+    currentClipboardImageData = { data: b64Data, mime };
+
+    const container = document.getElementById('shelfClipImageContainer');
+    const preview = document.getElementById('shelfClipImagePreview');
+    const meta = document.getElementById('shelfClipImageMeta');
+    if (container && preview) {
+      preview.src = `data:${mime};base64,${b64Data}`;
+      container.classList.remove('hidden');
+      const approxKb = Math.round((b64Data.length * 0.75) / 1024);
+      if (meta) meta.textContent = `${(mime.split('/')[1] || 'IMAGE').toUpperCase()} • ${approxKb} KB`;
+    }
+
+    try {
+      const byteCharacters = atob(b64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mime });
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Clipboard image parse error:', e);
+    }
+  }
+
+  function handleIncomingClipboardFiles(files) {
+    if (!Array.isArray(files) || files.length === 0) return;
+    const names = files.map(p => p.split(/[\\/]/).pop()).slice(0, 3).join(', ');
+    const more = files.length > 3 ? ` (+${files.length - 3})` : '';
+    // Silenced high-frequency file clipboard toast
+  }
+
+  const btnDownloadClipImage = document.getElementById('btnDownloadClipImage');
+  if (btnDownloadClipImage) {
+    btnDownloadClipImage.addEventListener('click', () => {
+      if (!currentClipboardImageData) return;
+      const a = document.createElement('a');
+      a.href = `data:${currentClipboardImageData.mime};base64,${currentClipboardImageData.data}`;
+      const ext = currentClipboardImageData.mime.includes('jpeg') ? 'jpg' : 'png';
+      a.download = `remote_clip_${Date.now()}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  }
 
   // Client Copy Event: Sync local copy to host immediately
   window.addEventListener('copy', async () => {
     if (!isConnected || ws?.readyState !== WebSocket.OPEN) return;
     try {
-      if (navigator.clipboard && navigator.clipboard.readText) {
+      if (navigator.clipboard) {
         setTimeout(async () => {
-          const text = await navigator.clipboard.readText();
-          if (text && text !== lastSyncedClientClipboard && ws && ws.readyState === WebSocket.OPEN) {
-            lastSyncedClientClipboard = text;
-            ws.send(JSON.stringify({
-              type: 'clipboard_sync',
-              text: text
-            }));
+          if (navigator.clipboard.read) {
+            try {
+              const items = await navigator.clipboard.read();
+              for (const it of items) {
+                for (const type of it.types) {
+                  if (type.startsWith('image/')) {
+                    const blob = await it.getType(type);
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const b64 = reader.result.split(',')[1];
+                      ws.send(JSON.stringify({
+                        type: 'clipboard_sync_image',
+                        data: b64,
+                        mime: type,
+                        auto_paste: false
+                      }));
+                    };
+                    reader.readAsDataURL(blob);
+                    return;
+                  }
+                }
+              }
+            } catch {}
+          }
+          if (navigator.clipboard.readText) {
+            const text = await navigator.clipboard.readText();
+            if (text && text !== lastSyncedClientClipboard && ws && ws.readyState === WebSocket.OPEN) {
+              lastSyncedClientClipboard = text;
+              ws.send(JSON.stringify({
+                type: 'clipboard_sync',
+                text: text
+              }));
+            }
           }
         }, 50);
       }
@@ -5283,7 +6132,7 @@
     } catch {}
   });
 
-  // --- KEYBOARD CAPTURE (PREVENT LEAKS INTO TEXT INPUTS) ---
+  // --- KEYBOARD CAPTURE (PREVENT LEAKS INTO TEXT INPUTS & FULL VIETNAMESE SUPPORT) ---
   window.addEventListener('keydown', (e) => {
     if (!isConnected || currentView !== 'remote') return;
 
@@ -5298,6 +6147,22 @@
     // Let browser paste event capture client clipboard, sync to host, and trigger remote paste!
     if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyV' || e.key === 'v' || e.key === 'V')) {
       return;
+    }
+
+    // Intercept printable Unicode diacritics & synthetic IME/Unikey replacement keys:
+    // Unikey synthesizes Backspaces then injects replacement characters like â, đ, ê, ơ, ư, etc.
+    // In browser, these synthetic keys have charCode > 127 or unmapped/empty e.code ('', 'Unidentified', 'Process')
+    if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key && e.key.length === 1) {
+      const charCode = e.key.charCodeAt(0);
+      const isUnicodeDiacritic = charCode > 127;
+      const isSyntheticIME = (!e.code || e.code === 'Unidentified' || e.code === 'Process');
+      if (isUnicodeDiacritic || isSyntheticIME) {
+        ws.send(JSON.stringify({
+          type: 'text_input',
+          text: e.key
+        }));
+        return;
+      }
     }
 
     const vk = JS_TO_VK[e.code] || 0;
@@ -5322,6 +6187,13 @@
       return;
     }
 
+    // Skip synthetic/Unicode characters already handled via text_input
+    if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key && e.key.length === 1) {
+      if (e.key.charCodeAt(0) > 127 || !e.code || e.code === 'Unidentified' || e.code === 'Process') {
+        return;
+      }
+    }
+
     const vk = JS_TO_VK[e.code] || 0;
     if (vk > 0) {
       if (['Tab', 'AltLeft', 'AltRight', 'Backspace'].includes(e.code)) {
@@ -5335,6 +6207,19 @@
     }
   });
 
+  // Capture IME composition completion (MacOS Telex, Windows IME, Android Gboard)
+  window.addEventListener('compositionend', (e) => {
+    if (!isConnected || currentView !== 'remote') return;
+    const activeEl = document.activeElement;
+    const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (activeEl && activeEl.isContentEditable)) {
+      return;
+    }
+    if (e.data && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'text_input', text: e.data }));
+    }
+  });
+
   // Hotkey Buttons on Deck & Mobile Quick Keys Bar
   document.querySelectorAll('[data-hotkey]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -5345,7 +6230,7 @@
       } else if (key === 'taskmgr' || key === 'cad') {
         // Ctrl+Alt+Del for Windows unlock / Task Manager
         sendHotKeyCombo([0x11, 0x12, 0x2E]);
-        showToast('Đã gửi Ctrl+Alt+Del', 'info', 1200);
+        showToast(t('toast.cad_sent'), 'info', 1200);
       } else if (key === 'alttab') {
         sendHotKeyCombo([0x12, 0x09]); // Alt+Tab
       } else if (key === 'esc') {
@@ -5376,16 +6261,147 @@
     }, 100);
   }
 
-  // --- MOBILE SOFT KEYBOARD BRIDGE ---
-  if (btnMobileKeyboard && mobileVirtualInput) {
+  // --- MOBILE KEYBOARD CONTROLLER & BRIDGE ---
+  function updateKeyboardMenuUI() {
+    const isPhoneActive = (document.activeElement === mobileVirtualInput);
+    const isOskActive = (oskOverlay && !oskOverlay.classList.contains('hidden'));
+
+    if (checkPhoneKeyboard) {
+      checkPhoneKeyboard.classList.toggle('hidden', !isPhoneActive);
+    }
+    if (checkVirtualOSK) {
+      checkVirtualOSK.classList.toggle('hidden', !isOskActive);
+    }
+    if (btnOptPhoneKeyboard) {
+      btnOptPhoneKeyboard.classList.toggle('active', isPhoneActive);
+    }
+    if (btnOptVirtualOSK) {
+      btnOptVirtualOSK.classList.toggle('active', isOskActive);
+    }
+    if (btnMobileKeyboard) {
+      btnMobileKeyboard.classList.toggle('btn-active', isPhoneActive || isOskActive);
+    }
+    if (btnToggleOSK) {
+      btnToggleOSK.classList.toggle('btn-active', isOskActive);
+    }
+  }
+
+  function openMobileSoftKeyboard() {
+    if (!mobileVirtualInput) return;
+    mobileVirtualInput.value = '';
+    mobileVirtualInput.focus({ preventScroll: true });
+    updateKeyboardMenuUI();
+  }
+
+  function closeMobileSoftKeyboard() {
+    if (!mobileVirtualInput) return;
+    mobileVirtualInput.blur();
+    updateKeyboardMenuUI();
+  }
+
+  if (btnMobileKeyboard && keyboardMenuDropdown) {
     btnMobileKeyboard.addEventListener('click', (e) => {
       e.stopPropagation();
-      mobileVirtualInput.value = '';
-      mobileVirtualInput.focus();
-      showToast('Đã mở bàn phím ảo di động', 'info', 1200);
+      const isOpening = keyboardMenuDropdown.classList.contains('hidden');
+      monitorMenuDropdown?.classList.add('hidden');
+      btnMonitorMenu?.classList.remove('btn-active');
+      resolutionMenuDropdown?.classList.add('hidden');
+      btnResolutionMenu?.classList.remove('btn-active');
+      qualityMenuDropdown?.classList.add('hidden');
+      btnQualityMenu?.classList.remove('btn-active');
+      protocolMenuDropdown?.classList.add('hidden');
+      btnProtocolMenu?.classList.remove('btn-active');
+      powerMenuDropdown?.classList.add('hidden');
+      btnPowerMenu?.classList.remove('btn-active');
+      deckModeDropdown?.classList.add('hidden');
+      btnDeckDisplayMode?.classList.remove('btn-active');
+      snippetsMenuDropdown?.classList.add('hidden');
+      btnSnippetsMenu?.classList.remove('btn-active');
+
+      keyboardMenuDropdown.classList.toggle('hidden', !isOpening);
+      if (isOpening) {
+        updateKeyboardMenuUI();
+        positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
+      } else {
+        updateKeyboardMenuUI();
+      }
     });
 
-    mobileVirtualInput.addEventListener('input', () => {
+    btnOptPhoneKeyboard?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.setItem('meikova_keyboard_pref', 'phone');
+      keyboardMenuDropdown.classList.add('hidden');
+      if (oskOverlay && !oskOverlay.classList.contains('hidden')) {
+        oskOverlay.classList.add('hidden');
+        btnToggleOSK?.classList.remove('btn-active');
+      }
+      if (document.activeElement === mobileVirtualInput) {
+        closeMobileSoftKeyboard();
+        // soft keyboard closed
+      } else {
+        openMobileSoftKeyboard();
+        // soft keyboard opened
+      }
+      updateKeyboardMenuUI();
+    });
+
+    btnOptVirtualOSK?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.setItem('meikova_keyboard_pref', 'osk');
+      keyboardMenuDropdown.classList.add('hidden');
+      if (mobileVirtualInput && document.activeElement === mobileVirtualInput) {
+        closeMobileSoftKeyboard();
+      }
+      if (oskOverlay) {
+        const isHidden = oskOverlay.classList.contains('hidden');
+        oskOverlay.classList.toggle('hidden', !isHidden);
+        btnToggleOSK?.classList.toggle('btn-active', isHidden);
+        if (isHidden) {
+          // osk opened
+        } else {
+          // osk closed
+        }
+      }
+      updateKeyboardMenuUI();
+    });
+  }
+
+  if (btnCloseOSK) {
+    btnCloseOSK.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (oskOverlay) oskOverlay.classList.add('hidden');
+      btnToggleOSK?.classList.remove('btn-active');
+      updateKeyboardMenuUI();
+      // osk closed
+    });
+  }
+
+  if (mobileVirtualInput) {
+    let isVirtualComposing = false;
+
+    mobileVirtualInput.addEventListener('focus', () => {
+      updateKeyboardMenuUI();
+    });
+
+    mobileVirtualInput.addEventListener('blur', () => {
+      updateKeyboardMenuUI();
+    });
+
+    mobileVirtualInput.addEventListener('compositionstart', () => {
+      isVirtualComposing = true;
+    });
+
+    mobileVirtualInput.addEventListener('compositionend', (e) => {
+      isVirtualComposing = false;
+      const text = e.data || mobileVirtualInput.value;
+      if (text && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'text_input', text }));
+      }
+      mobileVirtualInput.value = '';
+    });
+
+    mobileVirtualInput.addEventListener('input', (e) => {
+      if (isVirtualComposing || e.isComposing) return;
       const text = mobileVirtualInput.value;
       if (text && ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'text_input', text }));
@@ -5451,7 +6467,7 @@
           ws.send(JSON.stringify({ type: 'mouse_up', button: 2 }));
         }
       }, 40);
-      showToast('Chuột phải', 'info', 1000);
+      showToast(t('toast.right_click'), 'info', 1000);
     });
   }
 
@@ -5741,6 +6757,10 @@
         btnProtocolMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
+          resolutionMenuDropdown?.classList.add('hidden');
+          btnResolutionMenu?.classList.remove('btn-active');
           if (qualityMenuDropdown) {
             qualityMenuDropdown.classList.add('hidden');
             if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
@@ -5764,9 +6784,9 @@
       e.stopPropagation();
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'probe_protocols' }));
-        showToast('Đang quét lại các giao thức trên máy trạm...', 'info');
+        showToast(t('toast.rescanning_protocols'), 'info');
       } else {
-        showToast('Chưa kết nối máy trạm', 'info');
+        showToast(t('toast.not_connected'), 'info');
       }
     });
   }
@@ -5792,7 +6812,7 @@
           URL.revokeObjectURL(blobUrl);
           a.remove();
         }, 300);
-        showToast('Đã tải tệp cấu hình RDP (.rdp). Nhấp đúp để mở mstsc.exe!', 'success');
+        showToast(t('toast.rdp_downloaded'), 'success');
       } catch (err) {
         const a = document.createElement('a');
         a.href = rdpUrl;
@@ -5800,7 +6820,7 @@
         document.body.appendChild(a);
         a.click();
         setTimeout(() => a.remove(), 300);
-        showToast('Đã tải tệp cấu hình RDP (.rdp).', 'success');
+        showToast(t('toast.rdp_downloaded'), 'success');
       }
     });
   }
@@ -5836,7 +6856,7 @@
       bypass: 'Ép buộc Meikova Bypass Stream',
       native: 'Ép buộc kết nối Native (RDP/SSH)'
     };
-    showToast(`Đã chuyển chế độ: ${modeLabels[mode] || mode}`, 'info');
+    showToast(t('toast.mode_switched', { mode: modeLabels[mode] || mode }), 'info');
   };
 
   if (protoModeAuto) protoModeAuto.addEventListener('click', () => setRoutingMode('auto'));
@@ -5868,7 +6888,148 @@
     }
   });
 
+
+  // --- Dynamic Screen Resolution & Virtual Hardware Handlers ---
+  function updateResolutionUi(w, h, label) {
+    if (resolutionCurrentLabel) {
+      if (label) {
+        resolutionCurrentLabel.textContent = label;
+      } else if (w >= 3840) {
+        resolutionCurrentLabel.textContent = '4K';
+      } else if (w >= 2560 && h >= 1440) {
+        resolutionCurrentLabel.textContent = '2K';
+      } else if (w >= 2560 && h <= 1080) {
+        resolutionCurrentLabel.textContent = '21:9';
+      } else if (h === 1080) {
+        resolutionCurrentLabel.textContent = '1080p';
+      } else if (h === 720) {
+        resolutionCurrentLabel.textContent = '720p';
+      } else if (h === 900) {
+        resolutionCurrentLabel.textContent = '900p';
+      } else {
+        resolutionCurrentLabel.textContent = `${h}p`;
+      }
+    }
+    document.querySelectorAll('#resolutionMenuList .quality-menu-item').forEach(btn => {
+      const bw = parseInt(btn.dataset.resW, 10);
+      const bh = parseInt(btn.dataset.resH, 10);
+      const isMatch = (bw === w && bh === h);
+      btn.classList.toggle('active', isMatch);
+      const check = btn.querySelector('.quality-check');
+      if (check) {
+        check.classList.toggle('hidden', !isMatch);
+      }
+    });
+  }
+
+  if (btnMonitorMenu) {
+    btnMonitorMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (monitorMenuDropdown) {
+        if (monitorMenuList && monitorMenuList.children.length === 0) {
+          populateMonitors([
+            { id: 1, name: 'Màn hình chính', width: 1920, height: 1080 }
+          ], 0);
+        }
+        const isOpening = monitorMenuDropdown.classList.contains('hidden');
+        monitorMenuDropdown.classList.toggle('hidden');
+        btnMonitorMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
+          resolutionMenuDropdown?.classList.add('hidden');
+          btnResolutionMenu?.classList.remove('btn-active');
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          keyboardMenuDropdown?.classList.add('hidden');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+          deckModeDropdown?.classList.add('hidden');
+          btnDeckDisplayMode?.classList.remove('btn-active');
+          snippetsMenuDropdown?.classList.add('hidden');
+          btnSnippetsMenu?.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
+  if (btnResolutionMenu) {
+    btnResolutionMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (resolutionMenuDropdown) {
+        const isOpening = resolutionMenuDropdown.classList.contains('hidden');
+        resolutionMenuDropdown.classList.toggle('hidden');
+        btnResolutionMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+          deckModeDropdown?.classList.add('hidden');
+          btnDeckDisplayMode?.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
+  document.querySelectorAll('#resolutionMenuList .quality-menu-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const w = parseInt(btn.dataset.resW, 10);
+      const h = parseInt(btn.dataset.resH, 10);
+      const label = btn.dataset.resLabel || `${h}p`;
+      if (!isConnected || !ws) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+      ws.send(JSON.stringify({
+        type: 'set_screen_resolution',
+        width: w,
+        height: h
+      }));
+      resolutionMenuDropdown?.classList.add('hidden');
+      btnResolutionMenu?.classList.remove('btn-active');
+      updateResolutionUi(w, h, label);
+      showToast(t('toast.resolution_switching', { res: `${w}x${h}` }), 'info');
+    });
+  });
+
+  if (btnInstallVDisplay) {
+    btnInstallVDisplay.addEventListener('click', () => {
+      if (!isConnected || !ws) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+      showToast(t('toast.installing_virtual_display'), 'info');
+      ws.send(JSON.stringify({ type: 'install_virtual_display' }));
+    });
+  }
+
+  if (btnInstallVAudio) {
+    btnInstallVAudio.addEventListener('click', () => {
+      if (!isConnected || !ws) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+      showToast(t('toast.installing_vb_audio'), 'info');
+      ws.send(JSON.stringify({ type: 'install_virtual_audio' }));
+    });
+  }
+
   document.addEventListener('click', (e) => {
+    if (monitorMenuDropdown && !monitorMenuDropdown.contains(e.target) && e.target !== btnMonitorMenu && (!btnMonitorMenu || !btnMonitorMenu.contains(e.target))) {
+      monitorMenuDropdown.classList.add('hidden');
+      if (btnMonitorMenu) btnMonitorMenu.classList.remove('btn-active');
+    }
+    if (resolutionMenuDropdown && !resolutionMenuDropdown.contains(e.target) && e.target !== btnResolutionMenu && (!btnResolutionMenu || !btnResolutionMenu.contains(e.target))) {
+      resolutionMenuDropdown.classList.add('hidden');
+      if (btnResolutionMenu) btnResolutionMenu.classList.remove('btn-active');
+    }
     if (powerMenuDropdown && !powerMenuDropdown.contains(e.target) && e.target !== btnPowerMenu && (!btnPowerMenu || !btnPowerMenu.contains(e.target))) {
       powerMenuDropdown.classList.add('hidden');
       if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');
@@ -5885,6 +7046,22 @@
       qualityMenuDropdown.classList.add('hidden');
       if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
     }
+    if (snippetsMenuDropdown && !snippetsMenuDropdown.contains(e.target) && e.target !== btnSnippetsMenu && (!btnSnippetsMenu || !btnSnippetsMenu.contains(e.target))) {
+      snippetsMenuDropdown.classList.add('hidden');
+      if (btnSnippetsMenu) btnSnippetsMenu.classList.remove('btn-active');
+    }
+    if (shortcutsMenuDropdown && !shortcutsMenuDropdown.contains(e.target) && e.target !== btnShortcutsMenu && (!btnShortcutsMenu || !btnShortcutsMenu.contains(e.target))) {
+      shortcutsMenuDropdown.classList.add('hidden');
+      if (btnShortcutsMenu) btnShortcutsMenu.classList.remove('btn-active');
+    }
+    if (moreToolsMenuDropdown && !moreToolsMenuDropdown.contains(e.target) && e.target !== btnMoreToolsMenu && (!btnMoreToolsMenu || !btnMoreToolsMenu.contains(e.target))) {
+      moreToolsMenuDropdown.classList.add('hidden');
+      updateToolsMenuState();
+    }
+    if (keyboardMenuDropdown && !keyboardMenuDropdown.contains(e.target) && e.target !== btnMobileKeyboard && (!btnMobileKeyboard || !btnMobileKeyboard.contains(e.target))) {
+      keyboardMenuDropdown.classList.add('hidden');
+      updateKeyboardMenuUI();
+    }
   });
 
   document.querySelectorAll('[data-power]').forEach(btn => {
@@ -5892,7 +7069,7 @@
       const act = btn.dataset.power;
       powerMenuDropdown.classList.add('hidden');
       if (!isConnected) {
-        showToast('Chưa kết nối máy trạm', 'info');
+        showToast(t('toast.not_connected'), 'info');
         return;
       }
       if (act === 'lock') {
@@ -5919,7 +7096,7 @@
           restartReconnectPin = currentPin;
           restartReconnectRelay = defaultWsUrl;
           ws.send(JSON.stringify({ type: 'power_action', action: 'restart' }));
-          showToast('Đã gửi lệnh khởi động lại. Hệ thống sẽ tự động kết nối lại...', 'warning', 5000);
+          showToast(t('toast.reboot_sent'), 'warning', 5000);
         }
       }
     });
@@ -5930,12 +7107,15 @@
   let oskCtrl = false;
   let oskAlt = false;
 
-  btnToggleOSK.addEventListener('click', () => {
-    oskOverlay.classList.toggle('hidden');
-    btnToggleOSK.classList.toggle('btn-active', !oskOverlay.classList.contains('hidden'));
+  btnToggleOSK?.addEventListener('click', () => {
+    if (oskOverlay) {
+      oskOverlay.classList.toggle('hidden');
+      btnToggleOSK?.classList.toggle('btn-active', !oskOverlay.classList.contains('hidden'));
+    }
+    updateKeyboardMenuUI();
   });
 
-  oskOverlay.addEventListener('click', (e) => {
+  oskOverlay?.addEventListener('click', (e) => {
     const keyBtn = e.target.closest('.osk-key');
     if (!keyBtn || !isConnected) return;
     const key = keyBtn.dataset.key;
@@ -6046,7 +7226,7 @@
 
       if (!isConnected) {
         handleTerminalOutput('[MeikovaRelay] Chưa kết nối máy trạm. Vui lòng kết nối thiết bị từ bảng điều khiển trước.\n\n');
-        showToast('Vui lòng kết nối vào máy trạm để sử dụng Terminal', 'info');
+        showToast(t('toast.connect_before_terminal'), 'info');
         return;
       }
 
@@ -6097,7 +7277,7 @@
   // --- VIEW 5: TASK MANAGER & DIAGNOSTICS ---
   btnRefreshTasks.addEventListener('click', () => {
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     requestTelemetryAndTasks();
@@ -6287,7 +7467,7 @@
   chatInputForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     const msg = chatMessageInput.value.trim();
@@ -6343,10 +7523,491 @@
     chatHistory.scrollTop = chatHistory.scrollHeight;
   }
 
+
+  // ------------------------------------------------------------------ ADVANCED UTILITIES IMPLEMENTATION
+  // 1. Privacy Curtain Toggle
+  btnToggleCurtain?.addEventListener('click', () => {
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    const nextState = !isCurtainActive;
+    ws.send(JSON.stringify({
+      type: 'toggle_privacy_curtain',
+      enabled: nextState
+    }));
+  });
+
+  // 2. Live Whiteboard Engine
+  function toggleWhiteboard(forceState) {
+    isWhiteboardActive = (typeof forceState === 'boolean') ? forceState : !isWhiteboardActive;
+    btnToggleWhiteboard?.classList.toggle('btn-active', isWhiteboardActive);
+    if (isWhiteboardActive) {
+      if (whiteboardCanvas && remoteCanvas) {
+        whiteboardCanvas.width = hostResolution.width || remoteCanvas.width || 1920;
+        whiteboardCanvas.height = hostResolution.height || remoteCanvas.height || 1080;
+        whiteboardCanvas.style.width = remoteCanvas.style.width;
+        whiteboardCanvas.style.height = remoteCanvas.style.height;
+      }
+      whiteboardCanvas?.classList.remove('hidden');
+      whiteboardCanvas?.classList.add('is-active');
+      whiteboardToolbar?.classList.remove('hidden');
+      redrawWhiteboard();
+      if (wbLaserFade && !wbAnimFrameId) {
+        startWbFadeLoop();
+      }
+    } else {
+      whiteboardCanvas?.classList.add('hidden');
+      whiteboardCanvas?.classList.remove('is-active');
+      whiteboardToolbar?.classList.add('hidden');
+      if (wbAnimFrameId) {
+        cancelAnimationFrame(wbAnimFrameId);
+        wbAnimFrameId = null;
+      }
+    }
+  }
+
+  function clearWhiteboard() {
+    wbStrokes = [];
+    if (wbCtx && whiteboardCanvas) {
+      wbCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+    }
+  }
+
+  function drawWbArrow(ctx, fromX, fromY, toX, toY, headLength = 16) {
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - headLength * Math.cos(angle - Math.PI / 6), toY - headLength * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(toX - headLength * Math.cos(angle + Math.PI / 6), toY - headLength * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function redrawWhiteboard() {
+    if (!wbCtx || !whiteboardCanvas) return;
+    wbCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+    const now = Date.now();
+
+    for (let i = wbStrokes.length - 1; i >= 0; i--) {
+      const s = wbStrokes[i];
+      if (s.fadeUntil && now >= s.fadeUntil) {
+        wbStrokes.splice(i, 1);
+      }
+    }
+
+    for (const stroke of wbStrokes) {
+      wbCtx.save();
+      let alpha = 1.0;
+      if (stroke.fadeUntil) {
+        const remaining = stroke.fadeUntil - now;
+        alpha = Math.max(0, Math.min(1.0, remaining / 5000));
+      }
+
+      if (stroke.tool === 'highlighter') {
+        wbCtx.globalAlpha = 0.35 * alpha;
+        wbCtx.strokeStyle = stroke.color;
+        wbCtx.lineWidth = 18;
+        wbCtx.lineCap = 'square';
+        wbCtx.lineJoin = 'round';
+      } else if (stroke.tool === 'eraser') {
+        wbCtx.globalCompositeOperation = 'destination-out';
+        wbCtx.lineWidth = 32;
+        wbCtx.lineCap = 'round';
+        wbCtx.lineJoin = 'round';
+      } else if (stroke.tool === 'arrow') {
+        wbCtx.globalAlpha = alpha;
+        wbCtx.strokeStyle = stroke.color;
+        wbCtx.fillStyle = stroke.color;
+        wbCtx.lineWidth = 4;
+        wbCtx.lineCap = 'round';
+        wbCtx.lineJoin = 'round';
+      } else {
+        wbCtx.globalAlpha = alpha;
+        wbCtx.strokeStyle = stroke.color;
+        wbCtx.lineWidth = 4;
+        wbCtx.lineCap = 'round';
+        wbCtx.lineJoin = 'round';
+      }
+
+      if (stroke.tool === 'arrow') {
+        drawWbArrow(wbCtx, stroke.start.x, stroke.start.y, stroke.end.x, stroke.end.y, 16);
+      } else if (stroke.points && stroke.points.length > 1) {
+        wbCtx.beginPath();
+        wbCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let p = 1; p < stroke.points.length; p++) {
+          wbCtx.lineTo(stroke.points[p].x, stroke.points[p].y);
+        }
+        wbCtx.stroke();
+      } else if (stroke.points && stroke.points.length === 1) {
+        wbCtx.beginPath();
+        wbCtx.arc(stroke.points[0].x, stroke.points[0].y, (stroke.tool === 'highlighter' ? 9 : 2), 0, Math.PI * 2);
+        wbCtx.fillStyle = stroke.color;
+        wbCtx.fill();
+      }
+      wbCtx.restore();
+    }
+  }
+
+  function startWbFadeLoop() {
+    function step() {
+      if (!isWhiteboardActive) return;
+      if (wbLaserFade || wbStrokes.some(s => s.fadeUntil)) {
+        redrawWhiteboard();
+        wbAnimFrameId = requestAnimationFrame(step);
+      } else {
+        wbAnimFrameId = null;
+      }
+    }
+    wbAnimFrameId = requestAnimationFrame(step);
+  }
+
+  btnToggleWhiteboard?.addEventListener('click', () => toggleWhiteboard());
+
+  whiteboardToolbar?.querySelectorAll('[data-wb-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      whiteboardToolbar.querySelectorAll('[data-wb-tool]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      wbCurrentTool = btn.getAttribute('data-wb-tool') || 'pen';
+    });
+  });
+
+  whiteboardToolbar?.querySelectorAll('[data-wb-color]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      whiteboardToolbar.querySelectorAll('[data-wb-color]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      wbCurrentColor = btn.getAttribute('data-wb-color') || '#06B6D4';
+    });
+  });
+
+  btnWbLaserFade?.addEventListener('click', () => {
+    wbLaserFade = !wbLaserFade;
+    btnWbLaserFade.classList.toggle('active', wbLaserFade);
+    showToast(wbLaserFade ? t('toast.laser_fade_on') : t('toast.laser_fade_off'), 'info');
+    if (wbLaserFade && !wbAnimFrameId) {
+      startWbFadeLoop();
+    }
+  });
+
+  btnWbClearAll?.addEventListener('click', () => {
+    clearWhiteboard();
+    showToast(t('toast.whiteboard_cleared'), 'info');
+  });
+
+  let currentWbStroke = null;
+  if (whiteboardCanvas) {
+    function getWhiteboardCoords(e) {
+      const rect = whiteboardCanvas.getBoundingClientRect();
+      const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+      const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+      const pixelX = Math.round(((clientX - rect.left) / (rect.width || 1)) * whiteboardCanvas.width);
+      const pixelY = Math.round(((clientY - rect.top) / (rect.height || 1)) * whiteboardCanvas.height);
+      return { pixelX, pixelY };
+    }
+
+    whiteboardCanvas.addEventListener('pointerdown', (e) => {
+      if (!isWhiteboardActive) return;
+      e.preventDefault();
+      try { whiteboardCanvas.setPointerCapture(e.pointerId); } catch {}
+      wbDrawing = true;
+      const coords = getWhiteboardCoords(e);
+      wbStartPos = { x: coords.pixelX, y: coords.pixelY };
+      wbLastPos = { x: coords.pixelX, y: coords.pixelY };
+
+      currentWbStroke = {
+        tool: wbCurrentTool,
+        color: wbCurrentColor,
+        points: [{ x: coords.pixelX, y: coords.pixelY }],
+        start: { x: coords.pixelX, y: coords.pixelY },
+        end: { x: coords.pixelX, y: coords.pixelY },
+        fadeUntil: wbLaserFade ? Date.now() + 5000 : null
+      };
+      wbStrokes.push(currentWbStroke);
+      redrawWhiteboard();
+    });
+
+    whiteboardCanvas.addEventListener('pointermove', (e) => {
+      if (!isWhiteboardActive || !wbDrawing || !currentWbStroke) return;
+      e.preventDefault();
+      const coords = getWhiteboardCoords(e);
+      if (currentWbStroke.tool === 'arrow') {
+        currentWbStroke.end = { x: coords.pixelX, y: coords.pixelY };
+      } else {
+        currentWbStroke.points.push({ x: coords.pixelX, y: coords.pixelY });
+      }
+      redrawWhiteboard();
+    });
+
+    const finishWbStroke = (e) => {
+      if (!isWhiteboardActive || !wbDrawing) return;
+      e.preventDefault();
+      wbDrawing = false;
+      try { whiteboardCanvas.releasePointerCapture(e.pointerId); } catch {}
+      redrawWhiteboard();
+      if (wbLaserFade && !wbAnimFrameId) {
+        startWbFadeLoop();
+      }
+    };
+
+    whiteboardCanvas.addEventListener('pointerup', finishWbStroke);
+    whiteboardCanvas.addEventListener('pointercancel', finishWbStroke);
+  }
+
+  // 2b. System Shortcuts & Key Combos Popover Menu
+  if (btnShortcutsMenu) {
+    btnShortcutsMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (shortcutsMenuDropdown) {
+        const isOpening = shortcutsMenuDropdown.classList.contains('hidden');
+        shortcutsMenuDropdown.classList.toggle('hidden');
+        btnShortcutsMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnShortcutsMenu, shortcutsMenuDropdown);
+          moreToolsMenuDropdown?.classList.add('hidden');
+          snippetsMenuDropdown?.classList.add('hidden');
+          btnSnippetsMenu?.classList.remove('btn-active');
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
+
+  function updateToolsMenuState() {
+    const isAnyActive = (typeof isWhiteboardActive !== 'undefined' && isWhiteboardActive) ||
+                        (typeof isLaserActive !== 'undefined' && isLaserActive) ||
+                        (typeof isRecording !== 'undefined' && isRecording) ||
+                        (typeof isWebcamActive !== 'undefined' && isWebcamActive) ||
+                        (typeof isInputBlocked !== 'undefined' && isInputBlocked) ||
+                        (typeof isCurtainActive !== 'undefined' && isCurtainActive);
+    if (toolsActiveIndicator) {
+      toolsActiveIndicator.classList.toggle('hidden', !isAnyActive);
+    }
+    if (btnMoreToolsMenu) {
+      const isOpening = moreToolsMenuDropdown && !moreToolsMenuDropdown.classList.contains('hidden');
+      btnMoreToolsMenu.classList.toggle('btn-active', isOpening || isAnyActive);
+    }
+    if (badgeWhiteboardActive) badgeWhiteboardActive.classList.toggle('hidden', !(typeof isWhiteboardActive !== 'undefined' && isWhiteboardActive));
+    if (badgeLaserActive) badgeLaserActive.classList.toggle('hidden', !(typeof isLaserActive !== 'undefined' && isLaserActive));
+    if (badgeRecordActive) badgeRecordActive.classList.toggle('hidden', !(typeof isRecording !== 'undefined' && isRecording));
+    if (badgeCamActive) badgeCamActive.classList.toggle('hidden', !(typeof isWebcamActive !== 'undefined' && isWebcamActive));
+    if (badgeBlockInputActive) badgeBlockInputActive.classList.toggle('hidden', !(typeof isInputBlocked !== 'undefined' && isInputBlocked));
+    if (badgeCurtainActive) badgeCurtainActive.classList.toggle('hidden', !(typeof isCurtainActive !== 'undefined' && isCurtainActive));
+  }
+
+  if (btnMoreToolsMenu) {
+    btnMoreToolsMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (moreToolsMenuDropdown) {
+        const isOpening = moreToolsMenuDropdown.classList.contains('hidden');
+        moreToolsMenuDropdown.classList.toggle('hidden');
+        if (isOpening) {
+          positionDeckDropdown(btnMoreToolsMenu, moreToolsMenuDropdown);
+          updateToolsMenuState();
+          shortcutsMenuDropdown?.classList.add('hidden');
+          btnShortcutsMenu?.classList.remove('btn-active');
+          snippetsMenuDropdown?.classList.add('hidden');
+          btnSnippetsMenu?.classList.remove('btn-active');
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+        } else {
+          updateToolsMenuState();
+        }
+      }
+    });
+  }
+
+  btnDropdownWhiteboard?.addEventListener('click', () => {
+    btnToggleWhiteboard?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownLaser?.addEventListener('click', () => {
+    btnToggleLaser?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownScreenshot?.addEventListener('click', () => {
+    btnScreenshot?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+  });
+
+  btnDropdownRecord?.addEventListener('click', () => {
+    btnRecord?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownCam?.addEventListener('click', () => {
+    btnToggleCam?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownBlockInput?.addEventListener('click', () => {
+    btnToggleBlockInput?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownCurtain?.addEventListener('click', () => {
+    btnToggleCurtain?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownSnippets?.addEventListener('click', () => {
+    moreToolsMenuDropdown?.classList.add('hidden');
+    if (snippetsMenuDropdown) {
+      const isOpening = snippetsMenuDropdown.classList.contains('hidden');
+      snippetsMenuDropdown.classList.toggle('hidden');
+      if (isOpening) {
+        positionDeckDropdown(btnMoreToolsMenu, snippetsMenuDropdown);
+      }
+    }
+  });
+
+    shortcutsMenuDropdown?.querySelectorAll('[data-system-combo]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const combo = btn.getAttribute('data-system-combo');
+      if (!combo) return;
+      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'system_hotkey',
+        combo: combo
+      }));
+
+      if (combo === 'cad') {
+        sendHotKeyCombo([0x11, 0x12, 0x2E]);
+      } else if (combo === 'taskmgr') {
+        sendHotKeyCombo([0x11, 0x10, 0x1B]);
+      } else if (combo === 'alttab') {
+        sendHotKeyCombo([0x12, 0x09]);
+      } else if (combo === 'altf4') {
+        sendHotKeyCombo([0x12, 0x73]);
+      } else if (combo === 'win') {
+        sendKeySequence([0x5B]);
+      } else if (combo === 'esc') {
+        sendKeySequence([0x1B]);
+      }
+
+      const itemTitle = btn.querySelector('.quality-item-title')?.textContent || combo;
+      showToast(t('toast.combo_sent', { combo: itemTitle }) || `Đã gửi: ${itemTitle}`, 'info', 2000);
+
+      shortcutsMenuDropdown.classList.add('hidden');
+      btnShortcutsMenu?.classList.remove('btn-active');
+    });
+  });
+
+  // 3. Quick Snippets & Macros Popover Menu
+  if (btnSnippetsMenu) {
+    btnSnippetsMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (snippetsMenuDropdown) {
+        const isOpening = snippetsMenuDropdown.classList.contains('hidden');
+        snippetsMenuDropdown.classList.toggle('hidden');
+        btnSnippetsMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnSnippetsMenu, snippetsMenuDropdown);
+        positionDeckDropdown(btnShortcutsMenu, shortcutsMenuDropdown);
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
+  snippetsMenuDropdown?.querySelectorAll('[data-macro]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const macro = btn.getAttribute('data-macro');
+      if (!macro) return;
+      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+      ws.send(JSON.stringify({
+        type: 'quick_macro',
+        command: macro,
+        mode: currentView === 'terminal' ? 'terminal' : 'gui'
+      }));
+      showToast(t('toast.macro_sent', { cmd: macro }), 'success');
+      snippetsMenuDropdown.classList.add('hidden');
+      btnSnippetsMenu?.classList.remove('btn-active');
+    });
+  });
+
+  // 4. Secure Password Transmission Modal (Zero Clipboard Persistence)
+  btnOpenPasswordModal?.addEventListener('click', () => {
+    snippetsMenuDropdown?.classList.add('hidden');
+    btnSnippetsMenu?.classList.remove('btn-active');
+    if (modalSendPassword) {
+      modalSendPassword.classList.remove('hidden');
+      if (inputSecurePassword) {
+        inputSecurePassword.value = '';
+        setTimeout(() => inputSecurePassword.focus(), 60);
+      }
+    }
+  });
+
+  function closePasswordModal() {
+    if (inputSecurePassword) inputSecurePassword.value = '';
+    modalSendPassword?.classList.add('hidden');
+  }
+
+  btnConfirmSendPassword?.addEventListener('click', () => {
+    const pwd = inputSecurePassword?.value;
+    if (!pwd) {
+      showToast(t('toast.enter_clip_content'), 'info');
+      return;
+    }
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    ws.send(JSON.stringify({ type: 'text_input', text: pwd }));
+    closePasswordModal();
+    showToast(t('toast.password_sent'), 'success');
+  });
+
+  btnCancelSendPassword?.addEventListener('click', closePasswordModal);
+  btnCloseSendPassword?.addEventListener('click', closePasswordModal);
+  inputSecurePassword?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      btnConfirmSendPassword?.click();
+    } else if (e.key === 'Escape') {
+      closePasswordModal();
+    }
+  });
+
   // --- BLOCK HOST INPUT TOGGLE ---
   btnToggleBlockInput?.addEventListener('click', () => {
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     const nextState = !isInputBlocked;
@@ -6359,12 +8020,12 @@
   // Clipboard Push
   btnPushClipboard.addEventListener('click', async () => {
     if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     const text = clipboardViewer.value;
     if (!text) {
-      showToast('Vui lòng nhập nội dung cần đồng bộ', 'info');
+      showToast(t('toast.enter_clip_content'), 'info');
       return;
     }
     lastSyncedClientClipboard = text;
@@ -6377,7 +8038,7 @@
       type: 'clipboard_sync',
       text: text
     }));
-    showToast('Đang đẩy sang bộ nhớ tạm của máy trạm...', 'info');
+    showToast(t('toast.pushing_clip'), 'info');
   });
 
     // Clipboard Pull (Fetch from Host)
@@ -6385,11 +8046,11 @@
     if (btnPullClipboard) {
       btnPullClipboard.addEventListener('click', () => {
         if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
-          showToast('Chưa kết nối máy trạm', 'info');
+          showToast(t('toast.not_connected'), 'info');
           return;
         }
         ws.send(JSON.stringify({ type: 'clipboard_pull' }));
-        showToast('Đang làm mới clipboard từ máy trạm...', 'info');
+        showToast(t('toast.refreshing_clip'), 'info');
       });
     }
 
@@ -6397,19 +8058,19 @@
   if (btnTypeDirect) {
     btnTypeDirect.addEventListener('click', () => {
       if (!isConnected) {
-        showToast('Chưa kết nối máy trạm', 'info');
+        showToast(t('toast.not_connected'), 'info');
         return;
       }
       const text = clipboardViewer.value;
       if (!text) {
-        showToast('Vui lòng nhập nội dung cần gõ', 'info');
+        showToast(t('toast.enter_type_content'), 'info');
         return;
       }
       ws.send(JSON.stringify({
         type: 'text_input',
         text: text
       }));
-      showToast('Đang gõ văn bản Unicode vào ứng dụng máy trạm...', 'success');
+      showToast(t('toast.typing_direct_success'), 'success');
     });
   }
 
@@ -6512,7 +8173,7 @@
 
   async function executeFileUpload(file, targetDir) {
     if (!isConnected) {
-      showToast('Vui lòng kết nối vào máy trạm trước khi gửi tệp tin!', 'info');
+      showToast(t('toast.connect_before_file'), 'info');
       return;
     }
 
@@ -6620,7 +8281,7 @@
     if (e.dataTransfer) {
       const files = await getFilesFromDataTransfer(e.dataTransfer);
       if (files.length > 0) {
-        showToast(`Đang truyền ${files.length} tệp/thư mục trực tiếp lên Desktop máy trạm...`, 'info');
+        showToast(t('toast.transferring_desktop', { count: files.length }), 'info');
         files.forEach(f => uploadFileToHost(f, 'desktop'));
       }
     }
@@ -7220,7 +8881,7 @@
   if (btnExpNewFolder) {
     btnExpNewFolder.addEventListener('click', async () => {
       if (!remoteCurrentPath) {
-        showToast('Vui lòng chọn ổ đĩa hoặc thư mục trước khi tạo thư mục mới', 'info');
+        showToast(t('toast.select_dir_before_mkdir'), 'info');
         return;
       }
       const folderName = await showPromptModal({
@@ -7244,7 +8905,7 @@
   if (btnExpUpload && expFileInput) {
     btnExpUpload.addEventListener('click', () => {
       if (!remoteCurrentPath) {
-        showToast('Vui lòng chọn ổ đĩa hoặc thư mục trước khi tải tệp lên', 'info');
+        showToast(t('toast.select_dir_before_upload'), 'info');
         return;
       }
       expFileInput.click();
@@ -7355,7 +9016,7 @@
       if (e.dataTransfer) {
         const files = await getFilesFromDataTransfer(e.dataTransfer);
         if (files.length > 0) {
-          showToast(`Đang tải ${files.length} tệp/thư mục vào thư mục hiện tại...`, 'info');
+          showToast(t('toast.uploading_to_cur_dir', { count: files.length }), 'info');
           files.forEach(f => uploadFileToHost(f, remoteCurrentPath));
         }
       }
@@ -7412,10 +9073,10 @@
 
   function openFileInEditor(filepath) {
     if (!isConnected) {
-      showToast('Vui lòng kết nối vào máy trạm để sửa tệp', 'info');
+      showToast(t('toast.connect_before_edit'), 'info');
       return;
     }
-    showToast('Đang mở tệp từ máy trạm...', 'info', 1500);
+    showToast(t('toast.opening_remote_file'), 'info', 1500);
     currentEditingFilePath = filepath;
     ws.send(JSON.stringify({
       type: 'file_read_request',
@@ -7425,7 +9086,7 @@
 
   function handleFileReadResponse(msg) {
     if (!msg.success) {
-      showToast(`Không thể mở tệp: ${msg.error}`, 'error');
+      showToast(t('toast.open_file_failed', { error: msg.error }), 'error');
       return;
     }
     editorFileName.textContent = msg.filename || 'Tệp không tên';
@@ -7594,7 +9255,7 @@
         showToast(res.message || 'Không thể tải nhật ký', 'error');
       }
     } catch (err) {
-      showToast(`Lỗi tải nhật ký: ${err.message}`, 'error');
+      showToast(t('toast.audit_load_failed', { error: err.message }), 'error');
     }
   }
 
@@ -7849,7 +9510,9 @@
         const res = await fetch('/api/host-info');
         if (res.ok) {
           const info = await res.json();
-          if (info && info.tailscale_url) {
+          if (info && info.active_url && info.active_url.includes('trycloudflare.com')) {
+            displayUrl = info.active_url;
+          } else if (info && info.tailscale_url) {
             displayUrl = info.tailscale_url;
           } else if (info && info.lan_url && info.lan_ip !== '127.0.0.1') {
             displayUrl = info.lan_url;
@@ -7868,7 +9531,8 @@
     const relayHostServerTag = document.getElementById('relayHostServerTag');
     const relayClientGatewayTag = document.getElementById('relayClientGatewayTag');
     let tagText = 'Máy chủ Web';
-    if (isHfSpace) tagText = 'Hugging Face Space';
+    if (displayUrl.includes('trycloudflare.com')) tagText = 'Cloudflare Tunnel (WAN)';
+    else if (isHfSpace) tagText = 'Hugging Face Space';
     else if (displayUrl.includes('100.') || isTailscale) tagText = 'Tailscale Mesh';
     else if (displayUrl.includes('192.168.') || displayUrl.includes('10.') || displayUrl.includes('172.')) tagText = 'Mạng Wi-Fi (LAN)';
     else if (isLocal) tagText = 'Local Host';
@@ -8092,6 +9756,186 @@
   // Initial sync of download modal state with current host/domain
   try { updateRelayModalData(); } catch (_) {}
 
+
+  // --- CLOUDFLARE QUICK TUNNEL CONTROLLER ---
+  function initTunnelController() {
+    const btnNavTunnel = document.getElementById('btnNavTunnel');
+    const navTunnelDot = document.getElementById('navTunnelDot');
+    const modalTunnel = document.getElementById('modalTunnel');
+    const btnCloseTunnelModal = document.getElementById('btnCloseTunnelModal');
+    const btnToggleTunnel = document.getElementById('btnToggleTunnel');
+    const btnToggleTunnelText = document.getElementById('btnToggleTunnelText');
+    const tunnelStatusText = document.getElementById('tunnelStatusText');
+    const tunnelStatusDetail = document.getElementById('tunnelStatusDetail');
+    const tunnelStatusBadgeDot = document.getElementById('tunnelStatusBadgeDot');
+    const tunnelActiveBox = document.getElementById('tunnelActiveBox');
+    const tunnelUrlInput = document.getElementById('tunnelUrlInput');
+    const btnCopyTunnelUrl = document.getElementById('btnCopyTunnelUrl');
+    const tunnelQrImg = document.getElementById('tunnelQrImg');
+    const tunnelNotInstalledBox = document.getElementById('tunnelNotInstalledBox');
+    const tunnelInstallCmd = document.getElementById('tunnelInstallCmd');
+    const btnCopyTunnelInstallCmd = document.getElementById('btnCopyTunnelInstallCmd');
+
+    if (!btnNavTunnel || !modalTunnel) return;
+
+    let isOperating = false;
+
+    let lastTunnelState = null;
+    const ti = (key, fallback) => (typeof t === 'function' ? (t(key) || fallback) : fallback);
+
+    function renderTunnelStatus(st) {
+      if (!st) return;
+      lastTunnelState = st;
+      if (st.running && st.url) {
+        btnNavTunnel.classList.add('is-active');
+        if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--running';
+        if (tunnelStatusBadgeDot) tunnelStatusBadgeDot.className = 'status-dot tunnel-dot tunnel-dot--running';
+        if (tunnelStatusText) tunnelStatusText.textContent = ti('tunnel.status_running', 'Đang chạy');
+        if (tunnelStatusDetail) tunnelStatusDetail.textContent = '';
+        if (btnToggleTunnelText) btnToggleTunnelText.textContent = ti('tunnel.action_stop', 'Tắt');
+        if (btnToggleTunnel) {
+          btnToggleTunnel.classList.add('is-running');
+          btnToggleTunnel.disabled = false;
+        }
+        if (tunnelActiveBox) tunnelActiveBox.classList.remove('hidden');
+        if (tunnelUrlInput) tunnelUrlInput.value = st.url;
+        if (tunnelQrImg) tunnelQrImg.src = '/api/qr?data=' + encodeURIComponent(st.url);
+        if (tunnelNotInstalledBox) tunnelNotInstalledBox.classList.add('hidden');
+      } else if (st.status === 'starting') {
+        if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
+        if (tunnelStatusBadgeDot) tunnelStatusBadgeDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
+        if (tunnelStatusText) tunnelStatusText.textContent = ti('tunnel.status_starting', 'Đang kết nối...');
+        if (tunnelStatusDetail) tunnelStatusDetail.textContent = '';
+        if (btnToggleTunnelText) btnToggleTunnelText.textContent = ti('tunnel.action_connecting', 'Đang bật...');
+        if (btnToggleTunnel) btnToggleTunnel.disabled = true;
+      } else {
+        btnNavTunnel.classList.remove('is-active');
+        if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--idle';
+        if (tunnelStatusBadgeDot) {
+          tunnelStatusBadgeDot.className = st.status === 'failed' ? 'status-dot tunnel-dot tunnel-dot--failed' : 'status-dot tunnel-dot tunnel-dot--idle';
+        }
+        if (tunnelStatusText) tunnelStatusText.textContent = st.status === 'failed' ? ti('tunnel.status_failed', 'Lỗi') : ti('tunnel.status_idle', 'Đang tắt');
+        if (tunnelStatusDetail) tunnelStatusDetail.textContent = st.error || '';
+        if (btnToggleTunnelText) btnToggleTunnelText.textContent = ti('tunnel.action_start', 'Bật');
+        if (btnToggleTunnel) {
+          btnToggleTunnel.classList.remove('is-running');
+          btnToggleTunnel.disabled = false;
+        }
+        if (tunnelActiveBox) tunnelActiveBox.classList.add('hidden');
+
+        if (!st.installed && tunnelNotInstalledBox) {
+          tunnelNotInstalledBox.classList.remove('hidden');
+          if (tunnelInstallCmd && st.installCommand) tunnelInstallCmd.textContent = st.installCommand;
+        } else if (tunnelNotInstalledBox) {
+          tunnelNotInstalledBox.classList.add('hidden');
+        }
+      }
+    }
+
+    async function fetchTunnelStatus() {
+      try {
+        const res = await fetch('/api/tunnel/status');
+        if (res.ok) {
+          const st = await res.json();
+          renderTunnelStatus(st);
+        }
+      } catch (_) {}
+    }
+
+    async function toggleTunnel() {
+      if (isOperating) return;
+      isOperating = true;
+      if (btnToggleTunnel) btnToggleTunnel.disabled = true;
+      if (btnToggleTunnelText) btnToggleTunnelText.textContent = ti('tunnel.action_processing', 'Đang xử lý...');
+
+      try {
+        const res = await fetch('/api/tunnel/toggle', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          renderTunnelStatus(data);
+          if (data.running) {
+            showToast(t('toast.tunnel_started'), 'success');
+          } else {
+            showToast(t('toast.tunnel_stopped'), 'info');
+          }
+          try { updateRelayModalData(); } catch (_) {}
+        } else {
+          showToast(data.error || 'Thao tác Tunnel thất bại', 'error');
+          fetchTunnelStatus();
+        }
+      } catch (err) {
+        showToast(t('toast.tunnel_net_error', { error: err.message }), 'error');
+        fetchTunnelStatus();
+      } finally {
+        isOperating = false;
+        if (btnToggleTunnel) btnToggleTunnel.disabled = false;
+      }
+    }
+
+    btnNavTunnel.addEventListener('click', () => {
+      fetchTunnelStatus();
+      modalTunnel.classList.remove('hidden');
+    });
+
+    if (btnCloseTunnelModal) {
+      btnCloseTunnelModal.addEventListener('click', () => {
+        modalTunnel.classList.add('hidden');
+      });
+    }
+
+    modalTunnel.addEventListener('click', (e) => {
+      if (e.target === modalTunnel) {
+        modalTunnel.classList.add('hidden');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modalTunnel.classList.contains('hidden')) {
+        modalTunnel.classList.add('hidden');
+      }
+    });
+
+    if (btnToggleTunnel) {
+      btnToggleTunnel.addEventListener('click', toggleTunnel);
+    }
+
+    if (btnCopyTunnelUrl && tunnelUrlInput) {
+      btnCopyTunnelUrl.addEventListener('click', async () => {
+        if (!tunnelUrlInput.value) return;
+        try {
+          await navigator.clipboard.writeText(tunnelUrlInput.value);
+          showToast(t('toast.tunnel_copied'), 'success');
+        } catch (_) {
+          tunnelUrlInput.select();
+          document.execCommand('copy');
+          showToast(t('toast.link_copied'), 'success');
+        }
+      });
+    }
+
+    if (btnCopyTunnelInstallCmd && tunnelInstallCmd) {
+      btnCopyTunnelInstallCmd.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(tunnelInstallCmd.textContent.trim());
+          showToast(t('toast.tunnel_cmd_copied'), 'success');
+        } catch (_) {}
+      });
+    }
+
+    window.onTunnelUpdate = (st) => {
+      renderTunnelStatus(st);
+      try { updateRelayModalData(); } catch (_) {}
+    };
+
+    window.addEventListener('meikova-lang-changed', () => {
+      if (lastTunnelState) renderTunnelStatus(lastTunnelState);
+    });
+
+    // Initial background check
+    fetchTunnelStatus();
+  }
+
+  initTunnelController();
   // Start app
   initApp();
 
@@ -8184,7 +10028,7 @@
     const room = qcRoomId?.value.trim();
     const pin = qcPin?.value.trim() || '';
     if (!room) {
-      showToast('Vui lòng nhập Room ID', 'warning');
+      showToast(t('toast.enter_room_id'), 'warning');
       return;
     }
     quickConnectModal.classList.add('hidden');

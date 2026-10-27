@@ -3,7 +3,7 @@
 
 #define MyAppName "Meikova Relay Host"
 #ifndef MyAppVersion
-#define MyAppVersion "1.0.74"
+#define MyAppVersion "1.1.0"
 #endif
 #define MyAppPublisher "Meikova Platform"
 #define MyAppURL "https://meikova.org"

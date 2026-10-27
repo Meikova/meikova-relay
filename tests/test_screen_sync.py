@@ -5,15 +5,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from host_agent.host_service import HostService
 
+
 class TestScreenSyncAndPresets(unittest.TestCase):
     def setUp(self):
+        # Localhost service (LAN/Localhost mode -> 120 FPS for high-performance presets, 60 FPS for eco)
         self.service = HostService(relay_url="ws://localhost:8080", room_id="TEST-ROOM", pin="123456")
+        # WAN service (Cloud Relay mode -> 60 FPS for standard presets, 30 FPS floor for eco/congested WAN)
+        self.wan_service = HostService(relay_url="wss://meikova-relay.onrender.com", room_id="TEST-WAN", pin="123456")
 
     def tearDown(self):
         self.service.stop()
+        self.wan_service.stop()
 
-    def test_apply_quality_presets(self):
-        # 1. Eco: 960 (540p), quality=45, nearest, 4:2:0, 30 FPS
+    def test_apply_quality_presets_localhost_lan_120fps(self):
+        # 1. Eco on Localhost/LAN: 960 (540p), quality=45, nearest, 4:2:0, 60 FPS
         applied = self.service.apply_quality_preset("eco")
         self.assertEqual(applied, "eco")
         self.assertEqual(self.service.capture.quality, 45)
@@ -21,19 +26,19 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         self.assertEqual(self.service.capture.resample_filter, "nearest")
         self.assertEqual(self.service.capture.subsampling, 2)
         self.assertFalse(self.service.capture.grayscale)
-        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 30.0)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 60.0)
 
-        # 2. Speed 60: 1600 (900p), quality=65, nearest, 4:2:0, 120 FPS
+        # 2. Speed 60 on Localhost/LAN: 1280 (720p), quality=58, nearest, 4:2:0, 120 FPS
         applied = self.service.apply_quality_preset("speed_60")
         self.assertEqual(applied, "speed_60")
-        self.assertEqual(self.service.capture.quality, 65)
-        self.assertEqual(self.service.capture.max_width, 1600)
+        self.assertEqual(self.service.capture.quality, 58)
+        self.assertEqual(self.service.capture.max_width, 1280)
         self.assertEqual(self.service.capture.resample_filter, "nearest")
         self.assertEqual(self.service.capture.subsampling, 2)
         self.assertFalse(self.service.capture.grayscale)
         self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
 
-        # 3. Balanced: 1600 (900p), quality=70, bilinear, 4:2:0, 30 FPS
+        # 3. Balanced on Localhost/LAN: 1600 (900p), quality=70, bilinear, 4:2:0, 120 FPS
         applied = self.service.apply_quality_preset("balanced")
         self.assertEqual(applied, "balanced")
         self.assertEqual(self.service.capture.quality, 70)
@@ -41,9 +46,9 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         self.assertEqual(self.service.capture.resample_filter, "bilinear")
         self.assertEqual(self.service.capture.subsampling, 2)
         self.assertFalse(self.service.capture.grayscale)
-        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 30.0)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
 
-        # 4. Crisp HD: 1920 (1080p), quality=80, bilinear, 4:2:0, 30 FPS
+        # 4. Crisp HD on Localhost/LAN: 1920 (1080p), quality=80, bilinear, 4:2:0, 120 FPS
         applied = self.service.apply_quality_preset("crisp_hd")
         self.assertEqual(applied, "crisp_hd")
         self.assertEqual(self.service.capture.quality, 80)
@@ -51,34 +56,54 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         self.assertEqual(self.service.capture.resample_filter, "bilinear")
         self.assertEqual(self.service.capture.subsampling, 2)
         self.assertFalse(self.service.capture.grayscale)
-        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 30.0)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
 
-        # 5. Native 1:1: max_width=None (100% gốc), quality=85, subsampling=1 (4:2:2), 120 FPS
+        # 5. Native 1:1 on Localhost/LAN: max_width=None (100% gốc), quality=90, subsampling=0 (4:4:4), 120 FPS
         applied = self.service.apply_quality_preset("native_1to1")
         self.assertEqual(applied, "native_1to1")
-        self.assertEqual(self.service.capture.quality, 85)
+        self.assertEqual(self.service.capture.quality, 90)
         self.assertIsNone(self.service.capture.max_width)
         self.assertEqual(self.service.capture.resample_filter, "bilinear")
-        self.assertEqual(self.service.capture.subsampling, 1)
+        self.assertEqual(self.service.capture.subsampling, 0)
         self.assertFalse(self.service.capture.grayscale)
         self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
 
-        # 6. Grayscale: 1280, quality=40, img.convert('L'), 25 FPS
+        # 6. Ultra 120: 120 FPS
+        applied = self.service.apply_quality_preset("ultra_120")
+        self.assertEqual(applied, "ultra_120")
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
+
+        # 7. Grayscale on Localhost/LAN: 1280, quality=40, 60 FPS
         applied = self.service.apply_quality_preset("grayscale")
         self.assertEqual(applied, "grayscale")
         self.assertEqual(self.service.capture.quality, 40)
         self.assertEqual(self.service.capture.max_width, 1280)
         self.assertTrue(self.service.capture.grayscale)
-        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 25.0)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 60.0)
 
-        # 7. Default fallback for unknown value
+        # 8. Default fallback for unknown value
         applied = self.service.apply_quality_preset("unknown_value")
         self.assertEqual(applied, "balanced")
         self.assertEqual(self.service.capture.quality, 70)
         self.assertEqual(self.service.capture.max_width, 1600)
 
+    def test_apply_quality_presets_wan_60fps_and_30fps_floor(self):
+        # WAN Native 1:1 & Balanced & Crisp HD target 60 FPS
+        self.wan_service.apply_quality_preset("native_1to1")
+        self.assertAlmostEqual(self.wan_service.frame_interval, 1.0 / 60.0)
+
+        self.wan_service.apply_quality_preset("balanced")
+        self.assertAlmostEqual(self.wan_service.frame_interval, 1.0 / 60.0)
+
+        # WAN Eco & Grayscale maintain at least 30 FPS floor
+        self.wan_service.apply_quality_preset("eco")
+        self.assertAlmostEqual(self.wan_service.frame_interval, 1.0 / 30.0)
+
+        self.wan_service.apply_quality_preset("grayscale")
+        self.assertAlmostEqual(self.wan_service.frame_interval, 1.0 / 30.0)
+
     def test_negotiate_optimal_display_profile_high_fps(self):
-        # High refresh rate priority
+        # High refresh rate priority (120 FPS on localhost/LAN or 120Hz client)
         res = self.service.negotiate_optimal_display_profile(client_w=1920, client_h=1080, client_fps=120)
         self.assertEqual(res["type"], "display_profile_matched")
         self.assertEqual(res["recommended_preset"], "speed_60")
@@ -118,18 +143,24 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         initial_q = self.service.capture.quality
         self.assertEqual(initial_q, 70)
 
-        # 3 high RTTs trigger congestion reduction
+        # 3 high RTTs trigger congestion reduction, but WAN FPS never drops below 30 FPS
         self.service._update_congestion_control(rtt_ms=250.0)
         self.service._update_congestion_control(rtt_ms=280.0)
         self.service._update_congestion_control(rtt_ms=310.0)
         self.assertLess(self.service.capture.quality, initial_q)
         self.assertEqual(self.service.capture.quality, 62)
+        self.assertLessEqual(self.service.frame_interval, 1.0 / 30.0)
 
         # 10 low RTTs trigger quality recovery
         for _ in range(10):
             self.service._update_congestion_control(rtt_ms=35.0)
         self.assertGreater(self.service.capture.quality, 62)
         self.assertEqual(self.service.capture.quality, 66)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 60.0)
+
+        # Sub-20ms LAN RTT automatically restores 120 FPS
+        self.service._update_congestion_control(rtt_ms=5.0)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
 
     def test_granular_hash_detection_sensitivity(self):
         # Create a synthetic 1920x1080 raw frame (8.29MB)
@@ -161,6 +192,32 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         # Never go below zero
         self.service.frames_in_flight = max(0, self.service.frames_in_flight - 1)
         self.assertEqual(self.service.frames_in_flight, 0)
+
+
+
+    def test_new_presets_and_custom_fps_limit(self):
+        # 1. extreme_144 preset -> 144 FPS
+        applied = self.service.apply_quality_preset("extreme_144")
+        self.assertEqual(applied, "extreme_144")
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 144.0)
+
+        # 2. native_120_1to1 preset -> 1:1 native width=None, 120 FPS
+        applied = self.service.apply_quality_preset("native_120_1to1")
+        self.assertEqual(applied, "native_120_1to1")
+        self.assertIsNone(self.service.capture.max_width)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
+
+        # 3. wan_60_turbo preset -> 60 FPS
+        applied = self.service.apply_quality_preset("wan_60_turbo")
+        self.assertEqual(applied, "wan_60_turbo")
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 60.0)
+
+        # 4. Custom FPS limit overrides preset interval
+        self.service.custom_fps_limit = 90
+        self.service.apply_quality_preset("native_1to1")
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 90.0)
+        self.service.custom_fps_limit = 0
+
 
 if __name__ == "__main__":
     unittest.main()

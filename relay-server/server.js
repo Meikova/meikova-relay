@@ -2853,7 +2853,7 @@ echo "Meikova Relay Host running in background (PID: \$!)."
 
 // WebSocket Relay Server
 
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, perMessageDeflate: false, maxPayload: 32 * 1024 * 1024 });
 
 const rooms = new Map();
 
@@ -3087,6 +3087,9 @@ function getOrCreateRoom(roomId) {
 
 
 wss.on('connection', (ws, req) => {
+  if (ws._socket && typeof ws._socket.setNoDelay === 'function') {
+    try { ws._socket.setNoDelay(true); } catch (_) {}
+  }
 
   let role = null;
 
@@ -3132,8 +3135,11 @@ wss.on('connection', (ws, req) => {
 
             if (client.ws.readyState === WebSocket.OPEN) {
 
-              // Zero-lag backpressure: drop stale frame if client socket buffer > 256KB (prevents bufferbloat while allowing full HD/4K frame burst)
-              if (client.ws.bufferedAmount > 256 * 1024) {
+              // High-FPS backpressure: allow up to 4MB burst for 120 FPS 1:1 frames; send frame_ack if dropped so host never stalls
+              if (client.ws.bufferedAmount > 4 * 1024 * 1024) {
+                if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
+                  try { room.hostWs.send(JSON.stringify({ type: 'frame_ack', dropped: true, ts: Date.now() })); } catch (_) {}
+                }
                 continue;
               }
 

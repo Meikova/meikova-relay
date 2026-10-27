@@ -17,7 +17,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = REPO_ROOT / "dist"
 
@@ -359,26 +359,24 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icons'}{sep}host_agent/tray_icons",
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icons'}{sep}tray_icons",
     ]
-    turbojpeg_dll = REPO_ROOT / 'host_agent' / 'turbojpeg.dll'
-    if turbojpeg_dll.exists():
-        data_args.extend([
-            "--add-binary", f"{turbojpeg_dll}{sep}host_agent",
-            "--add-binary", f"{turbojpeg_dll}{sep}.",
-        ])
-
     hidden_args = [
         "--hidden-import", "mss",
         "--hidden-import", "websockets",
+        "--hidden-import", "numpy",
+        "--hidden-import", "cv2",
+        "--hidden-import", "turbojpeg",
         "--hidden-import", "PIL",
         "--hidden-import", "PIL.Image",
         "--hidden-import", "PIL.ImageGrab",
-        "--hidden-import", "turbojpeg",
-        "--hidden-import", "numpy",
     ]
     if target_os == "windows":
+        tj_dll = REPO_ROOT / "host_agent" / "turbojpeg.dll"
+        if tj_dll.exists():
+            data_args.extend(["--add-binary", f"{tj_dll};host_agent", "--add-binary", f"{tj_dll};."])
         hidden_args.extend([
             "--hidden-import", "mss.windows",
             "--hidden-import", "dxcam",
+            "--hidden-import", "bettercam",
             "--hidden-import", "comtypes",
             "--hidden-import", "webview",
             "--hidden-import", "webview.platforms.winforms",

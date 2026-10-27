@@ -36,7 +36,7 @@ class TestCrossPlatformAgent(unittest.TestCase):
 
     def test_input_injector_send_safe_on_no_sendinput(self):
         """If SendInput is not available, _send should return False safely without crashing."""
-        with patch('host_agent.input_injector.SendInput', None):
+        with patch('host_agent.input_injector.SendInput', None), patch.dict('sys.modules', {'pyautogui': None}):
             res = InputInjector.mouse_down(0)
             self.assertFalse(res)
             res_up = InputInjector.mouse_up(0)

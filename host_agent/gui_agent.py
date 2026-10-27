@@ -9,8 +9,16 @@ except ImportError:
 import threading
 import asyncio
 import socket
-import tkinter as tk
-from tkinter import messagebox
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+except ImportError:
+    class _TkStub:
+        Tk = object
+        Toplevel = object
+        TclError = RuntimeError
+    tk = _TkStub()
+    messagebox = None
 import random
 import string
 from pathlib import Path
@@ -18,7 +26,7 @@ from typing import Optional
 import multiprocessing
 multiprocessing.freeze_support()
 
-APP_VERSION = "1.0.74"
+APP_VERSION = "1.1.0"
 
 # Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":
@@ -2327,6 +2335,7 @@ Categories=Network;RemoteAccess;
                     self._config[k] = v
                 if "relay_url" in data:
                     self._config["relay"] = data["relay_url"]
+
                 self._save_config()
                 self._log(self.t("log_saved_relay"))
         except Exception as e:

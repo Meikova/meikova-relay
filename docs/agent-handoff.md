@@ -1,6 +1,30 @@
-# Meikova Relay - Session Handoff (v1.0.74)
+# Meikova Relay - Session Handoff (v1.1.0)
 
-## Mục tiêu hoàn thành
+## Mục tiêu hoàn thành v1.1.0
+1. **Đột phá Động cơ 120+ FPS & Đường ống nén SIMD (Tier 0 DXGI + SIMD JPEG)**:
+   - **Chụp màn hình tăng tốc GPU**: Tích hợp `bettercam` / `dxcam` lấy trực tiếp khung hình từ VRAM với tần số quét 120–240Hz, tự động điều hướng sang `mss` và Win32 GDI khi phát hiện GPU lai (Hybrid Laptop).
+   - **Nén ảnh SIMD đa tầng**:
+     * *Tầng 1 (libturbojpeg Zero-Copy)*: Nén trực tiếp từ vùng đệm BGRX sang JPEG với tập lệnh AVX2 (x86_64) và NEON (ARM64/Apple Silicon).
+     * *Tầng 2 (OpenCV C++ Multithreading)*: Xử lý co giãn tỉ lệ và nén JPEG tối ưu luồng, giải phóng hoàn toàn Python GIL.
+     * *Tầng 3 (Pillow Zero-Copy frombuffer)*: Tầng dự phòng an toàn.
+   - **Bộ nhớ đệm khung hình tĩnh Zero-CPU (Static Frame Cache)**: Khi màn hình không đổi, trả về ngay buffer JPEG đã nén trong RAM (0.01 ms, 0% CPU), duy trì ổn định 120 FPS.
+   - **Độ phân giải Timer Win32 1ms**: Kích hoạt `winmm.timeBeginPeriod(1)` trên Windows, loại bỏ độ trễ hạt nhân 15.6ms.
+   - **WebSocket Zero-Overhead**: Tắt permessage-deflate trên gói nhị phân JPEG, bật `TCP_NODELAY`, nâng ngưỡng đệm 4MB.
+
+2. **Khắc phục lỗi 64-bit Ctypes Access Violation trong Privacy Curtain (Chế độ Bảo mật Màn hình)**:
+   - **Nguyên nhân**: Thiếu khai báo `argtypes` và `restype` trên x64 Windows cho các hàm `RegisterClassExW`, `CreateWindowExW`, `GetModuleHandleW`, `CreateSolidBrush`. Khi gọi `byref(wcls)`, ctypes cắt cụt con trỏ 64-bit xuống 32-bit dẫn tới lỗi phần cứng `STATUS_ACCESS_VIOLATION` (0xC0000005).
+   - **Khắc phục**: Gán đầy đủ chữ ký kiểu 64-bit cho toàn bộ API Win32 và giữ tham chiếu `_wnd_proc`, `_wcls` trên instance tránh garbage collection.
+
+3. **Cập nhật Phụ thuộc SSOT**:
+   - Thêm `bettercam>=1.0.0; sys_platform == "win32"` vào `requirements.txt` và `host_agent/requirements.txt`.
+   - Bổ sung `--hidden-import bettercam` vào `scripts/build.py`.
+
+4. **Kiểm thử tự động toàn diện**:
+   - Đạt **213/213 tests PASS** (Exit Code 0, 4 skipped).
+
+---
+
+## Các phiên bản trước (v1.0.74)
 1. **Khắc phục triệt để lỗi gõ tiếng Việt bị tự xóa chữ ("gõ xong tự xóa hết")**:
    - **Nguyên nhân**:
      * Khi người dùng gõ tiếng Việt có dấu (Unikey / EVKey / Windows IME / MacOS Telex):

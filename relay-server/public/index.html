@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.0.74">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.82">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.1.0">
+  <link rel="stylesheet" href="/css/style.css?v=1.1.0">
 </head>
 <body>
 
@@ -153,7 +153,7 @@
   </header>
 
   <!-- Corner Telemetry Readouts -->
-  <p class="readout readout--tl" id="ro-tl">
+  <p class="readout readout--tl" id="ro-tl" style="display: none;">
     MEIKOVA ∞ RELAY // <strong id="roStatus" data-i18n="ro.landing">TRANG CHỦ // GIỚI THIỆU</strong>
   </p>
   <p class="readout readout--tr" id="ro-tr" style="display: none;">
@@ -175,7 +175,7 @@
           <div class="landing-hero-left">
             <div class="landing-telemetry-badge mono-font">
               <span class="status-dot online"></span>
-              <span data-i18n="landing.badge">v2.5.0 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
+              <span data-i18n="landing.badge">v1.1.0 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
             </div>
 
             <h1 class="landing-hero-title brand-font" data-i18n="landing.hero_title">ĐIỀU KHIỂN TỪ XA ĐA NỀN TẢNG CHÍNH XÁC CAO</h1>
@@ -1197,16 +1197,18 @@
             <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
             <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>
           </svg>
-          <span id="qualityCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700;">30 FPS</span>
+          <span id="qualityCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700;">STD · AUTO</span>
           <svg class="deck-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
 
         <!-- Hidden Native Select (Synchronized for backward compatibility) -->
         <select id="qualitySelector" class="hidden" data-i18n-title="deck.quality_selector_title" title="Cấu hình phân giải, FPS & chất lượng">
           <option value="native_1to1">1:1 Chuẩn gốc (Pixel-Perfect)</option>
+          <option value="native_120_1to1">1:1 @ 120 FPS Turbo (Pixel-Perfect)</option>
           <option value="auto_sync">Tự động tối ưu (Auto-Sync)</option>
+          <option value="extreme_144">144 FPS Extreme (Esports / LAN)</option>
           <option value="ultra_120">120 FPS Siêu mượt</option>
-          <option value="ultra_240">240 FPS Performance</option>
+          <option value="wan_60_turbo">WAN 60 FPS Turbo (Quốc tế / Cloud)</option>
           <option value="speed_60">60 FPS Mượt mà</option>
           <option value="crisp_2k_4k">2K / 4K Cực nét (95%)</option>
           <option value="crisp_hd">HD Nét (85%)</option>
@@ -1215,7 +1217,7 @@
         </select>
 
         <!-- 1-Click Display Auto-Sync Button -->
-        <button id="btnSyncDisplay" class="deck__btn" title="Đồng bộ tối ưu cấu hình 2 màn hình (Trạm ↔ Điều khiển)" data-i18n-title="deck.sync_display_title">
+        <button id="btnSyncDisplay" class="deck__btn hidden" title="Đồng bộ tối ưu cấu hình 2 màn hình (Trạm ↔ Điều khiển)" data-i18n-title="deck.sync_display_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="3" width="14" height="10" rx="1.5"></rect>
             <rect x="8" y="11" width="14" height="10" rx="1.5" stroke-dasharray="2 2"></rect>
@@ -1706,69 +1708,77 @@
 
       <!-- Quality & Performance Presets Floating Menu -->
       <div id="qualityMenuDropdown" class="quality-menu hidden">
-        <div class="quality-menu-header" data-i18n="deck.quality_menu_title">CHẤT LƯỢNG & TỐC ĐỘ (PRESET)</div>
+        <div class="quality-menu-header" data-i18n="deck.quality_menu_title">CHẤT LƯỢNG NÉN &amp; TỐC ĐỘ FPS</div>
+        <div class="fps-limit-section" id="fpsLimitBar">
+          <div class="fps-limit-header">
+            <span data-i18n="deck.fps_limit_label">GIỚI HẠN FPS (TARGET FPS)</span>
+            <span id="fpsLimitCurrentBadge" class="fps-limit-badge">AUTO (120 LAN / 60 WAN)</span>
+          </div>
+          <div class="fps-limit-pills" id="fpsLimitPills">
+            <button type="button" class="fps-pill active" data-fps-limit="0" title="Tự động: 120 FPS trên Localhost/LAN, 60 FPS trên WAN">AUTO</button>
+            <button type="button" class="fps-pill" data-fps-limit="30">30</button>
+            <button type="button" class="fps-pill" data-fps-limit="60">60</button>
+            <button type="button" class="fps-pill" data-fps-limit="90">90</button>
+            <button type="button" class="fps-pill" data-fps-limit="120">120</button>
+            <button type="button" class="fps-pill" data-fps-limit="144">144</button>
+            <button type="button" class="fps-pill" data-fps-limit="240">240</button>
+          </div>
+        </div>
+        <div class="quality-group-header" style="padding: 4px 10px 2px; font-size: 9.5px; color: var(--text-muted); letter-spacing: 0.06em;" data-i18n="deck.quality_section_visual">CHẾ ĐỘ ĐỘ NÉT &amp; NÉN MÀU (ĐỘC LẬP VỚI FPS)</div>
         <div class="quality-menu-list">
-          <button type="button" class="quality-menu-item" data-preset="native_1to1">
-            <span class="quality-item-badge">1:1</span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.quality_native_1to1">1:1 Chuẩn gốc (Pixel-Perfect)</div>
-              <div class="quality-item-desc" data-i18n="deck.quality_native_1to1_desc">Nguyên bản từng pixel, độ nét tối đa không suy hao</div>
-            </div>
-            <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
-          </button>
           <button type="button" class="quality-menu-item" data-preset="auto_sync">
-            <span class="quality-item-badge">AUTO</span>
+            <span class="quality-item-badge">SYNC</span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.quality_auto_sync">Tự động tối ưu (Auto-Sync)</div>
-              <div class="quality-item-desc" data-i18n="deck.quality_auto_sync_desc">Tự đàm phán phân giải & FPS theo đường truyền</div>
+              <div class="quality-item-title" data-i18n="deck.quality_auto_sync">Tự động đồng bộ (Auto-Sync)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_auto_sync_desc">Tự tối ưu độ nét, phân giải &amp; tốc độ theo màn hình và mạng</div>
             </div>
             <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
-          <button type="button" class="quality-menu-item" data-preset="ultra_120">
-            <span class="quality-item-badge">120</span>
+          <button type="button" class="quality-menu-item" data-preset="native_1to1">
+            <span class="quality-item-badge">4:4:4</span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.quality_ultra_120">120 FPS Siêu mượt</div>
-              <div class="quality-item-desc" data-i18n="deck.quality_ultra_120_desc">Độ trễ tối thiểu, tối ưu gaming & cuộn mượt mà</div>
-            </div>
-            <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
-          </button>
-          <button type="button" class="quality-menu-item" data-preset="speed_60">
-            <span class="quality-item-badge">60</span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.quality_speed">60 FPS Mượt mà</div>
-              <div class="quality-item-desc" data-i18n="deck.quality_speed_desc">Tiêu chuẩn 60 FPS mượt mà cho thao tác đồ họa</div>
+              <div class="quality-item-title" data-i18n="deck.quality_native_1to1">1:1 Chuẩn gốc (Lossless Text)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_native_1to1_desc">Giữ 100% phân giải gốc, màu 4:4:4 (Q90) sắc nét từng ký tự</div>
             </div>
             <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
           <button type="button" class="quality-menu-item" data-preset="crisp_2k_4k">
-            <span class="quality-item-badge">4K</span>
+            <span class="quality-item-badge">ULTRA</span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.quality_crisp_2k_4k">2K / 4K Cực nét (95%)</div>
-              <div class="quality-item-desc" data-i18n="deck.quality_crisp_2k_4k_desc">Chất lượng nén 95%, sắc nét từng chi tiết</div>
+              <div class="quality-item-title" data-i18n="deck.quality_crisp_2k_4k">Siêu nét 2K / 4K (Ultra Q95)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_crisp_2k_4k_desc">Chất lượng nén 95% hệ màu 4:4:4 cho đồ họa &amp; màn hình lớn</div>
             </div>
             <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
           <button type="button" class="quality-menu-item" data-preset="crisp_hd">
-            <span class="quality-item-badge">HD</span>
+            <span class="quality-item-badge">HIGH</span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.quality_hd">HD Nét (85%)</div>
-              <div class="quality-item-desc" data-i18n="deck.quality_hd_desc">Chất lượng nén 85%, cân bằng độ nét</div>
+              <div class="quality-item-title" data-i18n="deck.quality_hd">Sắc nét Cao (High Q82)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_hd_desc">Nén 82% chuẩn rõ nét, cân bằng độ trong trẻo và băng thông</div>
             </div>
             <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
           <button type="button" class="quality-menu-item active" data-preset="balanced">
-            <span class="quality-item-badge">30</span>
+            <span class="quality-item-badge">STD</span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.quality_balanced">30 FPS Cân bằng</div>
-              <div class="quality-item-desc" data-i18n="deck.quality_balanced_desc">Tối ưu tài nguyên CPU trạm và băng thông ổn định</div>
+              <div class="quality-item-title" data-i18n="deck.quality_balanced">Tiêu chuẩn (Balanced Q70)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_balanced_desc">Nén 70% ổn định tài nguyên CPU trạm và băng thông đa nhiệm</div>
             </div>
             <span class="quality-check"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
+          </button>
+          <button type="button" class="quality-menu-item" data-preset="speed_60">
+            <span class="quality-item-badge">FAST</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.quality_speed">Ưu tiên Phản hồi (Low-Latency Q58)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_speed_desc">Giảm tối đa dung lượng gói tin giúp thao tác tức thì qua WAN</div>
+            </div>
+            <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
           <button type="button" class="quality-menu-item" data-preset="grayscale">
             <span class="quality-item-badge">ECO</span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.quality_grayscale">Tiết kiệm băng thông</div>
-              <div class="quality-item-desc" data-i18n="deck.quality_grayscale_desc">Chế độ đơn sắc / nén cao khi mạng 3G/4G yếu</div>
+              <div class="quality-item-title" data-i18n="deck.quality_grayscale">Tiết kiệm Băng thông (ECO Q40)</div>
+              <div class="quality-item-desc" data-i18n="deck.quality_grayscale_desc">Chế độ đơn sắc siêu nhẹ (~10 KB/khung) khi mạng 3G/4G yếu</div>
             </div>
             <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
@@ -1814,6 +1824,14 @@
       <div id="resolutionMenuDropdown" class="quality-menu resolution-menu hidden">
         <div class="quality-menu-header" data-i18n="deck.resolution_menu_title">ĐỘ PHÂN GIẢI & MÀN HÌNH ẢO</div>
         <div class="quality-menu-list" id="resolutionMenuList">
+          <button type="button" class="quality-menu-item" data-res-w="0" data-res-h="0" data-res-label="GỐC">
+            <span class="quality-item-badge">GỐC</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.res_native">Độ phân giải gốc màn hình (Native)</div>
+              <div class="quality-item-desc" data-i18n="deck.res_native_desc">Khôi phục độ phân giải vật lý mặc định của màn hình máy trạm</div>
+            </div>
+            <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
+          </button>
           <button type="button" class="quality-menu-item active" data-res-w="1920" data-res-h="1080" data-res-label="1080p">
             <span class="quality-item-badge">FHD</span>
             <div class="quality-item-text">
@@ -3275,9 +3293,9 @@
   <!-- Ambient Toast Notification Chamber -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <script src="/js/i18n.js?v=1.0.80"></script>
-  <script src="/js/sync_engine.js?v=1.0.74"></script>
-  <script src="/js/app.js?v=1.0.82"></script>
+  <script src="/js/i18n.js?v=1.1.0"></script>
+  <script src="/js/sync_engine.js?v=1.1.0"></script>
+  <script src="/js/app.js?v=1.1.0"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {

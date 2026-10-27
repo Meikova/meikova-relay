@@ -1,101 +1,49 @@
 import io
+import os
 import time
 import sys
-import os
 import ctypes
+import ctypes.util
 import threading
-import logging
 from typing import Tuple, Optional, List, Dict, Any
 from PIL import Image, ImageGrab
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 
 try:
     import mss
 except ImportError:
     mss = None
 
-# High-performance JPEG encoder: turbojpeg (libjpeg-turbo) ~2-5ms vs PIL's ~35-55ms for 1080p
-_tjpeg = None
-_HAS_TURBOJPEG = False
 try:
-    import turbojpeg
-    # Try default auto-detect first
+    import bettercam as dxcam_lib
+except ImportError:
     try:
-        _tjpeg = turbojpeg.TurboJPEG()
-        _HAS_TURBOJPEG = True
-    except RuntimeError:
-        # Auto-detect failed — try common install paths on Windows, Linux, macOS
-        _lib_candidates = []
-        if sys.platform == 'win32':
-            meipass = getattr(sys, '_MEIPASS', None)
-            exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else None
-            _lib_candidates = [
-                r"C:\libjpeg-turbo64\bin\turbojpeg.dll",
-                r"C:\Program Files\libjpeg-turbo64\bin\turbojpeg.dll",
-                r"C:\ProgramData\chocolatey\lib\libjpeg-turbo\tools\turbojpeg.dll",
-                os.path.join(os.path.dirname(__file__), "turbojpeg.dll"),
-            ]
-            if meipass:
-                _lib_candidates.insert(0, os.path.join(meipass, "turbojpeg.dll"))
-                _lib_candidates.insert(1, os.path.join(meipass, "host_agent", "turbojpeg.dll"))
-            if exe_dir:
-                _lib_candidates.insert(0, os.path.join(exe_dir, "turbojpeg.dll"))
-        elif sys.platform.startswith('linux'):
-            _lib_candidates = [
-                "/usr/lib/x86_64-linux-gnu/libturbojpeg.so.0",
-                "/usr/lib/x86_64-linux-gnu/libturbojpeg.so",
-                "/usr/lib/aarch64-linux-gnu/libturbojpeg.so.0",
-                "/usr/lib/aarch64-linux-gnu/libturbojpeg.so",
-                "/usr/lib64/libturbojpeg.so.0",
-                "/usr/lib64/libturbojpeg.so",
-                "/usr/lib/libturbojpeg.so.0",
-                "/usr/lib/libturbojpeg.so",
-                "/usr/local/lib/libturbojpeg.so.0",
-                "/usr/local/lib/libturbojpeg.so",
-            ]
-        elif sys.platform == 'darwin':
-            _lib_candidates = [
-                "/opt/homebrew/lib/libturbojpeg.dylib",
-                "/opt/homebrew/opt/jpeg-turbo/lib/libturbojpeg.dylib",
-                "/usr/local/lib/libturbojpeg.dylib",
-                "/usr/local/opt/jpeg-turbo/lib/libturbojpeg.dylib",
-            ]
-        for _lp in _lib_candidates:
-            if os.path.isfile(_lp):
-                try:
-                    _tjpeg = turbojpeg.TurboJPEG(lib_path=_lp)
-                    _HAS_TURBOJPEG = True
-                    break
-                except Exception:
-                    continue
-except ImportError:
-    pass
+        import dxcam as dxcam_lib
+    except ImportError:
+        dxcam_lib = None
 
-# numpy for zero-copy BGRA→RGB conversion with turbojpeg
 try:
-    import numpy as np
-    _HAS_NUMPY = True
+    from turbojpeg import TurboJPEG as PyTurboJPEG, TJPF_BGRX, TJPF_BGR, TJPF_RGB, TJPF_GRAY, TJSAMP_444, TJSAMP_422, TJSAMP_420, TJSAMP_GRAY, TJFLAG_FASTDCT
 except ImportError:
-    np = None
-    _HAS_NUMPY = False
-
-# DXCam: GPU-accelerated DirectX Desktop Duplication capture (Windows only, ~1ms capture)
-try:
-    import dxcam
-    _HAS_DXCAM = True
-except ImportError:
-    dxcam = None
-    _HAS_DXCAM = False
-
-_logger = logging.getLogger("meikova.screen_capture")
-
-# Map subsampling int to turbojpeg constant (lazy — safe even if turbojpeg not available)
-_TJPEG_SUBSAMP = {}
-if _HAS_TURBOJPEG:
-    _TJPEG_SUBSAMP = {
-        0: turbojpeg.TJSAMP_444,
-        1: turbojpeg.TJSAMP_422,
-        2: turbojpeg.TJSAMP_420,
-    }
+    PyTurboJPEG = None
+    TJPF_RGB = 0
+    TJPF_BGR = 1
+    TJPF_BGRX = 3
+    TJPF_GRAY = 6
+    TJSAMP_444 = 0
+    TJSAMP_422 = 1
+    TJSAMP_420 = 2
+    TJSAMP_GRAY = 3
+    TJFLAG_FASTDCT = 2048
 
 try:
     from host_agent.virtual_display import is_headless_display, generate_headless_placeholder
@@ -106,9 +54,17 @@ except ImportError:
         def is_headless_display(): return False
         def generate_headless_placeholder(w=1920, h=1080): return b''
 
-# Win32 user32 and gdi32 guards for cross-platform support
+# Win32 user32, gdi32, and winmm guards for cross-platform support
 user32 = getattr(ctypes, 'windll', None).user32 if hasattr(ctypes, 'windll') else None
 gdi32 = getattr(ctypes, 'windll', None).gdi32 if hasattr(ctypes, 'windll') else None
+winmm = getattr(ctypes, 'windll', None).winmm if hasattr(ctypes, 'windll') else None
+
+# Enable 1ms kernel timer resolution on Windows so asyncio.sleep / frame pacing achieves 120+ FPS
+if winmm:
+    try:
+        winmm.timeBeginPeriod(1)
+    except Exception:
+        pass
 
 # Enable Per-Monitor DPI Awareness V2 if available
 if user32:
@@ -129,8 +85,133 @@ SM_CXVIRTUALSCREEN = 78
 SM_CYVIRTUALSCREEN = 79
 
 
+class _CtypesTurboJPEG:
+    """Zero-copy ctypes wrapper over native libturbojpeg (Windows/macOS/Linux) for SIMD BGRX->JPEG encoding."""
+
+    def __init__(self):
+        self._lib = None
+        self._tls = threading.local()
+        candidates = []
+        if sys.platform == "win32":
+            candidates.extend([
+                "turbojpeg.dll",
+                "libturbojpeg.dll",
+                r"C:\libjpeg-turbo64\bin\turbojpeg.dll",
+                r"C:\Program Files\libjpeg-turbo64\bin\turbojpeg.dll",
+            ])
+        elif sys.platform == "darwin":
+            candidates.extend([
+                "/opt/homebrew/opt/jpeg-turbo/lib/libturbojpeg.dylib",
+                "/opt/homebrew/lib/libturbojpeg.dylib",
+                "/usr/local/opt/jpeg-turbo/lib/libturbojpeg.dylib",
+                "/usr/local/lib/libturbojpeg.dylib",
+                "libturbojpeg.dylib",
+            ])
+        else:
+            candidates.extend([
+                "libturbojpeg.so.0",
+                "/usr/lib/x86_64-linux-gnu/libturbojpeg.so.0",
+                "/usr/lib/aarch64-linux-gnu/libturbojpeg.so.0",
+                "/usr/lib64/libturbojpeg.so.0",
+                "/usr/lib/libturbojpeg.so.0",
+                "/usr/lib/libturbojpeg.so",
+            ])
+        found = ctypes.util.find_library("turbojpeg")
+        if found:
+            candidates.insert(0, found)
+
+        for path in candidates:
+            try:
+                lib = ctypes.CDLL(path)
+                lib.tjInitCompress.restype = ctypes.c_void_p
+                lib.tjCompress2.argtypes = [
+                    ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                    ctypes.c_int, ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_ulong),
+                    ctypes.c_int, ctypes.c_int, ctypes.c_int
+                ]
+                lib.tjCompress2.restype = ctypes.c_int
+                lib.tjFree.argtypes = [ctypes.c_void_p]
+                lib.tjDestroy.argtypes = [ctypes.c_void_p]
+                self._lib = lib
+                break
+            except Exception:
+                continue
+
+    @property
+    def available(self) -> bool:
+        return self._lib is not None
+
+    def _get_handle(self):
+        h = getattr(self._tls, "handle", None)
+        if not h and self._lib is not None:
+            h = self._lib.tjInitCompress()
+            self._tls.handle = h
+        return h
+
+    def encode_raw(self, raw_buf, width: int, height: int, pitch: int, pixel_format: int, quality: int, subsampling: int, grayscale: bool = False) -> Optional[bytes]:
+        if not self._lib:
+            return None
+        handle = self._get_handle()
+        if not handle:
+            return None
+
+        if grayscale:
+            subsamp = TJSAMP_GRAY
+        elif subsampling == 0:
+            subsamp = TJSAMP_444
+        elif subsampling == 1:
+            subsamp = TJSAMP_422
+        else:
+            subsamp = TJSAMP_420
+
+        if isinstance(raw_buf, bytes):
+            src_ptr = ctypes.cast(raw_buf, ctypes.c_void_p)
+        elif hasattr(raw_buf, "ctypes"):
+            src_ptr = ctypes.c_void_p(raw_buf.ctypes.data)
+        else:
+            try:
+                src_ptr = ctypes.cast(ctypes.byref(raw_buf), ctypes.c_void_p)
+            except Exception:
+                return None
+
+        jpeg_buf = ctypes.c_void_p()
+        jpeg_size = ctypes.c_ulong(0)
+        rc = self._lib.tjCompress2(
+            handle,
+            src_ptr,
+            int(width),
+            int(pitch),
+            int(height),
+            int(pixel_format),
+            ctypes.byref(jpeg_buf),
+            ctypes.byref(jpeg_size),
+            int(subsamp),
+            max(1, min(100, int(quality))),
+            TJFLAG_FASTDCT
+        )
+        if rc != 0 or not jpeg_buf.value or jpeg_size.value == 0:
+            if jpeg_buf.value:
+                self._lib.tjFree(jpeg_buf)
+            return None
+        try:
+            return ctypes.string_at(jpeg_buf.value, jpeg_size.value)
+        finally:
+            self._lib.tjFree(jpeg_buf)
+
+
+_CTYPES_TJ = _CtypesTurboJPEG()
+_PY_TJ = None
+if PyTurboJPEG is not None:
+    try:
+        _PY_TJ = PyTurboJPEG()
+    except Exception:
+        _PY_TJ = None
+
+
 class NativeWin32Capture:
-    """Zero-allocation native Win32 GDI DIBSection capture with hardware cursor overlay."""
+    """Zero-allocation native Win32 GDI DIBSection capture with hardware cursor overlay.
+    Uses pure SRCCOPY (without CAPTUREBLT) to avoid the 16-30ms Windows DWM composition stall.
+    """
 
     def __init__(self):
         self.src_dc = user32.GetDC(0) if user32 else None
@@ -206,6 +287,7 @@ class NativeWin32Capture:
     def grab(self, left: int, top: int, w: int, h: int):
         if not self._ensure_bitmap(w, h):
             return None, None, False
+        # Pure SRCCOPY without CAPTUREBLT prevents Windows 10/11 DWM composition stall (~30ms lock)
         SRCCOPY = 0x00CC0020
         res = gdi32.BitBlt(self.mem_dc, 0, 0, w, h, self.src_dc, left, top, SRCCOPY)
         if not res:
@@ -219,8 +301,7 @@ class NativeWin32Capture:
             # Draw hardware cursor onto DIBSection
             user32.DrawIconEx(self.mem_dc, self.ci.ptScreenPos.x - left, self.ci.ptScreenPos.y - top, self.ci.hCursor, 0, 0, 0, 0, 3)
         gdi32.GdiFlush()
-        img = Image.frombuffer('RGB', (w, h), self.raw_array, 'raw', 'BGRX', 0, 1)
-        return img, self.raw_array, c_changed
+        return (w, h), self.raw_array, c_changed
 
     def close(self):
         if gdi32:
@@ -237,8 +318,12 @@ class NativeWin32Capture:
             user32.ReleaseDC(0, self.src_dc)
             self.src_dc = None
 
+
 class ScreenCapture:
-    """Captures and compresses Windows desktop frames with multi-monitor & window station awareness."""
+    """High-FPS cross-platform desktop capture & SIMD JPEG encoder (Windows, macOS, Linux).
+    Decouples OS display capture + JPEG encoding into a continuous background producer thread
+    during active streaming so 120-240 FPS frame pacing never blocks on DWM BitBlt locks.
+    """
 
     def __init__(self, quality: int = 70, max_width: Optional[int] = None):
         self.quality = quality
@@ -246,51 +331,93 @@ class ScreenCapture:
         self.resample_filter = "bilinear"
         self.subsampling = 2  # 0 for 4:4:4, 2 for 4:2:0
         self.grayscale = False
+        self.encoder_mode = "auto"
+        self.static_cache_enabled = True
+        self.keepalive_interval = 0.0  # 0.0 = zero-CPU cached frame delivery at target FPS
         self._buffer = io.BytesIO()
         self._tls = threading.local()
         self._attach_window_station()
         self.custom_virtual_resolution: Optional[Tuple[int, int]] = None
         self.is_headless = is_headless_display()
         self.active_monitor_id = 0  # 0 = All monitors (virtual desktop), 1..N = specific monitor
+        self._sct = None
+        if mss is not None:
+            try:
+                _mss_factory = getattr(mss, "MSS", None) or mss.mss
+                self._sct = _mss_factory()
+            except Exception:
+                self._sct = None
         self.monitors = self.detect_monitors()
         self._last_frame_hash: Optional[int] = None
         self._last_frame_sent_time: float = 0.0
+        self._last_encoded_frame: Optional[bytes] = None
+        self._last_encode_params: Optional[Tuple[Any, ...]] = None
+        self._placeholder_cache: Dict[Tuple[int, int], bytes] = {}
         self._native_cap: Optional[NativeWin32Capture] = None
-
-        # DXCam: GPU-accelerated Desktop Duplication API (Windows only, ~1ms capture, auto-fallback)
-        self._dxcam_cap = None
-        if _HAS_DXCAM and sys.platform == 'win32':
-            try:
-                self._dxcam_cap = dxcam.create(output_color="BGR")
-                _logger.info("DXCam GPU capture initialized (Desktop Duplication API)")
-            except Exception as e:
-                _logger.debug(f"DXCam init failed, using GDI fallback: {e}")
-                self._dxcam_cap = None
-
         if user32 and gdi32:
             try:
                 self._native_cap = NativeWin32Capture()
             except Exception:
                 self._native_cap = None
-        self._sct = None
-        if mss is not None:
+
+        # Background asynchronous capture & encode producer state
+        self._bg_lock = threading.Lock()
+        self._bg_thread: Optional[threading.Thread] = None
+        self._bg_stop_event = threading.Event()
+        self._bg_wake_event = threading.Event()
+        self._last_poll_ts: float = 0.0
+
+    def _get_thread_native_cap(self) -> Optional[NativeWin32Capture]:
+        """Returns thread-local NativeWin32Capture so GDI DCs never suffer cross-thread contention."""
+        if not (user32 and gdi32):
+            return None
+        cap = getattr(self._tls, "native_cap", None)
+        if cap is None:
             try:
-                self._sct = mss.MSS()
+                cap = NativeWin32Capture()
+                self._tls.native_cap = cap
             except Exception:
-                self._sct = None
+                cap = self._native_cap
+        return cap
 
-        # Log encoder status at startup
-        if _HAS_TURBOJPEG:
-            _logger.info("TurboJPEG encoder active (libjpeg-turbo, ~2-5ms/frame 1080p)")
-        else:
-            _logger.warning("TurboJPEG unavailable, using PIL JPEG (~35-55ms/frame 1080p). Install libjpeg-turbo + PyTurboJPEG for 10x speedup.")
+    def _get_thread_sct(self):
+        """Returns thread-local mss instance so X11/XShm (Linux), Quartz (macOS), and GDI (Windows) are 100% thread-safe."""
+        if mss is None:
+            return None
+        sct = getattr(self._tls, "sct", None)
+        if sct is None:
+            try:
+                _mss_factory = getattr(mss, "MSS", None) or mss.mss
+                sct = _mss_factory()
+                self._tls.sct = sct
+            except Exception:
+                sct = self._sct
+        return sct
 
-    def _attach_window_station(self) -> bool:
-        """Attaches current calling thread to active input desktop (handles Winlogon, default, screensaver)."""
+    def _get_thread_dxcam(self, monitor_idx: int = 0):
+        """Returns thread-local DXGI Desktop Duplication (bettercam/dxcam) instance on Windows when available."""
+        if sys.platform != "win32" or dxcam_lib is None:
+            return None
+        cam_map = getattr(self._tls, "dxcam_map", None)
+        if cam_map is None:
+            cam_map = {}
+            self._tls.dxcam_map = cam_map
+        if monitor_idx not in cam_map:
+            try:
+                cam_map[monitor_idx] = dxcam_lib.create(output_idx=max(0, monitor_idx), output_color="BGRA")
+            except Exception:
+                cam_map[monitor_idx] = None
+        return cam_map.get(monitor_idx)
+
+    def _attach_window_station(self, force: bool = False) -> bool:
+        """Attaches current calling thread to active input desktop (throttled to avoid per-frame kernel overhead)."""
         if not user32:
             return True
-        if getattr(self._tls, "attached", False):
-            return True
+        now = time.perf_counter()
+        if not force and getattr(self._tls, "attached", False):
+            last_ts = getattr(self._tls, "last_attach_ts", 0.0)
+            if now - last_ts < 1.0:
+                return True
         try:
             hwinsta = user32.OpenWindowStationW('winsta0', False, 0x000F037F)
             if hwinsta:
@@ -309,12 +436,13 @@ class ScreenCapture:
                         pass
                 self._tls.hdesk = hdesk
             self._tls.attached = True
+            self._tls.last_attach_ts = now
             return True
         except Exception:
             return False
 
     def detect_monitors(self) -> List[Dict[str, Any]]:
-        """Enumerates physical and virtual displays using native Win32 EnumDisplayMonitors or cross-platform fallback."""
+        """Enumerates physical and virtual displays across Windows (Win32), macOS (Quartz/mss), and Linux (XRandR/mss)."""
         results = []
         if user32:
             try:
@@ -344,27 +472,65 @@ class ScreenCapture:
                         "id": i + 1,
                         "name": f"Màn {i + 1}",
                         "rect": (left, top, right, bottom),
+                        "x": left,
+                        "y": top,
+                        "left": left,
+                        "top": top,
                         "width": w,
                         "height": h
                     })
             except Exception:
                 pass
 
+        # Cross-platform multi-monitor detection via mss (macOS Quartz & Linux X11/XShm)
+        if not results:
+            sct = self._get_thread_sct()
+            if sct is not None:
+                try:
+                    mons = sct.monitors[1:] if len(sct.monitors) > 1 else sct.monitors
+                    for i, m in enumerate(mons):
+                        left = int(m.get("left", 0))
+                        top = int(m.get("top", 0))
+                        w = int(m.get("width", 1920))
+                        h = int(m.get("height", 1080))
+                        results.append({
+                            "id": i + 1,
+                            "name": f"Màn {i + 1}",
+                            "rect": (left, top, left + w, top + h),
+                            "x": left,
+                            "y": top,
+                            "left": left,
+                            "top": top,
+                            "width": w,
+                            "height": h
+                        })
+                except Exception:
+                    pass
+
         if not results:
             w = user32.GetSystemMetrics(SM_CXSCREEN) if user32 else None
             h = user32.GetSystemMetrics(SM_CYSCREEN) if user32 else None
             if not w or not h:
-                try:
-                    img = ImageGrab.grab()
-                    w, h = img.size
-                except Exception:
+                if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
                     w, h = 1920, 1080
+                else:
+                    try:
+                        img = ImageGrab.grab()
+                        w, h = img.size
+                    except Exception:
+                        w, h = 1920, 1080
+            w = w or 1920
+            h = h or 1080
             results.append({
                 "id": 1,
                 "name": "Màn 1",
-                "rect": (0, 0, w or 1920, h or 1080),
-                "width": w or 1920,
-                "height": h or 1080
+                "rect": (0, 0, w, h),
+                "x": 0,
+                "y": 0,
+                "left": 0,
+                "top": 0,
+                "width": w,
+                "height": h
             })
         return results
 
@@ -372,6 +538,8 @@ class ScreenCapture:
         """Sets active monitor to capture (0 for entire virtual desktop, 1..N for specific monitor)."""
         self.active_monitor_id = monitor_id
         self._last_frame_hash = None
+        self._last_encoded_frame = None
+        self._bg_wake_event.set()
 
     @property
     def active_monitor_rect(self) -> Optional[Tuple[int, int, int, int]]:
@@ -385,25 +553,34 @@ class ScreenCapture:
 
     def set_custom_resolution(self, width: int, height: int):
         """Sets dynamic virtual screen resolution for headless or multi-size streaming."""
-        self.custom_virtual_resolution = (int(width), int(height))
+        w_int, h_int = int(width), int(height)
+        self.custom_virtual_resolution = (w_int, h_int)
         if self.max_width is not None:
-            self.max_width = max(self.max_width, int(width))
+            self.max_width = max(self.max_width, w_int)
         self._last_frame_hash = None
+        self._last_encoded_frame = None
         if getattr(self, "is_headless", False) or not self.monitors:
             self.monitors = [{
                 "id": 1,
-                "name": f"Virtual Display ({width}x{height})",
-                "width": int(width),
-                "height": int(height),
+                "name": f"Virtual Display ({w_int}x{h_int})",
+                "rect": (0, 0, w_int, h_int),
+                "x": 0,
+                "y": 0,
                 "left": 0,
-                "top": 0
+                "top": 0,
+                "width": w_int,
+                "height": h_int,
             }]
             self.active_monitor_id = 1
         elif self.monitors:
             for m in self.monitors:
                 if m.get("id") == self.active_monitor_id or self.active_monitor_id == 0:
-                    m["width"] = int(width)
-                    m["height"] = int(height)
+                    left = m.get("x", m.get("left", 0))
+                    top = m.get("y", m.get("top", 0))
+                    m["width"] = w_int
+                    m["height"] = h_int
+                    m["rect"] = (left, top, left + w_int, top + h_int)
+        self._bg_wake_event.set()
 
     @property
     def resolution(self) -> Tuple[int, int]:
@@ -429,284 +606,399 @@ class ScreenCapture:
         # Default to monitor 1
         return (self.monitors[0]["width"], self.monitors[0]["height"])
 
-    def close(self):
-        """Releases native capture contexts."""
-        if self._dxcam_cap is not None:
+    def _ensure_bg_producer(self):
+        """Starts the asynchronous background capture & encode daemon thread if not already running."""
+        if self._bg_thread is not None and self._bg_thread.is_alive():
+            self._bg_wake_event.set()
+            return
+        with self._bg_lock:
+            if self._bg_thread is not None and self._bg_thread.is_alive():
+                self._bg_wake_event.set()
+                return
+            self._bg_stop_event.clear()
+            self._bg_wake_event.set()
+            self._bg_thread = threading.Thread(
+                target=self._bg_capture_loop,
+                daemon=True,
+                name="MeikovaAsyncCaptureProducer"
+            )
+            self._bg_thread.start()
+
+    def _bg_capture_loop(self):
+        """Dedicated background loop that continuously grabs and encodes screen updates without blocking _stream_screen."""
+        while not self._bg_stop_event.is_set():
+            # Pause background grabbing when no stream consumer has polled within the last 1.5 seconds
+            if time.perf_counter() - self._last_poll_ts > 1.5:
+                self._bg_wake_event.clear()
+                self._bg_wake_event.wait(timeout=0.5)
+                continue
+
+            t0 = time.perf_counter()
             try:
-                self._dxcam_cap.stop()
+                self._capture_and_encode_sync(force=False)
             except Exception:
                 pass
-            self._dxcam_cap = None
+            elapsed = time.perf_counter() - t0
+            # Pace background hardware polling to up to ~180Hz (5.5ms minimum cycle) so CPU stays cool
+            if elapsed < 0.0055:
+                time.sleep(0.0055 - elapsed)
+
+    def close(self):
+        """Releases native capture contexts and stops background producer thread."""
+        self._bg_stop_event.set()
+        self._bg_wake_event.set()
         if self._native_cap is not None:
             try:
                 self._native_cap.close()
             except Exception:
                 pass
             self._native_cap = None
+        tls_cap = getattr(self._tls, "native_cap", None)
+        if tls_cap is not None:
+            try:
+                tls_cap.close()
+            except Exception:
+                pass
+            self._tls.native_cap = None
         if self._sct is not None:
             try:
                 self._sct.close()
             except Exception:
                 pass
             self._sct = None
+        tls_sct = getattr(self._tls, "sct", None)
+        if tls_sct is not None:
+            try:
+                tls_sct.close()
+            except Exception:
+                pass
+            self._tls.sct = None
 
-    def _encode_jpeg_turbo(self, img_or_array, w: int, h: int, pixel_format: str = "RGB") -> Optional[bytes]:
-        """Encode frame using turbojpeg (libjpeg-turbo). Returns JPEG bytes or None on failure.
-        pixel_format: 'RGB', 'BGR', 'BGRA', 'BGRX' — determines turbojpeg pixel format constant.
+    def _encode_bgra_fast(self, raw_bgra, width: int, height: int, effective_max_w: Optional[int]) -> Optional[bytes]:
         """
-        if not _HAS_TURBOJPEG or _tjpeg is None:
-            return None
-        try:
-            subsamp = _TJPEG_SUBSAMP.get(self.subsampling, turbojpeg.TJSAMP_420)
-            if self.grayscale:
-                subsamp = turbojpeg.TJSAMP_GRAY
+        Compresses raw BGRA/BGRX buffer to JPEG using fastest available backend:
+        1. libturbojpeg (zero-copy SIMD BGRX->JPEG when no resize needed)
+        2. OpenCV + NumPy (SIMD C++ resize + libjpeg-turbo imencode, releases GIL)
+        3. Pillow (zero-copy Image.frombuffer fallback)
+        """
+        needs_resize = bool(effective_max_w and width > effective_max_w)
+        grayscale = bool(getattr(self, "grayscale", False))
+        subsampling = getattr(self, "subsampling", 2)
+        quality = max(10, min(100, int(self.quality)))
+        mode = str(getattr(self, "encoder_mode", "auto") or "auto").lower()
 
-            # If we have a numpy array, encode directly
-            if _HAS_NUMPY and isinstance(img_or_array, np.ndarray):
-                arr = img_or_array
-                if pixel_format == "BGR":
-                    pf = turbojpeg.TJPF_BGR
-                elif pixel_format in ("BGRA", "BGRX"):
-                    pf = turbojpeg.TJPF_BGRX
-                elif pixel_format == "RGB":
-                    pf = turbojpeg.TJPF_RGB
+        if mode == "pillow":
+            img = Image.frombuffer("RGB", (width, height), raw_bgra, "raw", "BGRX", 0, 1)
+            return self._encode_pil_image(img, effective_max_w)
+
+        # Fast Path 1: Native 1:1 (no resize, color mode) -> Direct zero-copy libturbojpeg from BGRX buffer
+        if mode in ("auto", "turbojpeg") and not needs_resize and not grayscale:
+            if _CTYPES_TJ.available:
+                encoded = _CTYPES_TJ.encode_raw(
+                    raw_bgra, width, height, width * 4, TJPF_BGRX, quality, subsampling, False
+                )
+                if encoded:
+                    return encoded
+            if _PY_TJ is not None:
+                try:
+                    subsamp_map = {0: TJSAMP_444, 1: TJSAMP_422, 2: TJSAMP_420}
+                    arr = np.frombuffer(raw_bgra, dtype=np.uint8).reshape((height, width, 4)) if np is not None else raw_bgra
+                    return _PY_TJ.encode(
+                        arr,
+                        quality=quality,
+                        pixel_format=TJPF_BGRX,
+                        jpeg_subsample=subsamp_map.get(subsampling, TJSAMP_420),
+                        flags=TJFLAG_FASTDCT
+                    )
+                except Exception:
+                    pass
+
+        # Fast Path 2: OpenCV + NumPy (handles both 1:1 and SIMD downscaling / grayscale in C++ outside GIL)
+        if cv2 is not None and np is not None:
+            try:
+                arr = np.frombuffer(raw_bgra, dtype=np.uint8).reshape((height, width, 4))
+                if needs_resize and effective_max_w:
+                    new_w = int(effective_max_w)
+                    new_h = max(1, int(round(height * (new_w / float(width)))))
+                    use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or quality <= 58
+                    interp = cv2.INTER_NEAREST if use_nearest else cv2.INTER_LINEAR
+                    arr = cv2.resize(arr, (new_w, new_h), interpolation=interp)
                 else:
-                    pf = turbojpeg.TJPF_RGB
-                return _tjpeg.encode(arr, quality=self.quality, jpeg_subsample=subsamp, pixel_format=pf)
+                    new_w, new_h = width, height
 
-            # PIL Image path — convert to numpy then encode
-            if _HAS_NUMPY:
-                if self.grayscale:
-                    if img_or_array.mode != 'L':
-                        img_or_array = img_or_array.convert('L')
-                    arr = np.array(img_or_array)
-                    return _tjpeg.encode(arr, quality=self.quality, jpeg_subsample=turbojpeg.TJSAMP_GRAY, pixel_format=turbojpeg.TJPF_GRAY)
-                if img_or_array.mode not in ('RGB', 'BGR'):
-                    img_or_array = img_or_array.convert('RGB')
-                arr = np.array(img_or_array)
-                return _tjpeg.encode(arr, quality=self.quality, jpeg_subsample=subsamp, pixel_format=turbojpeg.TJPF_RGB)
+                if grayscale:
+                    arr_gray = cv2.cvtColor(arr, cv2.COLOR_BGRA2GRAY)
+                    if _CTYPES_TJ.available and arr_gray.flags['C_CONTIGUOUS']:
+                        encoded = _CTYPES_TJ.encode_raw(
+                            arr_gray, new_w, new_h, new_w, TJPF_GRAY, quality, subsampling, True
+                        )
+                        if encoded:
+                            return encoded
+                    ok, buf = cv2.imencode('.jpg', arr_gray, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+                    if ok:
+                        return buf.tobytes()
+                else:
+                    if _CTYPES_TJ.available and arr.flags['C_CONTIGUOUS']:
+                        encoded = _CTYPES_TJ.encode_raw(
+                            arr, new_w, new_h, new_w * 4, TJPF_BGRX, quality, subsampling, False
+                        )
+                        if encoded:
+                            return encoded
+                    ok, buf = cv2.imencode('.jpg', arr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+                    if ok:
+                        return buf.tobytes()
+            except Exception:
+                pass
 
-            return None  # No numpy — fall through to PIL
-        except Exception:
-            return None
+        # Fallback Path 3: Pillow with zero-copy Image.frombuffer
+        img = Image.frombuffer("RGB", (width, height), raw_bgra, "raw", "BGRX", 0, 1)
+        return self._encode_pil_image(img, effective_max_w)
 
-    def capture_frame(self, force: bool = False) -> Optional[bytes]:
-        """
-        Captures the specified monitor desktop, encodes to JPEG, and returns raw bytes.
-        Returns None if frame is identical to previous frame (skip static frames),
-        except sending keepalive frames periodically (4 FPS) to prevent client stream starvation.
-        """
+    def _encode_pil_image(self, img: Image.Image, effective_max_w: Optional[int]) -> bytes:
+        if effective_max_w and img.width > effective_max_w:
+            aspect = img.height / img.width
+            new_w = int(effective_max_w)
+            new_h = max(1, int(new_w * aspect))
+            use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or self.quality <= 58
+            resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
+            img = img.resize((new_w, new_h), resample)
+
+        if getattr(self, "grayscale", False):
+            if img.mode != 'L':
+                img = img.convert('L')
+        else:
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+
+        buf = getattr(self._tls, "pil_buf", None)
+        if buf is None:
+            buf = io.BytesIO()
+            self._tls.pil_buf = buf
+        buf.seek(0)
+        buf.truncate(0)
+        save_kwargs = {
+            "format": "JPEG",
+            "quality": self.quality,
+            "optimize": False,
+            "fastdct": True,
+        }
+        if not getattr(self, "grayscale", False):
+            save_kwargs["subsampling"] = getattr(self, "subsampling", 2)
+
+        img.save(buf, **save_kwargs)
+        return buf.getvalue()
+
+    def _get_cached_headless_placeholder(self, w_res: int, h_res: int) -> bytes:
+        key = (int(w_res), int(h_res))
+        cached = self._placeholder_cache.get(key)
+        if not cached:
+            cached = generate_headless_placeholder(w_res, h_res)
+            if cached:
+                self._placeholder_cache[key] = cached
+        return cached
+
+    def _compute_current_params(self) -> Tuple[int, int, int, int, Optional[int], Tuple[Any, ...]]:
+        left, top, w, h = 0, 0, 1920, 1080
+        if self.active_monitor_id == 0:
+            if user32:
+                left = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+                top = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+                w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+                h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+            elif self.monitors:
+                min_x = min(m.get("x", m.get("rect", (0, 0, 1920, 1080))[0]) for m in self.monitors)
+                min_y = min(m.get("y", m.get("rect", (0, 0, 1920, 1080))[1]) for m in self.monitors)
+                max_r = max(m.get("rect", (0, 0, m.get("width", 1920), m.get("height", 1080)))[2] for m in self.monitors)
+                max_b = max(m.get("rect", (0, 0, m.get("width", 1920), m.get("height", 1080)))[3] for m in self.monitors)
+                left, top, w, h = min_x, min_y, max(1, max_r - min_x), max(1, max_b - min_y)
+            if w <= 0 or h <= 0:
+                left, top = 0, 0
+                w = user32.GetSystemMetrics(SM_CXSCREEN) if user32 else 1920
+                h = user32.GetSystemMetrics(SM_CYSCREEN) if user32 else 1080
+        else:
+            for m in self.monitors:
+                if m.get("id") == self.active_monitor_id:
+                    rect = m.get("rect")
+                    if rect and len(rect) == 4:
+                        left, top = int(rect[0]), int(rect[1])
+                        w = int(m.get("width", rect[2] - rect[0]))
+                        h = int(m.get("height", rect[3] - rect[1]))
+                    else:
+                        left = int(m.get("x", m.get("left", 0)))
+                        top = int(m.get("y", m.get("top", 0)))
+                        w = int(m.get("width", 1920))
+                        h = int(m.get("height", 1080))
+                    break
+
+        effective_max_w = self.max_width
+        if not effective_max_w and self.active_monitor_id == 0 and w > 2560:
+            effective_max_w = 2560
+
+        current_params = (
+            self.quality,
+            effective_max_w,
+            getattr(self, "resample_filter", "bilinear"),
+            getattr(self, "subsampling", 2),
+            getattr(self, "grayscale", False),
+            self.active_monitor_id,
+            w,
+            h,
+        )
+        return left, top, w, h, effective_max_w, current_params
+
+    def _capture_and_encode_sync(self, force: bool = False) -> Optional[bytes]:
+        """Performs a single OS screen grab and SIMD JPEG encode, updating self._last_encoded_frame."""
         try:
             self._attach_window_station()
+            left, top, w, h, effective_max_w, current_params = self._compute_current_params()
+            params_changed = (current_params != self._last_encode_params)
+            now = time.perf_counter()
 
-            left, top, w, h = 0, 0, 1920, 1080
-            if self.active_monitor_id == 0:
-                if user32:
-                    left = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
-                    top = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
-                    w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
-                    h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
-                if w <= 0 or h <= 0:
-                    left, top = 0, 0
-                    w = user32.GetSystemMetrics(SM_CXSCREEN) if user32 else 1920
-                    h = user32.GetSystemMetrics(SM_CYSCREEN) if user32 else 1080
-            else:
-                for m in self.monitors:
-                    if m["id"] == self.active_monitor_id:
-                        left, top, w, h = m["x"], m["y"], m["width"], m["height"]
-                        break
-
-            now = time.time()
-            img = None
-            raw_np_array = None  # numpy array for zero-copy turbojpeg path
-            raw_pixel_format = None
-
-            # Primary Tier 0: DXCam GPU Desktop Duplication capture (~1ms, numpy BGR output)
-            if self._dxcam_cap is not None:
-                try:
-                    frame = self._dxcam_cap.grab()
-                    if frame is not None and _HAS_NUMPY:
-                        curr_hash = hash(frame.data.tobytes()[::1024])
-                        is_static = (not force and curr_hash == self._last_frame_hash)
-                        if is_static:
-                            if now - self._last_frame_sent_time > 0.25:
+            # Tier 0 (Windows DXGI Desktop Duplication via bettercam/dxcam when single monitor is selected)
+            if sys.platform == "win32" and dxcam_lib is not None and self.active_monitor_id in (0, 1) and len(self.monitors) == 1:
+                cam = self._get_thread_dxcam(0)
+                if cam is not None:
+                    try:
+                        frame_arr = cam.grab()
+                        if frame_arr is not None and hasattr(frame_arr, "shape") and len(frame_arr.shape) == 3:
+                            fh, fw = int(frame_arr.shape[0]), int(frame_arr.shape[1])
+                            raw_mv = memoryview(frame_arr).cast("B")
+                            curr_hash = hash(raw_mv[::512].tobytes())
+                            if not force and not params_changed and curr_hash == self._last_frame_hash and self._last_encoded_frame is not None:
                                 self._last_frame_sent_time = now
-                            else:
-                                return None
-                        else:
+                                return self._last_encoded_frame
+                            encoded = self._encode_bgra_fast(frame_arr, fw, fh, effective_max_w)
+                            if encoded:
+                                self._last_frame_hash = curr_hash
+                                self._last_frame_sent_time = now
+                                self._last_encoded_frame = encoded
+                                self._last_encode_params = current_params
+                                return encoded
+                    except Exception:
+                        pass
+
+            # Tier 1 (Windows): Zero-allocation Win32 GDI DIBSection capture with pure SRCCOPY
+            native_cap = self._get_thread_native_cap()
+            if native_cap is not None:
+                try:
+                    dims, raw_buf, cursor_changed = native_cap.grab(left, top, w, h)
+                    if dims is not None and raw_buf is not None:
+                        curr_hash = hash(memoryview(raw_buf)[::512].tobytes())
+                        is_static = (
+                            not force
+                            and not params_changed
+                            and not cursor_changed
+                            and curr_hash == self._last_frame_hash
+                            and self._last_encoded_frame is not None
+                        )
+                        if is_static:
+                            self._last_frame_sent_time = now
+                            return self._last_encoded_frame
+
+                        encoded = self._encode_bgra_fast(raw_buf, dims[0], dims[1], effective_max_w)
+                        if encoded:
                             self._last_frame_hash = curr_hash
                             self._last_frame_sent_time = now
-                        raw_np_array = frame
-                        raw_pixel_format = "BGR"
+                            self._last_encoded_frame = encoded
+                            self._last_encode_params = current_params
+                            return encoded
                 except Exception:
-                    self._dxcam_cap = None
+                    self._attach_window_station(force=True)
 
-            # Primary Tier 1: Zero-allocation Win32 GDI DIBSection capture
-            if raw_np_array is None and img is None and self._native_cap is not None:
-                try:
-                    native_img, raw_buf, cursor_changed = self._native_cap.grab(left, top, w, h)
-                    if native_img is not None and raw_buf is not None:
-                        curr_hash = hash(memoryview(raw_buf)[::256].tobytes())
-                        is_static = (not force and not cursor_changed and curr_hash == self._last_frame_hash)
-                        if is_static:
-                            # Keepalive idle frame: maintain minimum 4 FPS so video stream & HUD stay alive
-                            if now - self._last_frame_sent_time > 0.25:
-                                self._last_frame_sent_time = now
-                            else:
-                                return None
-                        else:
-                            self._last_frame_hash = curr_hash
-                            self._last_frame_sent_time = now
-
-                        # Zero-copy path: convert raw_buf BGRX to numpy for turbojpeg
-                        if _HAS_NUMPY and _HAS_TURBOJPEG:
-                            raw_np_array = np.frombuffer(raw_buf, dtype=np.uint8).reshape(h, w, 4)
-                            raw_pixel_format = "BGRX"
-                        else:
-                            img = native_img
-                except Exception:
-                    self._native_cap = None
-
-            # Fallback Tier 2: mss direct grab
-            if raw_np_array is None and img is None and self._sct is not None:
+            # Tier 2 (macOS Quartz / Linux X11 XShm / Windows Fallback): thread-safe mss direct grab
+            sct = self._get_thread_sct()
+            if sct is not None:
                 try:
                     if self.active_monitor_id == 0:
-                        mon_target = self._sct.monitors[0]
-                    elif 1 <= self.active_monitor_id < len(self._sct.monitors):
-                        mon_target = self._sct.monitors[self.active_monitor_id]
+                        mon_target = sct.monitors[0]
+                    elif 1 <= self.active_monitor_id < len(sct.monitors):
+                        mon_target = sct.monitors[self.active_monitor_id]
                     else:
-                        mon_target = self._sct.monitors[0]
+                        mon_target = {"left": left, "top": top, "width": w, "height": h}
 
-                    shot = self._sct.grab(mon_target)
-                    curr_hash = hash(memoryview(shot.raw)[::256].tobytes())
-                    if not force and curr_hash == self._last_frame_hash:
-                        if now - self._last_frame_sent_time > 0.25:
-                            self._last_frame_sent_time = now
-                        else:
-                            return None
-                    else:
+                    shot = sct.grab(mon_target)
+                    raw_bgra = shot.raw
+                    curr_hash = hash(memoryview(raw_bgra)[::512].tobytes())
+                    is_static = (
+                        not force
+                        and not params_changed
+                        and curr_hash == self._last_frame_hash
+                        and self._last_encoded_frame is not None
+                    )
+                    if is_static:
+                        self._last_frame_sent_time = now
+                        return self._last_encoded_frame
+
+                    encoded = self._encode_bgra_fast(raw_bgra, shot.width, shot.height, effective_max_w)
+                    if encoded:
                         self._last_frame_hash = curr_hash
                         self._last_frame_sent_time = now
-
-                    # Zero-copy path for mss: BGRA numpy array
-                    if _HAS_NUMPY and _HAS_TURBOJPEG:
-                        raw_np_array = np.frombuffer(shot.raw, dtype=np.uint8).reshape(shot.height, shot.width, 4)
-                        raw_pixel_format = "BGRA"
-                    else:
-                        img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+                        self._last_encoded_frame = encoded
+                        self._last_encode_params = current_params
+                        return encoded
                 except Exception:
-                    self._sct = None
+                    self._tls.sct = None
 
             # Fallback Tier 3: Pillow ImageGrab (Cross-platform)
-            if raw_np_array is None and img is None:
-                bbox = (left, top, left + w, top + h) if self.active_monitor_id != 0 else None
+            bbox = (left, top, left + w, top + h) if self.active_monitor_id != 0 else None
+            img = None
+            if not (sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")):
                 try:
                     img = ImageGrab.grab(bbox=bbox, all_screens=True)
                 except Exception:
-                    img = ImageGrab.grab(bbox=bbox, all_screens=(self.active_monitor_id == 0))
+                    try:
+                        img = ImageGrab.grab(bbox=bbox, all_screens=(self.active_monitor_id == 0))
+                    except Exception:
+                        img = None
 
-                if img is None:
-                    if self.is_headless:
-                        w_res, h_res = getattr(self, 'resolution', (1920, 1080))
-                        return generate_headless_placeholder(w_res, h_res)
-                    return None
+            if img is None:
+                if self.is_headless:
+                    w_res, h_res = getattr(self, 'resolution', (1920, 1080))
+                    return self._get_cached_headless_placeholder(w_res, h_res)
+                return None
 
-                curr_hash = hash(memoryview(img.tobytes())[::256].tobytes())
-                if not force and curr_hash == self._last_frame_hash:
-                    if now - self._last_frame_sent_time > 0.25:
-                        self._last_frame_sent_time = now
-                    else:
-                        return None
-                else:
-                    self._last_frame_hash = curr_hash
-                    self._last_frame_sent_time = now
+            raw_img_bytes = img.tobytes()
+            curr_hash = hash(memoryview(raw_img_bytes)[::512].tobytes())
+            if not force and not params_changed and curr_hash == self._last_frame_hash and self._last_encoded_frame is not None:
+                self._last_frame_sent_time = now
+                return self._last_encoded_frame
 
-            # --- ENCODE PHASE ---
-
-            # Fast path: turbojpeg with numpy array (zero PIL intermediate, ~2-5ms for 1080p)
-            if raw_np_array is not None and _HAS_TURBOJPEG and _HAS_NUMPY:
-                cap_h, cap_w = raw_np_array.shape[:2]
-
-                # Downscale if needed (numpy resize via PIL, only when max_width set)
-                effective_max_w = self.max_width
-                if not effective_max_w and self.active_monitor_id == 0 and cap_w > 2560:
-                    effective_max_w = 2560
-
-                if effective_max_w and cap_w > effective_max_w:
-                    aspect = cap_h / cap_w
-                    new_w = effective_max_w
-                    new_h = int(new_w * aspect)
-                    # Convert to PIL for resize, then back to numpy
-                    if raw_pixel_format in ("BGRX", "BGRA"):
-                        pil_img = Image.frombuffer('RGB', (cap_w, cap_h), raw_np_array, 'raw', 'BGRX', 0, 1)
-                    else:
-                        pil_img = Image.fromarray(raw_np_array[:, :, ::-1] if raw_pixel_format == "BGR" else raw_np_array)
-                    use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or self.quality <= 58
-                    resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
-                    pil_img = pil_img.resize((new_w, new_h), resample)
-                    raw_np_array = np.array(pil_img)
-                    raw_pixel_format = "RGB"
-
-                jpeg_bytes = self._encode_jpeg_turbo(raw_np_array, cap_w, cap_h, raw_pixel_format)
-                if jpeg_bytes:
-                    return jpeg_bytes
-                # Fall through to PIL path if turbojpeg fails
-                if raw_pixel_format in ("BGRX", "BGRA"):
-                    img = Image.frombuffer('RGB', (cap_w, cap_h), raw_np_array, 'raw', 'BGRX', 0, 1)
-                else:
-                    img = Image.fromarray(raw_np_array[:, :, ::-1] if raw_pixel_format == "BGR" else raw_np_array)
-
-            # PIL encode path (fallback when turbojpeg unavailable)
-            if img is not None:
-                # Intelligent downscaling for virtual desktop (multi-monitor combined):
-                effective_max_w = self.max_width
-                if not effective_max_w and self.active_monitor_id == 0 and img.width > 2560:
-                    effective_max_w = 2560
-
-                # Resize if maximum width is set (saves bandwidth)
-                if effective_max_w and img.width > effective_max_w:
-                    aspect = img.height / img.width
-                    new_w = effective_max_w
-                    new_h = int(new_w * aspect)
-                    # NEAREST is 10x faster for ECO/speed modes (1.4ms vs 14ms)
-                    use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or self.quality <= 58
-                    resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
-                    img = img.resize((new_w, new_h), resample)
-
-                # Try turbojpeg with PIL Image
-                turbo_result = self._encode_jpeg_turbo(img, img.width, img.height, "RGB")
-                if turbo_result:
-                    return turbo_result
-
-                # Final fallback: PIL JPEG encode
-                if getattr(self, "grayscale", False):
-                    if img.mode != 'L':
-                        img = img.convert('L')
-                else:
-                    if img.mode != 'RGB':
-                        img = img.convert('RGB')
-
-                self._buffer.seek(0)
-                self._buffer.truncate(0)
-                save_kwargs = {
-                    "format": "JPEG",
-                    "quality": self.quality,
-                    "optimize": False,
-                    "fastdct": True,
-                }
-                if not getattr(self, "grayscale", False):
-                    save_kwargs["subsampling"] = getattr(self, "subsampling", 2)
-
-                img.save(self._buffer, **save_kwargs)
-                return self._buffer.getvalue()
-
-            return None
+            encoded = self._encode_pil_image(img, effective_max_w)
+            self._last_frame_hash = curr_hash
+            self._last_frame_sent_time = now
+            self._last_encoded_frame = encoded
+            self._last_encode_params = current_params
+            return encoded
 
         except Exception:
             if getattr(self, 'is_headless', False):
                 try:
                     w_res, h_res = getattr(self, 'resolution', (1920, 1080))
-                    return generate_headless_placeholder(w_res, h_res)
+                    return self._get_cached_headless_placeholder(w_res, h_res)
                 except Exception:
                     pass
             return None
+
+    def capture_frame(self, force: bool = False) -> Optional[bytes]:
+        """
+        Returns the latest SIMD-encoded JPEG frame non-blockingly during streaming (120-240 FPS),
+        while a background producer thread continuously captures & encodes display updates in parallel.
+        When force=True, parameters changed, or no cached frame exists yet, performs an immediate synchronous capture.
+        """
+        now = time.perf_counter()
+        self._last_poll_ts = now
+        _, _, _, _, _, current_params = self._compute_current_params()
+        params_changed = (current_params != self._last_encode_params)
+
+        if not force and not params_changed and self._last_encoded_frame is not None:
+            self._ensure_bg_producer()
+            eff_interval = 0.0 if getattr(self, "static_cache_enabled", True) else max(0.0, self.keepalive_interval)
+            if eff_interval <= 0.0 or (now - self._last_frame_sent_time) >= eff_interval:
+                self._last_frame_sent_time = now
+                return self._last_encoded_frame
+            return None
+
+        encoded = self._capture_and_encode_sync(force=True)
+        if encoded is not None:
+            self._ensure_bg_producer()
+        return encoded

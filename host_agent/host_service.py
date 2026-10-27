@@ -13,8 +13,18 @@ import urllib.request
 import urllib.parse
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
-import websockets
+from typing import Optional, Tuple, Any
+import concurrent.futures
+try:
+    import websockets
+except ImportError:
+    class _WebsocketsStub:
+        WebSocketClientProtocol = object
+        ConnectionClosed = ConnectionError
+        @staticmethod
+        def connect(*args, **kwargs):
+            raise RuntimeError("websockets package is required for live relay connections")
+    websockets = _WebsocketsStub()
 
 # --- Resilient Network Infrastructure: DNS Bypass, Corporate Proxy, and Resilient SSL ---
 _ORIGINAL_GETADDRINFO = socket.getaddrinfo
@@ -143,22 +153,28 @@ def is_current_user_admin() -> bool:
 class HostService:
     """Manages outbound WebSocket connection to Relay Server and streams desktop + handles all remote events."""
 
-    def __init__(self, relay_url: str, room_id: str, pin: str, device_name: str = "Workstation", account: str = "", fps: int = 25, quality: int = 65, user_id: Optional[str] = None):
+    def __init__(self, relay_url: str, room_id: str, pin: str, device_name: str = "Workstation", account: str = "", fps: int = 120, quality: int = 70, user_id: Optional[str] = None):
         self.relay_url = relay_url
         self.room_id = room_id
         self.pin = pin
         self.device_name = device_name
         self.account = account
         self.user_id = user_id
-        self.fps = fps
-        self.frame_interval = 1.0 / max(1, fps)
+        self._client_is_lan: Optional[bool] = None
+        self.last_rtt_ms: float = 0.0
+        self.active_preset: str = "balanced"
+        self.custom_fps_limit: int = 0  # 0 = Auto (120 FPS LAN / 60 FPS WAN), >0 = explicit FPS lock from client session
+        self.custom_resolution_lock: Optional[Tuple[int, int]] = None  # Explicit resolution set via Resolution Menu
+        self.fps = fps if fps != 25 else (120 if self._detect_url_is_lan(relay_url) else 60)
+        self.frame_interval = 1.0 / max(1, self.fps)
         self.quality = quality
         self.capture = ScreenCapture(quality=self.quality)
+        self._capture_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="MeikovaCapture")
         self.file_manager = FileManager()
         self.running = True
         self.has_active_client = False
         self._allow_insecure_ssl = False
-        self.ws: Optional[websockets.WebSocketClientProtocol] = None
+        self.ws: Optional[Any] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.frame_queue: Optional[asyncio.Queue] = None
         self.frames_in_flight: int = 0
@@ -204,16 +220,21 @@ class HostService:
         self.running = False
         self.has_active_client = False
         self.audio_enabled = False
+        had_curtain = bool(self.curtain_active_sessions) or getattr(privacy_curtain, "is_active", False)
         self.curtain_active_sessions.clear()
         try:
             privacy_curtain.disable()
-            InputInjector.set_block_input(False)
+            if had_curtain or getattr(InputInjector, "is_input_blocked", False):
+                InputInjector.set_block_input(False)
         except Exception:
             pass
 
         try:
             if hasattr(self, "capture") and self.capture:
                 self.capture.close()
+            if hasattr(self, "_capture_executor") and self._capture_executor:
+                self._capture_executor.shutdown(wait=False, cancel_futures=True)
+                self._capture_executor = None
             if hasattr(self, "audio_capture") and self.audio_capture:
                 self.audio_capture.stop()
             if hasattr(self, "audio_playback") and self.audio_playback:
@@ -402,103 +423,186 @@ class HostService:
         import uuid
         return str(uuid.UUID(int=uuid.getnode()))
 
+    @staticmethod
+    def _detect_url_is_lan(url: str) -> bool:
+        raw = str(url or "").strip().lower()
+        if not raw:
+            return True
+        if raw.startswith("::ffff:"):
+            raw = raw[7:]
+        if raw in ("localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"):
+            return True
+        try:
+            parsed_target = raw if "://" in raw else f"http://{raw}"
+            host = (urllib.parse.urlparse(parsed_target).hostname or "").lower().strip()
+        except Exception:
+            host = raw.strip("[]")
+        if host.startswith("::ffff:"):
+            host = host[7:]
+        if not host or host in ("localhost", "127.0.0.1", "::1", "0.0.0.0") or host.endswith(".local") or host.endswith(".lan"):
+            return True
+        if host.startswith("192.168.") or host.startswith("10.") or host.startswith("100."):
+            return True
+        if host.startswith("172."):
+            parts = host.split(".")
+            if len(parts) >= 2 and parts[1].isdigit() and 16 <= int(parts[1]) <= 31:
+                return True
+        return False
+
+    def is_local_or_lan(self) -> bool:
+        """Returns True when streaming over Localhost or LAN (targets 120 FPS), False on WAN (targets 60 FPS, min 30 FPS)."""
+        if self._client_is_lan is not None:
+            return self._client_is_lan
+        if 0.0 < self.last_rtt_ms < 20.0:
+            return True
+        if self.last_rtt_ms >= 25.0:
+            return False
+        return self._detect_url_is_lan(self.relay_url)
+
     def apply_quality_preset(self, preset: str) -> str:
-        """Applies streaming frame rate, quality, and compression parameters across 6 deterministic presets."""
-        # ponytail: deterministic preset mapping with measurable bitrate & resolution parameters
+        """Applies visual resolution and compression parameters while honoring any custom Resolution Lock or FPS Limit from the client session."""
+        is_lan = self.is_local_or_lan()
+        high_fps_interval = (1.0 / 120.0) if is_lan else (1.0 / 60.0)
+        eco_fps_interval = (1.0 / 60.0) if is_lan else (1.0 / 30.0)
+
         if preset == "eco":
             self.capture.quality = 45
             self.capture.max_width = 960
             self.capture.resample_filter = "nearest"
             self.capture.subsampling = 2  # 4:2:0
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 30.0
+            self.frame_interval = eco_fps_interval
         elif preset == "speed_60":
-            self.capture.quality = 65
-            self.capture.max_width = 1600
+            self.capture.quality = 58
+            self.capture.max_width = 1280
             self.capture.resample_filter = "nearest"
             self.capture.subsampling = 2  # 4:2:0
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 120.0  # Upgraded to 120 FPS with turbojpeg
+            self.frame_interval = high_fps_interval
         elif preset == "crisp_hd":
             self.capture.quality = 80
             self.capture.max_width = 1920
             self.capture.resample_filter = "bilinear"
             self.capture.subsampling = 2  # 4:2:0
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 30.0
+            self.frame_interval = high_fps_interval
         elif preset == "native_1to1":
-            self.capture.quality = 85
+            self.capture.quality = 90
             self.capture.max_width = None
             self.capture.resample_filter = "bilinear"
-            self.capture.subsampling = 1  # 4:2:2 near-lossless, 40% smaller than 4:4:4
+            self.capture.subsampling = 0  # 4:4:4 pixel-perfect
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 120.0  # Uncapped 120 FPS with turbojpeg
+            self.frame_interval = high_fps_interval
         elif preset == "grayscale":
             self.capture.quality = 40
             self.capture.max_width = 1280
             self.capture.resample_filter = "nearest"
             self.capture.subsampling = 2  # 4:2:0
             self.capture.grayscale = True
-            self.frame_interval = 1.0 / 25.0
+            self.frame_interval = eco_fps_interval
         elif preset == "ultra_120":
-            self.capture.quality = 70
-            self.capture.max_width = 1920
-            self.capture.resample_filter = "nearest"
-            self.capture.subsampling = 2  # 4:2:0 for minimum encode time
-            self.capture.grayscale = False
-            self.frame_interval = 1.0 / 120.0  # True 120 FPS with turbojpeg
-        elif preset == "ultra_240":
-            self.capture.quality = 55
+            self.capture.quality = 58
             self.capture.max_width = 1280
             self.capture.resample_filter = "nearest"
-            self.capture.subsampling = 2  # 4:2:0
+            self.capture.subsampling = 2
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 240.0  # Maximum throughput mode
+            self.frame_interval = 1.0 / 120.0
+        elif preset == "extreme_144":
+            self.capture.quality = 62
+            self.capture.max_width = 1280
+            self.capture.resample_filter = "nearest"
+            self.capture.subsampling = 2
+            self.capture.grayscale = False
+            self.frame_interval = 1.0 / 144.0
+        elif preset == "native_120_1to1":
+            self.capture.quality = 85
+            self.capture.max_width = None
+            self.capture.resample_filter = "bilinear"
+            self.capture.subsampling = 2
+            self.capture.grayscale = False
+            self.frame_interval = 1.0 / 120.0
+        elif preset == "wan_60_turbo":
+            self.capture.quality = 52
+            self.capture.max_width = 1280
+            self.capture.resample_filter = "nearest"
+            self.capture.subsampling = 2
+            self.capture.grayscale = False
+            self.frame_interval = 1.0 / 60.0
         elif preset == "crisp_2k_4k":
             self.capture.quality = 95
             self.capture.max_width = 2560
             self.capture.resample_filter = "bilinear"
             self.capture.subsampling = 0
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 30.0
-        else: # balanced default
+            self.frame_interval = high_fps_interval
+        else:  # balanced default
             preset = "balanced"
             self.capture.quality = 70
             self.capture.max_width = 1600
             self.capture.resample_filter = "bilinear"
             self.capture.subsampling = 2  # 4:2:0
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 30.0
+            self.frame_interval = high_fps_interval
+
+        # If the admin explicitly locked a target resolution in the Resolution Menu, do not let Quality Presets downscale it
+        res_lock = getattr(self, "custom_resolution_lock", None)
+        if res_lock and preset not in ("native_1to1", "native_120_1to1", "eco", "grayscale"):
+            self.capture.max_width = int(res_lock[0])
+
+        # If the remote client locked a specific FPS limit (30 / 60 / 90 / 120 / 144 / 240), honor it without conflict
+        if getattr(self, "custom_fps_limit", 0) and self.custom_fps_limit > 0:
+            self.frame_interval = 1.0 / float(max(10, min(240, self.custom_fps_limit)))
+
+        self.active_preset = preset
+        self.capture.keepalive_interval = 0.0
+        self.capture._last_encoded_frame = None
         return preset
 
     def _update_congestion_control(self, rtt_ms: float):
-        """Dynamic Congestion Control (DCC) adapting compression quality based on measured round-trip time."""
-        # Cloud relay normal WAN baseline RTT is ~180-220ms; only trigger backoff on severe congestion (> 400ms)
+        """Dynamic Congestion Control (DCC) adapting compression quality & FPS across Localhost/LAN (120 FPS) and WAN (60 FPS, min 30 FPS)."""
+        self.last_rtt_ms = float(rtt_ms)
+        has_custom_fps = bool(getattr(self, "custom_fps_limit", 0) and self.custom_fps_limit > 0)
         if rtt_ms > 240:
+            self._client_is_lan = False
             self._consecutive_high_rtt += 1
             self._consecutive_low_rtt = 0
             if self._consecutive_high_rtt >= 3:
-                # Alleviate congestion by lowering JPEG quality slightly
+                # Alleviate congestion by lowering JPEG quality slightly and clamping WAN FPS between 30 and 60 FPS
                 if self.capture.quality > 40:
                     self.capture.quality = max(38, self.capture.quality - 8)
+                if not has_custom_fps:
+                    self.frame_interval = min(1.0 / 30.0, max(1.0 / 60.0, self.frame_interval * 1.25))
                 self._consecutive_high_rtt = 0
         elif rtt_ms < 60:
+            if rtt_ms < 20:
+                self._client_is_lan = True
+                if not has_custom_fps and self.active_preset not in ("eco", "grayscale", "extreme_144"):
+                    self.frame_interval = 1.0 / 120.0
+            else:
+                self._client_is_lan = False
+                if not has_custom_fps and self.active_preset not in ("ultra_120", "extreme_144", "native_120_1to1", "eco", "grayscale"):
+                    self.frame_interval = 1.0 / 60.0
             self._consecutive_low_rtt += 1
             self._consecutive_high_rtt = 0
             if self._consecutive_low_rtt >= 10:
                 # Gradually recover quality when network clears
-                target_q = 70 if self.capture.max_width == 1600 else 58
+                target_q = 70 if self.capture.max_width == 1600 else (90 if self.capture.max_width is None else 58)
                 if self.capture.quality < target_q:
                     self.capture.quality = min(target_q, self.capture.quality + 4)
                 self._consecutive_low_rtt = 0
+        else:
+            # Normal WAN RTT (60ms - 240ms): maintain 60 FPS target (min 30 FPS for eco/grayscale)
+            self._client_is_lan = False
+            if not has_custom_fps and self.active_preset not in ("ultra_120", "extreme_144", "native_120_1to1", "eco", "grayscale") and self.frame_interval < (1.0 / 60.0):
+                self.frame_interval = 1.0 / 60.0
 
     def negotiate_optimal_display_profile(self, client_w: int, client_h: int, client_fps: int = 60) -> dict:
         """
         Negotiates highest optimal resolution & frame profile between host monitor and controller client.
-        // ponytail: deterministic capability matching prioritizing responsiveness & throughput
+        // ponytail: deterministic capability matching prioritizing 120 FPS on LAN/high-Hz & 60 FPS on WAN
         """
         host_w, host_h = self.capture.resolution
-        
+
         # High refresh rate priority (>= 60 FPS)
         if client_fps >= 60:
             recommended = "speed_60"
@@ -516,6 +620,12 @@ class HostService:
             suggested_scale = "fit"
 
         applied = self.apply_quality_preset(recommended)
+        if not (getattr(self, "custom_fps_limit", 0) and self.custom_fps_limit > 0):
+            if client_fps >= 120 or (client_fps >= 60 and self.is_local_or_lan()):
+                self.frame_interval = 1.0 / 120.0
+            elif client_fps >= 60:
+                self.frame_interval = 1.0 / 60.0
+
         return {
             "type": "display_profile_matched",
             "host_res": [host_w, host_h],
@@ -530,17 +640,25 @@ class HostService:
         }
 
     async def _stream_screen(self):
-        """Captures screen frames independently at target FPS, decoupled from network latency."""
+        """Streams encoded frames with deadline-tracked 120-240 FPS pacing."""
         fps_target = int(round(1.0 / self.frame_interval))
         logger.info(f"Screen capture loop started targeting {fps_target} FPS")
+        loop = asyncio.get_running_loop()
+        next_deadline = time.perf_counter()
+
         while self.running:
             if not self.has_active_client:
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.05)
+                next_deadline = time.perf_counter()
                 continue
 
-            start_time = time.perf_counter()
             try:
-                frame_bytes = await asyncio.to_thread(self.capture.capture_frame, False)
+                # Fast non-blocking read when background producer has already encoded a frame
+                if self.capture._last_encoded_frame is not None and callable(getattr(self.capture.capture_frame, "__self__", None)):
+                    frame_bytes = self.capture.capture_frame(False)
+                else:
+                    executor = getattr(self, "_capture_executor", None)
+                    frame_bytes = await loop.run_in_executor(executor, self.capture.capture_frame, False)
                 if frame_bytes and self.frame_queue is not None:
                     if self.frame_queue.full():
                         try:
@@ -553,15 +671,23 @@ class HostService:
                         pass
             except Exception as cap_err:
                 logger.warning(f"Frame capture error (recovered): {cap_err}")
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.05)
+                next_deadline = time.perf_counter()
                 continue
 
-            elapsed = time.perf_counter() - start_time
-            sleep_time = max(0, self.frame_interval - elapsed)
-            await asyncio.sleep(sleep_time)
+            next_deadline += self.frame_interval
+            now = time.perf_counter()
+            remaining = next_deadline - now
+            if remaining > 0.0012:
+                await asyncio.sleep(remaining - 0.0005)
+            elif remaining < -self.frame_interval * 2:
+                next_deadline = now
+                await asyncio.sleep(0)
+            else:
+                await asyncio.sleep(0)
 
-    async def _send_frames_worker(self, ws: websockets.WebSocketClientProtocol):
-        """Worker task reading latest frame from queue and sending over WebSocket."""
+    async def _send_frames_worker(self, ws: Any):
+        """Non-blocking leaky-bucket frame sender with adaptive socket write-buffer backpressure."""
         logger.info("Frame sender worker started")
         last_heartbeat = time.time()
         self.frames_in_flight = 0
@@ -575,38 +701,29 @@ class HostService:
                         last_heartbeat = time.time()
                     except Exception:
                         break
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(0.1)
                 continue
 
             try:
                 if self.frame_queue is None:
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0.02)
                     continue
 
-                # Flow control gate: Cap unacknowledged frames in flight to 4
-                # Higher pipeline depth enables 120+ FPS while maintaining sub-200ms latency
-                if self.frames_in_flight >= 4:
-                    try:
-                        await asyncio.wait_for(self.ack_event.wait(), timeout=0.10)
-                    except asyncio.TimeoutError:
-                        self.frames_in_flight = 2
-                    finally:
-                        self.ack_event.clear()
+                # Socket write-buffer backpressure check BEFORE dequeuing so newest frame stays in leaky-bucket queue
+                transport = getattr(ws, "transport", None)
+                if transport and hasattr(transport, "get_write_buffer_size"):
+                    max_buf = (4 * 1024 * 1024) if self.is_local_or_lan() else (1024 * 1024)
+                    if transport.get_write_buffer_size() > max_buf:
+                        await asyncio.sleep(0.002)
+                        continue
 
                 try:
-                    frame = await asyncio.wait_for(self.frame_queue.get(), timeout=2.0)
+                    frame = await asyncio.wait_for(self.frame_queue.get(), timeout=1.0)
                 except asyncio.TimeoutError:
                     frame = None
 
                 if frame:
-                    # Flow control 1: Transport write buffer check (< 512KB allows 120+ FPS pipeline with HD/4K bursts)
-                    transport = getattr(ws, "transport", None)
-                    if transport and hasattr(transport, "get_write_buffer_size"):
-                        if transport.get_write_buffer_size() > 512 * 1024:
-                            await asyncio.sleep(0.005)
-                            continue
-
-                    self.frames_in_flight += 1
+                    self.frames_in_flight = min(32, self.frames_in_flight + 1)
                     await ws.send(frame)
 
                 if time.time() - last_heartbeat > 10:
@@ -624,13 +741,13 @@ class HostService:
                 logger.warning(f"Error sending frame (transient): {e}")
                 if getattr(ws, "closed", False):
                     break
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(0.02)
 
-    async def _send_frames_loop(self, ws: websockets.WebSocketClientProtocol):
+    async def _send_frames_loop(self, ws: Any):
         """Legacy compatibility wrapper delegating to _send_frames_worker."""
         await self._send_frames_worker(ws)
 
-    async def _send_audio_loop(self, ws: websockets.WebSocketClientProtocol):
+    async def _send_audio_loop(self, ws: Any):
         logger.info("Audio streamer started")
         while self.running:
             try:
@@ -669,7 +786,7 @@ class HostService:
 
         await self._receive_events_loop(_SingleMsgStream(raw_msg, ws))
 
-    async def _receive_events_loop(self, ws: websockets.WebSocketClientProtocol):
+    async def _receive_events_loop(self, ws: Any):
         logger.info("Event listener started")
         async for raw_msg in ws:
             if isinstance(raw_msg, str):
@@ -701,7 +818,11 @@ class HostService:
 
                 # System & Room Control
                 if ev_type == "client_connected":
-                    logger.info("[+] Client connected! Streaming live.")
+                    client_ip = str(event.get("clientIp") or event.get("client_ip") or "").strip()
+                    if client_ip:
+                        self._client_is_lan = self._detect_url_is_lan(client_ip) and self._detect_url_is_lan(self.relay_url)
+                    self.apply_quality_preset(getattr(self, "active_preset", "balanced"))
+                    logger.info(f"[+] Client connected (ip={client_ip}, lan={self.is_local_or_lan()}, target_fps={int(round(1.0 / self.frame_interval))})! Streaming live.")
                     self.has_active_client = True
                     if self.on_client_connect:
                         try:
@@ -909,12 +1030,24 @@ class HostService:
 
                 # Dynamic Screen Resolution Control (Headless Virtual Display & Multi-size switcher)
                 elif ev_type in ("set_screen_resolution", "set_virtual_resolution"):
-                    w = int(event.get("width", 1920))
-                    h = int(event.get("height", 1080))
-                    fps = int(event.get("fps", 60))
-                    loop = asyncio.get_running_loop()
-                    res = await loop.run_in_executor(None, set_display_resolution, w, h, fps)
-                    self.capture.set_custom_resolution(w, h)
+                    w = int(event.get("width", 0))
+                    h = int(event.get("height", 0))
+                    fps = int(event.get("fps", 120 if self.is_local_or_lan() else 60))
+                    if w <= 0 or h <= 0:
+                        # Reset to native physical monitor resolution
+                        self.custom_resolution_lock = None
+                        self.capture.custom_virtual_resolution = None
+                        self.capture.monitors = self.capture.detect_monitors()
+                        self.capture.max_width = None
+                        nw, nh = self.capture.resolution
+                        res = {"success": True, "message": f"Đã khôi phục độ phân giải gốc {nw}x{nh}"}
+                        w, h = nw, nh
+                    else:
+                        loop = asyncio.get_running_loop()
+                        res = await loop.run_in_executor(None, set_display_resolution, w, h, fps)
+                        self.custom_resolution_lock = (w, h)
+                        self.capture.set_custom_resolution(w, h)
+                        self.capture.max_width = w
                     await ws.send(json.dumps({
                         "type": "screen_resolution_result",
                         "success": res.get("success", True),
@@ -997,9 +1130,34 @@ class HostService:
                         await ws.send(initial_frame)
                     continue
 
-                # Quality / FPS Preset
+                # Session-Managed FPS Limit Control (Decoupled from Visual Quality Preset)
+                elif ev_type == "set_fps_limit":
+                    fps_lim = int(event.get("fps_limit", 0) or 0)
+                    self.custom_fps_limit = max(0, min(240, fps_lim))
+                    if self.custom_fps_limit > 0:
+                        self.frame_interval = 1.0 / float(max(10, self.custom_fps_limit))
+                    else:
+                        self.apply_quality_preset(getattr(self, "active_preset", "balanced"))
+                    if self.frame_queue is not None:
+                        while not self.frame_queue.empty():
+                            try:
+                                self.frame_queue.get_nowait()
+                            except (asyncio.QueueEmpty, ValueError):
+                                break
+                    await ws.send(json.dumps({
+                        "type": "fps_limit_applied",
+                        "fps_limit": self.custom_fps_limit,
+                        "applied_fps": int(round(1.0 / self.frame_interval)),
+                        "quality": self.capture.quality,
+                        "preset": getattr(self, "active_preset", "balanced")
+                    }))
+                    continue
+
+                # Quality / Resolution Preset (Managed 100% from Remote Client Session)
                 elif ev_type == "set_quality_preset":
                     preset = event.get("preset", "balanced")
+                    if "fps_limit" in event and event["fps_limit"] is not None:
+                        self.custom_fps_limit = max(0, min(240, int(event["fps_limit"])))
                     applied = self.apply_quality_preset(preset)
                     logger.info(f"Applied Quality Preset: {applied} (Quality: {self.capture.quality}, Interval: {self.frame_interval})")
                     # 1. Reset flow control state immediately
@@ -1018,7 +1176,7 @@ class HostService:
                     # 4. Immediately force capture and transmit fresh frame in the new mode
                     fresh_frame = await asyncio.to_thread(self.capture.capture_frame, True)
                     if fresh_frame:
-                        self.frames_in_flight = 2
+                        self.frames_in_flight = 1
                         await ws.send(fresh_frame)
                     # 5. Send confirmation ACK with applied metrics immediately (non-blocking)
                     await ws.send(json.dumps({
@@ -1027,7 +1185,8 @@ class HostService:
                         "req_id": event.get("req_id"),
                         "quality": self.capture.quality,
                         "max_width": self.capture.max_width,
-                        "fps": int(round(1.0 / self.frame_interval))
+                        "fps": int(round(1.0 / self.frame_interval)),
+                        "fps_limit": self.custom_fps_limit
                     }))
                     continue
 
@@ -1509,9 +1668,12 @@ class HostService:
                 elif ev_type == "ping":
                     await ws.send(json.dumps({"type": "pong", "ts": event.get("ts", 0)}))
                 elif ev_type == "pong":
-                    ping_ts = event.get("ts", 0)
-                    if ping_ts:
-                        rtt_ms = (time.time() - ping_ts) * 1000
+                    ping_ts = float(event.get("ts", 0) or 0)
+                    if ping_ts > 0:
+                        if ping_ts > 1e11:
+                            rtt_ms = (time.time() * 1000.0) - ping_ts
+                        else:
+                            rtt_ms = (time.time() - ping_ts) * 1000.0
                         if 0 < rtt_ms < 5000:
                             self._update_congestion_control(rtt_ms)
 
@@ -1538,8 +1700,9 @@ class HostService:
                     connect_kwargs = {
                         "ping_interval": 25,
                         "ping_timeout": 30,
-                        "max_size": 25 * 1024 * 1024,
+                        "max_size": 32 * 1024 * 1024,
                         "write_limit": 8 * 1024 * 1024,
+                        "compression": None,
                         "user_agent_header": browser_ua,
                         "origin": origin_header,
                         "additional_headers": {"Origin": origin_header, "User-Agent": browser_ua},
@@ -1551,6 +1714,13 @@ class HostService:
 
                     async with websockets.connect(self.relay_url, **connect_kwargs) as ws:
                         self.ws = ws
+                        try:
+                            tr = getattr(ws, "transport", None)
+                            sock = tr.get_extra_info("socket") if tr else None
+                            if sock is not None:
+                                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                        except Exception:
+                            pass
                         init_pkt = json.dumps({
                             "type": "init_host",
                             "room_id": self.room_id,
@@ -1586,7 +1756,7 @@ class HostService:
                             except Exception:
                                 pass
 
-                        self.frame_queue = asyncio.Queue(maxsize=3)
+                        self.frame_queue = asyncio.Queue(maxsize=1)
                         self.audio_queue = asyncio.Queue(maxsize=50)
                         capture_task = asyncio.create_task(self._stream_screen())
                         send_task = asyncio.create_task(self._send_frames_worker(ws))
@@ -1713,7 +1883,7 @@ def main():
     device_name = args.name or cfg_data.get("device_name") or os.environ.get("COMPUTERNAME", socket.gethostname())
     account = args.account or cfg_data.get("account") or ""
     user_id = args.user_id or cfg_data.get("user_id") or None
-    fps = args.fps if args.fps > 0 else int(cfg_data.get("fps", 25))
+    fps = args.fps if args.fps > 0 else int(cfg_data.get("fps", 120))
     quality = args.quality if args.quality > 0 else int(cfg_data.get("quality", 65))
 
     service = HostService(

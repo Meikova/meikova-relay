@@ -47,6 +47,7 @@ class PrivacyCurtain:
     def __init__(self):
         self.is_curtain_active: bool = False
         self.is_input_blocked: bool = False
+        self._explicit_input_blocked: bool = False
         self._thread: Optional[threading.Thread] = None
         self._thread_id: int = 0
         self._stop_event = threading.Event()
@@ -56,6 +57,8 @@ class PrivacyCurtain:
         self._ms_hook = None
         self._kb_proc = None
         self._ms_proc = None
+        self._wnd_proc = None
+        self._wcls = None
 
     @property
     def is_active(self) -> bool:
@@ -99,7 +102,8 @@ class PrivacyCurtain:
         """Deactivates privacy screen and restores physical monitor display (and physical input if not separately locked)."""
         self.is_curtain_active = False
 
-        if not self.is_input_blocked:
+        if not self._explicit_input_blocked:
+            self.is_input_blocked = False
             _set_os_block_input(False)
 
         if sys.platform == "win32":
@@ -131,6 +135,7 @@ class PrivacyCurtain:
 
     def set_input_blocked(self, blocked: bool) -> Dict[str, Any]:
         """Independently blocks or unblocks physical mouse and keyboard without blanking the screen."""
+        self._explicit_input_blocked = bool(blocked)
         self.is_input_blocked = bool(blocked)
         _set_os_block_input(self.is_input_blocked)
 
@@ -155,6 +160,7 @@ class PrivacyCurtain:
         """Emergency fail-safe: immediately restores both physical screen and physical input (e.g. on client disconnect)."""
         self.is_curtain_active = False
         self.is_input_blocked = False
+        self._explicit_input_blocked = False
         _set_os_block_input(False)
 
         if sys.platform == "win32":
@@ -206,9 +212,91 @@ class PrivacyCurtain:
             gdi32 = ctypes.windll.gdi32
             kernel32 = ctypes.windll.kernel32
 
+            WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_longlong, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+
+            class WNDCLASSEXW(ctypes.Structure):
+                _fields_ = [
+                    ('cbSize', wintypes.UINT),
+                    ('style', wintypes.UINT),
+                    ('lpfnWndProc', WNDPROC),
+                    ('cbClsExtra', ctypes.c_int),
+                    ('cbWndExtra', ctypes.c_int),
+                    ('hInstance', wintypes.HINSTANCE),
+                    ('hIcon', wintypes.HICON),
+                    ('hCursor', wintypes.HICON),
+                    ('hbrBackground', wintypes.HBRUSH),
+                    ('lpszMenuName', wintypes.LPCWSTR),
+                    ('lpszClassName', wintypes.LPCWSTR),
+                    ('hIconSm', wintypes.HICON)
+                ]
+
             user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
             user32.DefWindowProcW.restype = ctypes.c_longlong
+
+            user32.RegisterClassExW.argtypes = [ctypes.POINTER(WNDCLASSEXW)]
+            user32.RegisterClassExW.restype = wintypes.ATOM
+
+            user32.UnregisterClassW.argtypes = [wintypes.LPCWSTR, wintypes.HINSTANCE]
+            user32.UnregisterClassW.restype = wintypes.BOOL
+
+            user32.CreateWindowExW.argtypes = [
+                wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+                ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID
+            ]
             user32.CreateWindowExW.restype = wintypes.HWND
+
+            user32.DestroyWindow.argtypes = [wintypes.HWND]
+            user32.DestroyWindow.restype = wintypes.BOOL
+
+            user32.GetSystemMetrics.argtypes = [ctypes.c_int]
+            user32.GetSystemMetrics.restype = ctypes.c_int
+
+            kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+            kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+
+            kernel32.GetCurrentThreadId.argtypes = []
+            kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+
+            gdi32.CreateSolidBrush.argtypes = [wintypes.COLORREF]
+            gdi32.CreateSolidBrush.restype = wintypes.HBRUSH
+
+            gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
+            gdi32.DeleteObject.restype = wintypes.BOOL
+
+            gdi32.SetTextColor.argtypes = [wintypes.HDC, wintypes.COLORREF]
+            gdi32.SetTextColor.restype = wintypes.COLORREF
+
+            gdi32.SetBkMode.argtypes = [wintypes.HDC, ctypes.c_int]
+            gdi32.SetBkMode.restype = ctypes.c_int
+
+            user32.BeginPaint.argtypes = [wintypes.HWND, ctypes.c_void_p]
+            user32.BeginPaint.restype = wintypes.HDC
+
+            user32.EndPaint.argtypes = [wintypes.HWND, ctypes.c_void_p]
+            user32.EndPaint.restype = wintypes.BOOL
+
+            user32.FillRect.argtypes = [wintypes.HDC, ctypes.c_void_p, wintypes.HBRUSH]
+            user32.FillRect.restype = ctypes.c_int
+
+            user32.DrawTextW.argtypes = [wintypes.HDC, wintypes.LPCWSTR, ctypes.c_int, ctypes.c_void_p, wintypes.UINT]
+            user32.DrawTextW.restype = ctypes.c_int
+
+            user32.GetMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT]
+            user32.GetMessageW.restype = wintypes.BOOL
+
+            user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
+            user32.TranslateMessage.restype = wintypes.BOOL
+
+            user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+            user32.DispatchMessageW.restype = ctypes.c_longlong
+
+            user32.PostThreadMessageW.argtypes = [wintypes.DWORD, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+            user32.PostThreadMessageW.restype = wintypes.BOOL
+
+            if hasattr(user32, 'SetWindowDisplayAffinity'):
+                user32.SetWindowDisplayAffinity.argtypes = [wintypes.HWND, wintypes.DWORD]
+                user32.SetWindowDisplayAffinity.restype = wintypes.BOOL
 
             SM_XVIRTUALSCREEN = 76
             SM_YVIRTUALSCREEN = 77
@@ -228,8 +316,6 @@ class PrivacyCurtain:
 
             hInstance = kernel32.GetModuleHandleW(None)
             className = f"MeikovaCurtain_{os.getpid()}_{int(time.time() * 1000)}"
-
-            WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_longlong, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
 
             def wnd_proc(hwnd, msg, wparam, lparam):
                 WM_PAINT = 0x000F
@@ -285,34 +371,21 @@ class PrivacyCurtain:
 
                 return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
-            proc_cb = WNDPROC(wnd_proc)
-
-            class WNDCLASSEXW(ctypes.Structure):
-                _fields_ = [
-                    ('cbSize', wintypes.UINT),
-                    ('style', wintypes.UINT),
-                    ('lpfnWndProc', WNDPROC),
-                    ('cbClsExtra', ctypes.c_int),
-                    ('cbWndExtra', ctypes.c_int),
-                    ('hInstance', wintypes.HINSTANCE),
-                    ('hIcon', wintypes.HICON),
-                    ('hCursor', wintypes.HICON),
-                    ('hbrBackground', wintypes.HBRUSH),
-                    ('lpszMenuName', wintypes.LPCWSTR),
-                    ('lpszClassName', wintypes.LPCWSTR),
-                    ('hIconSm', wintypes.HICON)
-                ]
+            self._wnd_proc = WNDPROC(wnd_proc)
 
             wcls = WNDCLASSEXW()
             wcls.cbSize = ctypes.sizeof(WNDCLASSEXW)
             wcls.style = 3  # CS_HREDRAW | CS_VREDRAW
-            wcls.lpfnWndProc = proc_cb
+            wcls.lpfnWndProc = self._wnd_proc
             wcls.hInstance = hInstance
             wcls.lpszClassName = className
             h_br = gdi32.CreateSolidBrush(0x170D07)
             wcls.hbrBackground = h_br
+            self._wcls = wcls
 
-            user32.RegisterClassExW(ctypes.byref(wcls))
+            atom = user32.RegisterClassExW(ctypes.byref(wcls))
+            if not atom:
+                logger.warning(f"[PrivacyCurtain] RegisterClassExW failed: {kernel32.GetLastError()}")
 
             def _create_win():
                 WS_EX_TOPMOST = 0x00000008
@@ -328,6 +401,13 @@ class PrivacyCurtain:
                     vx, vy, vw, vh,
                     None, None, hInstance, None
                 )
+                if hwnd and hasattr(user32, 'SetWindowDisplayAffinity'):
+                    try:
+                        # WDA_EXCLUDEFROMCAPTURE = 0x00000011: Physical monitor sees black shield, screen capture sees desktop
+                        user32.SetWindowDisplayAffinity(hwnd, 0x00000011)
+                    except Exception:
+                        pass
+                return hwnd
                 if hwnd and hasattr(user32, 'SetWindowDisplayAffinity'):
                     try:
                         # WDA_EXCLUDEFROMCAPTURE = 0x00000011: Physical monitor sees black shield, screen capture sees desktop

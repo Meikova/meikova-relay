@@ -2,7 +2,14 @@ import os
 import sys
 import time
 import threading
-import tkinter as tk
+try:
+    import tkinter as tk
+except ImportError:
+    class _TkStub:
+        Tk = object
+        Toplevel = object
+        TclError = RuntimeError
+    tk = _TkStub()
 from pathlib import Path
 from typing import Callable, Optional
 

@@ -159,7 +159,7 @@
   // --- Remote Canvas & Viewport DOM ---
   const viewportBox = document.getElementById('viewportBox');
   const remoteCanvas = document.getElementById('remoteCanvas');
-  const ctx = remoteCanvas.getContext('2d');
+  const ctx = remoteCanvas.getContext('2d', { alpha: false, desynchronized: true }) || remoteCanvas.getContext('2d');
   const laserCanvas = document.getElementById('laserCanvas');
   const laserCtx = laserCanvas.getContext('2d');
   const monitorGrid = document.getElementById('monitorGrid');
@@ -2317,6 +2317,10 @@
 
   function updateRoStatus() {
     if (!roStatus) return;
+    const roTl = document.getElementById('ro-tl');
+    if (roTl) {
+      roTl.style.display = currentView === 'landing' ? 'none' : '';
+    }
     if (currentView === 'landing') {
       roStatus.textContent = t('ro.landing');
     } else if (currentView === 'auth') {
@@ -2345,6 +2349,7 @@
 
   function switchView(view, updateUrl = true) {
     currentView = view;
+    document.body.classList.toggle('view-landing', view === 'landing');
     landingSection?.classList.add('hidden');
     authSection.classList.add('hidden');
     dashboardSection.classList.add('hidden');
@@ -3261,7 +3266,7 @@
           <div class="device-card-header">
             <span class="device-name brand-font">${escapeHtml(d.device_name)}</span>
             <span class="status-badge ${isOnline ? 'online' : 'offline'}">
-              <span class="status-dot"></span> <span data-i18n="${isOnline ? 'dashboard.status_online' : 'dashboard.status_offline'}">${isOnline ? onlineLabel : offlineLabel}</span>
+              <span class="status-dot"></span><span data-i18n="${isOnline ? 'dashboard.status_online' : 'dashboard.status_offline'}">${isOnline ? onlineLabel : offlineLabel}</span>
             </span>
           </div>
           <div class="device-specs">
@@ -3489,6 +3494,7 @@
             }
           }
           startPingLoop();
+          syncDisplayProfileWithHost(true);
         } else if (msg.status === 'error') {
           if (isAwaitingRemoteRestart) {
             console.log('[MeikovaRelay] Host is restarting, waiting before retry:', msg.message);
@@ -3527,7 +3533,9 @@
             const hn = document.getElementById('chatHostName');
             if (hn) hn.textContent = msg.deviceName;
           }
-          syncDisplayProfileWithHost(true);
+          if (!hasUserManuallySelectedQuality) {
+            syncDisplayProfileWithHost(true);
+          }
         } else if (msg.type === 'quality_preset_applied') {
           if (!msg.req_id || msg.req_id >= qualityPresetReqId) {
             if (qualitySelector && qualitySelector.value !== msg.preset) {
@@ -3539,9 +3547,8 @@
             const presetFallbackVi = {
               'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
               'auto_sync': 'Tự động tối ưu (Auto-Sync)',
-              'ultra_240': '240 FPS Performance',
               'ultra_120': '120 FPS Siêu mượt',
-              'speed_60': '120 FPS Mượt mà (720p)',
+              'speed_60': '60 FPS Mượt mà (720p)',
               'crisp_2k_4k': '2K / 4K Cực nét (95%)',
               'crisp_hd': 'HD Nét (1080p // 85%)',
               'balanced': '30 FPS Cân bằng (900p)',
@@ -4074,6 +4081,9 @@
       if (typeof redrawWhiteboard === 'function') redrawWhiteboard();
     }
     metricRes.textContent = `${w}x${h}`;
+    if (typeof updateResolutionUi === 'function') {
+      updateResolutionUi(w, h);
+    }
     updatePixelIndicator();
     fitCanvasToViewport();
   }
@@ -4166,10 +4176,9 @@
 
     const labelMap = {
       'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
-      'ultra_240': '240 FPS Performance',
-              'ultra_120': '120 FPS Siêu mượt',
+      'ultra_120': '120 FPS Siêu mượt',
       'crisp_2k_4k': '2K/4K Cực nét',
-      'speed_60': '120 FPS Mượt mà',
+      'speed_60': '60 FPS Mượt mà',
       'crisp_hd': 'HD Nét',
       'balanced': '30 FPS Cân bằng',
       'grayscale': 'Tiết kiệm băng thông'
@@ -4180,14 +4189,37 @@
 
   let pendingFrameBlob = null;
   let isFrameRendering = false;
+  let lastDecodedBitmap = null;
+  let lastDecodedBlobSize = -1;
+  let lastDecodedSig = '';
+
+  async function computeFastBlobSig(blob) {
+    if (!blob || !blob.size || typeof blob.slice !== 'function') return '';
+    try {
+      const mid = Math.max(0, (blob.size >> 1) - 16);
+      const ab = await blob.slice(mid, mid + 32).arrayBuffer();
+      const u8 = new Uint8Array(ab);
+      let s = '';
+      for (let i = 0; i < u8.length; i += 4) {
+        s += u8[i].toString(16) + '-';
+      }
+      return s;
+    } catch (_) {
+      return '';
+    }
+  }
 
   function handleIncomingFrame(blob) {
-    // Retain newest frame; drop stale intermediate frames to eliminate rendering latency backlog
+    // If an unrendered frame is superseded, immediately ACK it so host frames_in_flight never stalls
+    if (pendingFrameBlob !== null && ws && ws.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() })); } catch (_) {}
+    }
     pendingFrameBlob = blob;
 
     if (!isFrameRendering) {
       isFrameRendering = true;
-      requestAnimationFrame(renderQueuedFrame);
+      // Start JPEG decode immediately on background worker thread without waiting for next VSync tick
+      renderQueuedFrame();
     }
   }
 
@@ -4224,43 +4256,58 @@
     pendingFrameBlob = null;
 
     try {
-      const imgObj = await decodeBlob(blobToRender);
-      const width = imgObj.naturalWidth || imgObj.width;
-      const height = imgObj.naturalHeight || imgObj.height;
-
-      if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
-        // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
-        const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
-        const vy = Math.min(...hostMonitors.map(m => m.rect[1]));
-
-        hostMonitors.forEach(m => {
-          const tileItem = monitorTileMap.get(m.id);
-          if (tileItem) {
-            const sx = Math.max(0, m.rect[0] - vx);
-            const sy = Math.max(0, m.rect[1] - vy);
-            const sw = Math.max(1, m.rect[2] - m.rect[0]);
-            const sh = Math.max(1, m.rect[3] - m.rect[1]);
-
-            if (tileItem.canvas.width !== sw || tileItem.canvas.height !== sh) {
-              tileItem.canvas.width = sw;
-              tileItem.canvas.height = sh;
-            }
-            tileItem.ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
-          }
-        });
-      } else {
-        if (remoteCanvas.width !== width || remoteCanvas.height !== height) {
-          updateHostResolution(width, height);
-        }
-        ctx.drawImage(imgObj, 0, 0);
-        const connOverlay = document.getElementById('canvasConnectingOverlay');
-        if (connOverlay && !connOverlay.classList.contains('hidden')) {
-          connOverlay.classList.add('hidden');
+      let isSameStaticFrame = false;
+      let currSig = '';
+      if (lastDecodedBitmap !== null && blobToRender.size === lastDecodedBlobSize && lastDecodedSig) {
+        currSig = await computeFastBlobSig(blobToRender);
+        if (currSig && currSig === lastDecodedSig) {
+          isSameStaticFrame = true;
         }
       }
 
-      if (typeof imgObj.close === 'function') {
-        imgObj.close();
+      if (!isSameStaticFrame) {
+        if (!currSig) currSig = await computeFastBlobSig(blobToRender);
+        const imgObj = await decodeBlob(blobToRender);
+        const width = imgObj.naturalWidth || imgObj.width;
+        const height = imgObj.naturalHeight || imgObj.height;
+
+        if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
+          // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
+          const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
+          const vy = Math.min(...hostMonitors.map(m => m.rect[1]));
+
+          hostMonitors.forEach(m => {
+            const tileItem = monitorTileMap.get(m.id);
+            if (tileItem) {
+              const sx = Math.max(0, m.rect[0] - vx);
+              const sy = Math.max(0, m.rect[1] - vy);
+              const sw = Math.max(1, m.rect[2] - m.rect[0]);
+              const sh = Math.max(1, m.rect[3] - m.rect[1]);
+
+              if (tileItem.canvas.width !== sw || tileItem.canvas.height !== sh) {
+                tileItem.canvas.width = sw;
+                tileItem.canvas.height = sh;
+              }
+              tileItem.ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
+            }
+          });
+        } else {
+          if (remoteCanvas.width !== width || remoteCanvas.height !== height) {
+            updateHostResolution(width, height);
+          }
+          ctx.drawImage(imgObj, 0, 0);
+          const connOverlay = document.getElementById('canvasConnectingOverlay');
+          if (connOverlay && !connOverlay.classList.contains('hidden')) {
+            connOverlay.classList.add('hidden');
+          }
+        }
+
+        if (lastDecodedBitmap && lastDecodedBitmap !== imgObj && typeof lastDecodedBitmap.close === 'function') {
+          try { lastDecodedBitmap.close(); } catch (_) {}
+        }
+        lastDecodedBitmap = imgObj;
+        lastDecodedBlobSize = blobToRender.size;
+        lastDecodedSig = currSig;
       }
 
       // Honest Real-Time Measured Rendered FPS calculation
@@ -4289,7 +4336,7 @@
     }
 
     if (pendingFrameBlob) {
-      requestAnimationFrame(renderQueuedFrame);
+      renderQueuedFrame();
     } else {
       isFrameRendering = false;
     }
@@ -4656,22 +4703,31 @@
     }));
   });
 
+  let currentFpsLimit = 0;
+  let currentEncoderMode = 'auto';
+  let isStaticCacheEnabled = true;
+
   const QUALITY_SHORT_LABELS = {
+    'auto_sync': 'SYNC',
     'native_1to1': '1:1',
-    'auto_sync': 'AUTO',
-    'ultra_120': '120 FPS',
-    'speed_60': '60 FPS',
-    'crisp_2k_4k': '4K',
-    'crisp_hd': 'HD',
-    'balanced': '30 FPS',
-    'grayscale': 'ECO'
+    'crisp_2k_4k': 'ULTRA',
+    'crisp_hd': 'HIGH',
+    'balanced': 'STD',
+    'speed_60': 'FAST',
+    'grayscale': 'ECO',
+    'ultra_120': 'FAST',
+    'extreme_144': 'FAST',
+    'native_120_1to1': '1:1',
+    'wan_60_turbo': 'FAST'
   };
 
   function updateQualityMenuUI(preset) {
     if (qualityCurrentLabel) {
-      qualityCurrentLabel.textContent = QUALITY_SHORT_LABELS[preset] || preset.toUpperCase();
+      const baseLbl = QUALITY_SHORT_LABELS[preset] || preset.toUpperCase();
+      const fpsLbl = currentFpsLimit > 0 ? `${currentFpsLimit}FPS` : 'AUTO';
+      qualityCurrentLabel.textContent = preset === 'auto_sync' ? (currentFpsLimit > 0 ? `SYNC · ${fpsLbl}` : 'AUTO SYNC') : `${baseLbl} · ${fpsLbl}`;
     }
-    document.querySelectorAll('.quality-menu-item').forEach(item => {
+    document.querySelectorAll('#qualityMenuDropdown .quality-menu-item').forEach(item => {
       const isThis = item.getAttribute('data-preset') === preset;
       item.classList.toggle('active', isThis);
       const check = item.querySelector('.quality-check');
@@ -4846,6 +4902,8 @@
           positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
           monitorMenuDropdown?.classList.add('hidden');
           btnMonitorMenu?.classList.remove('btn-active');
+          resolutionMenuDropdown?.classList.add('hidden');
+          btnResolutionMenu?.classList.remove('btn-active');
           if (protocolMenuDropdown) {
             protocolMenuDropdown.classList.add('hidden');
             if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
@@ -4863,8 +4921,57 @@
     });
   }
 
+  function sendFpsAndEncoderConfig() {
+    const badge = document.getElementById('fpsLimitCurrentBadge');
+    if (badge) {
+      badge.textContent = currentFpsLimit > 0 ? `LOCKED ${currentFpsLimit} FPS` : 'AUTO (120 LAN / 60 WAN)';
+    }
+    if (qualitySelector) {
+      updateQualityMenuUI(qualitySelector.value || 'balanced');
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'set_fps_limit',
+        fps_limit: currentFpsLimit,
+        encoder_mode: currentEncoderMode,
+        static_cache: isStaticCacheEnabled
+      }));
+    }
+  }
+
+  document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentFpsLimit = parseInt(pill.getAttribute('data-fps-limit') || '0', 10) || 0;
+      document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(p => p.classList.toggle('active', p === pill));
+      sendFpsAndEncoderConfig();
+      showToast(currentFpsLimit > 0 ? `Đã khóa giới hạn tốc độ: ${currentFpsLimit} FPS` : 'Chế độ FPS: Tự động (120 FPS LAN / 60 FPS WAN)', 'info');
+    });
+  });
+
+  document.querySelectorAll('#encoderModePills .encoder-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentEncoderMode = pill.getAttribute('data-encoder-mode') || 'auto';
+      document.querySelectorAll('#encoderModePills .encoder-pill').forEach(p => p.classList.toggle('active', p === pill));
+      sendFpsAndEncoderConfig();
+      showToast(`Bộ nén hình ảnh SIMD: ${currentEncoderMode.toUpperCase()}`, 'info');
+    });
+  });
+
+  const btnToggleStaticCache = document.getElementById('btnToggleStaticCache');
+  if (btnToggleStaticCache) {
+    btnToggleStaticCache.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isStaticCacheEnabled = !isStaticCacheEnabled;
+      btnToggleStaticCache.classList.toggle('active', isStaticCacheEnabled);
+      sendFpsAndEncoderConfig();
+      showToast(isStaticCacheEnabled ? 'Đã bật Zero-CPU Cached Frame (0% CPU khi màn hình tĩnh)' : 'Đã tắt Zero-CPU Cached Frame', 'info');
+    });
+  }
+
   // Quality Preset Selection in Menu
-  document.querySelectorAll('.quality-menu-item').forEach(btn => {
+  document.querySelectorAll('#qualityMenuDropdown .quality-menu-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const preset = btn.getAttribute('data-preset');
       hasUserManuallySelectedQuality = (preset !== 'auto_sync');
@@ -4894,8 +5001,6 @@
 
     if (preset === 'native_1to1') {
       setDisplayScaleMode(false);
-    } else {
-      setDisplayScaleMode(true);
     }
 
     // Flush stale pending frame immediately
@@ -4904,6 +5009,9 @@
     ws.send(JSON.stringify({
       type: 'set_quality_preset',
       preset: preset,
+      fps_limit: currentFpsLimit,
+      encoder_mode: currentEncoderMode,
+      static_cache: isStaticCacheEnabled,
       req_id: ++qualityPresetReqId
     }));
 
@@ -4919,16 +5027,15 @@
       'grayscale': 'deck.quality_grayscale'
     };
     const presetFallbackVi = {
-      'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
-      'auto_sync': 'Tự động tối ưu (Auto-Sync)',
-      'ultra_240': '240 FPS Performance',
-              'ultra_120': '120 FPS Siêu mượt',
-      'speed_60': '120 FPS Mượt mà (720p)',
-      'crisp_2k_4k': '2K / 4K Cực nét (95%)',
-      'crisp_hd': 'HD Nét (1080p // 85%)',
-      'balanced': '30 FPS Cân bằng (900p)',
-      'eco': 'Tiết kiệm băng thông (540p)',
-      'grayscale': 'Tiết kiệm băng thông (Đơn sắc)'
+      'native_1to1': '1:1 Chuẩn gốc (Lossless 4:4:4)',
+      'auto_sync': 'Tự động đồng bộ (Auto-Sync)',
+      'ultra_120': 'Ưu tiên Phản hồi (Low-Latency)',
+      'speed_60': 'Ưu tiên Phản hồi (Low-Latency Q58)',
+      'crisp_2k_4k': 'Siêu nét 2K / 4K (Ultra Q95)',
+      'crisp_hd': 'Sắc nét Cao (High Q82)',
+      'balanced': 'Tiêu chuẩn (Balanced Q70)',
+      'eco': 'Tiết kiệm Băng thông (ECO)',
+      'grayscale': 'Tiết kiệm Băng thông (ECO Q40)'
     };
     const key = presetKeyMap[preset] || ('deck.quality_' + preset);
     const friendlyName = (window.MeikovaI18n ? window.MeikovaI18n.t(key) : null) || presetFallbackVi[preset] || preset;

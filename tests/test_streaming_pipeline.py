@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from host_agent.host_service import HostService
+from host_agent.screen_capture import ScreenCapture
+
 
 class TestStreamingPipeline(unittest.TestCase):
     def setUp(self):
@@ -26,6 +28,7 @@ class TestStreamingPipeline(unittest.TestCase):
         res = self.service.negotiate_optimal_display_profile(client_w=1920, client_h=1080, client_fps=60)
         self.assertEqual(res["recommended_preset"], "speed_60")
         self.assertEqual(res["suggested_scale"], "fit")
+        self.assertEqual(res["applied_fps"], 120)
 
     def test_preset_suggested_scale_is_1to1_only_for_native(self):
         # 30Hz matching resolution selects native_1to1 and suggests 1to1
@@ -50,12 +53,35 @@ class TestStreamingPipeline(unittest.TestCase):
 
     def test_congestion_control_does_not_degrade_under_normal_wan_rtt(self):
         # Normal cloud relay RTT between Vietnam and US/EU is 180ms - 220ms
-        # HostService should NOT degrade quality for RTT 200ms
+        # HostService should NOT degrade quality for RTT 200ms and must keep 60 FPS target
+        self.service.apply_quality_preset("balanced")
         self.service.capture.quality = 70
         for _ in range(5):
             self.service._update_congestion_control(200.0)
-        # Quality should remain 70, not degraded
+        # Quality should remain 70, not degraded, and FPS on normal WAN is 60 FPS
         self.assertEqual(self.service.capture.quality, 70)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 60.0)
+
+    def test_1080p_1to1_simd_encode_exceeds_120_fps(self):
+        # Verify 1920x1080 1:1 native encoding speed exceeds 120 FPS (< 8.33ms per frame)
+        cap = ScreenCapture(quality=90, max_width=None)
+        cap.subsampling = 0
+        raw_bgra = bytes([30, 36, 46, 255]) * (1920 * 1080)
+        # Warm-up
+        first = cap._encode_bgra_fast(raw_bgra, 1920, 1080, None)
+        self.assertIsNotNone(first)
+        self.assertEqual(first[:2], b"\xff\xd8")
+
+        t0 = time.perf_counter()
+        iters = 20
+        for _ in range(iters):
+            out = cap._encode_bgra_fast(raw_bgra, 1920, 1080, None)
+            self.assertIsNotNone(out)
+        avg_ms = ((time.perf_counter() - t0) / iters) * 1000.0
+        measured_fps = 1000.0 / max(0.01, avg_ms)
+        cap.close()
+        self.assertGreaterEqual(measured_fps, 120.0, f"Expected >= 120 FPS for 1080p 1:1, got {measured_fps:.1f} FPS ({avg_ms:.2f} ms)")
+
 
 if __name__ == "__main__":
     unittest.main()

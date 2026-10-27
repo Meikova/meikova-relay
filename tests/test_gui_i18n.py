@@ -2,7 +2,15 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import unittest
 import re
-import tkinter as tk
+try:
+    import tkinter as tk
+except ImportError:
+    class _TkStub:
+        TclError = RuntimeError
+        @staticmethod
+        def Tk():
+            raise RuntimeError("Tkinter unavailable")
+    tk = _TkStub()
 from host_agent.gui_agent import TRANSLATIONS, MeikovaRelayHostGUI
 
 class TestGuiI18n(unittest.TestCase):

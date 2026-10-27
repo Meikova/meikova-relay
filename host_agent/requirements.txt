@@ -1,9 +1,23 @@
+# Core Networking & WebSocket Transport
 websockets>=12.0
-Pillow>=10.0.0
+
+# High-Performance Screen Capture & SIMD Image Encoding (Windows, macOS, Linux)
 mss>=9.0.0
+numpy>=1.26.0
+opencv-python-headless>=4.9.0
+PyTurboJPEG>=1.7.0
+Pillow>=10.0.0
+
+# Cross-Platform Desktop GUI, Tray, Input & System Telemetry
 pystray>=0.19.0
 pywebview>=5.0.0
-PyTurboJPEG>=1.7.0
-numpy>=1.24.0
-dxcam>=0.0.5; sys_platform == 'win32'
+pyperclip>=1.8.2
+pyautogui>=0.9.54
+psutil>=5.9.0
 
+# OS-Specific Native Acceleration & System Integration
+pywin32>=306; sys_platform == "win32"
+pythonnet>=3.0.3; sys_platform == "win32"
+dxcam>=0.0.5; sys_platform == "win32"
+bettercam>=1.0.0; sys_platform == "win32"
+pyobjc-framework-Quartz>=10.0; sys_platform == "darwin"
