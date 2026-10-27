@@ -109,7 +109,13 @@ class CloudflaredTunnelManager {
       let resolved = false;
 
       try {
-        this.process = spawn(bin, ['tunnel', '--url', `http://127.0.0.1:${port}`], {
+        const args = [
+          'tunnel',
+          '--protocol', 'http2',
+          '--edge-ip-version', 'auto',
+          '--url', `http://127.0.0.1:${port}`
+        ];
+        this.process = spawn(bin, args, {
           windowsHide: true,
           stdio: ['ignore', 'pipe', 'pipe']
         });
