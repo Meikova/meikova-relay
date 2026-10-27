@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   relay:
     build:
@@ -15,6 +13,7 @@ services:
       - AUTO_TUNNEL=${AUTO_TUNNEL:-0}
       - TURSO_DATABASE_URL=${TURSO_DATABASE_URL:-}
       - TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN:-}
+      - DATA_DIR=/app/relay-server/data
     volumes:
       - ./data:/app/relay-server/data
     healthcheck:
