@@ -1223,10 +1223,16 @@
           <span>Chuột phải</span>
         </button>
 
-        <select id="monitorSelector" class="deck__btn" title="Chọn màn hình truyền phát" data-i18n-title="deck.monitor_title">
-          <option value="0" data-i18n="deck.monitor_all">Tất cả</option>
-          <option value="1">Màn 1</option>
-        </select>
+        <button type="button" id="btnMonitorMenu" class="deck__btn deck__btn--monitor" title="Chọn màn hình truyền phát" data-i18n-title="deck.monitor_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span id="monitorCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700;">Tất cả</span>
+          <svg class="deck-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <input type="hidden" id="monitorSelector" value="0">
 
         <!-- Dynamic Screen Resolution & Virtual Display Trigger Button -->
         <button type="button" id="btnResolutionMenu" class="deck__btn deck__btn--resolution" title="Chọn độ phân giải & Màn hình ảo" data-i18n-title="deck.resolution_title">
@@ -1633,6 +1639,18 @@
           </button>
         </div>
       </div>
+
+      <!-- Multi-Monitor Floating Menu -->
+
+      <div id="monitorMenuDropdown" class="quality-menu monitor-menu hidden">
+
+        <div class="quality-menu-header" data-i18n="deck.monitor_menu_title">CHỌN MÀN HÌNH TRUYỀN PHÁT</div>
+
+        <div class="quality-menu-list" id="monitorMenuList"></div>
+
+      </div>
+
+      
 
       <!-- Resolution & Virtual Devices Floating Menu -->
       <div id="resolutionMenuDropdown" class="quality-menu resolution-menu hidden">

@@ -547,6 +547,10 @@
   // --- Floating Deck Controls DOM ---
   const floatingDeck = document.getElementById('floatingDeck');
   const monitorSelector = document.getElementById('monitorSelector');
+  const btnMonitorMenu = document.getElementById('btnMonitorMenu');
+  const monitorCurrentLabel = document.getElementById('monitorCurrentLabel');
+  const monitorMenuDropdown = document.getElementById('monitorMenuDropdown');
+  const monitorMenuList = document.getElementById('monitorMenuList');
   const qualitySelector = document.getElementById('qualitySelector');
   let hasUserManuallySelectedQuality = false;
   const btnQualityMenu = document.getElementById('btnQualityMenu');
@@ -4098,16 +4102,97 @@
   }
 
   // --- MULTI-MONITOR SELECTION & INTERACTIVE GRID ---
+  function updateMonitorMenuUI(activeId = 0) {
+    const idNum = parseInt(activeId, 10) || 0;
+    if (monitorSelector) monitorSelector.value = String(idNum);
+
+    if (monitorCurrentLabel) {
+      if (idNum === 0) {
+        monitorCurrentLabel.textContent = (typeof t === 'function' && t('deck.monitor_all')) ? t('deck.monitor_all') : 'Tất cả';
+      } else {
+        const mon = hostMonitors.find(m => m.id === idNum);
+        monitorCurrentLabel.textContent = mon ? (mon.name || `Màn ${idNum}`) : `Màn ${idNum}`;
+      }
+    }
+
+    if (monitorMenuList) {
+      monitorMenuList.querySelectorAll('.quality-menu-item').forEach(item => {
+        const itemMonId = parseInt(item.dataset.monId, 10);
+        const isActive = itemMonId === idNum;
+        item.classList.toggle('active', isActive);
+        const check = item.querySelector('.quality-check');
+        if (check) check.classList.toggle('hidden', !isActive);
+      });
+    }
+  }
+
   function populateMonitors(monitors, activeId = 0) {
     if (!monitors || monitors.length === 0) return;
     hostMonitors = monitors;
-    const countStr = monitors.length > 1 ? ` (${monitors.length} màn)` : '';
-    let html = `<option value="0" ${activeId === 0 ? 'selected' : ''}>Tất cả màn hình${countStr}</option>`;
-    html += monitors.map(m => `
-      <option value="${m.id}" ${m.id == activeId ? 'selected' : ''}>${escapeHtml(m.name)} (${m.width}x${m.height})</option>
-    `).join('');
+    const currentActiveId = parseInt(activeId, 10) || 0;
+    if (monitorSelector) monitorSelector.value = String(currentActiveId);
 
-    monitorSelector.innerHTML = html;
+    const countStr = monitors.length > 1 ? ` (${monitors.length} màn)` : '';
+    const allTitle = (typeof t === 'function' && t('deck.monitor_all_title'))
+      ? t('deck.monitor_all_title', { count: monitors.length })
+      : `Tất cả màn hình${countStr}`;
+    const allDesc = (typeof t === 'function' && t('deck.monitor_all_desc'))
+      ? t('deck.monitor_all_desc')
+      : 'Truyền phát toàn bộ không gian làm việc đa màn hình';
+
+    let html = `
+      <button type="button" class="quality-menu-item ${currentActiveId === 0 ? 'active' : ''}" data-mon-id="0">
+        <span class="quality-item-badge">ALL</span>
+        <div class="quality-item-text">
+          <div class="quality-item-title">${escapeHtml(allTitle)}</div>
+          <div class="quality-item-desc">${escapeHtml(allDesc)}</div>
+        </div>
+        <span class="quality-check ${currentActiveId === 0 ? '' : 'hidden'}">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+      </button>
+    `;
+
+    monitors.forEach(m => {
+      const isAct = (m.id === currentActiveId);
+      const monName = m.name || `Màn hình ${m.id}`;
+      const monDesc = `${m.width} x ${m.height} // Màn hình #${m.id}`;
+      html += `
+        <button type="button" class="quality-menu-item ${isAct ? 'active' : ''}" data-mon-id="${m.id}">
+          <span class="quality-item-badge">M${m.id}</span>
+          <div class="quality-item-text">
+            <div class="quality-item-title">${escapeHtml(monName)}</div>
+            <div class="quality-item-desc">${escapeHtml(monDesc)}</div>
+          </div>
+          <span class="quality-check ${isAct ? '' : 'hidden'}">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+        </button>
+      `;
+    });
+
+    if (monitorMenuList) {
+      monitorMenuList.innerHTML = html;
+      monitorMenuList.querySelectorAll('.quality-menu-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const monId = parseInt(btn.dataset.monId, 10);
+          updateMonitorMenuUI(monId);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
+
+          if (!isConnected || !ws) return;
+          if (monId !== 0 && isGridMode) {
+            setGridMode(false);
+          }
+          ws.send(JSON.stringify({
+            type: 'switch_monitor',
+            monitor_id: monId
+          }));
+        });
+      });
+    }
+
+    updateMonitorMenuUI(currentActiveId);
 
     // Show/hide Grid button on floating deck
     if (monitors.length > 1) {
@@ -4182,7 +4267,7 @@
       tile.querySelector('.btn-tile-focus').addEventListener('click', (e) => {
         e.stopPropagation();
         setGridMode(false);
-        monitorSelector.value = String(mon.id);
+        updateMonitorMenuUI(mon.id);
         ws.send(JSON.stringify({ type: 'switch_monitor', monitor_id: mon.id }));
       });
 
@@ -4329,8 +4414,8 @@
       btnToggleGrid?.classList.add('active');
       renderGridTiles();
       // Ensure host streams all monitors so sub-rectangles can be extracted
-      if (monitorSelector.value !== "0") {
-        monitorSelector.value = "0";
+      if (monitorSelector && monitorSelector.value !== "0") {
+        updateMonitorMenuUI(0);
         ws.send(JSON.stringify({ type: 'switch_monitor', monitor_id: 0 }));
       }
     } else {
@@ -4476,6 +4561,9 @@
     if (resolutionMenuDropdown && !resolutionMenuDropdown.classList.contains('hidden') && btnResolutionMenu) {
       positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
     }
+    if (monitorMenuDropdown && !monitorMenuDropdown.classList.contains('hidden') && btnMonitorMenu) {
+      positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
+    }
     if (deckModeDropdown && !deckModeDropdown.classList.contains('hidden') && btnDeckDisplayMode) {
       positionDeckDropdown(btnDeckDisplayMode, deckModeDropdown);
     }
@@ -4500,6 +4588,8 @@
         btnQualityMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
           if (protocolMenuDropdown) {
             protocolMenuDropdown.classList.add('hidden');
             if (btnProtocolMenu) btnProtocolMenu.classList.remove('btn-active');
@@ -6098,6 +6188,10 @@
         btnProtocolMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
+          resolutionMenuDropdown?.classList.add('hidden');
+          btnResolutionMenu?.classList.remove('btn-active');
           if (qualityMenuDropdown) {
             qualityMenuDropdown.classList.add('hidden');
             if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
@@ -6259,6 +6353,36 @@
     });
   }
 
+  if (btnMonitorMenu) {
+    btnMonitorMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (monitorMenuDropdown) {
+        const isOpening = monitorMenuDropdown.classList.contains('hidden');
+        monitorMenuDropdown.classList.toggle('hidden');
+        btnMonitorMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
+          resolutionMenuDropdown?.classList.add('hidden');
+          btnResolutionMenu?.classList.remove('btn-active');
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          resolutionMenuDropdown?.classList.add('hidden');
+          btnResolutionMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+          deckModeDropdown?.classList.add('hidden');
+          btnDeckDisplayMode?.classList.remove('btn-active');
+          snippetsMenuDropdown?.classList.add('hidden');
+          btnSnippetsMenu?.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
   if (btnResolutionMenu) {
     btnResolutionMenu.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -6268,6 +6392,8 @@
         btnResolutionMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
+          monitorMenuDropdown?.classList.add('hidden');
+          btnMonitorMenu?.classList.remove('btn-active');
           qualityMenuDropdown?.classList.add('hidden');
           btnQualityMenu?.classList.remove('btn-active');
           protocolMenuDropdown?.classList.add('hidden');
@@ -6325,6 +6451,10 @@
   }
 
   document.addEventListener('click', (e) => {
+    if (monitorMenuDropdown && !monitorMenuDropdown.contains(e.target) && e.target !== btnMonitorMenu && (!btnMonitorMenu || !btnMonitorMenu.contains(e.target))) {
+      monitorMenuDropdown.classList.add('hidden');
+      if (btnMonitorMenu) btnMonitorMenu.classList.remove('btn-active');
+    }
     if (resolutionMenuDropdown && !resolutionMenuDropdown.contains(e.target) && e.target !== btnResolutionMenu && (!btnResolutionMenu || !btnResolutionMenu.contains(e.target))) {
       resolutionMenuDropdown.classList.add('hidden');
       if (btnResolutionMenu) btnResolutionMenu.classList.remove('btn-active');

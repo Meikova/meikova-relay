@@ -2234,11 +2234,22 @@ input:-webkit-autofill:active {
   transform: rotate(180deg);
 }
 
-#monitorSelector {
-  max-width: 125px;
+#btnMonitorMenu {
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+#monitorCurrentLabel {
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
+  max-width: 80px;
+}
+
+.monitor-menu {
+  min-width: 290px;
+  max-width: 360px;
 }
 
 /* Quality & Performance Presets Menu Popover */
@@ -6653,6 +6664,7 @@ body.is-desktop-app .desktop-titlebar {
   /* Dropdown Menus & OSK bounded on small screens */
   .quality-menu,
   .resolution-menu,
+  .monitor-menu,
   .protocol-menu,
   .power-menu,
   .deck-mode-menu {
@@ -6665,6 +6677,7 @@ body.is-desktop-app .desktop-titlebar {
 
   .quality-menu-list,
   .resolution-menu .quality-menu-list,
+  .monitor-menu .quality-menu-list,
   .protocol-menu-body {
     max-height: calc(100dvh - 120px) !important;
     overflow-y: auto !important;
