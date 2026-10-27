@@ -1,6 +1,10 @@
 import sys
+import time
 import ctypes
+import logging
 from typing import Optional, Tuple
+
+logger = logging.getLogger("InputInjector")
 try:
     from .input_mapper import InputMapper
 except (ImportError, ValueError):
@@ -344,3 +348,222 @@ class InputInjector:
             return True
 
         return False
+
+    @classmethod
+    def trigger_system_hotkey(cls, combo: str) -> bool:
+        """
+        Executes privileged or complex OS hotkey combinations on the host machine.
+        Handles Windows SAS (Ctrl+Alt+Del), LockWorkStation (Win+L), Task Manager (Ctrl+Shift+Esc),
+        and shell shortcuts across Windows, Linux, and macOS.
+        """
+        combo = str(combo or "").lower().strip()
+        logger.info(f"[InputInjector] Triggering system hotkey combo: {combo}")
+
+        if sys.platform == "win32":
+            if combo in ("cad", "ctrl_alt_del"):
+                success = False
+                try:
+                    sas = ctypes.windll.LoadLibrary("sas.dll")
+                    if hasattr(sas, "SendSAS"):
+                        sas.SendSAS.argtypes = [ctypes.c_bool]
+                        sas.SendSAS(False)
+                        success = True
+                except Exception as ex:
+                    logger.debug(f"[InputInjector] SendSAS error: {ex}")
+
+                if not success and user32 and hasattr(user32, "LockWorkStation"):
+                    try:
+                        user32.LockWorkStation()
+                        success = True
+                    except Exception:
+                        pass
+                cls.key_down(0x11)
+                cls.key_down(0x12)
+                cls.key_down(0x2E)
+                time.sleep(0.05)
+                cls.key_up(0x2E)
+                cls.key_up(0x12)
+                cls.key_up(0x11)
+                return True
+
+            elif combo in ("ctrl_win_del", "win_ctrl_del"):
+                cls.key_down(0x11)
+                cls.key_down(0x5B)
+                cls.key_down(0x2E)
+                time.sleep(0.05)
+                cls.key_up(0x2E)
+                cls.key_up(0x5B)
+                cls.key_up(0x11)
+                return True
+
+            elif combo in ("lock", "win_l"):
+                if user32 and hasattr(user32, "LockWorkStation"):
+                    try:
+                        return bool(user32.LockWorkStation())
+                    except Exception:
+                        pass
+                return False
+
+            elif combo in ("taskmgr", "ctrl_shift_esc"):
+                try:
+                    import subprocess
+                    subprocess.Popen("taskmgr.exe", shell=False)
+                    return True
+                except Exception:
+                    cls.key_down(0x11)
+                    cls.key_down(0x10)
+                    cls.key_down(0x1B)
+                    time.sleep(0.05)
+                    cls.key_up(0x1B)
+                    cls.key_up(0x10)
+                    cls.key_up(0x11)
+                    return True
+
+            elif combo in ("win_d", "desktop"):
+                cls.key_down(0x5B)
+                cls.key_down(ord('D'))
+                time.sleep(0.05)
+                cls.key_up(ord('D'))
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_e", "explorer"):
+                cls.key_down(0x5B)
+                cls.key_down(ord('E'))
+                time.sleep(0.05)
+                cls.key_up(ord('E'))
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_r", "run"):
+                cls.key_down(0x5B)
+                cls.key_down(ord('R'))
+                time.sleep(0.05)
+                cls.key_up(ord('R'))
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_x",):
+                cls.key_down(0x5B)
+                cls.key_down(ord('X'))
+                time.sleep(0.05)
+                cls.key_up(ord('X'))
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_v",):
+                cls.key_down(0x5B)
+                cls.key_down(ord('V'))
+                time.sleep(0.05)
+                cls.key_up(ord('V'))
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_shift_s", "snip"):
+                cls.key_down(0x5B)
+                cls.key_down(0x10)
+                cls.key_down(ord('S'))
+                time.sleep(0.05)
+                cls.key_up(ord('S'))
+                cls.key_up(0x10)
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_i", "settings"):
+                cls.key_down(0x5B)
+                cls.key_down(ord('I'))
+                time.sleep(0.05)
+                cls.key_up(ord('I'))
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_a", "action_center"):
+                cls.key_down(0x5B)
+                cls.key_down(ord('A'))
+                time.sleep(0.05)
+                cls.key_up(ord('A'))
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_tab", "task_view"):
+                cls.key_down(0x5B)
+                cls.key_down(0x09)
+                time.sleep(0.05)
+                cls.key_up(0x09)
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("win_ctrl_d",):
+                cls.key_down(0x5B)
+                cls.key_down(0x11)
+                cls.key_down(ord('D'))
+                time.sleep(0.05)
+                cls.key_up(ord('D'))
+                cls.key_up(0x11)
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("ctrl_w",):
+                cls.key_down(0x11)
+                cls.key_down(ord('W'))
+                time.sleep(0.05)
+                cls.key_up(ord('W'))
+                cls.key_up(0x11)
+                return True
+
+            elif combo in ("ctrl_shift_t",):
+                cls.key_down(0x11)
+                cls.key_down(0x10)
+                cls.key_down(ord('T'))
+                time.sleep(0.05)
+                cls.key_up(ord('T'))
+                cls.key_up(0x10)
+                cls.key_up(0x11)
+                return True
+
+            elif combo in ("alttab", "alt_tab"):
+                cls.key_down(0x12)
+                cls.key_down(0x09)
+                time.sleep(0.05)
+                cls.key_up(0x09)
+                cls.key_up(0x12)
+                return True
+
+            elif combo in ("altf4", "alt_f4"):
+                cls.key_down(0x12)
+                cls.key_down(0x73)
+                time.sleep(0.05)
+                cls.key_up(0x73)
+                cls.key_up(0x12)
+                return True
+
+            elif combo in ("win",):
+                cls.key_down(0x5B)
+                time.sleep(0.05)
+                cls.key_up(0x5B)
+                return True
+
+            elif combo in ("esc",):
+                cls.key_down(0x1B)
+                time.sleep(0.05)
+                cls.key_up(0x1B)
+                return True
+
+        try:
+            import pyautogui
+            if combo in ("cad", "taskmgr"):
+                pyautogui.hotkey('ctrl', 'shift', 'esc')
+            elif combo in ("win_d",):
+                pyautogui.hotkey('win', 'd')
+            elif combo in ("alttab",):
+                pyautogui.hotkey('alt', 'tab')
+            elif combo in ("altf4",):
+                pyautogui.hotkey('alt', 'f4')
+            elif combo in ("win",):
+                pyautogui.press('win')
+            elif combo in ("esc",):
+                pyautogui.press('esc')
+            return True
+        except Exception:
+            return False
+

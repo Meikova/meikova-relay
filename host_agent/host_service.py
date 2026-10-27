@@ -1356,6 +1356,10 @@ class HostService:
                     blocked = bool(event.get("blocked", False))
                     ok = InputInjector.set_block_input(blocked)
                     await ws.send(json.dumps({"type": "block_input_response", "blocked": blocked, "success": ok}))
+                elif ev_type == "system_hotkey":
+                    combo = str(event.get("combo", "")).strip()
+                    ok = InputInjector.trigger_system_hotkey(combo)
+                    await ws.send(json.dumps({"type": "system_hotkey_response", "combo": combo, "success": ok}))
 
                 # Privacy Curtain Mode (Blank host monitor & block physical input)
                 elif ev_type == "toggle_privacy_curtain":

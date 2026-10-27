@@ -691,6 +691,26 @@
   const btnWbClearAll = document.getElementById('btnWbClearAll');
   const btnSnippetsMenu = document.getElementById('btnSnippetsMenu');
   const snippetsMenuDropdown = document.getElementById('snippetsMenuDropdown');
+  const btnShortcutsMenu = document.getElementById('btnShortcutsMenu');
+  const shortcutsMenuDropdown = document.getElementById('shortcutsMenuDropdown');
+  const btnMoreToolsMenu = document.getElementById('btnMoreToolsMenu');
+  const moreToolsMenuDropdown = document.getElementById('moreToolsMenuDropdown');
+  const toolsActiveIndicator = document.getElementById('toolsActiveIndicator');
+  const btnDropdownWhiteboard = document.getElementById('btnDropdownWhiteboard');
+  const btnDropdownLaser = document.getElementById('btnDropdownLaser');
+  const btnDropdownScreenshot = document.getElementById('btnDropdownScreenshot');
+  const btnDropdownRecord = document.getElementById('btnDropdownRecord');
+  const btnDropdownCam = document.getElementById('btnDropdownCam');
+  const btnDropdownBlockInput = document.getElementById('btnDropdownBlockInput');
+  const btnDropdownCurtain = document.getElementById('btnDropdownCurtain');
+  const btnDropdownSnippets = document.getElementById('btnDropdownSnippets');
+
+  const badgeWhiteboardActive = document.getElementById('badgeWhiteboardActive');
+  const badgeLaserActive = document.getElementById('badgeLaserActive');
+  const badgeRecordActive = document.getElementById('badgeRecordActive');
+  const badgeCamActive = document.getElementById('badgeCamActive');
+  const badgeBlockInputActive = document.getElementById('badgeBlockInputActive');
+  const badgeCurtainActive = document.getElementById('badgeCurtainActive');
   const modalSendPassword = document.getElementById('modalSendPassword');
   const inputSecurePassword = document.getElementById('inputSecurePassword');
   const btnConfirmSendPassword = document.getElementById('btnConfirmSendPassword');
@@ -3744,18 +3764,20 @@
             }
           }
         } else if (msg.type === 'block_input_response') {
-          isInputBlocked = !!msg.blocked;
-          btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
-          btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
-          if (btnToggleBlockInput) {
-            btnToggleBlockInput.title = isInputBlocked
-              ? (typeof t === 'function' ? t('toast.block_input_on') : 'Đang khóa chuột & phím máy đích')
-              : (typeof t === 'function' ? t('toast.block_input_off') : 'Khóa chuột & phím máy đích');
-          }
           if (msg.success !== false) {
+            isInputBlocked = !!msg.blocked;
+            btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
+            btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
+            if (btnToggleBlockInput) {
+              btnToggleBlockInput.title = isInputBlocked
+                ? (typeof t === 'function' ? t('toast.block_input_on') : 'Đang khóa chuột & phím máy đích')
+                : (typeof t === 'function' ? t('toast.block_input_off') : 'Khóa chuột & phím máy đích');
+            }
             showToast(isInputBlocked ? t('toast.block_input_on') : t('toast.block_input_off'), isInputBlocked ? 'warning' : 'success');
           } else {
-            showToast(t('toast.block_input_error') || 'Không thể thay đổi trạng thái khóa bàn phím/chuột', 'error');
+            btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
+            btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
+            showToast(t('toast.block_input_error') || 'Không thể thay đổi trạng thái khóa bàn phím & chuột', 'error');
           }
         } else if (msg.type === 'privacy_curtain_response') {
           isCurtainActive = !!msg.enabled;
@@ -6893,6 +6915,14 @@
       snippetsMenuDropdown.classList.add('hidden');
       if (btnSnippetsMenu) btnSnippetsMenu.classList.remove('btn-active');
     }
+    if (shortcutsMenuDropdown && !shortcutsMenuDropdown.contains(e.target) && e.target !== btnShortcutsMenu && (!btnShortcutsMenu || !btnShortcutsMenu.contains(e.target))) {
+      shortcutsMenuDropdown.classList.add('hidden');
+      if (btnShortcutsMenu) btnShortcutsMenu.classList.remove('btn-active');
+    }
+    if (moreToolsMenuDropdown && !moreToolsMenuDropdown.contains(e.target) && e.target !== btnMoreToolsMenu && (!btnMoreToolsMenu || !btnMoreToolsMenu.contains(e.target))) {
+      moreToolsMenuDropdown.classList.add('hidden');
+      updateToolsMenuState();
+    }
     if (keyboardMenuDropdown && !keyboardMenuDropdown.contains(e.target) && e.target !== btnMobileKeyboard && (!btnMobileKeyboard || !btnMobileKeyboard.contains(e.target))) {
       keyboardMenuDropdown.classList.add('hidden');
       updateKeyboardMenuUI();
@@ -7591,6 +7621,167 @@
     whiteboardCanvas.addEventListener('pointercancel', finishWbStroke);
   }
 
+  // 2b. System Shortcuts & Key Combos Popover Menu
+  if (btnShortcutsMenu) {
+    btnShortcutsMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (shortcutsMenuDropdown) {
+        const isOpening = shortcutsMenuDropdown.classList.contains('hidden');
+        shortcutsMenuDropdown.classList.toggle('hidden');
+        btnShortcutsMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnShortcutsMenu, shortcutsMenuDropdown);
+          moreToolsMenuDropdown?.classList.add('hidden');
+          snippetsMenuDropdown?.classList.add('hidden');
+          btnSnippetsMenu?.classList.remove('btn-active');
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
+
+  function updateToolsMenuState() {
+    const isAnyActive = (typeof isWhiteboardActive !== 'undefined' && isWhiteboardActive) ||
+                        (typeof isLaserActive !== 'undefined' && isLaserActive) ||
+                        (typeof isRecording !== 'undefined' && isRecording) ||
+                        (typeof isWebcamActive !== 'undefined' && isWebcamActive) ||
+                        (typeof isInputBlocked !== 'undefined' && isInputBlocked) ||
+                        (typeof isCurtainActive !== 'undefined' && isCurtainActive);
+    if (toolsActiveIndicator) {
+      toolsActiveIndicator.classList.toggle('hidden', !isAnyActive);
+    }
+    if (btnMoreToolsMenu) {
+      const isOpening = moreToolsMenuDropdown && !moreToolsMenuDropdown.classList.contains('hidden');
+      btnMoreToolsMenu.classList.toggle('btn-active', isOpening || isAnyActive);
+    }
+    if (badgeWhiteboardActive) badgeWhiteboardActive.classList.toggle('hidden', !(typeof isWhiteboardActive !== 'undefined' && isWhiteboardActive));
+    if (badgeLaserActive) badgeLaserActive.classList.toggle('hidden', !(typeof isLaserActive !== 'undefined' && isLaserActive));
+    if (badgeRecordActive) badgeRecordActive.classList.toggle('hidden', !(typeof isRecording !== 'undefined' && isRecording));
+    if (badgeCamActive) badgeCamActive.classList.toggle('hidden', !(typeof isWebcamActive !== 'undefined' && isWebcamActive));
+    if (badgeBlockInputActive) badgeBlockInputActive.classList.toggle('hidden', !(typeof isInputBlocked !== 'undefined' && isInputBlocked));
+    if (badgeCurtainActive) badgeCurtainActive.classList.toggle('hidden', !(typeof isCurtainActive !== 'undefined' && isCurtainActive));
+  }
+
+  if (btnMoreToolsMenu) {
+    btnMoreToolsMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (moreToolsMenuDropdown) {
+        const isOpening = moreToolsMenuDropdown.classList.contains('hidden');
+        moreToolsMenuDropdown.classList.toggle('hidden');
+        if (isOpening) {
+          positionDeckDropdown(btnMoreToolsMenu, moreToolsMenuDropdown);
+          updateToolsMenuState();
+          shortcutsMenuDropdown?.classList.add('hidden');
+          btnShortcutsMenu?.classList.remove('btn-active');
+          snippetsMenuDropdown?.classList.add('hidden');
+          btnSnippetsMenu?.classList.remove('btn-active');
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+        } else {
+          updateToolsMenuState();
+        }
+      }
+    });
+  }
+
+  btnDropdownWhiteboard?.addEventListener('click', () => {
+    btnToggleWhiteboard?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownLaser?.addEventListener('click', () => {
+    btnToggleLaser?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownScreenshot?.addEventListener('click', () => {
+    btnScreenshot?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+  });
+
+  btnDropdownRecord?.addEventListener('click', () => {
+    btnRecord?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownCam?.addEventListener('click', () => {
+    btnToggleCam?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownBlockInput?.addEventListener('click', () => {
+    btnToggleBlockInput?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownCurtain?.addEventListener('click', () => {
+    btnToggleCurtain?.click();
+    moreToolsMenuDropdown?.classList.add('hidden');
+    updateToolsMenuState();
+  });
+
+  btnDropdownSnippets?.addEventListener('click', () => {
+    moreToolsMenuDropdown?.classList.add('hidden');
+    if (snippetsMenuDropdown) {
+      const isOpening = snippetsMenuDropdown.classList.contains('hidden');
+      snippetsMenuDropdown.classList.toggle('hidden');
+      if (isOpening) {
+        positionDeckDropdown(btnMoreToolsMenu, snippetsMenuDropdown);
+      }
+    }
+  });
+
+    shortcutsMenuDropdown?.querySelectorAll('[data-system-combo]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const combo = btn.getAttribute('data-system-combo');
+      if (!combo) return;
+      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'system_hotkey',
+        combo: combo
+      }));
+
+      if (combo === 'cad') {
+        sendHotKeyCombo([0x11, 0x12, 0x2E]);
+      } else if (combo === 'taskmgr') {
+        sendHotKeyCombo([0x11, 0x10, 0x1B]);
+      } else if (combo === 'alttab') {
+        sendHotKeyCombo([0x12, 0x09]);
+      } else if (combo === 'altf4') {
+        sendHotKeyCombo([0x12, 0x73]);
+      } else if (combo === 'win') {
+        sendKeySequence([0x5B]);
+      } else if (combo === 'esc') {
+        sendKeySequence([0x1B]);
+      }
+
+      const itemTitle = btn.querySelector('.quality-item-title')?.textContent || combo;
+      showToast(t('toast.combo_sent', { combo: itemTitle }) || `Đã gửi: ${itemTitle}`, 'info', 2000);
+
+      shortcutsMenuDropdown.classList.add('hidden');
+      btnShortcutsMenu?.classList.remove('btn-active');
+    });
+  });
+
   // 3. Quick Snippets & Macros Popover Menu
   if (btnSnippetsMenu) {
     btnSnippetsMenu.addEventListener('click', (e) => {
@@ -7601,6 +7792,7 @@
         btnSnippetsMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnSnippetsMenu, snippetsMenuDropdown);
+        positionDeckDropdown(btnShortcutsMenu, shortcutsMenuDropdown);
           qualityMenuDropdown?.classList.add('hidden');
           btnQualityMenu?.classList.remove('btn-active');
           protocolMenuDropdown?.classList.add('hidden');
