@@ -113,6 +113,7 @@ class CloudflaredTunnelManager {
           'tunnel',
           '--protocol', 'http2',
           '--edge-ip-version', 'auto',
+          '--no-autoupdate',
           '--url', `http://127.0.0.1:${port}`
         ];
         this.process = spawn(bin, args, {
