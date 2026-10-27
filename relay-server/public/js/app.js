@@ -3850,6 +3850,10 @@
         laserCanvas.style.width = '';
         laserCanvas.style.height = '';
       }
+      if (whiteboardCanvas) {
+        whiteboardCanvas.style.width = '';
+        whiteboardCanvas.style.height = '';
+      }
       return;
     }
     const containerW = remoteSection.clientWidth;
@@ -3865,6 +3869,10 @@
     if (laserCanvas) {
       laserCanvas.style.width = `${displayW}px`;
       laserCanvas.style.height = `${displayH}px`;
+    }
+    if (whiteboardCanvas) {
+      whiteboardCanvas.style.width = `${displayW}px`;
+      whiteboardCanvas.style.height = `${displayH}px`;
     }
   }
 
@@ -4762,7 +4770,7 @@
     setTimeout(() => ripple.remove(), 450);
   }
 
-  // --- MOBILE TOUCH CONTROLLER (Direct Tap / Virtual Trackpad / 2-Finger Scroll & Zoom) ---
+  // --- MOBILE TOUCH CONTROLLER (Direct Tap / Multi-touch Gestures: 2-Finger Pan & Pinch, 2-Finger Tap Right Click, Hold-and-Drag) ---
   let mobileTouchMode = 'direct'; // 'direct' | 'trackpad'
   let touchStartX = 0;
   let touchStartY = 0;
@@ -4771,10 +4779,23 @@
   let touchLastY = 0;
   let longPressTimer = null;
   let isLongPressTriggered = false;
+  let isHoldDragActive = false;
   let lastTapTime = 0;
   let lastTapX = 0;
   let lastTapY = 0;
   let touchMoveThrottle = 0;
+
+  // Two-finger multi-touch tracking
+  let touchStartMidX = 0;
+  let touchStartMidY = 0;
+  let touchLastMidX = 0;
+  let touchLastMidY = 0;
+  let twoFingerTouchStartTime = 0;
+  let twoFingerMoved = false;
+
+  // Three-finger tracking
+  let threeFingerTouchStartTime = 0;
+  let threeFingerMoved = false;
 
   remoteCanvas.addEventListener('touchstart', (e) => {
     resetDeckIdle();
@@ -4786,33 +4807,52 @@
       touchLastY = t.clientY;
       touchStartTime = performance.now();
       isLongPressTriggered = false;
+      isHoldDragActive = false;
 
-      // Long-press timer (450ms) for Right Click
+      // 380ms Hold timer: activates Hold-and-Drag (Mouse Left Down) if user holds and then moves
       if (longPressTimer) clearTimeout(longPressTimer);
       longPressTimer = setTimeout(() => {
         if (!isConnected) return;
         isLongPressTriggered = true;
+        isHoldDragActive = true;
         if (navigator.vibrate) {
-          try { navigator.vibrate(45); } catch {}
+          try { navigator.vibrate(35); } catch {}
         }
-        showTouchRipple(touchStartX, touchStartY, 'right');
+        showTouchRipple(touchStartX, touchStartY, 'left');
         const coords = getNormalizedCoords({ clientX: touchStartX, clientY: touchStartY });
         ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
-        ws.send(JSON.stringify({ type: 'mouse_down', button: 2 }));
-        setTimeout(() => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'mouse_up', button: 2 }));
-          }
-        }, 40);
-      }, 450);
+        ws.send(JSON.stringify({ type: 'mouse_down', button: 0 }));
+      }, 380);
     } else if (e.touches.length === 2) {
-      if (longPressTimer) clearTimeout(longPressTimer);
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      if (isHoldDragActive) {
+        isHoldDragActive = false;
+        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'mouse_up', button: 0 }));
+        }
+      }
       e.preventDefault();
       const p1 = e.touches[0];
       const p2 = e.touches[1];
       touchStartDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
       touchStartScale = scale;
-      touchLastY = (p1.clientY + p2.clientY) / 2;
+      touchStartMidX = (p1.clientX + p2.clientX) / 2;
+      touchStartMidY = (p1.clientY + p2.clientY) / 2;
+      touchLastMidX = touchStartMidX;
+      touchLastMidY = touchStartMidY;
+      twoFingerTouchStartTime = performance.now();
+      twoFingerMoved = false;
+    } else if (e.touches.length === 3) {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      e.preventDefault();
+      threeFingerTouchStartTime = performance.now();
+      threeFingerMoved = false;
     }
   }, { passive: false });
 
@@ -4821,7 +4861,7 @@
     if (e.touches.length === 1) {
       const t = e.touches[0];
       const moveDist = Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY);
-      if (moveDist > 10) {
+      if (!isHoldDragActive && moveDist > 12) {
         if (longPressTimer) {
           clearTimeout(longPressTimer);
           longPressTimer = null;
@@ -4833,38 +4873,48 @@
       if (now - touchMoveThrottle < 20) return;
       touchMoveThrottle = now;
 
-      if (mobileTouchMode === 'direct') {
-        const coords = getNormalizedCoords(t);
+      const coords = getNormalizedCoords(t);
+      if (isHoldDragActive) {
+        // Dragging with left mouse button held down (select text, move window, drag file)
+        ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
+      } else if (mobileTouchMode === 'direct') {
         ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
       }
       touchLastX = t.clientX;
       touchLastY = t.clientY;
     } else if (e.touches.length === 2) {
-      if (longPressTimer) clearTimeout(longPressTimer);
       e.preventDefault();
       const p1 = e.touches[0];
       const p2 = e.touches[1];
-      const dist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
-      const currentAvgY = (p1.clientY + p2.clientY) / 2;
+      const currDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+      const currMidX = (p1.clientX + p2.clientX) / 2;
+      const currMidY = (p1.clientY + p2.clientY) / 2;
 
-      // Two-finger scroll detection
-      const scrollDiff = currentAvgY - touchLastY;
-      const distDiff = Math.abs(dist - touchStartDist);
+      const dx = currMidX - touchLastMidX;
+      const dy = currMidY - touchLastMidY;
+      const distDiff = Math.abs(currDist - touchStartDist);
+      const midDist = Math.hypot(currMidX - touchStartMidX, currMidY - touchStartMidY);
 
-      if (distDiff < 15 && Math.abs(scrollDiff) > 3) {
-        // Pure 2-finger scroll
-        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'mouse_wheel',
-            delta_y: scrollDiff * 2.5
-          }));
-        }
-        touchLastY = currentAvgY;
-      } else if (touchStartDist > 0) {
-        // Pinch zoom
-        scale = Math.max(0.5, Math.min(4.0, touchStartScale * (dist / touchStartDist)));
-        applyCanvasTransform();
+      if (midDist > 8 || distDiff > 10) {
+        twoFingerMoved = true;
       }
+
+      // Two-finger Pan: Fluidly move remote desktop viewport
+      panX += dx;
+      panY += dy;
+
+      // Two-finger Pinch Zoom (anchored scale adjustment)
+      if (touchStartDist > 0 && distDiff > 8) {
+        const targetScale = touchStartScale * (currDist / touchStartDist);
+        scale = Math.max(0.4, Math.min(5.0, targetScale));
+      }
+
+      applyCanvasTransform();
+
+      touchLastMidX = currMidX;
+      touchLastMidY = currMidY;
+    } else if (e.touches.length === 3) {
+      threeFingerMoved = true;
     }
   }, { passive: false });
 
@@ -4873,17 +4923,61 @@
       clearTimeout(longPressTimer);
       longPressTimer = null;
     }
-    if (isLongPressTriggered) {
+
+    // 1. Release Hold & Drag if it was active
+    if (isHoldDragActive) {
+      isHoldDragActive = false;
       isLongPressTriggered = false;
+      if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'mouse_up', button: 0 }));
+      }
       return;
     }
 
+    // 2. Three-finger Tap -> Toggle Soft Keyboard
+    if (e.touches.length === 0 && threeFingerTouchStartTime > 0) {
+      const elapsed3 = performance.now() - threeFingerTouchStartTime;
+      threeFingerTouchStartTime = 0;
+      if (elapsed3 < 320 && !threeFingerMoved) {
+        e.preventDefault();
+        if (navigator.vibrate) try { navigator.vibrate([25, 40, 25]); } catch {}
+        if (document.activeElement === mobileVirtualInput) {
+          closeMobileSoftKeyboard();
+        } else {
+          openMobileSoftKeyboard();
+        }
+        return;
+      }
+    }
+
+    // 3. Two-finger Tap -> Right Click at Midpoint
+    if (e.touches.length === 0 && twoFingerTouchStartTime > 0) {
+      const elapsed2 = performance.now() - twoFingerTouchStartTime;
+      twoFingerTouchStartTime = 0;
+      if (elapsed2 < 300 && !twoFingerMoved) {
+        e.preventDefault();
+        if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+        if (navigator.vibrate) try { navigator.vibrate(45); } catch {}
+        showTouchRipple(touchStartMidX, touchStartMidY, 'right');
+        const coords = getNormalizedCoords({ clientX: touchStartMidX, clientY: touchStartMidY });
+        ws.send(JSON.stringify({ type: 'mouse_move', x: coords.x, y: coords.y }));
+        ws.send(JSON.stringify({ type: 'mouse_down', button: 2 }));
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'mouse_up', button: 2 }));
+          }
+        }, 40);
+        return;
+      }
+    }
+
+    // 4. Single-finger Tap -> Left Click or Double Click
     if (e.changedTouches.length === 1 && e.touches.length === 0) {
       const t = e.changedTouches[0];
       const dist = Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY);
       const duration = performance.now() - touchStartTime;
 
-      if (dist <= 12 && duration < 450) {
+      if (dist <= 12 && duration < 380) {
         e.preventDefault();
         if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
 
@@ -5808,14 +5902,43 @@
   }
 
   // --- MOBILE SOFT KEYBOARD BRIDGE ---
+  function openMobileSoftKeyboard() {
+    if (!mobileVirtualInput) return;
+    mobileVirtualInput.value = '';
+    mobileVirtualInput.focus({ preventScroll: true });
+    btnMobileKeyboard?.classList.add('btn-active');
+  }
+
+  function closeMobileSoftKeyboard() {
+    if (!mobileVirtualInput) return;
+    mobileVirtualInput.blur();
+    btnMobileKeyboard?.classList.remove('btn-active');
+  }
+
   if (btnMobileKeyboard && mobileVirtualInput) {
     let isVirtualComposing = false;
 
-    btnMobileKeyboard.addEventListener('click', (e) => {
+    const handleKbToggle = (e) => {
       e.stopPropagation();
-      mobileVirtualInput.value = '';
-      mobileVirtualInput.focus();
-      showToast(t('toast.soft_keyboard_opened'), 'info', 1200);
+      e.preventDefault();
+      if (document.activeElement === mobileVirtualInput) {
+        closeMobileSoftKeyboard();
+        showToast(t('toast.soft_keyboard_closed') || 'Đã đóng bàn phím ảo di động', 'info', 1000);
+      } else {
+        openMobileSoftKeyboard();
+        showToast(t('toast.soft_keyboard_opened') || 'Đã mở bàn phím ảo di động', 'info', 1200);
+      }
+    };
+
+    btnMobileKeyboard.addEventListener('click', handleKbToggle);
+    btnMobileKeyboard.addEventListener('touchend', handleKbToggle);
+
+    mobileVirtualInput.addEventListener('focus', () => {
+      btnMobileKeyboard?.classList.add('btn-active');
+    });
+
+    mobileVirtualInput.addEventListener('blur', () => {
+      btnMobileKeyboard?.classList.remove('btn-active');
     });
 
     mobileVirtualInput.addEventListener('compositionstart', () => {
@@ -6958,8 +7081,10 @@
     btnToggleWhiteboard?.classList.toggle('btn-active', isWhiteboardActive);
     if (isWhiteboardActive) {
       if (whiteboardCanvas && remoteCanvas) {
-        whiteboardCanvas.width = remoteCanvas.width || 1920;
-        whiteboardCanvas.height = remoteCanvas.height || 1080;
+        whiteboardCanvas.width = hostResolution.width || remoteCanvas.width || 1920;
+        whiteboardCanvas.height = hostResolution.height || remoteCanvas.height || 1080;
+        whiteboardCanvas.style.width = remoteCanvas.style.width;
+        whiteboardCanvas.style.height = remoteCanvas.style.height;
       }
       whiteboardCanvas?.classList.remove('hidden');
       whiteboardCanvas?.classList.add('is-active');
@@ -7113,11 +7238,21 @@
 
   let currentWbStroke = null;
   if (whiteboardCanvas) {
+    function getWhiteboardCoords(e) {
+      const rect = whiteboardCanvas.getBoundingClientRect();
+      const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+      const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+      const pixelX = Math.round(((clientX - rect.left) / (rect.width || 1)) * whiteboardCanvas.width);
+      const pixelY = Math.round(((clientY - rect.top) / (rect.height || 1)) * whiteboardCanvas.height);
+      return { pixelX, pixelY };
+    }
+
     whiteboardCanvas.addEventListener('pointerdown', (e) => {
       if (!isWhiteboardActive) return;
-      whiteboardCanvas.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      try { whiteboardCanvas.setPointerCapture(e.pointerId); } catch {}
       wbDrawing = true;
-      const coords = getNormalizedCoords(e);
+      const coords = getWhiteboardCoords(e);
       wbStartPos = { x: coords.pixelX, y: coords.pixelY };
       wbLastPos = { x: coords.pixelX, y: coords.pixelY };
 
@@ -7135,7 +7270,8 @@
 
     whiteboardCanvas.addEventListener('pointermove', (e) => {
       if (!isWhiteboardActive || !wbDrawing || !currentWbStroke) return;
-      const coords = getNormalizedCoords(e);
+      e.preventDefault();
+      const coords = getWhiteboardCoords(e);
       if (currentWbStroke.tool === 'arrow') {
         currentWbStroke.end = { x: coords.pixelX, y: coords.pixelY };
       } else {
@@ -7146,6 +7282,7 @@
 
     const finishWbStroke = (e) => {
       if (!isWhiteboardActive || !wbDrawing) return;
+      e.preventDefault();
       wbDrawing = false;
       try { whiteboardCanvas.releasePointerCapture(e.pointerId); } catch {}
       redrawWhiteboard();

@@ -1150,7 +1150,9 @@
       </div>
 
       <!-- Mobile Native Virtual Keyboard Hidden Focus Bridge -->
-      <input id="mobileVirtualInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="position:fixed; top:-9999px; left:-9999px; opacity:0; width:1px; height:1px; pointer-events:none;" aria-hidden="true">
+      <!-- Mobile Native Virtual Keyboard Focus Bridge -->
+      <input id="mobileVirtualInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" enterkeyhint="go"
+        style="position:fixed; bottom:12px; left:50%; transform:translateX(-50%); width:32px; height:32px; opacity:0.01; caret-color:transparent; border:none; background:transparent; pointer-events:auto; z-index:1; outline:none;" aria-label="Mobile Virtual Keyboard Input Bridge">
 
       <!-- Mobile Quick Keys Strip (Floating bar for touch remote) -->
       <div id="mobileQuickKeysBar" class="mobile-quick-keys hidden">

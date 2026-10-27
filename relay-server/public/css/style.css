@@ -7414,16 +7414,13 @@ body.is-desktop-app .desktop-titlebar {
 
 /* 2. Live Whiteboard Canvas & Toolbar */
 .whiteboard-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
   z-index: 95;
+  touch-action: none !important;
 }
 
 .whiteboard-canvas.is-active {
-  pointer-events: auto;
+  pointer-events: auto !important;
   cursor: crosshair;
 }
 
@@ -7447,6 +7444,17 @@ body.is-desktop-app .desktop-titlebar {
 .deck-at-top .whiteboard-toolbar {
   bottom: auto;
   top: 56px;
+}
+
+@media (max-width: 640px), (max-height: 520px) {
+  .whiteboard-toolbar {
+    bottom: auto !important;
+    top: calc(8px + env(safe-area-inset-top, 0px)) !important;
+    max-width: calc(100vw - 16px) !important;
+    overflow-x: auto !important;
+    padding: 3px 6px !important;
+    gap: 4px !important;
+  }
 }
 
 .whiteboard-tools {
