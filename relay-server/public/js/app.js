@@ -7609,11 +7609,11 @@
         showToast(t('toast.not_connected'), 'info');
         return;
       }
-      if (currentView === 'terminal') {
-        ws.send(JSON.stringify({ type: 'terminal_input', data: macro + '\r\n' }));
-      } else {
-        ws.send(JSON.stringify({ type: 'text_input', text: macro + '\n' }));
-      }
+      ws.send(JSON.stringify({
+        type: 'quick_macro',
+        command: macro,
+        mode: currentView === 'terminal' ? 'terminal' : 'gui'
+      }));
       showToast(t('toast.macro_sent', { cmd: macro }), 'success');
       snippetsMenuDropdown.classList.add('hidden');
       btnSnippetsMenu?.classList.remove('btn-active');

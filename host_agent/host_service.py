@@ -1004,8 +1004,31 @@ class HostService:
 
                 # Terminal Input
                 elif ev_type == "terminal_input":
-                    cmd = event.get("command", "")
+                    cmd = event.get("command") or event.get("data", "")
                     self.terminal.send_input(cmd)
+                    continue
+
+                # Quick Macro Execution (GUI window on remote desktop + Terminal sync)
+                elif ev_type == "quick_macro":
+                    cmd = str(event.get("command") or event.get("macro", "")).strip()
+                    mode = event.get("mode", "auto")
+                    logger.info(f"[QuickMacro] Executing macro: {cmd} (mode={mode})")
+                    if cmd:
+                        try:
+                            self.terminal.send_input(cmd + "\r\n")
+                        except Exception:
+                            pass
+
+                        if mode in ("gui", "auto"):
+                            try:
+                                import subprocess
+                                if cmd.lower() in ("winver", "dxdiag", "taskmgr", "msconfig", "calc", "regedit"):
+                                    subprocess.Popen(cmd, shell=True)
+                                else:
+                                    # Spawn visible interactive CMD window on desktop
+                                    subprocess.Popen(f'cmd.exe /k "{cmd}"', shell=True)
+                            except Exception as ex:
+                                logger.warning(f"[QuickMacro] Failed to spawn GUI process: {ex}")
                     continue
 
                 # Telemetry & Diagnostics
