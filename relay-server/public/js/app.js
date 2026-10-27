@@ -742,6 +742,16 @@
   let restartReconnectTimer = null;
   let restartAttemptCount = 0;
 
+  // Resilient Session Auto-Reconnect State
+  let isAutoReconnecting = false;
+  let autoReconnectTimer = null;
+  let autoReconnectAttempts = 0;
+  const MAX_AUTO_RECONNECT_ATTEMPTS = 12;
+  let lastSessionRelay = '';
+  let lastSessionRoom = '';
+  let lastSessionPin = '';
+  let isUserInitiatedDisconnect = false;
+
   // Zoom & Pan
   let scale = 1.0;
   let panX = 0;
@@ -3342,8 +3352,15 @@
   });
 
   // --- REMOTE DESKTOP SESSION ---
-  function startRemoteSession(relayUrl, roomId, pin) {
-    resetSessionMetrics();
+  function startRemoteSession(relayUrl, roomId, pin, isAutoReconnect = false) {
+    if (!isAutoReconnect) {
+      stopAutoReconnect();
+      isUserInitiatedDisconnect = false;
+      lastSessionRelay = relayUrl;
+      lastSessionRoom = roomId;
+      lastSessionPin = pin || '';
+      resetSessionMetrics();
+    }
     currentRoom = roomId;
     currentRoomId = roomId;
     currentPin = pin || '';
@@ -3374,6 +3391,9 @@
     try {
       ws = new WebSocket(relayUrl);
       ws.binaryType = 'blob';
+      ws.onerror = (err) => {
+        console.warn('[Client WS Error]:', err);
+      };
     } catch (err) {
       showToast(t('toast.ws_error', { error: err.message }), 'error');
       return;
@@ -3418,6 +3438,12 @@
 
         if (msg.status === 'ok' && msg.role === 'client') {
           isConnected = true;
+          if (isAutoReconnecting) {
+            stopAutoReconnect();
+            showToast(t('toast.auto_reconnected') || 'Đã kết nối lại thành công!', 'success', 2500);
+          }
+          const connOverlay = document.getElementById('canvasConnectingOverlay');
+          if (connOverlay) connOverlay.classList.add('hidden');
           mySessionId = msg.session_id || null;
           if (typeof updateRemoteSessionTabs === 'function') {
             updateRemoteSessionTabs();
@@ -3737,8 +3763,8 @@
             handleRemoteRestartReconnecting();
             return;
           }
-          showToast(msg.message || 'Máy trạm đã ngắt kết nối!', 'error');
-          disconnect();
+          // Host transient offline - try to auto-reconnect for up to 30s instead of immediately booting user
+          handleAutoReconnecting();
         }
       } catch (err) {
         console.error('WS parse error:', err);
@@ -3750,10 +3776,17 @@
         handleRemoteRestartReconnecting();
         return;
       }
-      if (isConnected) {
-        const reason = ev && ev.reason ? `Máy trạm đã ngắt kết nối (${ev.reason})` : 'Mất kết nối với máy trạm';
-        showToast(reason, 'error');
+      if (isUserInitiatedDisconnect) {
+        disconnect();
+        return;
       }
+      // If was connected or already reconnecting, attempt resilient auto-reconnect
+      if (isConnected || isAutoReconnecting || (lastSessionRoom && currentView === 'remote')) {
+        handleAutoReconnecting();
+        return;
+      }
+      const reason = ev && ev.reason ? `Máy trạm đã ngắt kết nối (${ev.reason})` : 'Mất kết nối với máy trạm';
+      showToast(reason, 'error');
       disconnect();
     };
   }
@@ -3794,7 +3827,71 @@
     restartAttemptCount = 0;
   }
 
+  function stopAutoReconnect() {
+    if (autoReconnectTimer) {
+      clearTimeout(autoReconnectTimer);
+      autoReconnectTimer = null;
+    }
+    isAutoReconnecting = false;
+    autoReconnectAttempts = 0;
+  }
+
+  function handleAutoReconnecting() {
+    if (isUserInitiatedDisconnect || !lastSessionRoom) {
+      disconnect();
+      return;
+    }
+    if (isAutoReconnecting && autoReconnectTimer) return;
+
+    isAutoReconnecting = true;
+    isConnected = false;
+
+    if (ws) {
+      try {
+        ws.onopen = null;
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        ws.close();
+      } catch {}
+      ws = null;
+    }
+
+    const connOverlay = document.getElementById('canvasConnectingOverlay');
+    if (connOverlay) {
+      connOverlay.classList.remove('hidden');
+      const connMsg = connOverlay.querySelector('p');
+      if (connMsg) {
+        connMsg.textContent = t('toast.auto_reconnecting') || 'Mất kết nối tạm thời. Đang tự động kết nối lại...';
+      }
+    }
+
+    const targetRoom = lastSessionRoom || currentRoomId || 'ROOM';
+    roStatus.textContent = `${targetRoom} // ${t('ro.reconnecting')} (${autoReconnectAttempts + 1}/${MAX_AUTO_RECONNECT_ATTEMPTS})`;
+
+    if (autoReconnectAttempts === 0) {
+      showToast(t('toast.auto_reconnecting') || 'Mất kết nối tạm thời. Đang tự động kết nối lại...', 'warning', 3000);
+    }
+
+    autoReconnectTimer = setTimeout(() => {
+      autoReconnectTimer = null;
+      if (!isAutoReconnecting || isUserInitiatedDisconnect) return;
+
+      autoReconnectAttempts++;
+      if (autoReconnectAttempts > MAX_AUTO_RECONNECT_ATTEMPTS) {
+        stopAutoReconnect();
+        showToast(t('toast.auto_reconnect_failed') || 'Không thể kết nối lại sau 12 lần thử. Đã ngắt kết nối.', 'error', 4000);
+        disconnect();
+        return;
+      }
+
+      roStatus.textContent = `${targetRoom} // ${t('ro.reconnecting')} (${autoReconnectAttempts}/${MAX_AUTO_RECONNECT_ATTEMPTS})`;
+      startRemoteSession(lastSessionRelay || defaultWsUrl, targetRoom, lastSessionPin, true);
+    }, autoReconnectAttempts === 0 ? 800 : 2500);
+  }
+
   function disconnect() {
+    stopAutoReconnect();
     stopRestartReconnectPolling();
     isConnected = false;
     resetSessionMetrics();
@@ -3840,7 +3937,11 @@
     switchView('dashboard', true);
   }
 
-  btnDisconnect.addEventListener('click', disconnect);
+  btnDisconnect.addEventListener('click', () => {
+    isUserInitiatedDisconnect = true;
+    stopAutoReconnect();
+    disconnect();
+  });
 
   function startPingLoop() {
     if (pingIntervalId) clearInterval(pingIntervalId);

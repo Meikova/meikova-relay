@@ -3109,10 +3109,12 @@ wss.on('connection', (ws, req) => {
 
 
   ws.on('pong', () => { ws.isAlive = true; });
+  ws.on('error', (err) => { console.warn(`[WS Socket Error] (${ws.sessionId || ws.machineId || 'client'}):`, err.message); });
 
 
 
   ws.on('message', async (message, isBinary) => {
+    ws.isAlive = true;
 
     // 1. Forward raw binary frames (Screen frames to ALL active clients)
 
@@ -3135,7 +3137,7 @@ wss.on('connection', (ws, req) => {
                 continue;
               }
 
-              client.ws.send(message, { binary: true });
+              try { client.ws.send(message, { binary: true }, (err) => {}); } catch (e) {}
 
             }
 
@@ -3892,11 +3894,14 @@ wss.on('connection', (ws, req) => {
     // --- Ping / Pong ---
 
     if (type === 'ping') {
-
-      ws.send(JSON.stringify({ type: 'pong', ts: data.ts }));
-
+      ws.isAlive = true;
+      try { ws.send(JSON.stringify({ type: 'pong', ts: data.ts })); } catch (e) {}
       return;
+    }
 
+    if (type === 'pong') {
+      ws.isAlive = true;
+      return;
     }
 
 

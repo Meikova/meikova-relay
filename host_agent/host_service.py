@@ -518,17 +518,22 @@ class HostService:
                 continue
 
             start_time = time.perf_counter()
-            frame_bytes = await asyncio.to_thread(self.capture.capture_frame, False)
-            if frame_bytes and self.frame_queue is not None:
-                if self.frame_queue.full():
+            try:
+                frame_bytes = await asyncio.to_thread(self.capture.capture_frame, False)
+                if frame_bytes and self.frame_queue is not None:
+                    if self.frame_queue.full():
+                        try:
+                            self.frame_queue.get_nowait()
+                        except asyncio.QueueEmpty:
+                            pass
                     try:
-                        self.frame_queue.get_nowait()
-                    except asyncio.QueueEmpty:
+                        self.frame_queue.put_nowait(frame_bytes)
+                    except asyncio.QueueFull:
                         pass
-                try:
-                    self.frame_queue.put_nowait(frame_bytes)
-                except asyncio.QueueFull:
-                    pass
+            except Exception as cap_err:
+                logger.warning(f"Frame capture error (recovered): {cap_err}")
+                await asyncio.sleep(0.1)
+                continue
 
             elapsed = time.perf_counter() - start_time
             sleep_time = max(0.001, self.frame_interval - elapsed)
@@ -592,9 +597,13 @@ class HostService:
 
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                logger.warning(f"Error sending frame: {e}")
+            except (websockets.ConnectionClosed, ConnectionResetError):
                 break
+            except Exception as e:
+                logger.warning(f"Error sending frame (transient): {e}")
+                if getattr(ws, "closed", False):
+                    break
+                await asyncio.sleep(0.05)
 
     async def _send_frames_loop(self, ws: websockets.WebSocketClientProtocol):
         """Legacy compatibility wrapper delegating to _send_frames_worker."""
@@ -612,9 +621,11 @@ class HostService:
                     await asyncio.sleep(0.05)
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                logger.warning(f"Audio stream error: {e}")
+            except (websockets.ConnectionClosed, ConnectionResetError):
                 break
+            except Exception as e:
+                logger.warning(f"Audio stream error (non-fatal): {e}")
+                await asyncio.sleep(0.1)
 
     async def _receive_events_loop(self, ws: websockets.WebSocketClientProtocol):
         logger.info("Event listener started")
@@ -626,6 +637,13 @@ class HostService:
                     continue
 
                 ev_type = event.get("type")
+
+                if ev_type == "ping":
+                    try:
+                        await ws.send(json.dumps({"type": "pong", "ts": event.get("ts", time.time())}))
+                    except Exception:
+                        pass
+                    continue
 
                 if ev_type == "superseded":
                     msg = event.get("message", "Phiên kết nối máy trạm đã được thay thế bởi phiên mới")
@@ -1379,10 +1397,10 @@ class HostService:
                 try:
                     logger.info(f"Connecting to Relay Server at {self.relay_url} (insecure_ssl={self._allow_insecure_ssl}) ...")
                     connect_kwargs = {
-                        "ping_interval": 20,
-                        "ping_timeout": 15,
-                        "max_size": 20 * 1024 * 1024,
-                        "write_limit": 4 * 1024 * 1024,
+                        "ping_interval": 25,
+                        "ping_timeout": 30,
+                        "max_size": 25 * 1024 * 1024,
+                        "write_limit": 8 * 1024 * 1024,
                         "user_agent_header": browser_ua,
                         "origin": origin_header,
                         "additional_headers": {"Origin": origin_header, "User-Agent": browser_ua},
