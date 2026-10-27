@@ -1878,7 +1878,7 @@ input:-webkit-autofill:active {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 16px;
   border: 1px solid var(--line);
   border-radius: var(--round);
   background: oklch(0.195 var(--gc) var(--gh) / 0.85);
@@ -1894,11 +1894,27 @@ input:-webkit-autofill:active {
   max-width: calc(100vw - 24px);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  scroll-behavior: smooth;
+  scroll-padding: 0 16px;
 }
 
 .deck::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.deck::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 0 18px;
+}
+
+.deck::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.25);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.deck::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.6);
 }
 
 .deck.dimmed {
@@ -1925,6 +1941,8 @@ input:-webkit-autofill:active {
   font-weight: 500;
   line-height: 1;
   box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
   transition:
     color var(--dur-fast) var(--ease-out),
     background-color var(--dur-fast) var(--ease-out),
@@ -6588,6 +6606,66 @@ body.is-desktop-app .desktop-titlebar {
   100% {
     transform: scale(2.2);
     opacity: 0;
+  }
+}
+
+
+/* Responsive Compact Deck Modes for Constrained Windows & Desktop Screens */
+@media (max-width: 1280px) {
+  .deck {
+    gap: 4px;
+    padding: 5px 12px;
+  }
+  .deck__btn {
+    height: 32px;
+    padding: 0 8px;
+    font-size: 11px;
+    gap: 4px;
+  }
+  .deck__btn svg {
+    width: 13px;
+    height: 13px;
+  }
+  #monitorCurrentLabel,
+  #resolutionCurrentLabel,
+  #protocolCurrentLabel,
+  #qualityCurrentLabel {
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 1120px) {
+  .deck {
+    gap: 3px;
+    padding: 4px 10px;
+  }
+  .deck__btn {
+    height: 30px;
+    padding: 0 6px;
+    gap: 3px;
+  }
+  #btnSyncDisplay span,
+  #btnToggleGrid span {
+    display: none !important;
+  }
+  #monitorCurrentLabel {
+    max-width: 45px;
+  }
+}
+
+@media (max-width: 960px) {
+  #monitorCurrentLabel,
+  #resolutionCurrentLabel,
+  #protocolCurrentLabel,
+  #qualityCurrentLabel {
+    display: none !important;
+  }
+  .deck__btn {
+    padding: 0 5px;
+  }
+  .deck-chevron {
+    width: 8px !important;
+    height: 8px !important;
   }
 }
 

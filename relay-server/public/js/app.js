@@ -4554,6 +4554,65 @@
     }
   }
 
+  // Desktop Wheel & Drag-to-Scroll on Floating Deck
+  if (floatingDeck) {
+    floatingDeck.addEventListener('wheel', (e) => {
+      if (floatingDeck.scrollWidth > floatingDeck.clientWidth) {
+        if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+          e.preventDefault();
+          floatingDeck.scrollLeft += e.deltaY;
+        }
+      }
+    }, { passive: false });
+
+    floatingDeck.addEventListener('scroll', () => {
+      if (monitorMenuDropdown && !monitorMenuDropdown.classList.contains('hidden') && btnMonitorMenu) {
+        positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
+      }
+      if (resolutionMenuDropdown && !resolutionMenuDropdown.classList.contains('hidden') && btnResolutionMenu) {
+        positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
+      }
+      if (qualityMenuDropdown && !qualityMenuDropdown.classList.contains('hidden') && btnQualityMenu) {
+        positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
+      }
+      if (protocolMenuDropdown && !protocolMenuDropdown.classList.contains('hidden') && btnProtocolMenu) {
+        positionDeckDropdown(btnProtocolMenu, protocolMenuDropdown);
+      }
+      if (keyboardMenuDropdown && !keyboardMenuDropdown.classList.contains('hidden') && btnMobileKeyboard) {
+        positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
+      }
+    }, { passive: true });
+
+    let isDeckDragging = false;
+    let deckStartX = 0;
+    let deckScrollLeft = 0;
+
+    floatingDeck.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button, select, input, a, .quality-menu')) return;
+      isDeckDragging = true;
+      deckStartX = e.pageX - floatingDeck.offsetLeft;
+      deckScrollLeft = floatingDeck.scrollLeft;
+      floatingDeck.style.cursor = 'grabbing';
+      floatingDeck.style.userSelect = 'none';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDeckDragging) return;
+      e.preventDefault();
+      const x = e.pageX - floatingDeck.offsetLeft;
+      const walk = (x - deckStartX) * 1.5;
+      floatingDeck.scrollLeft = deckScrollLeft - walk;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDeckDragging) {
+        isDeckDragging = false;
+        floatingDeck.style.cursor = '';
+        floatingDeck.style.removeProperty('user-select');
+      }
+    });
+  }
+
   function handleViewportResize() {
     syncTrueViewportHeight();
     if (currentView === 'remote') {
@@ -6586,21 +6645,23 @@
     btnMonitorMenu.addEventListener('click', (e) => {
       e.stopPropagation();
       if (monitorMenuDropdown) {
+        if (monitorMenuList && monitorMenuList.children.length === 0) {
+          populateMonitors([
+            { id: 1, name: 'Màn hình chính', width: 1920, height: 1080 }
+          ], 0);
+        }
         const isOpening = monitorMenuDropdown.classList.contains('hidden');
         monitorMenuDropdown.classList.toggle('hidden');
         btnMonitorMenu.classList.toggle('btn-active', isOpening);
         if (isOpening) {
           positionDeckDropdown(btnMonitorMenu, monitorMenuDropdown);
-          monitorMenuDropdown?.classList.add('hidden');
-          btnMonitorMenu?.classList.remove('btn-active');
           resolutionMenuDropdown?.classList.add('hidden');
           btnResolutionMenu?.classList.remove('btn-active');
           qualityMenuDropdown?.classList.add('hidden');
           btnQualityMenu?.classList.remove('btn-active');
           protocolMenuDropdown?.classList.add('hidden');
           btnProtocolMenu?.classList.remove('btn-active');
-          resolutionMenuDropdown?.classList.add('hidden');
-          btnResolutionMenu?.classList.remove('btn-active');
+          keyboardMenuDropdown?.classList.add('hidden');
           powerMenuDropdown?.classList.add('hidden');
           btnPowerMenu?.classList.remove('btn-active');
           deckModeDropdown?.classList.add('hidden');
