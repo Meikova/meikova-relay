@@ -26,12 +26,19 @@ try:
         # Auto-detect failed — try common install paths on Windows
         _lib_candidates = []
         if sys.platform == 'win32':
+            meipass = getattr(sys, '_MEIPASS', None)
+            exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else None
             _lib_candidates = [
                 r"C:\libjpeg-turbo64\bin\turbojpeg.dll",
                 r"C:\Program Files\libjpeg-turbo64\bin\turbojpeg.dll",
                 r"C:\ProgramData\chocolatey\lib\libjpeg-turbo\tools\turbojpeg.dll",
                 os.path.join(os.path.dirname(__file__), "turbojpeg.dll"),
             ]
+            if meipass:
+                _lib_candidates.insert(0, os.path.join(meipass, "turbojpeg.dll"))
+                _lib_candidates.insert(1, os.path.join(meipass, "host_agent", "turbojpeg.dll"))
+            if exe_dir:
+                _lib_candidates.insert(0, os.path.join(exe_dir, "turbojpeg.dll"))
         for _lp in _lib_candidates:
             if os.path.isfile(_lp):
                 try:

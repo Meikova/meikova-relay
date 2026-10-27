@@ -3,7 +3,6 @@ import unittest
 import os
 import re
 from pathlib import Path
-from bs4 import BeautifulSoup
 
 class TestDeckIconsAndAlignment(unittest.TestCase):
     def setUp(self):
@@ -11,49 +10,69 @@ class TestDeckIconsAndAlignment(unittest.TestCase):
         self.html_path = self.base_dir / "index.html"
         self.css_path = self.base_dir / "css" / "style.css"
 
+    def _extract_element(self, html: str, element_id: str) -> str:
+        pattern = rf'<button[^>]*id=["\']{element_id}["\'][^>]*>(.*?)</button>'
+        m = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
+        if not m:
+            pattern = rf'<([a-zA-Z0-9]+)[^>]*id=["\']{element_id}["\'][^>]*>(.*?)</\1>'
+            m = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
+        return m.group(0) if m else None
+
+    def _extract_svg(self, html_snippet: str) -> str:
+        m = re.search(r'<svg[^>]*>(.*?)</svg>', html_snippet, re.DOTALL | re.IGNORECASE)
+        return m.group(1).strip() if m else ""
+
     def test_deck_buttons_have_distinct_svg_icons(self):
         with open(self.html_path, "r", encoding="utf-8") as f:
-            soup = BeautifulSoup(f.read(), "html.parser")
+            html = f.read()
 
         # 1. OSK button vs Shortcuts button
-        btn_osk = soup.find(id="btnToggleOSK")
-        btn_shortcuts = soup.find(id="btnShortcutsMenu")
+        btn_osk = self._extract_element(html, "btnToggleOSK")
+        btn_shortcuts = self._extract_element(html, "btnShortcutsMenu")
         self.assertIsNotNone(btn_osk, "btnToggleOSK must exist")
         self.assertIsNotNone(btn_shortcuts, "btnShortcutsMenu must exist")
 
-        svg_osk = "".join(str(c) for c in btn_osk.find("svg").children if c.name)
-        svg_shortcuts = "".join(str(c) for c in btn_shortcuts.find("svg").children if c.name)
+        svg_osk = self._extract_svg(btn_osk)
+        svg_shortcuts = self._extract_svg(btn_shortcuts)
+        self.assertTrue(len(svg_osk) > 0, "btnToggleOSK must contain svg")
+        self.assertTrue(len(svg_shortcuts) > 0, "btnShortcutsMenu must contain svg")
         self.assertNotEqual(svg_osk, svg_shortcuts, "btnToggleOSK and btnShortcutsMenu must not have duplicate SVGs")
 
         # 2. Monitor menu vs Resolution menu
-        btn_mon = soup.find(id="btnMonitorMenu")
-        btn_res = soup.find(id="btnResolutionMenu")
+        btn_mon = self._extract_element(html, "btnMonitorMenu")
+        btn_res = self._extract_element(html, "btnResolutionMenu")
         self.assertIsNotNone(btn_mon, "btnMonitorMenu must exist")
         self.assertIsNotNone(btn_res, "btnResolutionMenu must exist")
 
-        svg_mon = "".join(str(c) for c in btn_mon.find("svg").children if c.name)
-        svg_res = "".join(str(c) for c in btn_res.find("svg").children if c.name)
+        svg_mon = self._extract_svg(btn_mon)
+        svg_res = self._extract_svg(btn_res)
+        self.assertTrue(len(svg_mon) > 0, "btnMonitorMenu must contain svg")
+        self.assertTrue(len(svg_res) > 0, "btnResolutionMenu must contain svg")
         self.assertNotEqual(svg_mon, svg_res, "btnMonitorMenu and btnResolutionMenu must not have duplicate SVGs")
 
     def test_menu_items_use_vibrant_vector_svg_icons(self):
         with open(self.html_path, "r", encoding="utf-8") as f:
-            soup = BeautifulSoup(f.read(), "html.parser")
+            html = f.read()
 
-        # Check Tools Menu items have SVG icons
-        tools_dropdown = soup.find(id="moreToolsMenuDropdown")
-        self.assertIsNotNone(tools_dropdown, "moreToolsMenuDropdown must exist")
-        tool_icons = tools_dropdown.find_all("span", class_="quality-item-icon")
+        tools_start = html.find('id="moreToolsMenuDropdown"')
+        self.assertGreater(tools_start, 0, "moreToolsMenuDropdown must exist")
+        shortcuts_start = html.find('id="shortcutsMenuDropdown"')
+        self.assertGreater(shortcuts_start, 0, "shortcutsMenuDropdown must exist")
+        shortcuts_end = html.find('</nav>', shortcuts_start)
+
+        tools_chunk = html[tools_start:shortcuts_start]
+        shortcuts_chunk = html[shortcuts_start:shortcuts_end]
+
+        icon_pattern = r'<span[^>]*class=["\'][^"\']*quality-item-icon[^"\']*["\'][^>]*>(.*?)</span>'
+        tool_icons = re.findall(icon_pattern, tools_chunk, re.DOTALL)
         self.assertGreaterEqual(len(tool_icons), 8, "All tools items must have quality-item-icon")
-        for icon in tool_icons:
-            self.assertIsNotNone(icon.find("svg"), "Every quality-item-icon must have an inline svg")
+        for icon_html in tool_icons:
+            self.assertIn("<svg", icon_html, "Every quality-item-icon must have an inline svg")
 
-        # Check Shortcuts Menu items have SVG icons
-        shortcuts_dropdown = soup.find(id="shortcutsMenuDropdown")
-        self.assertIsNotNone(shortcuts_dropdown, "shortcutsMenuDropdown must exist")
-        shortcut_icons = shortcuts_dropdown.find_all("span", class_="quality-item-icon")
+        shortcut_icons = re.findall(icon_pattern, shortcuts_chunk, re.DOTALL)
         self.assertGreaterEqual(len(shortcut_icons), 20, "All shortcuts items must have quality-item-icon")
-        for icon in shortcut_icons:
-            self.assertIsNotNone(icon.find("svg"), "Every quality-item-icon must have an inline svg")
+        for icon_html in shortcut_icons:
+            self.assertIn("<svg", icon_html, "Every quality-item-icon must have an inline svg")
 
     def test_quality_item_icon_css(self):
         with open(self.css_path, "r", encoding="utf-8") as f:

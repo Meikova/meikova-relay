@@ -23,15 +23,15 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         self.assertFalse(self.service.capture.grayscale)
         self.assertAlmostEqual(self.service.frame_interval, 1.0 / 30.0)
 
-        # 2. Speed 60: 1280 (720p), quality=58, nearest, 4:2:0, 60 FPS
+        # 2. Speed 60: 1600 (900p), quality=65, nearest, 4:2:0, 120 FPS
         applied = self.service.apply_quality_preset("speed_60")
         self.assertEqual(applied, "speed_60")
-        self.assertEqual(self.service.capture.quality, 58)
-        self.assertEqual(self.service.capture.max_width, 1280)
+        self.assertEqual(self.service.capture.quality, 65)
+        self.assertEqual(self.service.capture.max_width, 1600)
         self.assertEqual(self.service.capture.resample_filter, "nearest")
         self.assertEqual(self.service.capture.subsampling, 2)
         self.assertFalse(self.service.capture.grayscale)
-        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 60.0)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
 
         # 3. Balanced: 1600 (900p), quality=70, bilinear, 4:2:0, 30 FPS
         applied = self.service.apply_quality_preset("balanced")
@@ -53,15 +53,15 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         self.assertFalse(self.service.capture.grayscale)
         self.assertAlmostEqual(self.service.frame_interval, 1.0 / 30.0)
 
-        # 5. Native 1:1: max_width=None (100% gốc), quality=90, subsampling=0 (4:4:4), 30 FPS
+        # 5. Native 1:1: max_width=None (100% gốc), quality=85, subsampling=1 (4:2:2), 120 FPS
         applied = self.service.apply_quality_preset("native_1to1")
         self.assertEqual(applied, "native_1to1")
-        self.assertEqual(self.service.capture.quality, 90)
+        self.assertEqual(self.service.capture.quality, 85)
         self.assertIsNone(self.service.capture.max_width)
         self.assertEqual(self.service.capture.resample_filter, "bilinear")
-        self.assertEqual(self.service.capture.subsampling, 0)
+        self.assertEqual(self.service.capture.subsampling, 1)
         self.assertFalse(self.service.capture.grayscale)
-        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 30.0)
+        self.assertAlmostEqual(self.service.frame_interval, 1.0 / 120.0)
 
         # 6. Grayscale: 1280, quality=40, img.convert('L'), 25 FPS
         applied = self.service.apply_quality_preset("grayscale")
@@ -82,7 +82,7 @@ class TestScreenSyncAndPresets(unittest.TestCase):
         res = self.service.negotiate_optimal_display_profile(client_w=1920, client_h=1080, client_fps=120)
         self.assertEqual(res["type"], "display_profile_matched")
         self.assertEqual(res["recommended_preset"], "speed_60")
-        self.assertEqual(res["applied_fps"], 60)
+        self.assertEqual(res["applied_fps"], 120)
 
     def test_negotiate_optimal_display_profile_4k(self):
         # 4K / 2K client with larger screen than host
