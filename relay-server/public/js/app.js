@@ -200,6 +200,11 @@
     if (metricPing) metricPing.textContent = '--';
     if (metricFps) metricFps.textContent = '--';
     if (metricRes) metricRes.textContent = '--';
+    if (telemetryRtt) telemetryRtt.textContent = '--ms';
+    if (telemetryFps) telemetryFps.textContent = '--fps';
+    if (telemetrySpeed) telemetrySpeed.textContent = '--KB/s';
+    if (telemetryDot) telemetryDot.className = 'telemetry-status-dot';
+    sessionBytesWindow = 0;
     pingSamples.length = 0;
     if (sparkCtx && sparklineCanvas) {
       sparkCtx.clearRect(0, 0, sparklineCanvas.width, sparklineCanvas.height);
@@ -663,6 +668,30 @@
   const btnPushClipboard = document.getElementById('btnPushClipboard');
   const btnTypeDirect = document.getElementById('btnTypeDirect');
   const btnToggleBlockInput = document.getElementById('btnToggleBlockInput');
+
+  // --- Advanced Utilities DOM ---
+  const btnToggleCurtain = document.getElementById('btnToggleCurtain');
+  const curtainSvgOff = document.getElementById('curtainSvgOff');
+  const curtainSvgOn = document.getElementById('curtainSvgOn');
+  const btnToggleWhiteboard = document.getElementById('btnToggleWhiteboard');
+  const whiteboardCanvas = document.getElementById('whiteboardCanvas');
+  const wbCtx = whiteboardCanvas ? whiteboardCanvas.getContext('2d') : null;
+  const whiteboardToolbar = document.getElementById('whiteboardToolbar');
+  const btnWbLaserFade = document.getElementById('btnWbLaserFade');
+  const btnWbClearAll = document.getElementById('btnWbClearAll');
+  const btnSnippetsMenu = document.getElementById('btnSnippetsMenu');
+  const snippetsMenuDropdown = document.getElementById('snippetsMenuDropdown');
+  const networkTelemetryPill = document.getElementById('networkTelemetryPill');
+  const telemetryDot = document.getElementById('telemetryDot');
+  const telemetryRtt = document.getElementById('telemetryRtt');
+  const telemetryFps = document.getElementById('telemetryFps');
+  const telemetrySpeed = document.getElementById('telemetrySpeed');
+  const modalSendPassword = document.getElementById('modalSendPassword');
+  const inputSecurePassword = document.getElementById('inputSecurePassword');
+  const btnConfirmSendPassword = document.getElementById('btnConfirmSendPassword');
+  const btnCancelSendPassword = document.getElementById('btnCancelSendPassword');
+  const btnCloseSendPassword = document.getElementById('btnCloseSendPassword');
+  const btnOpenPasswordModal = document.getElementById('btnOpenPasswordModal');
   const shelfChatTab = document.getElementById('shelfChatTab');
   const chatHistory = document.getElementById('chatHistory');
   const chatInputForm = document.getElementById('chatInputForm');
@@ -748,6 +777,23 @@
   let auditPage = 0;
   const auditLimit = 25;
   let auditTotal = 0;
+
+  // Privacy Curtain State
+  let isCurtainActive = false;
+
+  // Live Whiteboard State
+  let isWhiteboardActive = false;
+  let wbCurrentTool = 'pen'; // 'pen' | 'highlighter' | 'arrow' | 'eraser'
+  let wbCurrentColor = '#06B6D4';
+  let wbLaserFade = false;
+  let wbDrawing = false;
+  let wbStartPos = { x: 0, y: 0 };
+  let wbLastPos = { x: 0, y: 0 };
+  let wbStrokes = [];
+  let wbAnimFrameId = null;
+
+  // Telemetry Byte Rate Tracking
+  let sessionBytesWindow = 0;
   let auditSearchDebounce = null;
 
   // Key code mapping
@@ -3584,6 +3630,10 @@
           const rtt = Math.round(performance.now() - lastPingSend);
           metricPing.textContent = rtt;
           recordPingSample(rtt);
+          if (telemetryRtt) telemetryRtt.textContent = `${rtt}ms`;
+          if (telemetryDot) {
+            telemetryDot.className = 'telemetry-status-dot' + (rtt < 60 ? '' : rtt < 150 ? ' warn' : ' danger');
+          }
         } else if (msg.type === 'chat_message') {
           appendChatMessage(msg.sender || 'Máy trạm', msg.message, false);
           const isChatVisible = shelfDrawer.classList.contains('open') && !shelfChatTab.classList.contains('hidden');
@@ -3658,6 +3708,16 @@
           btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
           if (btnToggleBlockInput) {
             btnToggleBlockInput.title = isInputBlocked ? 'Đang khóa chuột & phím máy đích' : 'Khóa chuột & phím máy đích';
+          }
+        } else if (msg.type === 'privacy_curtain_response') {
+          isCurtainActive = !!msg.enabled;
+          btnToggleCurtain?.classList.toggle('is-curtain-active', isCurtainActive);
+          curtainSvgOff?.classList.toggle('hidden', isCurtainActive);
+          curtainSvgOn?.classList.toggle('hidden', !isCurtainActive);
+          if (msg.success) {
+            showToast(isCurtainActive ? t('toast.curtain_enabled') : t('toast.curtain_disabled'), isCurtainActive ? 'warning' : 'success');
+          } else {
+            showToast(t('toast.curtain_error', { error: msg.error || 'Failed' }), 'error');
           }
         } else if (msg.type === 'host_disconnected') {
           if (isAwaitingRemoteRestart) {
@@ -3744,6 +3804,14 @@
     }
     stopRecording();
     stopWebcam();
+    isCurtainActive = false;
+    btnToggleCurtain?.classList.remove('is-curtain-active');
+    curtainSvgOff?.classList.remove('hidden');
+    curtainSvgOn?.classList.add('hidden');
+    if (isWhiteboardActive) {
+      toggleWhiteboard(false);
+    }
+    clearWhiteboard();
     if (remoteCanvas && ctx) {
       ctx.clearRect(0, 0, remoteCanvas.width, remoteCanvas.height);
     }
@@ -3819,6 +3887,11 @@
     remoteCanvas.height = h;
     laserCanvas.width = w;
     laserCanvas.height = h;
+    if (whiteboardCanvas) {
+      whiteboardCanvas.width = w;
+      whiteboardCanvas.height = h;
+      if (typeof redrawWhiteboard === 'function') redrawWhiteboard();
+    }
     metricRes.textContent = `${w}x${h}`;
     updatePixelIndicator();
     fitCanvasToViewport();
@@ -3927,6 +4000,9 @@
   let isFrameRendering = false;
 
   function handleIncomingFrame(blob) {
+    if (blob && blob.size) {
+      sessionBytesWindow += blob.size;
+    }
     // Retain newest frame; drop stale intermediate frames to eliminate rendering latency backlog
     pendingFrameBlob = blob;
 
@@ -4017,6 +4093,14 @@
         if (metricFps) {
           metricFps.textContent = actualFps;
         }
+        if (telemetryFps) {
+          telemetryFps.textContent = `${actualFps}fps`;
+        }
+        const speedKb = Math.round((sessionBytesWindow / elapsed) / 1024);
+        if (telemetrySpeed) {
+          telemetrySpeed.textContent = `${speedKb}KB/s`;
+        }
+        sessionBytesWindow = 0;
         frameCount = 0;
         lastFpsUpdate = now;
       }
@@ -6288,6 +6372,10 @@
       qualityMenuDropdown.classList.add('hidden');
       if (btnQualityMenu) btnQualityMenu.classList.remove('btn-active');
     }
+    if (snippetsMenuDropdown && !snippetsMenuDropdown.contains(e.target) && e.target !== btnSnippetsMenu && (!btnSnippetsMenu || !btnSnippetsMenu.contains(e.target))) {
+      snippetsMenuDropdown.classList.add('hidden');
+      if (btnSnippetsMenu) btnSnippetsMenu.classList.remove('btn-active');
+    }
   });
 
   document.querySelectorAll('[data-power]').forEach(btn => {
@@ -6745,6 +6833,311 @@
     chatHistory.appendChild(row);
     chatHistory.scrollTop = chatHistory.scrollHeight;
   }
+
+
+  // ------------------------------------------------------------------ ADVANCED UTILITIES IMPLEMENTATION
+  // 1. Privacy Curtain Toggle
+  btnToggleCurtain?.addEventListener('click', () => {
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    const nextState = !isCurtainActive;
+    ws.send(JSON.stringify({
+      type: 'toggle_privacy_curtain',
+      enabled: nextState
+    }));
+  });
+
+  // 2. Live Whiteboard Engine
+  function toggleWhiteboard(forceState) {
+    isWhiteboardActive = (typeof forceState === 'boolean') ? forceState : !isWhiteboardActive;
+    btnToggleWhiteboard?.classList.toggle('btn-active', isWhiteboardActive);
+    if (isWhiteboardActive) {
+      if (whiteboardCanvas && remoteCanvas) {
+        whiteboardCanvas.width = remoteCanvas.width || 1920;
+        whiteboardCanvas.height = remoteCanvas.height || 1080;
+      }
+      whiteboardCanvas?.classList.remove('hidden');
+      whiteboardCanvas?.classList.add('is-active');
+      whiteboardToolbar?.classList.remove('hidden');
+      redrawWhiteboard();
+      if (wbLaserFade && !wbAnimFrameId) {
+        startWbFadeLoop();
+      }
+    } else {
+      whiteboardCanvas?.classList.add('hidden');
+      whiteboardCanvas?.classList.remove('is-active');
+      whiteboardToolbar?.classList.add('hidden');
+      if (wbAnimFrameId) {
+        cancelAnimationFrame(wbAnimFrameId);
+        wbAnimFrameId = null;
+      }
+    }
+  }
+
+  function clearWhiteboard() {
+    wbStrokes = [];
+    if (wbCtx && whiteboardCanvas) {
+      wbCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+    }
+  }
+
+  function drawWbArrow(ctx, fromX, fromY, toX, toY, headLength = 16) {
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - headLength * Math.cos(angle - Math.PI / 6), toY - headLength * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(toX - headLength * Math.cos(angle + Math.PI / 6), toY - headLength * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function redrawWhiteboard() {
+    if (!wbCtx || !whiteboardCanvas) return;
+    wbCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+    const now = Date.now();
+
+    for (let i = wbStrokes.length - 1; i >= 0; i--) {
+      const s = wbStrokes[i];
+      if (s.fadeUntil && now >= s.fadeUntil) {
+        wbStrokes.splice(i, 1);
+      }
+    }
+
+    for (const stroke of wbStrokes) {
+      wbCtx.save();
+      let alpha = 1.0;
+      if (stroke.fadeUntil) {
+        const remaining = stroke.fadeUntil - now;
+        alpha = Math.max(0, Math.min(1.0, remaining / 5000));
+      }
+
+      if (stroke.tool === 'highlighter') {
+        wbCtx.globalAlpha = 0.35 * alpha;
+        wbCtx.strokeStyle = stroke.color;
+        wbCtx.lineWidth = 18;
+        wbCtx.lineCap = 'square';
+        wbCtx.lineJoin = 'round';
+      } else if (stroke.tool === 'eraser') {
+        wbCtx.globalCompositeOperation = 'destination-out';
+        wbCtx.lineWidth = 32;
+        wbCtx.lineCap = 'round';
+        wbCtx.lineJoin = 'round';
+      } else if (stroke.tool === 'arrow') {
+        wbCtx.globalAlpha = alpha;
+        wbCtx.strokeStyle = stroke.color;
+        wbCtx.fillStyle = stroke.color;
+        wbCtx.lineWidth = 4;
+        wbCtx.lineCap = 'round';
+        wbCtx.lineJoin = 'round';
+      } else {
+        wbCtx.globalAlpha = alpha;
+        wbCtx.strokeStyle = stroke.color;
+        wbCtx.lineWidth = 4;
+        wbCtx.lineCap = 'round';
+        wbCtx.lineJoin = 'round';
+      }
+
+      if (stroke.tool === 'arrow') {
+        drawWbArrow(wbCtx, stroke.start.x, stroke.start.y, stroke.end.x, stroke.end.y, 16);
+      } else if (stroke.points && stroke.points.length > 1) {
+        wbCtx.beginPath();
+        wbCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let p = 1; p < stroke.points.length; p++) {
+          wbCtx.lineTo(stroke.points[p].x, stroke.points[p].y);
+        }
+        wbCtx.stroke();
+      } else if (stroke.points && stroke.points.length === 1) {
+        wbCtx.beginPath();
+        wbCtx.arc(stroke.points[0].x, stroke.points[0].y, (stroke.tool === 'highlighter' ? 9 : 2), 0, Math.PI * 2);
+        wbCtx.fillStyle = stroke.color;
+        wbCtx.fill();
+      }
+      wbCtx.restore();
+    }
+  }
+
+  function startWbFadeLoop() {
+    function step() {
+      if (!isWhiteboardActive) return;
+      if (wbLaserFade || wbStrokes.some(s => s.fadeUntil)) {
+        redrawWhiteboard();
+        wbAnimFrameId = requestAnimationFrame(step);
+      } else {
+        wbAnimFrameId = null;
+      }
+    }
+    wbAnimFrameId = requestAnimationFrame(step);
+  }
+
+  btnToggleWhiteboard?.addEventListener('click', () => toggleWhiteboard());
+
+  whiteboardToolbar?.querySelectorAll('[data-wb-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      whiteboardToolbar.querySelectorAll('[data-wb-tool]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      wbCurrentTool = btn.getAttribute('data-wb-tool') || 'pen';
+    });
+  });
+
+  whiteboardToolbar?.querySelectorAll('[data-wb-color]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      whiteboardToolbar.querySelectorAll('[data-wb-color]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      wbCurrentColor = btn.getAttribute('data-wb-color') || '#06B6D4';
+    });
+  });
+
+  btnWbLaserFade?.addEventListener('click', () => {
+    wbLaserFade = !wbLaserFade;
+    btnWbLaserFade.classList.toggle('active', wbLaserFade);
+    showToast(wbLaserFade ? t('toast.laser_fade_on') : t('toast.laser_fade_off'), 'info');
+    if (wbLaserFade && !wbAnimFrameId) {
+      startWbFadeLoop();
+    }
+  });
+
+  btnWbClearAll?.addEventListener('click', () => {
+    clearWhiteboard();
+    showToast(t('toast.whiteboard_cleared'), 'info');
+  });
+
+  let currentWbStroke = null;
+  if (whiteboardCanvas) {
+    whiteboardCanvas.addEventListener('pointerdown', (e) => {
+      if (!isWhiteboardActive) return;
+      whiteboardCanvas.setPointerCapture(e.pointerId);
+      wbDrawing = true;
+      const coords = getNormalizedCoords(e);
+      wbStartPos = { x: coords.pixelX, y: coords.pixelY };
+      wbLastPos = { x: coords.pixelX, y: coords.pixelY };
+
+      currentWbStroke = {
+        tool: wbCurrentTool,
+        color: wbCurrentColor,
+        points: [{ x: coords.pixelX, y: coords.pixelY }],
+        start: { x: coords.pixelX, y: coords.pixelY },
+        end: { x: coords.pixelX, y: coords.pixelY },
+        fadeUntil: wbLaserFade ? Date.now() + 5000 : null
+      };
+      wbStrokes.push(currentWbStroke);
+      redrawWhiteboard();
+    });
+
+    whiteboardCanvas.addEventListener('pointermove', (e) => {
+      if (!isWhiteboardActive || !wbDrawing || !currentWbStroke) return;
+      const coords = getNormalizedCoords(e);
+      if (currentWbStroke.tool === 'arrow') {
+        currentWbStroke.end = { x: coords.pixelX, y: coords.pixelY };
+      } else {
+        currentWbStroke.points.push({ x: coords.pixelX, y: coords.pixelY });
+      }
+      redrawWhiteboard();
+    });
+
+    const finishWbStroke = (e) => {
+      if (!isWhiteboardActive || !wbDrawing) return;
+      wbDrawing = false;
+      try { whiteboardCanvas.releasePointerCapture(e.pointerId); } catch {}
+      redrawWhiteboard();
+      if (wbLaserFade && !wbAnimFrameId) {
+        startWbFadeLoop();
+      }
+    };
+
+    whiteboardCanvas.addEventListener('pointerup', finishWbStroke);
+    whiteboardCanvas.addEventListener('pointercancel', finishWbStroke);
+  }
+
+  // 3. Quick Snippets & Macros Popover Menu
+  if (btnSnippetsMenu) {
+    btnSnippetsMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (snippetsMenuDropdown) {
+        const isOpening = snippetsMenuDropdown.classList.contains('hidden');
+        snippetsMenuDropdown.classList.toggle('hidden');
+        btnSnippetsMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnSnippetsMenu, snippetsMenuDropdown);
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
+  snippetsMenuDropdown?.querySelectorAll('[data-macro]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const macro = btn.getAttribute('data-macro');
+      if (!macro) return;
+      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+      if (currentView === 'terminal') {
+        ws.send(JSON.stringify({ type: 'terminal_input', data: macro + '\r\n' }));
+      } else {
+        ws.send(JSON.stringify({ type: 'text_input', text: macro + '\n' }));
+      }
+      showToast(t('toast.macro_sent', { cmd: macro }), 'success');
+      snippetsMenuDropdown.classList.add('hidden');
+      btnSnippetsMenu?.classList.remove('btn-active');
+    });
+  });
+
+  // 4. Secure Password Transmission Modal (Zero Clipboard Persistence)
+  btnOpenPasswordModal?.addEventListener('click', () => {
+    snippetsMenuDropdown?.classList.add('hidden');
+    btnSnippetsMenu?.classList.remove('btn-active');
+    if (modalSendPassword) {
+      modalSendPassword.classList.remove('hidden');
+      if (inputSecurePassword) {
+        inputSecurePassword.value = '';
+        setTimeout(() => inputSecurePassword.focus(), 60);
+      }
+    }
+  });
+
+  function closePasswordModal() {
+    if (inputSecurePassword) inputSecurePassword.value = '';
+    modalSendPassword?.classList.add('hidden');
+  }
+
+  btnConfirmSendPassword?.addEventListener('click', () => {
+    const pwd = inputSecurePassword?.value;
+    if (!pwd) {
+      showToast(t('toast.enter_clip_content'), 'info');
+      return;
+    }
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    ws.send(JSON.stringify({ type: 'text_input', text: pwd }));
+    closePasswordModal();
+    showToast(t('toast.password_sent'), 'success');
+  });
+
+  btnCancelSendPassword?.addEventListener('click', closePasswordModal);
+  btnCloseSendPassword?.addEventListener('click', closePasswordModal);
+  inputSecurePassword?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      btnConfirmSendPassword?.click();
+    } else if (e.key === 'Escape') {
+      closePasswordModal();
+    }
+  });
 
   // --- BLOCK HOST INPUT TOGGLE ---
   btnToggleBlockInput?.addEventListener('click', () => {

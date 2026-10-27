@@ -98,6 +98,7 @@ try:
     from host_agent.audio_playback import AudioPlayback
     from host_agent.virtual_audio import is_audio_output_available, download_and_install_vbcable, get_virtual_audio_status
     from host_agent.virtual_display import is_headless_display, download_and_install_virtual_display, set_display_resolution, get_available_resolutions, get_virtual_display_driver_status
+    from host_agent.privacy_curtain import privacy_curtain
     from host_agent.protocol_prober import probe_all_protocols
     from host_agent.tcp_tunnel import TcpTunnelManager
 except ModuleNotFoundError:
@@ -114,6 +115,7 @@ except ModuleNotFoundError:
     from audio_playback import AudioPlayback
     from virtual_audio import is_audio_output_available, download_and_install_vbcable, get_virtual_audio_status
     from virtual_display import is_headless_display, download_and_install_virtual_display, set_display_resolution, get_available_resolutions, get_virtual_display_driver_status
+    from privacy_curtain import privacy_curtain
     from protocol_prober import probe_all_protocols
     from tcp_tunnel import TcpTunnelManager
 
@@ -187,6 +189,11 @@ class HostService:
         self.running = False
         self.has_active_client = False
         self.audio_enabled = False
+        try:
+            privacy_curtain.disable()
+            InputInjector.set_block_input(False)
+        except Exception:
+            pass
 
         try:
             if hasattr(self, "capture") and self.capture:
@@ -691,6 +698,8 @@ class HostService:
                     if client_count <= 0:
                         self.has_active_client = False
                         self.audio_enabled = False
+                        privacy_curtain.disable()
+                        InputInjector.set_block_input(False)
                         self.audio_capture.stop()
                         self.audio_playback.stop()
                         await self.tunnel_manager.close_all()
@@ -1272,6 +1281,23 @@ class HostService:
                     blocked = bool(event.get("blocked", False))
                     ok = InputInjector.set_block_input(blocked)
                     await ws.send(json.dumps({"type": "block_input_response", "blocked": blocked, "success": ok}))
+
+                # Privacy Curtain Mode (Blank host monitor & block physical input)
+                elif ev_type == "toggle_privacy_curtain":
+                    enabled = bool(event.get("enabled", False))
+                    if enabled:
+                        res = privacy_curtain.enable()
+                        InputInjector.set_block_input(True)
+                    else:
+                        res = privacy_curtain.disable()
+                        InputInjector.set_block_input(False)
+                    await ws.send(json.dumps({
+                        "type": "privacy_curtain_response",
+                        "enabled": privacy_curtain.is_active,
+                        "success": res.get("success", True),
+                        "message": res.get("message", "")
+                    }))
+                    continue
                 elif ev_type == "chat_message":
                     msg_text = str(event.get("message", "")).strip()
                     sender = str(event.get("sender", "Kỹ thuật viên"))

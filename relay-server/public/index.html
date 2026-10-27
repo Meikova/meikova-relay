@@ -961,6 +961,92 @@
         <div class="footer-right mono-font" data-i18n="landing.footer_status">HỆ THỐNG: HOẠT ĐỘNG // RELAY: CLOUD-EDGE // E2E ENCRYPTED</div>
       </footer>
 
+      <!-- Whiteboard Floating Palette Toolbar -->
+      <div id="whiteboardToolbar" class="whiteboard-toolbar hidden">
+        <div class="whiteboard-tools">
+          <button type="button" class="wb-btn active" data-wb-tool="pen" title="Bút nét" data-i18n-title="whiteboard.pen">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+          </button>
+          <button type="button" class="wb-btn" data-wb-tool="highlighter" title="Dạ quang" data-i18n-title="whiteboard.highlighter">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l-6 6v3h3l6-6"/><path d="M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+          </button>
+          <button type="button" class="wb-btn" data-wb-tool="arrow" title="Mũi tên" data-i18n-title="whiteboard.arrow">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="10 5 19 5 19 14"/></svg>
+          </button>
+          <button type="button" class="wb-btn" data-wb-tool="eraser" title="Tẩy nét" data-i18n-title="whiteboard.eraser">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L13 3.4c.8-.8 2-.8 2.8 0l5.8 5.8c.8.8.8 2 0 2.8L14 20"/></svg>
+          </button>
+          <div class="wb-divider"></div>
+          <button type="button" class="wb-color active" data-wb-color="#06B6D4" style="background: #06B6D4;"></button>
+          <button type="button" class="wb-color" data-wb-color="#22C55E" style="background: #22C55E;"></button>
+          <button type="button" class="wb-color" data-wb-color="#F59E0B" style="background: #F59E0B;"></button>
+          <button type="button" class="wb-color" data-wb-color="#EF4444" style="background: #EF4444;"></button>
+          <div class="wb-divider"></div>
+          <button type="button" id="btnWbLaserFade" class="wb-btn" title="Tự tan biến sau 5 giây" data-i18n-title="whiteboard.laser_fade">
+            <span class="mono-font" style="font-size: 10px; font-weight: 700;">5s</span>
+          </button>
+          <button type="button" id="btnWbClearAll" class="wb-btn danger" title="Xóa toàn bộ nét vẽ" data-i18n-title="whiteboard.clear">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Text Macros Floating Menu -->
+      <div id="snippetsMenuDropdown" class="quality-menu snippets-menu hidden">
+        <div class="quality-menu-header" data-i18n="deck.snippets_menu_title">LỆNH NHANH & VĂN BẢN MẪU (QUICK MACROS)</div>
+        <div class="quality-menu-list">
+          <button type="button" class="quality-menu-item" data-macro="ipconfig /all">
+            <span class="quality-item-badge">NET</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_ipconfig">Kiểm tra IP mạng (ipconfig /all)</div>
+              <div class="quality-item-desc">Hiển thị toàn bộ IP, Gateway, DNS của máy đích</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="systeminfo">
+            <span class="quality-item-badge">SYS</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_systeminfo">Thông tin hệ thống (systeminfo)</div>
+              <div class="quality-item-desc">Cấu hình CPU, RAM, BIOS, Hotfix bản vá OS</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="tasklist">
+            <span class="quality-item-badge">PROC</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_tasklist">Danh sách tiến trình (tasklist)</div>
+              <div class="quality-item-desc">Liệt kê tất cả process đang chạy và PID</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="netstat -ano">
+            <span class="quality-item-badge">PORT</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_netstat">Kết nối mạng đang mở (netstat -ano)</div>
+              <div class="quality-item-desc">Xem cổng mạng listening và IP kết nối</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="winver">
+            <span class="quality-item-badge">OS</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_winver">Phiên bản Windows (winver)</div>
+              <div class="quality-item-desc">Mở hộp thoại kiểm tra bản quyền & build OS</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="dxdiag">
+            <span class="quality-item-badge">GPU</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_dxdiag">Chẩn đoán đồ họa (dxdiag)</div>
+              <div class="quality-item-desc">Kiểm tra thông số DirectX và card màn hình</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" id="btnOpenPasswordModal">
+            <span class="quality-item-badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: #ef4444;">KEY</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_password" style="color: #f87171;">Gửi mật khẩu an toàn...</div>
+              <div class="quality-item-desc">Gõ phím trực tiếp không qua Clipboard</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
     </section>
 
     <!-- VIEW 1: AUTHENTICATION MODAL -->
@@ -1091,6 +1177,7 @@
       <div class="viewport-box" id="viewportBox">
         <canvas id="remoteCanvas" tabindex="0"></canvas>
         <canvas id="laserCanvas"></canvas>
+        <canvas id="whiteboardCanvas" class="whiteboard-canvas hidden"></canvas>
         <div id="canvasConnectingOverlay" class="canvas-connecting-overlay">
           <div class="connecting-spinner-box">
             <svg class="connecting-spinner" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10" stroke-opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10" stroke="var(--accent)"/></svg>
@@ -1118,6 +1205,15 @@
 
       <!-- Floating Pill Deck Controller -->
       <footer class="deck" id="floatingDeck">
+        <!-- Realtime Network Telemetry Pill -->
+        <div id="networkTelemetryPill" class="deck__pill-telemetry mono-font" title="Chất lượng mạng & độ trễ thời gian thực" data-i18n-title="hud.network_title">
+          <span class="telemetry-status-dot" id="telemetryDot"></span>
+          <span id="telemetryRtt">--ms</span>
+          <span class="telemetry-sep">|</span>
+          <span id="telemetryFps">--fps</span>
+          <span class="telemetry-sep">|</span>
+          <span id="telemetrySpeed">--KB/s</span>
+        </div>
         <!-- Mobile Native Keyboard & Touch Mode Controls -->
         <button type="button" id="btnMobileKeyboard" class="deck__btn btn-mobile-only" title="Mở bàn phím ảo di động" data-i18n-title="deck.mobile_keyboard">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
@@ -1241,7 +1337,14 @@
           <svg id="deckSvgPinActive" viewBox="0 0 24 24" style="color: var(--accent);"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 7l4 4v4l2 2 2-2v-4l4-4M9 3h6"/></svg>
           <svg id="deckSvgPinInactive" viewBox="0 0 24 24" class="hidden"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 7l4 4v4l2 2 2-2v-4l4-4M9 3h6"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
         </button>
-        <button id="btnToggleLaser" class="deck__btn" title="Bật/Tắt Laser Pointer" data-i18n-title="deck.laser_title">
+        <button id="btnToggleWhiteboard" class="deck__btn" title="Bật/Tắt Bút vẽ ghi chú màn hình (Live Whiteboard)" data-i18n-title="deck.whiteboard_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+            <path d="M2 2l7.586 7.586"></path>
+          </svg>
+        </button>
+        <button id="btnToggleLaser" class="deck__btn"  title="Bật/Tắt Laser Pointer" data-i18n-title="deck.laser_title">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
         </button>
         <button id="btnRecord" class="deck__btn" title="Ghi hình phiên làm việc" data-i18n-title="deck.record_title">
@@ -1265,8 +1368,18 @@
         <button id="btnToggleOSK" class="deck__btn" title="Mở bàn phím ảo" data-i18n-title="deck.osk_title">
           <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
         </button>
+        <button type="button" id="btnSnippetsMenu" class="deck__btn" title="Gửi nhanh Macro & Lệnh hệ thống" data-i18n-title="deck.snippets_title">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+        </button>
         <button id="btnToggleBlockInput" class="deck__btn" title="Khóa chuột &amp; phím máy đích (Block Host Input)" data-i18n-title="deck.block_input_title">
           <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5"/></svg>
+        </button>
+        <button id="btnToggleCurtain" class="deck__btn" title="Bật/Tắt Màn hình riêng tư (Curtain Mode)" data-i18n-title="deck.curtain_title">
+          <svg id="curtainSvgOff" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <svg id="curtainSvgOn" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden" style="color: var(--accent);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="var(--accent)" fill-opacity="0.25"/><circle cx="12" cy="11" r="2.5" fill="var(--accent)"/></svg>
         </button>
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
@@ -1300,6 +1413,92 @@
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </footer>
+
+      <!-- Whiteboard Floating Palette Toolbar -->
+      <div id="whiteboardToolbar" class="whiteboard-toolbar hidden">
+        <div class="whiteboard-tools">
+          <button type="button" class="wb-btn active" data-wb-tool="pen" title="Bút nét" data-i18n-title="whiteboard.pen">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+          </button>
+          <button type="button" class="wb-btn" data-wb-tool="highlighter" title="Dạ quang" data-i18n-title="whiteboard.highlighter">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l-6 6v3h3l6-6"/><path d="M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+          </button>
+          <button type="button" class="wb-btn" data-wb-tool="arrow" title="Mũi tên" data-i18n-title="whiteboard.arrow">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="10 5 19 5 19 14"/></svg>
+          </button>
+          <button type="button" class="wb-btn" data-wb-tool="eraser" title="Tẩy nét" data-i18n-title="whiteboard.eraser">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L13 3.4c.8-.8 2-.8 2.8 0l5.8 5.8c.8.8.8 2 0 2.8L14 20"/></svg>
+          </button>
+          <div class="wb-divider"></div>
+          <button type="button" class="wb-color active" data-wb-color="#06B6D4" style="background: #06B6D4;"></button>
+          <button type="button" class="wb-color" data-wb-color="#22C55E" style="background: #22C55E;"></button>
+          <button type="button" class="wb-color" data-wb-color="#F59E0B" style="background: #F59E0B;"></button>
+          <button type="button" class="wb-color" data-wb-color="#EF4444" style="background: #EF4444;"></button>
+          <div class="wb-divider"></div>
+          <button type="button" id="btnWbLaserFade" class="wb-btn" title="Tự tan biến sau 5 giây" data-i18n-title="whiteboard.laser_fade">
+            <span class="mono-font" style="font-size: 10px; font-weight: 700;">5s</span>
+          </button>
+          <button type="button" id="btnWbClearAll" class="wb-btn danger" title="Xóa toàn bộ nét vẽ" data-i18n-title="whiteboard.clear">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Text Macros Floating Menu -->
+      <div id="snippetsMenuDropdown" class="quality-menu snippets-menu hidden">
+        <div class="quality-menu-header" data-i18n="deck.snippets_menu_title">LỆNH NHANH & VĂN BẢN MẪU (QUICK MACROS)</div>
+        <div class="quality-menu-list">
+          <button type="button" class="quality-menu-item" data-macro="ipconfig /all">
+            <span class="quality-item-badge">NET</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_ipconfig">Kiểm tra IP mạng (ipconfig /all)</div>
+              <div class="quality-item-desc">Hiển thị toàn bộ IP, Gateway, DNS của máy đích</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="systeminfo">
+            <span class="quality-item-badge">SYS</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_systeminfo">Thông tin hệ thống (systeminfo)</div>
+              <div class="quality-item-desc">Cấu hình CPU, RAM, BIOS, Hotfix bản vá OS</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="tasklist">
+            <span class="quality-item-badge">PROC</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_tasklist">Danh sách tiến trình (tasklist)</div>
+              <div class="quality-item-desc">Liệt kê tất cả process đang chạy và PID</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="netstat -ano">
+            <span class="quality-item-badge">PORT</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_netstat">Kết nối mạng đang mở (netstat -ano)</div>
+              <div class="quality-item-desc">Xem cổng mạng listening và IP kết nối</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="winver">
+            <span class="quality-item-badge">OS</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_winver">Phiên bản Windows (winver)</div>
+              <div class="quality-item-desc">Mở hộp thoại kiểm tra bản quyền & build OS</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" data-macro="dxdiag">
+            <span class="quality-item-badge">GPU</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_dxdiag">Chẩn đoán đồ họa (dxdiag)</div>
+              <div class="quality-item-desc">Kiểm tra thông số DirectX và card màn hình</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" id="btnOpenPasswordModal">
+            <span class="quality-item-badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: #ef4444;">KEY</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.snippet_password" style="color: #f87171;">Gửi mật khẩu an toàn...</div>
+              <div class="quality-item-desc">Gõ phím trực tiếp không qua Clipboard</div>
+            </div>
+          </button>
+        </div>
+      </div>
 
             <!-- Protocol Negotiation Matrix & Actions Floating Menu -->
       <div id="protocolMenuDropdown" class="protocol-menu hidden">
@@ -2910,5 +3109,25 @@
       });
     }
   </script>
+
+  <!-- Secure Send Password Modal (Zero Clipboard Leak) -->
+  <div id="modalSendPassword" class="auth-container modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="sendPasswordTitle" style="z-index: 10002;">
+    <div class="instrument-card" style="max-width: 420px; width: 90vw; padding: 20px; text-align: left;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+        <h3 id="sendPasswordTitle" class="brand-font" style="margin: 0; font-size: 1.1rem; color: #fff;" data-i18n="modal.send_password_title">Gửi Mật Khẩu An Toàn</h3>
+        <button type="button" id="btnCloseSendPassword" class="modal-close-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;" data-i18n="modal.send_password_desc">
+        Mật khẩu sẽ được truyền trực tiếp vào bàn phím máy trạm qua chuỗi ký tự mà không lưu vào bộ nhớ tạm (Clipboard).
+      </p>
+      <input type="password" id="inputSecurePassword" class="input-field" placeholder="Nhập mật khẩu cần truyền..." style="width: 100%; margin-bottom: 14px; box-sizing: border-box;">
+      <div style="display:flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" id="btnCancelSendPassword" class="btn-pill" style="background: var(--ink-2); color: var(--text-muted);">Hủy</button>
+        <button type="button" id="btnConfirmSendPassword" class="btn-pill" style="background: var(--accent); color: var(--on-accent); font-weight: 600;" data-i18n="modal.send_password_btn">Gửi Ngay</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

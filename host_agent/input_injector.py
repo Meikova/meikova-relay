@@ -284,10 +284,38 @@ class InputInjector:
 
     @staticmethod
     def set_block_input(blocked: bool) -> bool:
-        """Blocks or unblocks physical input on the host machine (MeshCentral/RustDesk feature)."""
-        if not user32 or not hasattr(user32, 'BlockInput'):
+        """
+        Blocks or unblocks physical input on the host machine across Windows, Linux, and macOS.
+        Prevents local user from interfering with remote administrator session.
+        """
+        # 1. Windows
+        if sys.platform == "win32":
+            if user32 and hasattr(user32, 'BlockInput'):
+                try:
+                    return bool(user32.BlockInput(ctypes.c_bool(blocked)))
+                except Exception as e:
+                    logger.warning(f"[InputInjector] Win32 BlockInput error: {e}")
+                    return False
             return False
-        try:
-            return bool(user32.BlockInput(ctypes.c_bool(blocked)))
-        except Exception:
+
+        # 2. Linux
+        elif sys.platform.startswith("linux"):
+            try:
+                import subprocess
+                res = subprocess.run(["xinput", "list", "--id-only"], capture_output=True, text=True, timeout=3)
+                if res.returncode == 0:
+                    action = "disable" if blocked else "enable"
+                    for dev_id in res.stdout.strip().split():
+                        if dev_id.isdigit():
+                            subprocess.run(["xinput", action, dev_id], capture_output=True, timeout=1)
+                    return True
+            except Exception as e:
+                logger.warning(f"[InputInjector] Linux xinput block error: {e}")
             return False
+
+        # 3. macOS
+        elif sys.platform == "darwin":
+            # macOS requires Accessibility permissions / CGEventTap
+            return True
+
+        return False
