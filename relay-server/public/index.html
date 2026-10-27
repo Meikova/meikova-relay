@@ -22,7 +22,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
   <link rel="stylesheet" href="/css/tokens.css?v=1.0.74">
-  <link rel="stylesheet" href="/css/style.css?v=1.0.80">
+  <link rel="stylesheet" href="/css/style.css?v=1.0.81">
 </head>
 <body>
 
@@ -1155,8 +1155,7 @@
         <button type="button" id="btnResolutionMenu" class="deck__btn deck__btn--resolution" title="Chọn độ phân giải & Màn hình ảo" data-i18n-title="deck.resolution_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
+            <path d="M6 7h3m-3 0v3m12 6h-3m3 0v-3"></path>
           </svg>
           <span id="resolutionCurrentLabel" class="mono-font" style="font-size: 11px; font-weight: 700;">1080p</span>
           <svg class="deck-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -1407,10 +1406,10 @@
       <div id="moreToolsMenuDropdown" class="quality-menu tools-menu hidden">
         <div class="quality-menu-header" data-i18n="deck.tools_menu_header">CÔNG CỤ &amp; TIỆN ÍCH MỞ RỘNG</div>
         <div class="quality-menu-list">
-          <div style="font-size: 9px; font-weight: 700; color: var(--text-muted); padding: 4px 8px 2px; font-family: var(--font-mono); letter-spacing: 0.05em;" data-i18n="deck.tools_group_annotation">TRÌNH CHIẾU &amp; GHI HÌNH</div>
+          <div class="quality-group-header" data-i18n="deck.tools_group_annotation">TRÌNH CHIẾU &amp; GHI HÌNH</div>
           
           <button type="button" class="quality-menu-item" id="btnDropdownWhiteboard">
-            <span class="quality-item-badge">DRAW</span>
+            <span class="quality-item-icon" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.3);"><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_whiteboard">Bút vẽ bảng Whiteboard</div>
               <div class="quality-item-desc" data-i18n="deck.tools_whiteboard_desc">Vẽ nét, đánh dấu, mũi tên trực tiếp trên màn hình</div>
@@ -1419,7 +1418,7 @@
           </button>
 
           <button type="button" class="quality-menu-item" id="btnDropdownLaser">
-            <span class="quality-item-badge">POINT</span>
+            <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_laser">Bút chỉ Laser Pointer</div>
               <div class="quality-item-desc" data-i18n="deck.tools_laser_desc">Chấm đỏ laser thu hút sự chú ý của người xem</div>
@@ -1428,7 +1427,7 @@
           </button>
 
           <button type="button" class="quality-menu-item" id="btnDropdownScreenshot">
-            <span class="quality-item-badge">SHOT</span>
+            <span class="quality-item-icon" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.3);"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_screenshot">Chụp ảnh màn hình</div>
               <div class="quality-item-desc" data-i18n="deck.tools_screenshot_desc">Chụp khung hình máy trạm và tải file ảnh về máy</div>
@@ -1436,7 +1435,7 @@
           </button>
 
           <button type="button" class="quality-menu-item" id="btnDropdownRecord">
-            <span class="quality-item-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">REC</span>
+            <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/><circle cx="8.5" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" id="txtDropdownRecordTitle" data-i18n="deck.tools_record">Ghi hình phiên làm việc</div>
               <div class="quality-item-desc" data-i18n="deck.tools_record_desc">Bắt đầu / Kết thúc quay video màn hình điều khiển</div>
@@ -1445,7 +1444,7 @@
           </button>
 
           <button type="button" class="quality-menu-item" id="btnDropdownCam">
-            <span class="quality-item-badge">CAM</span>
+            <span class="quality-item-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3);"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/><circle cx="8.5" cy="10" r="2"/><path d="M4 16c0-1.5 2-2.5 4.5-2.5s4.5 1 4.5 2.5"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_cam">Webcam Facecam PiP</div>
               <div class="quality-item-desc" data-i18n="deck.tools_cam_desc">Bật khung webcam nhỏ của bạn khi trình chiếu ghi hình</div>
@@ -1455,10 +1454,10 @@
 
           <div style="height: 1px; background: var(--line-soft); margin: 4px 0;"></div>
 
-          <div style="font-size: 9px; font-weight: 700; color: var(--text-muted); padding: 4px 8px 2px; font-family: var(--font-mono); letter-spacing: 0.05em;" data-i18n="deck.tools_group_security">BẢO MẬT &amp; KIỂM SOÁT MÁY ĐÍCH</div>
+          <div class="quality-group-header" data-i18n="deck.tools_group_security">BẢO MẬT &amp; KIỂM SOÁT MÁY ĐÍCH</div>
 
           <button type="button" class="quality-menu-item" id="btnDropdownBlockInput">
-            <span class="quality-item-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-color: rgba(245, 158, 11, 0.4);">LOCK</span>
+            <span class="quality-item-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35);"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_block_input">Khóa chuột &amp; bàn phím máy đích</div>
               <div class="quality-item-desc" data-i18n="deck.tools_block_input_desc">Ngăn người tại máy trạm can thiệp khi bạn đang thao tác</div>
@@ -1467,7 +1466,7 @@
           </button>
 
           <button type="button" class="quality-menu-item" id="btnDropdownCurtain">
-            <span class="quality-item-badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent); border-color: var(--accent);">PRIV</span>
+            <span class="quality-item-icon" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.3);"><svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_curtain">Màn hình riêng tư (Curtain Mode)</div>
               <div class="quality-item-desc" data-i18n="deck.tools_curtain_desc">Tối đen màn hình máy trạm chống nhìn trộm khi truy cập</div>
@@ -1476,7 +1475,7 @@
           </button>
 
           <button type="button" class="quality-menu-item" id="btnDropdownSnippets">
-            <span class="quality-item-badge">CMD</span>
+            <span class="quality-item-icon" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.3);"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_snippets">Lệnh nhanh &amp; Macro hệ thống...</div>
               <div class="quality-item-desc" data-i18n="deck.tools_snippets_desc">Chạy ipconfig, systeminfo, dxdiag, gửi mật khẩu an toàn</div>
@@ -1490,140 +1489,140 @@
         <div class="quality-menu-header" data-i18n="deck.shortcuts_menu_title">TỔ HỢP PHÍM HỆ THỐNG (HOTKEYS)</div>
         <div class="quality-menu-list">
           <button type="button" class="quality-menu-item" data-system-combo="cad">
-            <span class="quality-item-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">SAS</span>
+            <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="2.5"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_cad">Ctrl + Alt + Del (Bảo mật Windows)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_cad_desc">Màn hình đăng nhập / bảo mật Windows hoặc mở khóa máy</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="ctrl_win_del">
-            <span class="quality-item-badge" style="background: rgba(168, 85, 247, 0.15); color: #a855f7; border-color: rgba(168, 85, 247, 0.4);">WDEL</span>
+            <span class="quality-item-icon" style="color: #a855f7; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.3);"><svg viewBox="0 0 24 24"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_ctrl_win_del">Ctrl + Win + Del (Tổ hợp phím)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_ctrl_win_del_desc">Tổ hợp phím Ctrl + Windows + Delete gửi tới máy trạm</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="lock">
-            <span class="quality-item-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-color: rgba(245, 158, 11, 0.4);">LOCK</span>
+            <span class="quality-item-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_lock">Win + L (Khóa máy trạm)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_lock_desc">Đưa máy trạm về màn hình khóa Lock Screen ngay lập tức</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="taskmgr">
-            <span class="quality-item-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">TASK</span>
+            <span class="quality-item-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3);"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_taskmgr">Ctrl + Shift + Esc (Task Manager)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_taskmgr_desc">Bật ngay trình quản lý tác vụ &amp; tài nguyên Windows</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_x">
-            <span class="quality-item-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">PWR</span>
+            <span class="quality-item-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3);"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_x">Win + X (Menu Quản trị / Power User)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_x_desc">Mở menu phím tắt quản trị hệ thống, Device Manager, Terminal</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_v">
-            <span class="quality-item-badge">CLIP</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_v">Win + V (Lịch sử Clipboard)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_v_desc">Mở lịch sử sao chép bảng tạm máy trạm</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_shift_s">
-            <span class="quality-item-badge">SNIP</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_shift_s">Win + Shift + S (Chụp ảnh màn hình)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_shift_s_desc">Kích hoạt công cụ cắt ảnh màn hình Windows Snipping Tool</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_i">
-            <span class="quality-item-badge">SET</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_i">Win + I (Cài đặt hệ thống)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_i_desc">Mở bảng điều khiển cài đặt Windows Settings</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_a">
-            <span class="quality-item-badge">ACT</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_a">Win + A (Trung tâm tác vụ)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_a_desc">Mở bảng thông báo và nút cài đặt nhanh Action Center</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_tab">
-            <span class="quality-item-badge">VIEW</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_tab">Win + Tab (Task View / Màn hình ảo)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_tab_desc">Xem tổng quan tất cả cửa sổ và desktop ảo</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_ctrl_d">
-            <span class="quality-item-badge">VDESK</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_ctrl_d">Win + Ctrl + D (Tạo màn hình ảo mới)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_ctrl_d_desc">Thêm màn hình Desktop ảo mới ngay lập tức</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="ctrl_w">
-            <span class="quality-item-badge">TAB-X</span>
+            <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_ctrl_w">Ctrl + W (Đóng tab hiện tại)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_ctrl_w_desc">Đóng tab trình duyệt hoặc tệp tài liệu đang mở</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="ctrl_shift_t">
-            <span class="quality-item-badge">RE-TAB</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_ctrl_shift_t">Ctrl + Shift + T (Mở lại tab vừa đóng)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_ctrl_shift_t_desc">Khôi phục lại tab trình duyệt vừa bị đóng nhầm</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_d">
-            <span class="quality-item-badge">DESK</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_d">Win + D (Hiện Desktop)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_d_desc">Thu nhỏ tất cả cửa sổ để xem màn hình chính</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_e">
-            <span class="quality-item-badge">FILE</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_e">Win + E (File Explorer)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_e_desc">Mở trình duyệt quản lý tệp Windows Explorer</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win_r">
-            <span class="quality-item-badge">RUN</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win_r">Win + R (Hộp thoại Run)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_r_desc">Mở cửa sổ thực thi lệnh nhanh Windows</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="alttab">
-            <span class="quality-item-badge">TAB</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_alttab">Alt + Tab (Chuyển cửa sổ)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_alttab_desc">Chuyển qua lại giữa các ứng dụng đang mở</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="altf4">
-            <span class="quality-item-badge" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">F4</span>
+            <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_altf4">Alt + F4 (Đóng cửa sổ)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_altf4_desc">Đóng ứng dụng hoặc cửa sổ hiện tại</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="win">
-            <span class="quality-item-badge">WIN</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_win">Phím Windows (Start Menu)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_desc">Mở / Đóng menu Start máy trạm</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-system-combo="esc">
-            <span class="quality-item-badge">ESC</span>
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.combo_esc">Phím Escape (Esc)</div>
               <div class="quality-item-desc" data-i18n="deck.combo_esc_desc">Hủy bỏ thao tác hoặc đóng menu context</div>
@@ -3277,7 +3276,7 @@
 
   <script src="/js/i18n.js?v=1.0.80"></script>
   <script src="/js/sync_engine.js?v=1.0.74"></script>
-  <script src="/js/app.js?v=1.0.80"></script>
+  <script src="/js/app.js?v=1.0.81"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {
