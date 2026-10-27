@@ -1664,7 +1664,15 @@
 
       // Session Activity & Inactivity Timeout
 
-      'session.modal_title': 'Session Activity Settings',
+      'session.modal_title': 'System Settings',
+      'session.modal_subtitle': 'Configure session timeouts and toast notification preferences',
+      'session.btn_save': 'Save Settings',
+      'settings.toasts_label': 'Toast Notifications',
+      'settings.toasts_hint': 'Toggle status popup toasts at screen corner. Turn off for silent mode.',
+      'deck.settings_title': 'System Settings & Toasts...',
+      'deck.settings_desc': 'Toggle toast notifications and session timeouts',
+      'topbar.session_cfg': 'Settings',
+      'topbar.session_cfg_title': 'System Settings & Session Config',
       'session.modal_subtitle': 'Auto-disconnect and secure logout when idle or inactive',
       'session.remote_idle_label': 'Inactivity Disconnect Timeout (X min)',
       'session.remote_idle_hint': 'Auto-disconnects workstation remote session when mouse/keys are idle',

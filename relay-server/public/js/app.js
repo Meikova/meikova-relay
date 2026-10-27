@@ -215,6 +215,10 @@
 
   function showToast(message, type = 'info', duration = 3500) {
     if (!toastContainer) return;
+    const isToastEnabled = localStorage.getItem('meikova_toast_enabled') !== 'false';
+    if (!isToastEnabled && type !== 'error') {
+      return;
+    }
     const resolvedMsg = (window.MeikovaI18n && typeof window.MeikovaI18n.t === 'function')
       ? window.MeikovaI18n.t(message)
       : message;
@@ -2773,15 +2777,30 @@
   const cfgTimeoutRemote = document.getElementById('cfgTimeoutRemote');
   const cfgTimeoutGlobal = document.getElementById('cfgTimeoutGlobal');
 
+  function openSettingsModal() {
+    if (cfgTimeoutRemote && cfgTimeoutGlobal) {
+      cfgTimeoutRemote.value = timeoutRemoteMin;
+      cfgTimeoutGlobal.value = timeoutGlobalMin;
+    }
+    const cfgEnableToasts = document.getElementById('cfgEnableToasts');
+    if (cfgEnableToasts) {
+      cfgEnableToasts.checked = localStorage.getItem('meikova_toast_enabled') !== 'false';
+    }
+    sessionConfigModal?.classList.remove('hidden');
+  }
+
+  const btnDeckOpenSettings = document.getElementById('btnDeckOpenSettings');
+  if (btnDeckOpenSettings) {
+    btnDeckOpenSettings.addEventListener('click', () => {
+      snippetsMenuDropdown?.classList.add('hidden');
+      btnSnippetsMenu?.classList.remove('btn-active');
+      openSettingsModal();
+    });
+  }
+
   if (btnOpenSessionConfig && sessionConfigModal && cfgTimeoutRemote && cfgTimeoutGlobal) {
     btnOpenSessionConfig.addEventListener('click', () => {
-      if (isConnected && (currentRoom || currentRoomId)) {
-        openSessionManagerModal(currentRoom || currentRoomId, hostResolution ? `Trạm (${hostResolution.width}x${hostResolution.height})` : currentRoomId);
-      } else {
-        cfgTimeoutRemote.value = timeoutRemoteMin;
-        cfgTimeoutGlobal.value = timeoutGlobalMin;
-        sessionConfigModal.classList.remove('hidden');
-      }
+      openSettingsModal();
     });
 
     btnCancelSessionCfg?.addEventListener('click', () => {
@@ -2810,10 +2829,15 @@
       timeoutGlobalMin = y;
       localStorage.setItem('meikova_relay_timeout_remote_min', String(x));
       localStorage.setItem('meikova_relay_timeout_global_min', String(y));
+
+      const cfgEnableToasts = document.getElementById('cfgEnableToasts');
+      const isToastChecked = cfgEnableToasts ? cfgEnableToasts.checked : true;
+      localStorage.setItem('meikova_toast_enabled', isToastChecked ? 'true' : 'false');
+
       sessionConfigModal.classList.add('hidden');
       showToast(
         (window.t ? t('session.toast_saved', { x, y }) : null) ||
-        `Đã lưu cấu hình phiên: X=${x} phút, Y=${y} phút`,
+        `Đã lưu cài đặt hệ thống (Toasts: ${isToastChecked ? 'Bật' : 'Tắt'})`,
         'success'
       );
     });
@@ -3511,21 +3535,15 @@
         } else if (msg.type === 'clipboard_sync_files') {
           handleIncomingClipboardFiles(msg.files);
         } else if (msg.type === 'clipboard_sync_ack') {
-          if (msg.success) {
-            showToast(t('toast.clip_sync_success'), 'success');
-          } else {
+          if (!msg.success) {
             showToast(t('toast.clip_update_failed'), 'error');
           }
         } else if (msg.type === 'clipboard_sync_image_ack') {
-          if (msg.success) {
-            showToast(t('toast.clip_image_pasted'), 'success');
-          } else {
+          if (!msg.success) {
             showToast(t('toast.clip_image_paste_failed'), 'error');
           }
         } else if (msg.type === 'clipboard_sync_files_ack') {
-          if (msg.success) {
-            showToast(t('toast.clip_files_pushed'), 'success');
-          }
+          // Silent ack for high-frequency clipboard sync
         } else if (msg.type === 'terminal_output') {
           handleTerminalOutput(msg.data || '');
         } else if (msg.type === 'telemetry_response') {
@@ -5756,13 +5774,7 @@
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: mime });
       if (navigator.clipboard && window.ClipboardItem) {
-        navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]).then(() => {
-          showToast(t('toast.clip_image_synced'), 'success');
-        }).catch(() => {
-          showToast(t('toast.clip_image_received'), 'info');
-        });
-      } else {
-        showToast(t('toast.clip_image_received'), 'info');
+        navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]).catch(() => {});
       }
     } catch (e) {
       console.warn('Clipboard image parse error:', e);
@@ -5773,7 +5785,7 @@
     if (!Array.isArray(files) || files.length === 0) return;
     const names = files.map(p => p.split(/[\\/]/).pop()).slice(0, 3).join(', ');
     const more = files.length > 3 ? ` (+${files.length - 3})` : '';
-    showToast(t('toast.host_copied_files', { count: files.length, names: names + more }), 'info');
+    // Silenced high-frequency file clipboard toast
   }
 
   const btnDownloadClipImage = document.getElementById('btnDownloadClipImage');
@@ -6056,10 +6068,10 @@
       }
       if (document.activeElement === mobileVirtualInput) {
         closeMobileSoftKeyboard();
-        showToast(t('toast.soft_keyboard_closed') || 'Đã đóng bàn phím điện thoại', 'info', 1000);
+        // soft keyboard closed
       } else {
         openMobileSoftKeyboard();
-        showToast(t('toast.soft_keyboard_opened') || 'Đã mở bàn phím điện thoại', 'info', 1200);
+        // soft keyboard opened
       }
       updateKeyboardMenuUI();
     });
@@ -6076,9 +6088,9 @@
         oskOverlay.classList.toggle('hidden', !isHidden);
         btnToggleOSK?.classList.toggle('btn-active', isHidden);
         if (isHidden) {
-          showToast(t('toast.osk_opened') || 'Đã mở bàn phím ảo trên màn hình', 'info', 1200);
+          // osk opened
         } else {
-          showToast(t('toast.osk_closed') || 'Đã đóng bàn phím ảo trên màn hình', 'info', 1000);
+          // osk closed
         }
       }
       updateKeyboardMenuUI();
@@ -6091,7 +6103,7 @@
       if (oskOverlay) oskOverlay.classList.add('hidden');
       btnToggleOSK?.classList.remove('btn-active');
       updateKeyboardMenuUI();
-      showToast(t('toast.osk_closed') || 'Đã đóng bàn phím ảo trên màn hình', 'info', 1000);
+      // osk closed
     });
   }
 

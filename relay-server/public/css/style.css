@@ -2438,6 +2438,56 @@ input:-webkit-autofill:active {
   background: rgba(239, 68, 68, 0.15);
 }
 
+
+/* Ambient Toggle Switch (Zero-Native-Inputs) */
+.ambient-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.ambient-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.ambient-toggle__slider {
+  position: absolute;
+  inset: 0;
+  background: var(--ink-0);
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  transition: all 0.25s ease;
+}
+
+.ambient-toggle__slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: all 0.25s ease;
+}
+
+.ambient-toggle input:checked + .ambient-toggle__slider {
+  background: oklch(var(--acc) / 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px -2px var(--accent-glow);
+}
+
+.ambient-toggle input:checked + .ambient-toggle__slider::before {
+  transform: translateX(20px);
+  background: var(--accent);
+}
+
 /* Virtual On-Screen Keyboard */
 .osk-overlay {
   position: absolute;

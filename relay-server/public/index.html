@@ -110,9 +110,9 @@
       </button>
       <div id="userBadge" class="user-badge mono-font hidden">
         <span id="userNameDisplay">--</span>
-        <button id="btnOpenSessionConfig" class="btn-pill" title="Cấu hình phiên hoạt động (X/Y phút)" data-i18n-title="topbar.session_cfg_title">
+        <button id="btnOpenSessionConfig" class="btn-pill" title="Cài đặt hệ thống & Cấu hình phiên" data-i18n-title="topbar.session_cfg_title">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span data-i18n="topbar.session_cfg">Phiên</span>
+          <span data-i18n="topbar.session_cfg">Cài đặt</span>
         </button>
         <button id="btnLogout" class="btn-pill" title="Đăng xuất" data-i18n-title="topbar.logout_title" data-i18n="topbar.logout">Thoát</button>
       </div>
@@ -1042,6 +1042,13 @@
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.snippet_password" style="color: #f87171;">Gửi mật khẩu an toàn...</div>
               <div class="quality-item-desc">Gõ phím trực tiếp không qua Clipboard</div>
+            </div>
+          </button>
+          <button type="button" class="quality-menu-item" id="btnDeckOpenSettings">
+            <span class="quality-item-badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent); border-color: var(--accent);">CFG</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.settings_title">Cài đặt hệ thống &amp; Toast...</div>
+              <div class="quality-item-desc" data-i18n="deck.settings_desc">Bật/tắt thông báo Toast, thời gian chờ phiên</div>
             </div>
           </button>
         </div>
@@ -2510,6 +2517,18 @@
           <label for="cfgTimeoutGlobal" data-i18n="session.global_idle_label">Thời gian chờ tự động đăng xuất (Y phút)</label>
           <input type="number" id="cfgTimeoutGlobal" class="instrument-input mono-font" min="2" max="1440" value="30" required>
           <span class="field-hint" style="font-size: 0.72rem; color: var(--text-faint); margin-top: 4px; display: block;" data-i18n="session.global_idle_hint">Tự động đăng xuất tài khoản khi không có kết nối hay thao tác gì</span>
+        </div>
+        <div class="form-group" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft);">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div>
+              <label for="cfgEnableToasts" style="font-size: 0.85rem; font-weight: 600; color: var(--text); cursor: pointer;" data-i18n="settings.toasts_label">Thông báo Toast (Trạng thái)</label>
+              <span class="field-hint" style="font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; display: block;" data-i18n="settings.toasts_hint">Bật hoặc tắt popup thông báo góc màn hình. Tắt đi để làm việc yên tĩnh.</span>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="cfgEnableToasts" checked>
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
         </div>
         <div class="session-sliding-badge mono-font" style="margin-top: 16px; padding: 10px 14px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 8px; font-size: 0.75rem; color: #4ADE80; line-height: 1.5;">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
