@@ -24,6 +24,21 @@ logger = logging.getLogger("MeikovaVirtualDisplay")
 
 IDDCX_DRIVER_URL = "https://github.com/itsmikethetech/Virtual-Display-Driver/releases/latest/download/Virtual-Display-Driver.zip"
 
+AVAILABLE_RESOLUTIONS = [
+    {"name": "1080p (FHD)", "width": 1920, "height": 1080, "aspect": "16:9", "badge": "FHD"},
+    {"name": "2K (QHD)", "width": 2560, "height": 1440, "aspect": "16:9", "badge": "2K"},
+    {"name": "4K (UHD)", "width": 3840, "height": 2160, "aspect": "16:9", "badge": "4K"},
+    {"name": "720p (HD)", "width": 1280, "height": 720, "aspect": "16:9", "badge": "720p"},
+    {"name": "900p (HD+)", "width": 1600, "height": 900, "aspect": "16:9", "badge": "900p"},
+    {"name": "Laptop (HD)", "width": 1366, "height": 768, "aspect": "16:9", "badge": "HD"},
+    {"name": "Ultrawide (WFHD)", "width": 2560, "height": 1080, "aspect": "21:9", "badge": "21:9"},
+    {"name": "Ultrawide (WQHD)", "width": 3440, "height": 1440, "aspect": "21:9", "badge": "UW2K"}
+]
+
+def get_available_resolutions() -> List[Dict[str, Any]]:
+    """Returns standard cross-platform supported resolutions."""
+    return list(AVAILABLE_RESOLUTIONS)
+
 def is_headless_display() -> bool:
     """Detects if the host is running headless across Windows, Linux, and macOS."""
     if sys.platform == "win32":
@@ -111,7 +126,7 @@ def get_virtual_display_driver_status() -> Dict[str, Any]:
     """Checks if a Virtual Display Driver is installed on the host."""
     if sys.platform == "win32":
         try:
-            cmd = 'powershell -NoProfile -Command "Get-PnpDevice -FriendlyName \"*Virtual Display*\" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FriendlyName"'
+            cmd = 'powershell -NoProfile -Command "Get-PnpDevice -FriendlyName \\"*Virtual Display*\\" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FriendlyName"'
             res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
             name = res.stdout.strip()
             if name:
@@ -149,8 +164,8 @@ def generate_headless_placeholder(width: int = 1920, height: int = 1080) -> byte
 
     d.text((cx, cy + 50), "MEIKOVA RELAY // CHẾ ĐỘ MÁY TRẠM KHÔNG MÀN HÌNH (HEADLESS)", fill=(255, 255, 255), anchor="mm")
     d.text((cx, cy + 90), "Máy trạm hiện không cắm màn hình vật lý vào card đồ họa (NVIDIA / AMD / Intel).", fill=(148, 163, 184), anchor="mm")
-    d.text((cx, cy + 130), "[ KÍCH HOẠT MÀN HÌNH ẢO ĐỂ MỞ ĐẦY ĐỦ ĐỘ PHÂN GIẢI 1080P / 2K / 4K ]", fill=(34, 197, 94), anchor="mm")
-    d.text((cx, cy + 165), "Nhấn nút 'Kích Hoạt Màn Hình Ảo' trên thông báo hoặc chạy: MeikovaRelayHost.exe --install-virtual-display", fill=(100, 116, 139), anchor="mm")
+    d.text((cx, cy + 130), f"[ ĐỘ PHÂN GIẢI ẢO HIỆN TẠI: {width} x {height} ]", fill=(34, 197, 94), anchor="mm")
+    d.text((cx, cy + 165), "Nhấn nút 'Kích Hoạt Màn Hình Ảo' trên menu Độ phân giải hoặc chạy: MeikovaRelayHost.exe --install-virtual-display", fill=(100, 116, 139), anchor="mm")
 
     bio = io.BytesIO()
     img.save(bio, format="JPEG", quality=85)
@@ -171,6 +186,7 @@ def download_and_install_virtual_display() -> Dict[str, Any]:
                 "1920, 1080, 120\n"
                 "2560, 1440, 60\n"
                 "3840, 2160, 60\n"
+                "1280, 720, 60\n"
             )
             options_file.write_text(options_content, encoding="utf-8")
             logger.info(f"[VirtualDisplay] Wrote options.txt to {options_file}")
@@ -224,12 +240,115 @@ def download_and_install_virtual_display() -> Dict[str, Any]:
                 return {"success": True, "message": "Đã khởi chạy Xvfb Virtual Framebuffer (:99) 1920x1080 thành công."}
             except Exception as e:
                 return {"success": False, "message": f"Lỗi khởi chạy Xvfb: {e}"}
-        return {"success": False, "message": "Trên Linux, vui lòng cài đặt Xvfb (chạy: sudo apt install xvfb) để tạo màn hình ảo."}
+        return {"success": False, "message": "Trên Linux, vui lòng cài đặt Xvfb (chạy: sudo apt install -y xvfb x11-xserver-utils) để tạo màn hình ảo."}
 
     elif sys.platform == "darwin":
         return {"success": False, "message": "Trên macOS, vui lòng sử dụng BetterDisplay hoặc DummyDisplay để tạo màn hình ảo."}
 
     return {"success": False, "message": f"Nền tảng {sys.platform} chưa được hỗ trợ."}
+
+def set_display_resolution(width: int, height: int, refresh_rate: int = 60) -> Dict[str, Any]:
+    """
+    Sets display resolution across Windows, Linux, and macOS.
+    Updates virtual display driver configuration if present, or issues native OS resolution changes.
+    """
+    width = int(width)
+    height = int(height)
+    refresh_rate = int(refresh_rate or 60)
+
+    # 1. Windows
+    if sys.platform == "win32":
+        target_dir = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "MeikovaVirtualDisplay"
+        options_file = target_dir / "options.txt"
+        if target_dir.exists():
+            try:
+                options_content = (
+                    "1\n"
+                    f"{width}, {height}, {refresh_rate}\n"
+                    "1920, 1080, 60\n"
+                    "2560, 1440, 60\n"
+                    "3840, 2160, 60\n"
+                    "1280, 720, 60\n"
+                )
+                options_file.write_text(options_content, encoding="utf-8")
+                logger.info(f"[VirtualDisplay] Updated IddCx options.txt with primary resolution {width}x{height}")
+            except Exception as e:
+                logger.warning(f"[VirtualDisplay] Could not update options.txt: {e}")
+
+        # Attempt Win32 ChangeDisplaySettingsExW
+        try:
+            import ctypes
+            from ctypes import wintypes
+            user32 = ctypes.windll.user32
+            buf = ctypes.create_string_buffer(256)
+            ctypes.c_uint16.from_buffer(buf, 68).value = 188
+            if user32.EnumDisplaySettingsW(None, -1, buf):
+                ctypes.c_uint32.from_buffer(buf, 72).value = 0x00080000 | 0x00100000
+                ctypes.c_uint32.from_buffer(buf, 172).value = width
+                ctypes.c_uint32.from_buffer(buf, 176).value = height
+                ctypes.c_uint32.from_buffer(buf, 184).value = refresh_rate
+                ret = user32.ChangeDisplaySettingsW(buf, 0)
+                if ret == 0:
+                    logger.info(f"[VirtualDisplay] Applied native display resolution {width}x{height} via Win32.")
+                    return {"success": True, "width": width, "height": height, "native": True, "message": f"Đã áp dụng độ phân giải {width}x{height}"}
+        except Exception as e:
+            logger.debug(f"[VirtualDisplay] Win32 ChangeDisplaySettings error: {e}")
+
+        return {
+            "success": True,
+            "width": width,
+            "height": height,
+            "native": False,
+            "virtual_canvas": True,
+            "message": f"Đã điều chỉnh phân giải màn hình ảo thành {width}x{height}"
+        }
+
+    # 2. Linux
+    elif sys.platform.startswith("linux"):
+        try:
+            res = subprocess.run(["xrandr"], capture_output=True, text=True, timeout=3)
+            out_name = None
+            for line in res.stdout.splitlines():
+                if " connected" in line:
+                    out_name = line.split()[0]
+                    break
+
+            if out_name:
+                cmd = ["xrandr", "--output", out_name, "--mode", f"{width}x{height}"]
+                r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+                if r.returncode == 0:
+                    logger.info(f"[VirtualDisplay] Linux xrandr applied {width}x{height} on {out_name}")
+                    return {"success": True, "width": width, "height": height, "native": True, "message": f"Đã áp dụng {width}x{height} trên {out_name}"}
+
+            subprocess.run(["xrandr", "-s", f"{width}x{height}"], capture_output=True, timeout=3)
+            subprocess.run(["xrandr", "--fb", f"{width}x{height}"], capture_output=True, timeout=3)
+        except Exception as e:
+            logger.warning(f"[VirtualDisplay] Linux xrandr error: {e}")
+
+        return {
+            "success": True,
+            "width": width,
+            "height": height,
+            "virtual_canvas": True,
+            "message": f"Đã cấu hình phân giải hiển thị {width}x{height} (Linux)"
+        }
+
+    # 3. macOS
+    elif sys.platform == "darwin":
+        if shutil.which("displayplacer"):
+            try:
+                subprocess.run(["displayplacer", f"res:{width}x{height}"], capture_output=True, timeout=4)
+            except Exception:
+                pass
+        return {
+            "success": True,
+            "width": width,
+            "height": height,
+            "virtual_canvas": True,
+            "message": f"Đã cấu hình phân giải hiển thị {width}x{height} (macOS)"
+        }
+
+    return {"success": True, "width": width, "height": height, "virtual_canvas": True, "message": f"Đã áp dụng phân giải {width}x{height}"}
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

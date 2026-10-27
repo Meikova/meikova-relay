@@ -8,6 +8,8 @@ from host_agent.virtual_display import (
     is_headless_display,
     get_virtual_display_driver_status,
     generate_headless_placeholder,
+    get_available_resolutions,
+    set_display_resolution,
     IDDCX_DRIVER_URL
 )
 from host_agent.screen_capture import ScreenCapture
@@ -32,6 +34,38 @@ class TestVirtualDisplay(unittest.TestCase):
         self.assertGreater(len(frame_bytes), 1000)
         # Verify JPEG magic bytes FF D8
         self.assertEqual(frame_bytes[:2], b'\xff\xd8')
+
+    def test_available_resolutions_matrix(self):
+        """Tests multi-resolution availability across all platforms."""
+        res_list = get_available_resolutions()
+        self.assertIsInstance(res_list, list)
+        self.assertGreaterEqual(len(res_list), 8)
+        widths = [r["width"] for r in res_list]
+        self.assertIn(1920, widths)
+        self.assertIn(2560, widths)
+        self.assertIn(3840, widths)
+        self.assertIn(1280, widths)
+        for r in res_list:
+            self.assertIn("width", r)
+            self.assertIn("height", r)
+            self.assertIn("aspect", r)
+            self.assertIn("badge", r)
+
+    def test_set_display_resolution_cross_platform(self):
+        """Tests setting resolution returns a valid status dictionary without throwing."""
+        res = set_display_resolution(1920, 1080)
+        self.assertIsInstance(res, dict)
+        self.assertTrue(res.get("success", False))
+        self.assertEqual(res.get("width"), 1920)
+        self.assertEqual(res.get("height"), 1080)
+
+    def test_screen_capture_custom_virtual_resolution(self):
+        """Tests dynamic virtual resolution switching in ScreenCapture."""
+        sc = ScreenCapture()
+        self.assertTrue(hasattr(sc, "set_custom_resolution"))
+        sc.set_custom_resolution(2560, 1440)
+        self.assertEqual(sc.resolution, (2560, 1440))
+        self.assertEqual(sc.custom_virtual_resolution, (2560, 1440))
 
     def test_screen_capture_headless_integration(self):
         """Tests ScreenCapture includes is_headless attribute and valid monitor detection."""

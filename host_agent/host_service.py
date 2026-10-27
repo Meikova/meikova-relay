@@ -96,8 +96,8 @@ try:
     from host_agent.power_manager import PowerManager
     from host_agent.audio_capture import AudioCapture
     from host_agent.audio_playback import AudioPlayback
-    from host_agent.virtual_audio import is_audio_output_available, download_and_install_vbcable
-    from host_agent.virtual_display import is_headless_display, download_and_install_virtual_display
+    from host_agent.virtual_audio import is_audio_output_available, download_and_install_vbcable, get_virtual_audio_status
+    from host_agent.virtual_display import is_headless_display, download_and_install_virtual_display, set_display_resolution, get_available_resolutions, get_virtual_display_driver_status
     from host_agent.protocol_prober import probe_all_protocols
     from host_agent.tcp_tunnel import TcpTunnelManager
 except ModuleNotFoundError:
@@ -112,8 +112,8 @@ except ModuleNotFoundError:
     from power_manager import PowerManager
     from audio_capture import AudioCapture
     from audio_playback import AudioPlayback
-    from virtual_audio import is_audio_output_available, download_and_install_vbcable
-    from virtual_display import is_headless_display, download_and_install_virtual_display
+    from virtual_audio import is_audio_output_available, download_and_install_vbcable, get_virtual_audio_status
+    from virtual_display import is_headless_display, download_and_install_virtual_display, set_display_resolution, get_available_resolutions, get_virtual_display_driver_status
     from protocol_prober import probe_all_protocols
     from tcp_tunnel import TcpTunnelManager
 
@@ -802,6 +802,49 @@ class HostService:
                     initial_frame = self.capture.capture_frame(force=True)
                     if initial_frame:
                         await ws.send(initial_frame)
+                    continue
+
+                # Dynamic Screen Resolution Control (Headless Virtual Display & Multi-size switcher)
+                elif ev_type in ("set_screen_resolution", "set_virtual_resolution"):
+                    w = int(event.get("width", 1920))
+                    h = int(event.get("height", 1080))
+                    fps = int(event.get("fps", 60))
+                    loop = asyncio.get_running_loop()
+                    res = await loop.run_in_executor(None, set_display_resolution, w, h, fps)
+                    self.capture.set_custom_resolution(w, h)
+                    await ws.send(json.dumps({
+                        "type": "screen_resolution_result",
+                        "success": res.get("success", True),
+                        "width": w,
+                        "height": h,
+                        "message": res.get("message", f"Đã áp dụng độ phân giải {w}x{h}")
+                    }))
+                    await ws.send(json.dumps({
+                        "type": "monitors_list",
+                        "monitors": self.capture.monitors,
+                        "active_id": self.capture.active_monitor_id,
+                        "is_headless": getattr(self.capture, "is_headless", False)
+                    }))
+                    initial_frame = self.capture.capture_frame(force=True)
+                    if initial_frame:
+                        await ws.send(initial_frame)
+                    continue
+
+                # Query Virtual Devices Status (Cross-platform Display & Audio)
+                elif ev_type == "get_virtual_status":
+                    v_audio = get_virtual_audio_status()
+                    v_disp = get_virtual_display_driver_status()
+                    cur_w, cur_h = self.capture.resolution
+                    await ws.send(json.dumps({
+                        "type": "virtual_status_response",
+                        "headless_display": getattr(self.capture, "is_headless", False),
+                        "virtual_display_installed": v_disp.get("installed", False),
+                        "has_audio_device": v_audio.get("has_output", False),
+                        "virtual_audio_installed": v_audio.get("is_virtual_installed", False),
+                        "current_resolution": [cur_w, cur_h],
+                        "available_resolutions": get_available_resolutions(),
+                        "platform": sys.platform
+                    }))
                     continue
 
                 # Voice Intercom Control (Client Browser Mic -> Host Speakers)

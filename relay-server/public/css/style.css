@@ -6616,6 +6616,7 @@ body.is-desktop-app .desktop-titlebar {
 
   /* Dropdown Menus & OSK bounded on small screens */
   .quality-menu,
+  .resolution-menu,
   .protocol-menu,
   .power-menu,
   .deck-mode-menu {
@@ -6627,6 +6628,7 @@ body.is-desktop-app .desktop-titlebar {
   }
 
   .quality-menu-list,
+  .resolution-menu .quality-menu-list,
   .protocol-menu-body {
     max-height: calc(100dvh - 120px) !important;
     overflow-y: auto !important;

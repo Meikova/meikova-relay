@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from host_agent.virtual_audio import is_audio_output_available, download_and_install_vbcable
+from host_agent.virtual_audio import is_audio_output_available, download_and_install_vbcable, get_virtual_audio_status
 from host_agent.audio_capture import AudioCapture
 
 class TestVirtualAudio(unittest.TestCase):
@@ -12,6 +12,14 @@ class TestVirtualAudio(unittest.TestCase):
         """Tests that checking audio output endpoints returns a valid bool and doesn't crash."""
         has_output = is_audio_output_available()
         self.assertIsInstance(has_output, bool)
+
+    def test_audio_status_structure(self):
+        """Tests cross-platform virtual audio status query."""
+        st = get_virtual_audio_status()
+        self.assertIsInstance(st, dict)
+        self.assertIn("has_output", st)
+        self.assertIn("is_virtual_installed", st)
+        self.assertIn("platform", st)
 
     def test_audio_capture_status_callback(self):
         """Tests AudioCapture initialization and status callback registration."""

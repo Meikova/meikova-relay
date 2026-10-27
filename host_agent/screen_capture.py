@@ -163,6 +163,7 @@ class ScreenCapture:
         self._buffer = io.BytesIO()
         self._tls = threading.local()
         self._attach_window_station()
+        self.custom_virtual_resolution: Optional[Tuple[int, int]] = None
         self.is_headless = is_headless_display()
         self.active_monitor_id = 0  # 0 = All monitors (virtual desktop), 1..N = specific monitor
         self.monitors = self.detect_monitors()
@@ -279,8 +280,34 @@ class ScreenCapture:
                 return m["rect"]
         return None
 
+    def set_custom_resolution(self, width: int, height: int):
+        """Sets dynamic virtual screen resolution for headless or multi-size streaming."""
+        self.custom_virtual_resolution = (int(width), int(height))
+        if self.max_width is not None:
+            self.max_width = max(self.max_width, int(width))
+        self._last_frame_hash = None
+        if getattr(self, "is_headless", False) or not self.monitors:
+            self.monitors = [{
+                "id": 1,
+                "name": f"Virtual Display ({width}x{height})",
+                "width": int(width),
+                "height": int(height),
+                "left": 0,
+                "top": 0
+            }]
+            self.active_monitor_id = 1
+        elif self.monitors:
+            for m in self.monitors:
+                if m.get("id") == self.active_monitor_id or self.active_monitor_id == 0:
+                    m["width"] = int(width)
+                    m["height"] = int(height)
+
     @property
     def resolution(self) -> Tuple[int, int]:
+        if self.custom_virtual_resolution:
+            return self.custom_virtual_resolution
+        if getattr(self, "is_headless", False) and not self.monitors:
+            return (1920, 1080)
         if self.active_monitor_id == 0:
             # Virtual desktop (all monitors combined)
             if user32:
@@ -398,7 +425,8 @@ class ScreenCapture:
 
                 if img is None:
                     if self.is_headless:
-                        return generate_headless_placeholder(1920, 1080)
+                        w_res, h_res = getattr(self, 'resolution', (1920, 1080))
+                        return generate_headless_placeholder(w_res, h_res)
                     return None
 
                 curr_hash = hash(memoryview(img.tobytes())[::256].tobytes())

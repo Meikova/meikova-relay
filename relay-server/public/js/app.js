@@ -569,6 +569,13 @@
   let protocolRoutingMode = 'auto'; // 'auto' | 'bypass' | 'native'
   const qualityCurrentLabel = document.getElementById('qualityCurrentLabel');
   const qualityMenuDropdown = document.getElementById('qualityMenuDropdown');
+  const btnResolutionMenu = document.getElementById('btnResolutionMenu');
+  const resolutionCurrentLabel = document.getElementById('resolutionCurrentLabel');
+  const resolutionMenuDropdown = document.getElementById('resolutionMenuDropdown');
+  const vdDisplayBadge = document.getElementById('vdDisplayBadge');
+  const btnInstallVDisplay = document.getElementById('btnInstallVDisplay');
+  const vdAudioBadge = document.getElementById('vdAudioBadge');
+  const btnInstallVAudio = document.getElementById('btnInstallVAudio');
   const btnSyncDisplay = document.getElementById('btnSyncDisplay');
   const btnScaleToggle = document.getElementById('btnScaleToggle');
   const pixelIndicatorBadge = document.getElementById('pixelIndicatorBadge');
@@ -3431,6 +3438,19 @@
           handleDisplayProfileMatched(msg);
         } else if (msg.type === 'monitors_list') {
           populateMonitors(msg.monitors, msg.active_id);
+          if (vdDisplayBadge) {
+            if (msg.is_headless) {
+              vdDisplayBadge.textContent = (typeof t === 'function') ? t('virtual.display_headless') : 'KHÔNG MÀN HÌNH';
+              vdDisplayBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+              vdDisplayBadge.style.color = '#ef4444';
+              btnInstallVDisplay?.classList.remove('hidden');
+            } else {
+              vdDisplayBadge.textContent = (typeof t === 'function') ? t('virtual.display_active') : 'SẴN SÀNG';
+              vdDisplayBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+              vdDisplayBadge.style.color = '#22c55e';
+              btnInstallVDisplay?.classList.add('hidden');
+            }
+          }
         } else if (msg.type === 'cursor_update') {
           applyHostCursor(msg.cursor);
         } else if (msg.type === 'clipboard_sync') {
@@ -3603,6 +3623,13 @@
           } else {
             showToast(msg.message || 'Cài đặt Loa Ảo thất bại.', 'error');
           }
+        } else if (msg.type === 'screen_resolution_result') {
+          if (msg.success) {
+            showToast(t('toast.resolution_changed', { res: `${msg.width}x${msg.height}` }), 'success');
+            updateResolutionUi(msg.width, msg.height);
+          } else {
+            showToast(t('toast.resolution_failed'), 'error');
+          }
         } else if (msg.type === 'virtual_display_result') {
           if (msg.success) {
             showToast(msg.message || 'Đã kích hoạt Màn hình ảo thành công!', 'success');
@@ -3613,6 +3640,19 @@
           updateMicUi(msg.enabled);
         } else if (msg.type === 'audio_capabilities') {
           console.log('[MeikovaRelay] Host audio capabilities:', msg);
+          if (vdAudioBadge) {
+            if (msg.has_output_device === false) {
+              vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_missing') : 'CHƯA CÓ LOA';
+              vdAudioBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+              vdAudioBadge.style.color = '#ef4444';
+              btnInstallVAudio?.classList.remove('hidden');
+            } else {
+              vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_active') : 'SẴN SÀNG';
+              vdAudioBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+              vdAudioBadge.style.color = '#22c55e';
+              btnInstallVAudio?.classList.add('hidden');
+            }
+          }
         } else if (msg.type === 'block_input_response') {
           isInputBlocked = msg.blocked;
           btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
@@ -4375,6 +4415,9 @@
     }
     if (qualityMenuDropdown && !qualityMenuDropdown.classList.contains('hidden') && btnQualityMenu) {
       positionDeckDropdown(btnQualityMenu, qualityMenuDropdown);
+    }
+    if (resolutionMenuDropdown && !resolutionMenuDropdown.classList.contains('hidden') && btnResolutionMenu) {
+      positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
     }
     if (deckModeDropdown && !deckModeDropdown.classList.contains('hidden') && btnDeckDisplayMode) {
       positionDeckDropdown(btnDeckDisplayMode, deckModeDropdown);
@@ -6125,7 +6168,110 @@
     }
   });
 
+
+  // --- Dynamic Screen Resolution & Virtual Hardware Handlers ---
+  function updateResolutionUi(w, h, label) {
+    if (resolutionCurrentLabel) {
+      if (label) {
+        resolutionCurrentLabel.textContent = label;
+      } else if (w >= 3840) {
+        resolutionCurrentLabel.textContent = '4K';
+      } else if (w >= 2560 && h >= 1440) {
+        resolutionCurrentLabel.textContent = '2K';
+      } else if (w >= 2560 && h <= 1080) {
+        resolutionCurrentLabel.textContent = '21:9';
+      } else if (h === 1080) {
+        resolutionCurrentLabel.textContent = '1080p';
+      } else if (h === 720) {
+        resolutionCurrentLabel.textContent = '720p';
+      } else if (h === 900) {
+        resolutionCurrentLabel.textContent = '900p';
+      } else {
+        resolutionCurrentLabel.textContent = `${h}p`;
+      }
+    }
+    document.querySelectorAll('#resolutionMenuList .quality-menu-item').forEach(btn => {
+      const bw = parseInt(btn.dataset.resW, 10);
+      const bh = parseInt(btn.dataset.resH, 10);
+      const isMatch = (bw === w && bh === h);
+      btn.classList.toggle('active', isMatch);
+      const check = btn.querySelector('.quality-check');
+      if (check) {
+        check.classList.toggle('hidden', !isMatch);
+      }
+    });
+  }
+
+  if (btnResolutionMenu) {
+    btnResolutionMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (resolutionMenuDropdown) {
+        const isOpening = resolutionMenuDropdown.classList.contains('hidden');
+        resolutionMenuDropdown.classList.toggle('hidden');
+        btnResolutionMenu.classList.toggle('btn-active', isOpening);
+        if (isOpening) {
+          positionDeckDropdown(btnResolutionMenu, resolutionMenuDropdown);
+          qualityMenuDropdown?.classList.add('hidden');
+          btnQualityMenu?.classList.remove('btn-active');
+          protocolMenuDropdown?.classList.add('hidden');
+          btnProtocolMenu?.classList.remove('btn-active');
+          powerMenuDropdown?.classList.add('hidden');
+          btnPowerMenu?.classList.remove('btn-active');
+          deckModeDropdown?.classList.add('hidden');
+          btnDeckDisplayMode?.classList.remove('btn-active');
+        }
+      }
+    });
+  }
+
+  document.querySelectorAll('#resolutionMenuList .quality-menu-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const w = parseInt(btn.dataset.resW, 10);
+      const h = parseInt(btn.dataset.resH, 10);
+      const label = btn.dataset.resLabel || `${h}p`;
+      if (!isConnected || !ws) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+      ws.send(JSON.stringify({
+        type: 'set_screen_resolution',
+        width: w,
+        height: h
+      }));
+      resolutionMenuDropdown?.classList.add('hidden');
+      btnResolutionMenu?.classList.remove('btn-active');
+      updateResolutionUi(w, h, label);
+      showToast(t('toast.resolution_switching', { res: `${w}x${h}` }), 'info');
+    });
+  });
+
+  if (btnInstallVDisplay) {
+    btnInstallVDisplay.addEventListener('click', () => {
+      if (!isConnected || !ws) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+      showToast(t('toast.installing_virtual_display'), 'info');
+      ws.send(JSON.stringify({ type: 'install_virtual_display' }));
+    });
+  }
+
+  if (btnInstallVAudio) {
+    btnInstallVAudio.addEventListener('click', () => {
+      if (!isConnected || !ws) {
+        showToast(t('toast.not_connected'), 'info');
+        return;
+      }
+      showToast(t('toast.installing_vb_audio'), 'info');
+      ws.send(JSON.stringify({ type: 'install_virtual_audio' }));
+    });
+  }
+
   document.addEventListener('click', (e) => {
+    if (resolutionMenuDropdown && !resolutionMenuDropdown.contains(e.target) && e.target !== btnResolutionMenu && (!btnResolutionMenu || !btnResolutionMenu.contains(e.target))) {
+      resolutionMenuDropdown.classList.add('hidden');
+      if (btnResolutionMenu) btnResolutionMenu.classList.remove('btn-active');
+    }
     if (powerMenuDropdown && !powerMenuDropdown.contains(e.target) && e.target !== btnPowerMenu && (!btnPowerMenu || !btnPowerMenu.contains(e.target))) {
       powerMenuDropdown.classList.add('hidden');
       if (btnPowerMenu) btnPowerMenu.classList.remove('btn-active');

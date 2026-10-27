@@ -241,6 +241,58 @@ def set_default_audio_playback_device(device_keyword: str = "CABLE") -> bool:
         logger.error(f"[VirtualAudio] Failed to activate default playback device: {e}")
         return False
 
+def get_virtual_audio_status() -> Dict[str, Any]:
+    """Returns cross-platform audio output and virtual driver status."""
+    has_output = is_audio_output_available()
+    is_virtual_installed = False
+    driver_name = None
+
+    if sys.platform == "win32":
+        try:
+            import winreg
+            root_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render"
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, root_path) as root:
+                count = winreg.QueryInfoKey(root)[0]
+                for i in range(count):
+                    guid = winreg.EnumKey(root, i)
+                    try:
+                        with winreg.OpenKey(root, guid + r"\Properties") as prop_key:
+                            for j in range(winreg.QueryInfoKey(prop_key)[1]):
+                                _, val, _ = winreg.EnumValue(prop_key, j)
+                                if isinstance(val, str) and ("cable" in val.lower() or "vb-audio" in val.lower()):
+                                    is_virtual_installed = True
+                                    driver_name = val
+                                    break
+                    except Exception:
+                        pass
+                    if is_virtual_installed:
+                        break
+        except Exception:
+            pass
+    elif sys.platform.startswith("linux"):
+        try:
+            res = subprocess.run(["pactl", "list", "sinks", "short"], capture_output=True, text=True, timeout=2)
+            if "Meikova_Virtual_Sink" in res.stdout or "null" in res.stdout:
+                is_virtual_installed = True
+                driver_name = "PulseAudio/PipeWire Null Sink"
+        except Exception:
+            pass
+    elif sys.platform == "darwin":
+        try:
+            res = subprocess.run(["system_profiler", "SPAudioDataType"], capture_output=True, text=True, timeout=3)
+            if "BlackHole" in res.stdout or "Soundflower" in res.stdout:
+                is_virtual_installed = True
+                driver_name = "BlackHole / Soundflower"
+        except Exception:
+            pass
+
+    return {
+        "has_output": has_output,
+        "is_virtual_installed": is_virtual_installed,
+        "driver_name": driver_name,
+        "platform": sys.platform
+    }
+
 def download_and_install_vbcable() -> Dict[str, Any]:
     """
     Installs virtual audio device according to the current platform:
@@ -305,6 +357,10 @@ def download_and_install_vbcable() -> Dict[str, Any]:
             cmd = ["pactl", "load-module", "module-null-sink", "sink_name=Meikova_Virtual_Sink", "sink_properties=device.description=Meikova_Virtual_Speaker"]
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
             if res.returncode == 0:
+                try:
+                    subprocess.run(["pactl", "set-default-sink", "Meikova_Virtual_Sink"], capture_output=True, timeout=3)
+                except Exception:
+                    pass
                 return {
                     "success": True,
                     "has_device": True,
@@ -318,6 +374,17 @@ def download_and_install_vbcable() -> Dict[str, Any]:
             return {"success": False, "message": f"Lỗi khởi tạo Linux Virtual Sink: {e}"}
 
     elif sys.platform == "darwin":
+        if shutil.which("brew"):
+            try:
+                res = subprocess.run(["brew", "install", "blackhole-2ch"], capture_output=True, text=True, timeout=120)
+                if res.returncode == 0:
+                    return {
+                        "success": True,
+                        "has_device": True,
+                        "message": "Đã cài đặt BlackHole 2ch qua Homebrew thành công."
+                    }
+            except Exception as e:
+                logger.warning(f"[VirtualAudio] macOS brew error: {e}")
         return {
             "success": False,
             "message": "Trên macOS, vui lòng cài đặt BlackHole 2ch (chạy: brew install blackhole-2ch) để kích hoạt Loa ảo."
