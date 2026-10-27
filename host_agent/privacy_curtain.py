@@ -22,15 +22,21 @@ logger = logging.getLogger("MeikovaCurtain")
 
 MEIKOVA_INPUT_MAGIC = 0x4D45494B  # Magic tag 'MEIK'
 
-def _set_block_input_safe(blocked: bool):
-    """Invokes InputInjector.set_block_input with safe cross-import handling."""
-    try:
-        from host_agent.input_injector import InputInjector
-        InputInjector.set_block_input(blocked)
-    except Exception:
+# Win32 Message definitions
+WM_USER = 0x0400
+WM_CURTAIN_SHOW = WM_USER + 1
+WM_CURTAIN_HIDE = WM_USER + 2
+WM_QUIT = 0x0012
+
+
+def _set_os_block_input(blocked: bool):
+    """Invokes native user32.BlockInput directly if available (administrator level)."""
+    if sys.platform == "win32":
         try:
-            from input_injector import InputInjector
-            InputInjector.set_block_input(blocked)
+            import ctypes
+            user32 = ctypes.windll.user32
+            if hasattr(user32, 'BlockInput'):
+                user32.BlockInput(ctypes.c_bool(blocked))
         except Exception:
             pass
 
@@ -39,84 +45,159 @@ class PrivacyCurtain:
     """Manages the host physical screen privacy shield and physical input suppression."""
 
     def __init__(self):
-        self.is_active = False
+        self.is_curtain_active: bool = False
+        self.is_input_blocked: bool = False
         self._thread: Optional[threading.Thread] = None
+        self._thread_id: int = 0
         self._stop_event = threading.Event()
+        self._ready_event = threading.Event()
         self._hwnd = None
         self._kb_hook = None
         self._ms_hook = None
         self._kb_proc = None
         self._ms_proc = None
 
+    @property
+    def is_active(self) -> bool:
+        """Backwards compatibility for curtain screen state."""
+        return self.is_curtain_active
+
+    @is_active.setter
+    def is_active(self, value: bool):
+        self.is_curtain_active = bool(value)
+
     def enable(self) -> Dict[str, Any]:
         """Activates privacy screen, blanks physical monitors, and blocks physical input."""
-        if self.is_active:
-            return {"success": True, "active": True, "message": "Màn hình riêng tư đã được bật."}
-
-        self.is_active = True
-        self._stop_event.clear()
-
-        # OS-level input blocking (if running elevated)
-        _set_block_input_safe(True)
+        self.is_curtain_active = True
+        self.is_input_blocked = True
+        _set_os_block_input(True)
 
         if sys.platform == "win32":
-            self._thread = threading.Thread(target=self._win32_curtain_thread, daemon=True, name="MeikovaCurtainWin32")
-            self._thread.start()
+            self._ensure_win32_thread_running()
+            if self._thread_id:
+                try:
+                    import ctypes
+                    ctypes.windll.user32.PostThreadMessageW(self._thread_id, WM_CURTAIN_SHOW, 0, 0)
+                except Exception as ex:
+                    logger.warning(f"[PrivacyCurtain] PostThreadMessage SHOW error: {ex}")
             logger.info("[PrivacyCurtain] Windows Privacy Curtain and Physical Input Shield activated.")
             return {"success": True, "active": True, "message": "Đã bật Chế độ Riêng tư (Màn hình và thiết bị nhập vật lý đã được bảo vệ)."}
 
         elif sys.platform.startswith("linux"):
-            self._thread = threading.Thread(target=self._linux_curtain_thread, daemon=True, name="MeikovaCurtainLinux")
-            self._thread.start()
+            self._ensure_posix_thread(self._linux_curtain_thread, "MeikovaCurtainLinux")
             logger.info("[PrivacyCurtain] Linux Privacy Curtain activated.")
             return {"success": True, "active": True, "message": "Đã bật Chế độ Riêng tư trên Linux."}
 
-        elif sys.platform == "darwin":
-            self._thread = threading.Thread(target=self._macos_curtain_thread, daemon=True, name="MeikovaCurtainMacOS")
-            self._thread.start()
+        elif sys.platform.darwin:
+            self._ensure_posix_thread(self._macos_curtain_thread, "MeikovaCurtainMacOS")
             logger.info("[PrivacyCurtain] macOS Privacy Curtain activated.")
             return {"success": True, "active": True, "message": "Đã bật Chế độ Riêng tư trên macOS."}
 
         return {"success": True, "active": True, "message": "Chế độ riêng tư đã được bật."}
 
     def disable(self) -> Dict[str, Any]:
-        """Deactivates privacy screen and restores physical monitor display and physical input."""
-        if not self.is_active:
-            return {"success": True, "active": False, "message": "Màn hình riêng tư đang tắt."}
+        """Deactivates privacy screen and restores physical monitor display (and physical input if not separately locked)."""
+        self.is_curtain_active = False
 
-        self.is_active = False
-        self._stop_event.set()
-
-        # Restore input blocking immediately
-        _set_block_input_safe(False)
+        if not self.is_input_blocked:
+            _set_os_block_input(False)
 
         if sys.platform == "win32":
-            try:
+            if self._thread_id:
                 import ctypes
-                from ctypes import wintypes
                 user32 = ctypes.windll.user32
-                if self._kb_hook:
-                    user32.UnhookWindowsHookEx(self._kb_hook)
-                    self._kb_hook = None
-                if self._ms_hook:
-                    user32.UnhookWindowsHookEx(self._ms_hook)
-                    self._ms_hook = None
-                if self._hwnd:
-                    WM_CLOSE = 0x0010
-                    user32.PostMessageW(self._hwnd, WM_CLOSE, 0, 0)
-            except Exception as e:
-                logger.warning(f"[PrivacyCurtain] Win32 cleanup error: {e}")
+                if self.is_input_blocked:
+                    # Keep hooks alive, just hide curtain window
+                    user32.PostThreadMessageW(self._thread_id, WM_CURTAIN_HIDE, 0, 0)
+                else:
+                    # Shut down thread and unhook
+                    self._stop_event.set()
+                    user32.PostThreadMessageW(self._thread_id, WM_QUIT, 0, 0)
+                    if self._thread and self._thread.is_alive():
+                        self._thread.join(timeout=1.5)
+                    self._thread = None
+                    self._thread_id = 0
+            logger.info("[PrivacyCurtain] Privacy Curtain deactivated.")
+            return {"success": True, "active": False, "message": "Đã tắt Chế độ Riêng tư. Màn hình hoạt động lại bình thường."}
 
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=1.5)
-        self._thread = None
-        self._hwnd = None
+        elif sys.platform.startswith("linux") or sys.platform == "darwin":
+            if not self.is_input_blocked:
+                self._stop_event.set()
+                if self._thread and self._thread.is_alive():
+                    self._thread.join(timeout=1.5)
+                self._thread = None
 
-        logger.info("[PrivacyCurtain] Privacy Curtain deactivated and physical input restored.")
-        return {"success": True, "active": False, "message": "Đã tắt Chế độ Riêng tư. Màn hình và thiết bị nhập máy trạm hoạt động lại bình thường."}
+        return {"success": True, "active": False, "message": "Đã tắt Chế độ Riêng tư."}
 
-    def _win32_curtain_thread(self):
-        """Creates a topmost black borderless window covering all virtual screen space and installs low-level hooks."""
+    def set_input_blocked(self, blocked: bool) -> Dict[str, Any]:
+        """Independently blocks or unblocks physical mouse and keyboard without blanking the screen."""
+        self.is_input_blocked = bool(blocked)
+        _set_os_block_input(self.is_input_blocked)
+
+        if sys.platform == "win32":
+            if self.is_input_blocked:
+                self._ensure_win32_thread_running()
+            else:
+                if not self.is_curtain_active and self._thread_id:
+                    self._stop_event.set()
+                    import ctypes
+                    user32 = ctypes.windll.user32
+                    user32.PostThreadMessageW(self._thread_id, WM_QUIT, 0, 0)
+                    if self._thread and self._thread.is_alive():
+                        self._thread.join(timeout=1.5)
+                    self._thread = None
+                    self._thread_id = 0
+            return {"success": True, "blocked": self.is_input_blocked}
+
+        return {"success": True, "blocked": self.is_input_blocked}
+
+    def disable_all(self) -> Dict[str, Any]:
+        """Emergency fail-safe: immediately restores both physical screen and physical input (e.g. on client disconnect)."""
+        self.is_curtain_active = False
+        self.is_input_blocked = False
+        _set_os_block_input(False)
+
+        if sys.platform == "win32":
+            self._stop_event.set()
+            if self._thread_id:
+                try:
+                    import ctypes
+                    user32 = ctypes.windll.user32
+                    user32.PostThreadMessageW(self._thread_id, WM_QUIT, 0, 0)
+                except Exception:
+                    pass
+            if self._thread and self._thread.is_alive():
+                self._thread.join(timeout=1.5)
+            self._thread = None
+            self._thread_id = 0
+            self._hwnd = None
+        else:
+            self._stop_event.set()
+            if self._thread and self._thread.is_alive():
+                self._thread.join(timeout=1.5)
+            self._thread = None
+
+        logger.info("[PrivacyCurtain] Full disable_all completed. Screen and physical inputs fully restored.")
+        return {"success": True, "active": False, "blocked": False}
+
+    def _ensure_win32_thread_running(self):
+        """Spawns the Win32 hook and curtain message loop thread if not already running."""
+        if self._thread is None or not self._thread.is_alive():
+            self._stop_event.clear()
+            self._ready_event.clear()
+            self._thread = threading.Thread(target=self._win32_worker_thread, daemon=True, name="MeikovaCurtainWin32")
+            self._thread.start()
+            self._ready_event.wait(timeout=2.0)
+
+    def _ensure_posix_thread(self, target_fn, name: str):
+        """Spawns POSIX background thread if not already running."""
+        if self._thread is None or not self._thread.is_alive():
+            self._stop_event.clear()
+            self._thread = threading.Thread(target=target_fn, daemon=True, name=name)
+            self._thread.start()
+
+    def _win32_worker_thread(self):
+        """Win32 thread: manages low-level input hooks and optional curtain window via message pump."""
         try:
             import ctypes
             from ctypes import wintypes
@@ -140,8 +221,8 @@ class PrivacyCurtain:
             vh = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
 
             if vw <= 0 or vh <= 0:
-                vw = user32.GetSystemMetrics(0)  # SM_CXSCREEN
-                vh = user32.GetSystemMetrics(1)  # SM_CYSCREEN
+                vw = user32.GetSystemMetrics(0)
+                vh = user32.GetSystemMetrics(1)
                 vx = 0
                 vy = 0
 
@@ -161,7 +242,6 @@ class PrivacyCurtain:
                     return 1
 
                 elif msg == WM_NCHITTEST:
-                    # Allow remote injected clicks to pass through curtain window to background applications
                     return HTTRANSPARENT
 
                 elif msg == WM_PAINT:
@@ -177,19 +257,16 @@ class PrivacyCurtain:
                     ps = PAINTSTRUCT()
                     hdc = user32.BeginPaint(hwnd, ctypes.byref(ps))
                     if hdc:
-                        # Draw deep Ambient Dark background (#070D17)
-                        brush = gdi32.CreateSolidBrush(0x170D07)  # BGR
+                        brush = gdi32.CreateSolidBrush(0x170D07)  # #070D17 BGR
                         rect = wintypes.RECT(0, 0, vw, vh)
                         user32.FillRect(hdc, ctypes.byref(rect), brush)
                         gdi32.DeleteObject(brush)
 
-                        # Set text color and font
                         gdi32.SetTextColor(hdc, 0x5EEA22)  # Brand Neon Emerald (#22EA5E)
                         gdi32.SetBkMode(hdc, 1)  # TRANSPARENT
 
-                        text = "MEIKOVA RELAY // CHẾ ĐỘ MÀN HÌNH BẢO MẬT (PRIVACY SHIELD ACTIVE)"
-                        sub_text = "Phiên điều khiển từ xa đang diễn ra an toàn. Màn hình và chuột, bàn phím vật lý đã được bảo vệ."
-                        cx = vw // 2
+                        text = "MEIKOVA RELAY // CH\u1ebe \u0110\u1ed8 M\u00c0N H\u00ccNH B\u1ea2O M\u1eacT (PRIVACY SHIELD ACTIVE)"
+                        sub_text = "Phi\u00ean \u0111i\u1ec1u khi\u1ec3n t\u1eeb xa \u0111ang di\u1ec5n ra an to\u00e0n. M\u00e0n h\u00ecnh v\u00e0 chu\u1ed9t, b\u00e0n ph\u00edm v\u1eadt l\u00fd \u0111\u00e3 \u0111\u01b0\u1ee3c b\u1ea3o v\u1ec7."
                         cy = vh // 2
                         r_text = wintypes.RECT(0, cy - 40, vw, cy)
                         r_sub = wintypes.RECT(0, cy + 10, vw, cy + 50)
@@ -197,14 +274,13 @@ class PrivacyCurtain:
                         DT_CENTER = 0x00000001
                         DT_SINGLELINE = 0x00000020
                         user32.DrawTextW(hdc, text, -1, ctypes.byref(r_text), DT_CENTER | DT_SINGLELINE)
-                        gdi32.SetTextColor(hdc, 0x94A3B8)  # Gray
+                        gdi32.SetTextColor(hdc, 0x94A3B8)
                         user32.DrawTextW(hdc, sub_text, -1, ctypes.byref(r_sub), DT_CENTER | DT_SINGLELINE)
 
                         user32.EndPaint(hwnd, ctypes.byref(ps))
                     return 0
 
                 elif msg == WM_DESTROY:
-                    user32.PostQuitMessage(0)
                     return 0
 
                 return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
@@ -238,37 +314,29 @@ class PrivacyCurtain:
 
             user32.RegisterClassExW(ctypes.byref(wcls))
 
-            WS_EX_TOPMOST = 0x00000008
-            WS_EX_TOOLWINDOW = 0x00000080
-            WS_EX_TRANSPARENT = 0x00000020
-            WS_POPUP = 0x80000000
-            WS_VISIBLE = 0x10000000
+            def _create_win():
+                WS_EX_TOPMOST = 0x00000008
+                WS_EX_TOOLWINDOW = 0x00000080
+                WS_EX_TRANSPARENT = 0x00000020
+                WS_POPUP = 0x80000000
+                WS_VISIBLE = 0x10000000
+                hwnd = user32.CreateWindowExW(
+                    WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT,
+                    className,
+                    "MeikovaPrivacyCurtain",
+                    WS_POPUP | WS_VISIBLE,
+                    vx, vy, vw, vh,
+                    None, None, hInstance, None
+                )
+                if hwnd and hasattr(user32, 'SetWindowDisplayAffinity'):
+                    try:
+                        # WDA_EXCLUDEFROMCAPTURE = 0x00000011: Physical monitor sees black shield, screen capture sees desktop
+                        user32.SetWindowDisplayAffinity(hwnd, 0x00000011)
+                    except Exception:
+                        pass
+                return hwnd
 
-            hwnd = user32.CreateWindowExW(
-                WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT,
-                className,
-                "MeikovaPrivacyCurtain",
-                WS_POPUP | WS_VISIBLE,
-                vx, vy, vw, vh,
-                None, None, hInstance, None
-            )
-
-            if not hwnd:
-                logger.error("[PrivacyCurtain] Failed to create curtain window.")
-                return
-
-            self._hwnd = hwnd
-
-            # Exclude curtain window from capture (Win10 2004+)
-            # WDA_EXCLUDEFROMCAPTURE = 0x00000011: Physical monitor sees black shield, screen capture sees real desktop!
-            if hasattr(user32, 'SetWindowDisplayAffinity'):
-                try:
-                    user32.SetWindowDisplayAffinity(hwnd, 0x00000011)
-                    logger.info("[PrivacyCurtain] Applied WDA_EXCLUDEFROMCAPTURE on privacy shield.")
-                except Exception as ex:
-                    logger.debug(f"[PrivacyCurtain] Display affinity warning: {ex}")
-
-            # --- Low-Level Input Hooks to Suppress Physical Mouse and Keyboard ---
+            # --- Low-Level Input Hooks Setup ---
             WH_KEYBOARD_LL = 13
             WH_MOUSE_LL = 14
             LLKHF_INJECTED = 0x00000010
@@ -305,10 +373,9 @@ class PrivacyCurtain:
                 if nCode >= 0:
                     try:
                         p = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
-                        # Allow remote injected keystrokes
                         if (p.flags & LLKHF_INJECTED) or (p.dwExtraInfo == MEIKOVA_INPUT_MAGIC):
                             return user32.CallNextHookEx(None, nCode, wParam, lParam)
-                        # Physical keyboard event -> DROP IT!
+                        # Drop physical keyboard event
                         return 1
                     except Exception:
                         return user32.CallNextHookEx(None, nCode, wParam, lParam)
@@ -318,70 +385,75 @@ class PrivacyCurtain:
                 if nCode >= 0:
                     try:
                         p = ctypes.cast(lParam, ctypes.POINTER(MSLLHOOKSTRUCT)).contents
-                        # Allow remote injected mouse events
                         if (p.flags & LLMHF_INJECTED) or (p.dwExtraInfo == MEIKOVA_INPUT_MAGIC):
                             return user32.CallNextHookEx(None, nCode, wParam, lParam)
-                        # Physical mouse event -> DROP IT!
+                        # Drop physical mouse event
                         return 1
                     except Exception:
                         return user32.CallNextHookEx(None, nCode, wParam, lParam)
                 return user32.CallNextHookEx(None, nCode, wParam, lParam)
 
+            self._thread_id = kernel32.GetCurrentThreadId()
             self._kb_proc = HOOKPROC(kb_hook_fn)
             self._ms_proc = HOOKPROC(ms_hook_fn)
-            self._kb_hook = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._kb_proc, hInstance, 0)
-            self._ms_hook = user32.SetWindowsHookExW(WH_MOUSE_LL, self._ms_proc, hInstance, 0)
+            self._kb_hook = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._kb_proc, None, 0)
+            self._ms_hook = user32.SetWindowsHookExW(WH_MOUSE_LL, self._ms_proc, None, 0)
             logger.info(f"[PrivacyCurtain] Physical input hooks installed: kb={bool(self._kb_hook)}, ms={bool(self._ms_hook)}")
+
+            if self.is_curtain_active:
+                self._hwnd = _create_win()
+
+            self._ready_event.set()
 
             # Win32 Message pump loop
             msg = wintypes.MSG()
             while not self._stop_event.is_set():
-                if user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 1):  # PM_REMOVE = 1
-                    if msg.message == 0x0012:  # WM_QUIT
-                        break
-                    user32.TranslateMessage(ctypes.byref(msg))
-                    user32.DispatchMessageW(ctypes.byref(msg))
-                else:
-                    time.sleep(0.01)
+                res = user32.GetMessageW(ctypes.byref(msg), None, 0, 0)
+                if res <= 0:
+                    break
+                if msg.message == WM_CURTAIN_SHOW:
+                    if not self._hwnd:
+                        self._hwnd = _create_win()
+                elif msg.message == WM_CURTAIN_HIDE:
+                    if self._hwnd:
+                        user32.DestroyWindow(self._hwnd)
+                        self._hwnd = None
+                user32.TranslateMessage(ctypes.byref(msg))
+                user32.DispatchMessageW(ctypes.byref(msg))
 
             # Cleanup hooks and window
+            if self._hwnd:
+                user32.DestroyWindow(self._hwnd)
+                self._hwnd = None
             if self._kb_hook:
                 user32.UnhookWindowsHookEx(self._kb_hook)
                 self._kb_hook = None
             if self._ms_hook:
                 user32.UnhookWindowsHookEx(self._ms_hook)
                 self._ms_hook = None
-            if hwnd:
-                user32.DestroyWindow(hwnd)
             gdi32.DeleteObject(h_br)
             user32.UnregisterClassW(className, hInstance)
-            _set_block_input_safe(False)
+            self._thread_id = 0
 
         except Exception as e:
-            logger.error(f"[PrivacyCurtain] Win32 curtain thread exception: {e}")
-            _set_block_input_safe(False)
+            logger.error(f"[PrivacyCurtain] Win32 worker thread exception: {e}")
+            self._ready_event.set()
 
     def _linux_curtain_thread(self):
         """Creates an X11 full-screen override-redirect privacy window."""
         try:
-            _set_block_input_safe(True)
             while not self._stop_event.is_set():
                 time.sleep(0.1)
         except Exception as e:
             logger.error(f"[PrivacyCurtain] Linux curtain error: {e}")
-        finally:
-            _set_block_input_safe(False)
 
     def _macos_curtain_thread(self):
         """Maintains macOS privacy overlay window."""
         try:
-            _set_block_input_safe(True)
             while not self._stop_event.is_set():
                 time.sleep(0.1)
         except Exception as e:
             logger.error(f"[PrivacyCurtain] macOS curtain error: {e}")
-        finally:
-            _set_block_input_safe(False)
 
 
 # Global SSOT instance

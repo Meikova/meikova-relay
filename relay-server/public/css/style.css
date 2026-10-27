@@ -110,6 +110,13 @@ button:active {
   background: transparent;
 }
 
+*::-webkit-scrollbar-button,
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* Typography Helpers */
 .mono-font {
   font-family: var(--font-mono);
@@ -190,6 +197,16 @@ button:active {
   margin: 0 auto;
   min-width: 0;
   max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+#mainNav::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 #mainNav button {
@@ -430,27 +447,36 @@ body.is-desktop-app .topbar {
   box-shadow: 0 0 14px -2px var(--accent-glow);
 }
 
-@media (max-width: 1440px) {
+@media (max-width: 1680px) {
   .topbar {
     padding: 0 var(--space-4);
   }
-  #mainNav button {
-    padding: 0 9px;
-    gap: 5px;
-    font-size: 0.8rem;
-  }
-  #userNameDisplay {
-    max-width: 80px;
-  }
   #btnQuickConnect span,
   #btnOpenSessionConfig span,
-  #btnNavDownloadApps span {
+  #btnNavDownloadApps span,
+  #navTunnelText {
     display: none;
   }
   #btnQuickConnect,
   #btnOpenSessionConfig,
-  #btnNavDownloadApps {
+  #btnNavDownloadApps,
+  #btnNavTunnel {
     padding: 0 10px;
+  }
+  #userNameDisplay {
+    max-width: 80px;
+  }
+}
+
+@media (max-width: 1480px) {
+  #mainNav button {
+    padding: 0 8px;
+    gap: 4px;
+    font-size: 0.8rem;
+  }
+  #mainNav button svg {
+    width: 13px;
+    height: 13px;
   }
 }
 
@@ -477,12 +503,14 @@ body.is-desktop-app .topbar {
   }
   #btnQuickConnect span,
   #btnOpenSessionConfig span,
-  #btnNavDownloadApps span {
+  #btnNavDownloadApps span,
+  #navTunnelText {
     display: none;
   }
   #btnQuickConnect,
   #btnOpenSessionConfig,
-  #btnNavDownloadApps {
+  #btnNavDownloadApps,
+  #btnNavTunnel {
     padding: 0 10px;
   }
   .dashboard-container,
@@ -1896,25 +1924,20 @@ input:-webkit-autofill:active {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   scroll-padding: 0 16px;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 .deck::-webkit-scrollbar {
-  height: 4px;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-.deck::-webkit-scrollbar-track {
-  background: transparent;
-  margin: 0 18px;
-}
-
-.deck::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.25);
-  border-radius: 9999px;
-  transition: background 0.2s ease;
-}
-
-.deck::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.6);
+.deck::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .deck.dimmed {
@@ -7703,6 +7726,19 @@ body.is-desktop-app .desktop-titlebar {
   border-color: rgba(239, 68, 68, 0.5) !important;
   color: #ef4444 !important;
   box-shadow: 0 0 14px -2px rgba(239, 68, 68, 0.6) !important;
+}
+
+/* 4b. Host Input Locked Active Button */
+.deck__btn.is-locked {
+  background: rgba(245, 158, 11, 0.18) !important;
+  border-color: rgba(245, 158, 11, 0.55) !important;
+  color: #f59e0b !important;
+  box-shadow: 0 0 14px -2px rgba(245, 158, 11, 0.6) !important;
+}
+
+.deck__btn.is-locked svg {
+  color: #f59e0b !important;
+  stroke: #f59e0b !important;
 }
 
 /* 5. Mobile responsive tweaks */

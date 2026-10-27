@@ -293,16 +293,35 @@ class InputInjector:
         """
         Blocks or unblocks physical input on the host machine across Windows, Linux, and macOS.
         Prevents local user from interfering with remote administrator session.
+        Uses both native OS BlockInput (elevated) and low-level input hooks (standard user).
         """
+        success = False
+
         # 1. Windows
         if sys.platform == "win32":
             if user32 and hasattr(user32, 'BlockInput'):
                 try:
-                    return bool(user32.BlockInput(ctypes.c_bool(blocked)))
+                    res = bool(user32.BlockInput(ctypes.c_bool(blocked)))
+                    if res:
+                        success = True
                 except Exception as e:
                     logger.warning(f"[InputInjector] Win32 BlockInput error: {e}")
-                    return False
-            return False
+
+            try:
+                from host_agent.privacy_curtain import privacy_curtain
+                hook_res = privacy_curtain.set_input_blocked(blocked)
+                if hook_res.get("success", False):
+                    success = True
+            except Exception:
+                try:
+                    from privacy_curtain import privacy_curtain
+                    hook_res = privacy_curtain.set_input_blocked(blocked)
+                    if hook_res.get("success", False):
+                        success = True
+                except Exception as ex:
+                    logger.warning(f"[InputInjector] PrivacyCurtain set_input_blocked error: {ex}")
+
+            return success
 
         # 2. Linux
         elif sys.platform.startswith("linux"):

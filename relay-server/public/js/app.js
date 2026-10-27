@@ -3744,10 +3744,18 @@
             }
           }
         } else if (msg.type === 'block_input_response') {
-          isInputBlocked = msg.blocked;
+          isInputBlocked = !!msg.blocked;
           btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
+          btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
           if (btnToggleBlockInput) {
-            btnToggleBlockInput.title = isInputBlocked ? 'Đang khóa chuột & phím máy đích' : 'Khóa chuột & phím máy đích';
+            btnToggleBlockInput.title = isInputBlocked
+              ? (typeof t === 'function' ? t('toast.block_input_on') : 'Đang khóa chuột & phím máy đích')
+              : (typeof t === 'function' ? t('toast.block_input_off') : 'Khóa chuột & phím máy đích');
+          }
+          if (msg.success !== false) {
+            showToast(isInputBlocked ? t('toast.block_input_on') : t('toast.block_input_off'), isInputBlocked ? 'warning' : 'success');
+          } else {
+            showToast(t('toast.block_input_error') || 'Không thể thay đổi trạng thái khóa bàn phím/chuột', 'error');
           }
         } else if (msg.type === 'privacy_curtain_response') {
           isCurtainActive = !!msg.enabled;
@@ -3919,6 +3927,8 @@
     btnToggleCurtain?.classList.remove('is-curtain-active');
     curtainSvgOff?.classList.remove('hidden');
     curtainSvgOn?.classList.add('hidden');
+    isInputBlocked = false;
+    btnToggleBlockInput?.classList.remove('btn-active', 'is-locked');
     if (isWhiteboardActive) {
       toggleWhiteboard(false);
     }
