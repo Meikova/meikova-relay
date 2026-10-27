@@ -3459,8 +3459,6 @@
           }
           roStatus.textContent = `${roomId} // ${t('ro.connected')}`;
           updateRoStatus();
-    const connOverlay = document.getElementById('canvasConnectingOverlay');
-    if (connOverlay) connOverlay.classList.remove('hidden');
           updateTerminalStatusBadge();
           if (msg.hostMeta) {
             updateHostResolution(msg.hostMeta.width, msg.hostMeta.height);
