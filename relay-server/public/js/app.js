@@ -68,11 +68,11 @@
 
   function executePasteAction() {
     if (!remoteCurrentPath) {
-      showToast('Vui lòng chọn thư mục đích trên máy trạm', 'info');
+      showToast(t('toast.select_dest_folder'), 'info');
       return;
     }
     if (!explorerClipboard || !explorerClipboard.path) {
-      showToast('Khay nhớ tạm trống. Vui lòng sao chép hoặc cắt một mục trước.', 'info');
+      showToast(t('toast.clip_empty_action'), 'info');
       return;
     }
     if (explorerClipboard.action === 'copy') {
@@ -81,14 +81,14 @@
         src_path: explorerClipboard.path,
         dst_dir: remoteCurrentPath
       }));
-      showToast(`Đang sao chép "${explorerClipboard.name}" vào thư mục hiện tại...`, 'info');
+      showToast(t('toast.copying_item', { name: explorerClipboard.name }), 'info');
     } else if (explorerClipboard.action === 'cut') {
       ws.send(JSON.stringify({
         type: 'file_move_request',
         src_path: explorerClipboard.path,
         dst_dir: remoteCurrentPath
       }));
-      showToast(`Đang di chuyển "${explorerClipboard.name}" vào thư mục hiện tại...`, 'info');
+      showToast(t('toast.moving_item', { name: explorerClipboard.name }), 'info');
     }
   }
 
@@ -1121,7 +1121,7 @@
           renderUserBadge();
           if (targetView !== 'landing' && targetView !== 'auth' && !isExplicitDirectConnect) {
             switchView('landing', true);
-            showToast('Phiên đăng nhập đã hết hạn', 'info');
+            showToast(t('toast.session_expired'), 'info');
           }
         }
       } catch (err) {
@@ -1236,7 +1236,7 @@
     }
 
     try {
-      showToast('Đang kết nối đăng nhập Google...', 'info');
+      showToast(t('toast.google_connecting'), 'info');
       const source = isMobileDevice ? 'mobile' : 'web';
       const res = await apiFetch(`/api/auth/google/url?source=${source}`);
       if (!res.success || !res.auth_url) {
@@ -1264,7 +1264,7 @@
           window.removeEventListener('message', onMessage);
           clearInterval(pollTimer);
           handleAuthSuccess(event.data);
-          showToast('Đăng nhập Google thành công!', 'success');
+          showToast(t('toast.google_success'), 'success');
         }
       };
       window.addEventListener('message', onMessage);
@@ -1279,7 +1279,7 @@
             window.removeEventListener('message', onMessage);
             try { if (popup && !popup.closed) popup.close(); } catch (_) {}
             handleAuthSuccess(pollRes);
-            showToast('Đăng nhập Google thành công!', 'success');
+            showToast(t('toast.google_success'), 'success');
           }
         } catch (_) {}
       }, 1200);
@@ -1289,7 +1289,7 @@
         window.removeEventListener('message', onMessage);
       }, 180000);
     } catch (e) {
-      showToast(`Lỗi: ${e.message}`, 'error');
+      showToast(t('toast.generic_error', { message: e.message }), 'error');
     }
   }
 
@@ -1308,7 +1308,7 @@
       } else {
         window.open(res.auth_url, '_blank');
       }
-      showToast('Đang mở trình duyệt ngoài để xác thực Google...', 'info');
+      showToast(t('toast.google_opening_browser'), 'info');
 
       const ticket = res.ticket;
       const pollTimer = setInterval(async () => {
@@ -1317,13 +1317,13 @@
           if (pollRes.success && pollRes.token) {
             clearInterval(pollTimer);
             handleAuthSuccess(pollRes);
-            showToast('Đăng nhập Google thành công!', 'success');
+            showToast(t('toast.google_success'), 'success');
           }
         } catch (_) {}
       }, 1500);
       setTimeout(() => clearInterval(pollTimer), 180000);
     } catch (e) {
-      showToast(`Lỗi: ${e.message}`, 'error');
+      showToast(t('toast.generic_error', { message: e.message }), 'error');
     }
   }
 
@@ -1365,7 +1365,7 @@
         const { token, user } = event.data;
         if (token) {
           handleAuthSuccess({ token, user });
-          showToast('Đăng nhập Meikova ID thành công!', 'success');
+          showToast(t('toast.meikova_id_success'), 'success');
         }
       }
     });
@@ -2122,7 +2122,7 @@
         inputRoom.value = 'RD-8924';
         inputRoom.dispatchEvent(new Event('input', { bubbles: true }));
         inputPin?.focus();
-        showToast('Đã điền mã máy mẫu: RD-8924');
+        showToast(t('toast.demo_room_filled'), 'info');
       };
     }
 
@@ -2456,7 +2456,7 @@
           if (copySvgIcon) copySvgIcon.innerHTML = '<rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>';
         }, 2000);
       } catch {
-        showToast('Sao chép thất bại');
+        showToast(t('toast.copy_failed'), 'error');
       }
     }
   });
@@ -2512,7 +2512,7 @@
           if (copyLinuxBtnText) copyLinuxBtnText.textContent = typeof t === 'function' ? t('landing.dl_linux_sh_copy') : 'Sao chép lệnh Linux';
         }, 2000);
       } catch {
-        showToast('Sao chép thất bại');
+        showToast(t('toast.copy_failed'), 'error');
       }
     }
   });
@@ -2533,7 +2533,7 @@
           if (copyMacosBtnText) copyMacosBtnText.textContent = typeof t === 'function' ? t('landing.dl_macos_sh_copy') : 'Sao chép lệnh macOS';
         }, 2000);
       } catch {
-        showToast('Sao chép thất bại');
+        showToast(t('toast.copy_failed'), 'error');
       }
     }
   });
@@ -2747,11 +2747,11 @@
       const x = parseInt(cfgTimeoutRemote.value, 10);
       const y = parseInt(cfgTimeoutGlobal.value, 10);
       if (isNaN(x) || x < 1) {
-        showToast('Thời gian X phải từ 1 phút trở lên', 'warning');
+        showToast(t('toast.min_time_x'), 'warning');
         return;
       }
       if (isNaN(y) || y < 2) {
-        showToast('Thời gian Y phải từ 2 phút trở lên', 'warning');
+        showToast(t('toast.min_time_y'), 'warning');
         return;
       }
       timeoutRemoteMin = x;
@@ -2843,7 +2843,7 @@
         btn.style.color = '';
       }, 2000);
     }).catch(() => {
-      showToast('Sao chép thất bại', 'error');
+      showToast(t('toast.copy_failed'), 'error');
     });
   }
 
@@ -3095,16 +3095,16 @@
           });
 
           if (res && res.success) {
-            showToast(`Đã ngắt phiên của "${uName}" thành công!`, 'success');
+            showToast(t('toast.session_killed_user', { user: uName }), 'success');
             await refreshSessionManagerList();
             loadDeviceFleet(true);
           } else {
-            showToast(`Lỗi: ${res?.message || 'Không thể ngắt phiên'}`, 'error');
+            showToast(t('toast.generic_error', { message: res?.message || 'Error' }), 'error');
             btn.disabled = false;
             btn.textContent = 'Ngắt phiên';
           }
         } catch (err) {
-          showToast(`Lỗi: ${err.message}`, 'error');
+          showToast(t('toast.generic_error', { message: err.message }), 'error');
           btn.disabled = false;
           btn.textContent = 'Ngắt phiên';
         }
@@ -3299,7 +3299,7 @@
       ws = new WebSocket(relayUrl);
       ws.binaryType = 'blob';
     } catch (err) {
-      showToast(`Không thể kết nối WebSocket: ${err.message}`, 'error');
+      showToast(t('toast.ws_error', { error: err.message }), 'error');
       return;
     }
 
@@ -3350,7 +3350,7 @@
           lastGlobalActivity = Date.now();
           if (isAwaitingRemoteRestart) {
             stopRestartReconnectPolling();
-            showToast('Máy trạm đã khởi động lại và kết nối thành công!', 'success');
+            showToast(t('toast.restart_success'), 'success');
           }
           roStatus.textContent = `${roomId} // ${t('ro.connected')}`;
           updateRoStatus();
@@ -3374,7 +3374,7 @@
           const translatedError = (msg.code && typeof t === 'function' && t(msg.code) !== msg.code)
             ? t(msg.code)
             : (msg.message || 'Lỗi không xác định');
-          showToast(`Lỗi: ${translatedError}`, 'error');
+          showToast(t('toast.generic_error', { message: translatedError }), 'error');
           disconnect();
         } else if (msg.type === 'session_list') {
           roomSessions = msg.sessions || [];
@@ -3394,7 +3394,7 @@
           showToast(msg.message || 'Phiên kết nối của bạn đã bị ngắt bởi quản trị viên.', 'error');
           disconnect();
         } else if (msg.type === 'kill_session_success') {
-          showToast('Đã ngắt phiên kết nối đối phương thành công.', 'success');
+          showToast(t('toast.peer_session_killed'), 'success');
           refreshSessionManagerList();
           loadDeviceFleet(true);
         } else if (msg.type === 'host_ready') {
@@ -3425,7 +3425,7 @@
               'grayscale': 'Tiết kiệm băng thông (Đơn sắc)'
             };
             const fName = presetFallbackVi[msg.preset] || msg.preset;
-            showToast(`Đã kích hoạt cấu hình: ${fName}`, 'success');
+            showToast(t('toast.preset_activated', { preset: fName }), 'success');
           }
         } else if (msg.type === 'display_profile_matched') {
           handleDisplayProfileMatched(msg);
@@ -3447,19 +3447,19 @@
           handleIncomingClipboardFiles(msg.files);
         } else if (msg.type === 'clipboard_sync_ack') {
           if (msg.success) {
-            showToast('Đã đồng bộ sang bộ nhớ tạm của máy trạm!', 'success');
+            showToast(t('toast.clip_sync_success'), 'success');
           } else {
-            showToast('Không thể cập nhật bộ nhớ tạm trên máy trạm', 'error');
+            showToast(t('toast.clip_update_failed'), 'error');
           }
         } else if (msg.type === 'clipboard_sync_image_ack') {
           if (msg.success) {
-            showToast('Đã dán ảnh thành công vào máy trạm!', 'success');
+            showToast(t('toast.clip_image_pasted'), 'success');
           } else {
-            showToast('Không thể dán ảnh vào máy trạm', 'error');
+            showToast(t('toast.clip_image_paste_failed'), 'error');
           }
         } else if (msg.type === 'clipboard_sync_files_ack') {
           if (msg.success) {
-            showToast('Đã đưa tệp vào bộ nhớ tạm máy trạm!', 'success');
+            showToast(t('toast.clip_files_pushed'), 'success');
           }
         } else if (msg.type === 'terminal_output') {
           handleTerminalOutput(msg.data || '');
@@ -3478,17 +3478,17 @@
           requestBrowsePath(remoteCurrentPath);
         } else if (msg.type === 'file_create_folder_response') {
           if (msg.result && msg.result.success) {
-            showToast('Đã tạo thư mục mới thành công', 'success');
+            showToast(t('toast.mkdir_success'), 'success');
             requestBrowsePath(remoteCurrentPath);
           } else {
-            showToast(`Lỗi tạo thư mục: ${msg.result?.error || 'Không xác định'}`, 'error');
+            showToast(t('toast.mkdir_failed', { error: msg.result?.error || 'Unknown' }), 'error');
           }
         } else if (msg.type === 'file_copy_response') {
           if (msg.result && msg.result.success) {
             showToast(t('files.copy_success') || 'Đã sao chép tệp/thư mục thành công', 'success');
             requestBrowsePath(remoteCurrentPath);
           } else {
-            showToast(`Lỗi sao chép: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
+            showToast(t('toast.file_copy_failed', { error: msg.result?.error || 'Failed' }), 'error');
           }
         } else if (msg.type === 'file_move_response') {
           if (msg.result && msg.result.success) {
@@ -3497,14 +3497,14 @@
             updatePasteButtonState();
             requestBrowsePath(remoteCurrentPath);
           } else {
-            showToast(`Lỗi di chuyển: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
+            showToast(t('toast.file_move_failed', { error: msg.result?.error || 'Failed' }), 'error');
           }
         } else if (msg.type === 'file_rename_response') {
           if (msg.result && msg.result.success) {
             showToast(t('files.rename_success') || 'Đã đổi tên tệp/thư mục thành công', 'success');
             requestBrowsePath(remoteCurrentPath);
           } else {
-            showToast(`Lỗi đổi tên: ${msg.result?.error || 'Thao tác thất bại'}`, 'error');
+            showToast(t('toast.file_rename_failed', { error: msg.result?.error || 'Failed' }), 'error');
           }
         } else if (msg.type === 'file_read_response') {
           handleFileReadResponse(msg);
@@ -3520,7 +3520,7 @@
         } else if (msg.type === 'file_upload_result') {
           uploadProgressContainer.classList.add('hidden');
           if (expTransferProgress) expTransferProgress.classList.add('hidden');
-          showToast(`Đã truyền tệp thành công: ${msg.result.filename}`, 'success');
+          showToast(t('toast.upload_success', { filename: msg.result.filename }), 'success');
           requestBrowsePath(remoteCurrentPath);
         } else if (msg.type === 'file_download_start') {
           activeDownloads[msg.transfer_id] = {
@@ -3554,11 +3554,11 @@
             downloadBlob(blob, dl.filename);
             delete activeDownloads[msg.transfer_id];
             if (expTransferProgress) expTransferProgress.classList.add('hidden');
-            showToast(`Đã tải xuống thành công: ${dl.filename}`, 'success');
+            showToast(t('toast.download_success', { filename: dl.filename }), 'success');
           }
         } else if (msg.type === 'file_download_error') {
           if (expTransferProgress) expTransferProgress.classList.add('hidden');
-          showToast(`Lỗi tải tệp: ${msg.message}`, 'error');
+          showToast(t('toast.upload_failed', { error: msg.message }), 'error');
           delete activeDownloads[msg.transfer_id];
         } else if (msg.type === 'pong') {
           const rtt = Math.round(performance.now() - lastPingSend);
@@ -3573,7 +3573,7 @@
             if (chatUnreadDot) chatUnreadDot.classList.remove('hidden');
             if (tabChatUnreadDot) tabChatUnreadDot.classList.remove('hidden');
             playChatNotificationSound();
-            showToast(`${msg.sender || 'Máy trạm'}: ${msg.message}`, 'info');
+            showToast(`${msg.sender || t('shelf.chat_welcome_title')}: ${msg.message}`, 'info');
           }
         } else if (msg.type === 'audio_chunk') {
           if (isAudioStreaming && msg.data) {
@@ -3590,7 +3590,7 @@
               cancelText: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.dismiss_btn') : 'Để sau'
             }).then(confirmed => {
               if (confirmed) {
-                showToast('Đang yêu cầu máy trạm cài đặt Loa Ảo (VB-Audio Cable)...', 'info');
+                showToast(t('toast.installing_vb_audio'), 'info');
                 ws.send(JSON.stringify({ type: 'install_virtual_audio' }));
               }
             });
@@ -3657,7 +3657,7 @@
 
     if (restartReconnectTimer) return;
 
-    showToast('Máy trạm đang khởi động lại. Đang tự động kết nối lại...', 'info', 4000);
+    showToast(t('toast.rebooting_reconnecting'), 'info', 4000);
     restartAttemptCount = 0;
 
     restartReconnectTimer = setInterval(() => {
@@ -3831,12 +3831,12 @@
 
   async function syncDisplayProfileWithHost(silent = false) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      if (!silent) showToast('Chưa kết nối máy trạm', 'info');
+      if (!silent) showToast(t('toast.not_connected'), 'info');
       return;
     }
     const cap = await detectClientDisplayCapabilities();
     if (!silent) {
-      showToast(`Đang phân tích màn hình: ${cap.screenW}x${cap.screenH} @ ${cap.estHz}Hz...`, 'info');
+      showToast(t('toast.screen_analyzing', { info: `${cap.screenW}x${cap.screenH} @ ${cap.estHz}Hz` }), 'info');
     }
     ws.send(JSON.stringify({
       type: 'sync_display_profile',
@@ -3880,7 +3880,7 @@
       'grayscale': 'Tiết kiệm băng thông'
     };
     const label = labelMap[recommended] || recommended;
-    showToast(`Đã đồng bộ tối ưu: Trạm ${msg.host_res[0]}x${msg.host_res[1]} ↔ Điều khiển ${msg.client_res[0]}x${msg.client_res[1]} @ ${msg.client_fps}Hz -> Cấu hình cao nhất: ${label}`, 'success');
+    showToast(t('toast.profile_matched', { host_res: `${msg.host_res[0]}x${msg.host_res[1]}`, client_res: `${msg.client_res[0]}x${msg.client_res[1]}`, fps: msg.client_fps, label: label }), 'success');
   }
 
   let pendingFrameBlob = null;
@@ -4486,7 +4486,7 @@
     const key = presetKeyMap[preset] || ('deck.quality_' + preset);
     const friendlyName = (window.MeikovaI18n ? window.MeikovaI18n.t(key) : null) || presetFallbackVi[preset] || preset;
 
-    showToast(`Đang chuyển cấu hình: ${friendlyName}...`, 'info');
+    showToast(t('toast.preset_switching', { preset: friendlyName }), 'info');
   });
 
   // --- 1-CLICK DISPLAY AUTO-SYNC ---
@@ -4507,7 +4507,7 @@
         if (navigator.keyboard && navigator.keyboard.lock) {
           await navigator.keyboard.lock(['AltLeft', 'AltRight', 'Tab', 'Escape', 'MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight']);
         }
-        showToast('Toàn màn hình: Đã khóa phím hệ thống (Alt+Tab, Win hoạt động trên máy trạm)', 'info');
+        showToast(t('toast.fullscreen_keys_locked'), 'info');
       } catch (err) {
         remoteSection.requestFullscreen().catch(() => {});
       }
@@ -4876,7 +4876,7 @@
   async function toggleWebcam() {
     if (isWebcamActive) {
       stopWebcam();
-      showToast('Đã tắt Face Cam', 'info');
+      showToast(t('toast.cam_off'), 'info');
     } else {
       await startWebcam();
     }
@@ -4884,7 +4884,7 @@
 
   async function startWebcam() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast('Trình duyệt không hỗ trợ webcam', 'error');
+      showToast(t('toast.webcam_not_supported'), 'error');
       return;
     }
     try {
@@ -4899,9 +4899,9 @@
       camSvgOff.classList.add('hidden');
       camSvgOn.classList.remove('hidden');
       btnToggleCam.classList.add('btn-active');
-      showToast('Đã bật Face Cam (PiP)', 'success');
+      showToast(t('toast.cam_on'), 'success');
     } catch (err) {
-      showToast(`Không thể mở webcam: ${err.message}`, 'error');
+      showToast(t('toast.cam_error', { error: err.message }), 'error');
       stopWebcam();
     }
   }
@@ -4932,7 +4932,7 @@
   // --- SESSION RECORDING (WEBM) ---
   btnRecord.addEventListener('click', () => {
     if (!isConnected) {
-      showToast('Vui lòng kết nối vào máy trạm trước khi ghi hình!', 'info');
+      showToast(t('toast.connect_before_record'), 'info');
       return;
     }
     if (isRecording) {
@@ -5029,19 +5029,19 @@
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
         downloadBlob(blob, `meikova-relay-session-${Date.now()}.webm`);
         recordedChunks = [];
-        showToast('Đã lưu tệp ghi hình webm', 'success');
+        showToast(t('toast.record_saved'), 'success');
       };
       mediaRecorder.start();
       isRecording = true;
       btnRecord.classList.add('btn-active');
-      btnRecord.title = 'Đang ghi hình...';
-      showToast(isWebcamActive ? 'Bắt đầu ghi hình (màn hình + Face Cam)' : 'Bắt đầu ghi hình màn hình', 'info');
+      btnRecord.title = t('deck.recording_title');
+      showToast(isWebcamActive ? t('toast.record_with_cam') : t('toast.record_started'), 'info');
     } catch (err) {
       if (recAnimId) {
         cancelAnimationFrame(recAnimId);
         recAnimId = null;
       }
-      showToast(`Không thể bắt đầu ghi hình: ${err.message}`, 'error');
+      showToast(t('toast.generic_error', { message: err.message }), 'error');
     }
   }
 
@@ -5054,20 +5054,20 @@
       mediaRecorder.stop();
       isRecording = false;
       btnRecord.classList.remove('btn-active');
-      btnRecord.title = 'Ghi hình phiên làm việc';
+      btnRecord.title = t('deck.btn_record_title');
     }
   }
 
   // --- CANVAS SCREENSHOT (PNG) ---
   btnScreenshot.addEventListener('click', () => {
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     remoteCanvas.toBlob((blob) => {
       if (blob) {
         downloadBlob(blob, `meikova-relay-screen-${Date.now()}.png`);
-        showToast('Đã chụp và lưu ảnh màn hình png', 'success');
+        showToast(t('toast.screenshot_saved'), 'success');
       }
     }, 'image/png');
   });
@@ -5132,7 +5132,7 @@
 
   function toggleAudioStream(enable) {
     if (!isConnected || !ws) {
-      showToast('Vui lòng kết nối vào máy trạm trước khi bật âm thanh', 'info');
+      showToast(t('toast.connect_before_audio'), 'info');
       return;
     }
     const targetState = (enable !== undefined) ? enable : !isAudioStreaming;
@@ -5169,7 +5169,7 @@
 
   async function startMicStream() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast('Trình duyệt không hỗ trợ thu âm Microphone', 'error');
+      showToast(t('toast.mic_not_supported'), 'error');
       return;
     }
     try {
@@ -5226,9 +5226,9 @@
         sample_rate: micAudioContext.sampleRate,
         channels: 1
       }));
-      showToast('Đang truyền giọng nói tới loa máy trạm...', 'success');
+      showToast(t('toast.voice_transmitting'), 'success');
     } catch (err) {
-      showToast(`Không thể truy cập Microphone: ${err.message}`, 'error');
+      showToast(t('toast.generic_error', { message: err.message }), 'error');
       stopMicStream();
     }
   }
@@ -5262,12 +5262,12 @@
 
   function toggleMicStream() {
     if (!isConnected || !ws) {
-      showToast('Vui lòng kết nối vào máy trạm trước khi bật micro', 'info');
+      showToast(t('toast.connect_before_mic'), 'info');
       return;
     }
     if (isMicStreaming) {
       stopMicStream();
-      showToast('Đã dừng micro nói sang máy trạm', 'info');
+      showToast(t('toast.voice_stopped'), 'info');
     } else {
       startMicStream();
     }
@@ -5320,7 +5320,7 @@
 
     if (imageItem && currentView === 'remote' && ws && ws.readyState === WebSocket.OPEN) {
       e.preventDefault();
-      showToast('Đang dán ảnh trực tiếp vào máy trạm...', 'info');
+      showToast(t('toast.pasting_image'), 'info');
       const reader = new FileReader();
       reader.onload = () => {
         const b64 = reader.result.split(',')[1];
@@ -5341,10 +5341,10 @@
       const files = await getFilesFromDataTransfer(e.clipboardData);
       if (files.length > 0) {
         if (currentView === 'remote') {
-          showToast(`Đang truyền ${files.length} tệp lên màn hình máy trạm...`, 'info');
+          showToast(t('toast.transferring_files_desktop', { count: files.length }), 'info');
           files.forEach(f => uploadFileToHost(f, 'desktop'));
         } else if (currentView === 'files') {
-          showToast(`Đang dán ${files.length} tệp vào thư mục hiện tại...`, 'info');
+          showToast(t('toast.pasting_files_cur_dir', { count: files.length }), 'info');
           files.forEach(f => uploadFileToHost(f, remoteCurrentPath));
         }
       }
@@ -5394,12 +5394,12 @@
       const blob = new Blob([byteArray], { type: mime });
       if (navigator.clipboard && window.ClipboardItem) {
         navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]).then(() => {
-          showToast('Đã đồng bộ ảnh từ máy trạm vào bộ nhớ tạm!', 'success');
+          showToast(t('toast.clip_image_synced'), 'success');
         }).catch(() => {
-          showToast('Đã nhận ảnh từ máy trạm vào khay Clip!', 'info');
+          showToast(t('toast.clip_image_received'), 'info');
         });
       } else {
-        showToast('Đã nhận ảnh từ máy trạm vào khay Clip!', 'info');
+        showToast(t('toast.clip_image_received'), 'info');
       }
     } catch (e) {
       console.warn('Clipboard image parse error:', e);
@@ -5410,7 +5410,7 @@
     if (!Array.isArray(files) || files.length === 0) return;
     const names = files.map(p => p.split(/[\\/]/).pop()).slice(0, 3).join(', ');
     const more = files.length > 3 ? ` (+${files.length - 3})` : '';
-    showToast(`Máy trạm đã sao chép ${files.length} tệp: ${names}${more}`, 'info');
+    showToast(t('toast.host_copied_files', { count: files.length, names: names + more }), 'info');
   }
 
   const btnDownloadClipImage = document.getElementById('btnDownloadClipImage');
@@ -5586,7 +5586,7 @@
       } else if (key === 'taskmgr' || key === 'cad') {
         // Ctrl+Alt+Del for Windows unlock / Task Manager
         sendHotKeyCombo([0x11, 0x12, 0x2E]);
-        showToast('Đã gửi Ctrl+Alt+Del', 'info', 1200);
+        showToast(t('toast.cad_sent'), 'info', 1200);
       } else if (key === 'alttab') {
         sendHotKeyCombo([0x12, 0x09]); // Alt+Tab
       } else if (key === 'esc') {
@@ -5625,7 +5625,7 @@
       e.stopPropagation();
       mobileVirtualInput.value = '';
       mobileVirtualInput.focus();
-      showToast('Đã mở bàn phím ảo di động', 'info', 1200);
+      showToast(t('toast.soft_keyboard_opened'), 'info', 1200);
     });
 
     mobileVirtualInput.addEventListener('compositionstart', () => {
@@ -5708,7 +5708,7 @@
           ws.send(JSON.stringify({ type: 'mouse_up', button: 2 }));
         }
       }, 40);
-      showToast('Chuột phải', 'info', 1000);
+      showToast(t('toast.right_click'), 'info', 1000);
     });
   }
 
@@ -6021,9 +6021,9 @@
       e.stopPropagation();
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'probe_protocols' }));
-        showToast('Đang quét lại các giao thức trên máy trạm...', 'info');
+        showToast(t('toast.rescanning_protocols'), 'info');
       } else {
-        showToast('Chưa kết nối máy trạm', 'info');
+        showToast(t('toast.not_connected'), 'info');
       }
     });
   }
@@ -6049,7 +6049,7 @@
           URL.revokeObjectURL(blobUrl);
           a.remove();
         }, 300);
-        showToast('Đã tải tệp cấu hình RDP (.rdp). Nhấp đúp để mở mstsc.exe!', 'success');
+        showToast(t('toast.rdp_downloaded'), 'success');
       } catch (err) {
         const a = document.createElement('a');
         a.href = rdpUrl;
@@ -6057,7 +6057,7 @@
         document.body.appendChild(a);
         a.click();
         setTimeout(() => a.remove(), 300);
-        showToast('Đã tải tệp cấu hình RDP (.rdp).', 'success');
+        showToast(t('toast.rdp_downloaded'), 'success');
       }
     });
   }
@@ -6093,7 +6093,7 @@
       bypass: 'Ép buộc Meikova Bypass Stream',
       native: 'Ép buộc kết nối Native (RDP/SSH)'
     };
-    showToast(`Đã chuyển chế độ: ${modeLabels[mode] || mode}`, 'info');
+    showToast(t('toast.mode_switched', { mode: modeLabels[mode] || mode }), 'info');
   };
 
   if (protoModeAuto) protoModeAuto.addEventListener('click', () => setRoutingMode('auto'));
@@ -6149,7 +6149,7 @@
       const act = btn.dataset.power;
       powerMenuDropdown.classList.add('hidden');
       if (!isConnected) {
-        showToast('Chưa kết nối máy trạm', 'info');
+        showToast(t('toast.not_connected'), 'info');
         return;
       }
       if (act === 'lock') {
@@ -6176,7 +6176,7 @@
           restartReconnectPin = currentPin;
           restartReconnectRelay = defaultWsUrl;
           ws.send(JSON.stringify({ type: 'power_action', action: 'restart' }));
-          showToast('Đã gửi lệnh khởi động lại. Hệ thống sẽ tự động kết nối lại...', 'warning', 5000);
+          showToast(t('toast.reboot_sent'), 'warning', 5000);
         }
       }
     });
@@ -6303,7 +6303,7 @@
 
       if (!isConnected) {
         handleTerminalOutput('[MeikovaRelay] Chưa kết nối máy trạm. Vui lòng kết nối thiết bị từ bảng điều khiển trước.\n\n');
-        showToast('Vui lòng kết nối vào máy trạm để sử dụng Terminal', 'info');
+        showToast(t('toast.connect_before_terminal'), 'info');
         return;
       }
 
@@ -6354,7 +6354,7 @@
   // --- VIEW 5: TASK MANAGER & DIAGNOSTICS ---
   btnRefreshTasks.addEventListener('click', () => {
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     requestTelemetryAndTasks();
@@ -6544,7 +6544,7 @@
   chatInputForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     const msg = chatMessageInput.value.trim();
@@ -6603,7 +6603,7 @@
   // --- BLOCK HOST INPUT TOGGLE ---
   btnToggleBlockInput?.addEventListener('click', () => {
     if (!isConnected) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     const nextState = !isInputBlocked;
@@ -6616,12 +6616,12 @@
   // Clipboard Push
   btnPushClipboard.addEventListener('click', async () => {
     if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
-      showToast('Chưa kết nối máy trạm', 'info');
+      showToast(t('toast.not_connected'), 'info');
       return;
     }
     const text = clipboardViewer.value;
     if (!text) {
-      showToast('Vui lòng nhập nội dung cần đồng bộ', 'info');
+      showToast(t('toast.enter_clip_content'), 'info');
       return;
     }
     lastSyncedClientClipboard = text;
@@ -6634,7 +6634,7 @@
       type: 'clipboard_sync',
       text: text
     }));
-    showToast('Đang đẩy sang bộ nhớ tạm của máy trạm...', 'info');
+    showToast(t('toast.pushing_clip'), 'info');
   });
 
     // Clipboard Pull (Fetch from Host)
@@ -6642,11 +6642,11 @@
     if (btnPullClipboard) {
       btnPullClipboard.addEventListener('click', () => {
         if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
-          showToast('Chưa kết nối máy trạm', 'info');
+          showToast(t('toast.not_connected'), 'info');
           return;
         }
         ws.send(JSON.stringify({ type: 'clipboard_pull' }));
-        showToast('Đang làm mới clipboard từ máy trạm...', 'info');
+        showToast(t('toast.refreshing_clip'), 'info');
       });
     }
 
@@ -6654,19 +6654,19 @@
   if (btnTypeDirect) {
     btnTypeDirect.addEventListener('click', () => {
       if (!isConnected) {
-        showToast('Chưa kết nối máy trạm', 'info');
+        showToast(t('toast.not_connected'), 'info');
         return;
       }
       const text = clipboardViewer.value;
       if (!text) {
-        showToast('Vui lòng nhập nội dung cần gõ', 'info');
+        showToast(t('toast.enter_type_content'), 'info');
         return;
       }
       ws.send(JSON.stringify({
         type: 'text_input',
         text: text
       }));
-      showToast('Đang gõ văn bản Unicode vào ứng dụng máy trạm...', 'success');
+      showToast(t('toast.typing_direct_success'), 'success');
     });
   }
 
@@ -6769,7 +6769,7 @@
 
   async function executeFileUpload(file, targetDir) {
     if (!isConnected) {
-      showToast('Vui lòng kết nối vào máy trạm trước khi gửi tệp tin!', 'info');
+      showToast(t('toast.connect_before_file'), 'info');
       return;
     }
 
@@ -6877,7 +6877,7 @@
     if (e.dataTransfer) {
       const files = await getFilesFromDataTransfer(e.dataTransfer);
       if (files.length > 0) {
-        showToast(`Đang truyền ${files.length} tệp/thư mục trực tiếp lên Desktop máy trạm...`, 'info');
+        showToast(t('toast.transferring_desktop', { count: files.length }), 'info');
         files.forEach(f => uploadFileToHost(f, 'desktop'));
       }
     }
@@ -7477,7 +7477,7 @@
   if (btnExpNewFolder) {
     btnExpNewFolder.addEventListener('click', async () => {
       if (!remoteCurrentPath) {
-        showToast('Vui lòng chọn ổ đĩa hoặc thư mục trước khi tạo thư mục mới', 'info');
+        showToast(t('toast.select_dir_before_mkdir'), 'info');
         return;
       }
       const folderName = await showPromptModal({
@@ -7501,7 +7501,7 @@
   if (btnExpUpload && expFileInput) {
     btnExpUpload.addEventListener('click', () => {
       if (!remoteCurrentPath) {
-        showToast('Vui lòng chọn ổ đĩa hoặc thư mục trước khi tải tệp lên', 'info');
+        showToast(t('toast.select_dir_before_upload'), 'info');
         return;
       }
       expFileInput.click();
@@ -7612,7 +7612,7 @@
       if (e.dataTransfer) {
         const files = await getFilesFromDataTransfer(e.dataTransfer);
         if (files.length > 0) {
-          showToast(`Đang tải ${files.length} tệp/thư mục vào thư mục hiện tại...`, 'info');
+          showToast(t('toast.uploading_to_cur_dir', { count: files.length }), 'info');
           files.forEach(f => uploadFileToHost(f, remoteCurrentPath));
         }
       }
@@ -7669,10 +7669,10 @@
 
   function openFileInEditor(filepath) {
     if (!isConnected) {
-      showToast('Vui lòng kết nối vào máy trạm để sửa tệp', 'info');
+      showToast(t('toast.connect_before_edit'), 'info');
       return;
     }
-    showToast('Đang mở tệp từ máy trạm...', 'info', 1500);
+    showToast(t('toast.opening_remote_file'), 'info', 1500);
     currentEditingFilePath = filepath;
     ws.send(JSON.stringify({
       type: 'file_read_request',
@@ -7682,7 +7682,7 @@
 
   function handleFileReadResponse(msg) {
     if (!msg.success) {
-      showToast(`Không thể mở tệp: ${msg.error}`, 'error');
+      showToast(t('toast.open_file_failed', { error: msg.error }), 'error');
       return;
     }
     editorFileName.textContent = msg.filename || 'Tệp không tên';
@@ -7851,7 +7851,7 @@
         showToast(res.message || 'Không thể tải nhật ký', 'error');
       }
     } catch (err) {
-      showToast(`Lỗi tải nhật ký: ${err.message}`, 'error');
+      showToast(t('toast.audit_load_failed', { error: err.message }), 'error');
     }
   }
 
@@ -8450,9 +8450,9 @@
         if (res.ok && data.ok) {
           renderTunnelStatus(data);
           if (data.running) {
-            showToast('Đã kích hoạt Cloudflare Tunnel công khai thành công!', 'success');
+            showToast(t('toast.tunnel_started'), 'success');
           } else {
-            showToast('Đã tắt Cloudflare Tunnel.', 'info');
+            showToast(t('toast.tunnel_stopped'), 'info');
           }
           try { updateRelayModalData(); } catch (_) {}
         } else {
@@ -8460,7 +8460,7 @@
           fetchTunnelStatus();
         }
       } catch (err) {
-        showToast('Lỗi mạng khi kết nối tới Tunnel Manager: ' + err.message, 'error');
+        showToast(t('toast.tunnel_net_error', { error: err.message }), 'error');
         fetchTunnelStatus();
       } finally {
         isOperating = false;
@@ -8500,11 +8500,11 @@
         if (!tunnelUrlInput.value) return;
         try {
           await navigator.clipboard.writeText(tunnelUrlInput.value);
-          showToast('Đã chép liên kết Tunnel vào bộ nhớ tạm!', 'success');
+          showToast(t('toast.tunnel_copied'), 'success');
         } catch (_) {
           tunnelUrlInput.select();
           document.execCommand('copy');
-          showToast('Đã chép liên kết!', 'success');
+          showToast(t('toast.link_copied'), 'success');
         }
       });
     }
@@ -8513,7 +8513,7 @@
       btnCopyTunnelInstallCmd.addEventListener('click', async () => {
         try {
           await navigator.clipboard.writeText(tunnelInstallCmd.textContent.trim());
-          showToast('Đã chép lệnh cài đặt cloudflared!', 'success');
+          showToast(t('toast.tunnel_cmd_copied'), 'success');
         } catch (_) {}
       });
     }
@@ -8624,7 +8624,7 @@
     const room = qcRoomId?.value.trim();
     const pin = qcPin?.value.trim() || '';
     if (!room) {
-      showToast('Vui lòng nhập Room ID', 'warning');
+      showToast(t('toast.enter_room_id'), 'warning');
       return;
     }
     quickConnectModal.classList.add('hidden');

@@ -39,13 +39,13 @@
     </div>
     <div class="desktop-titlebar__drag pywebview-drag-region"></div>
     <div class="desktop-titlebar__controls">
-      <button type="button" class="dt-btn dt-btn--min" id="dt-btn-min" title="Thu nhỏ (Minimize)" aria-label="Minimize">
+      <button type="button" class="dt-btn dt-btn--min" id="dt-btn-min" data-i18n-title="desktop.btn_min" title="Thu nhỏ (Minimize)" aria-label="Minimize">
         <svg viewBox="0 0 11 11" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2"><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
       </button>
-      <button type="button" class="dt-btn dt-btn--max" id="dt-btn-max" title="Phóng to / Khôi phục" aria-label="Maximize">
+      <button type="button" class="dt-btn dt-btn--max" id="dt-btn-max" data-i18n-title="desktop.btn_max" title="Phóng to / Khôi phục" aria-label="Maximize">
         <svg viewBox="0 0 11 11" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2" id="dt-max-icon"><rect x="1.5" y="1.5" width="8" height="8" rx="0.8"/></svg>
       </button>
-      <button type="button" class="dt-btn dt-btn--close" id="dt-btn-close" title="Đóng (Thu nhỏ vào khay hệ thống)" aria-label="Close">
+      <button type="button" class="dt-btn dt-btn--close" id="dt-btn-close" data-i18n-title="desktop.btn_close" title="Đóng (Thu nhỏ vào khay hệ thống)" aria-label="Close">
         <svg viewBox="0 0 11 11" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.2"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5"/></svg>
       </button>
     </div>
@@ -101,8 +101,8 @@
     <div class="topbar-right">
       <div class="seg lang-switch-seg" id="langSwitch" role="group" aria-label="Ngôn ngữ / Language">
         <span class="seg__ind" aria-hidden="true"></span>
-        <button type="button" class="on" data-lang-code="vi" title="Tiếng Việt">VI</button>
-        <button type="button" data-lang-code="en" title="English">EN</button>
+        <button type="button" class="on" data-lang-code="vi" data-i18n-title="lang.vi" title="Tiếng Việt">VI</button>
+        <button type="button" data-lang-code="en" data-i18n-title="lang.en" title="English">EN</button>
       </div>
       <button id="btnNavLogin" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;" data-i18n="auth.tab_login">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
@@ -138,14 +138,14 @@
 
       <!-- Custom Desktop Window Controls (Meikova Harvest & Meikova Loop Avionics style) -->
       <div id="desktopWinControls" class="desktop-wincontrols" aria-label="Điều khiển cửa sổ">
-        <button type="button" class="wc-btn wc-btn--min" id="btnWinMin" title="Thu nhỏ">
+        <button type="button" class="wc-btn wc-btn--min" id="btnWinMin" data-i18n-title="desktop.btn_min" title="Thu nhỏ">
           <svg viewBox="0 0 11 11"><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         </button>
-        <button type="button" class="wc-btn wc-btn--max" id="btnWinMax" title="Phóng to / Khôi phục">
+        <button type="button" class="wc-btn wc-btn--max" id="btnWinMax" data-i18n-title="desktop.btn_max" title="Phóng to / Khôi phục">
           <svg viewBox="0 0 11 11" class="icon-max"><rect x="1.5" y="1.5" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
           <svg viewBox="0 0 11 11" class="icon-restore" style="display:none;"><path d="M3.5 3.5V1.5h6v6h-2M1.5 3.5h6v6h-6z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
         </button>
-        <button type="button" class="wc-btn wc-btn--close" id="btnWinClose" title="Đóng (Ẩn xuống khay)">
+        <button type="button" class="wc-btn wc-btn--close" id="btnWinClose" data-i18n-title="desktop.btn_close_tray" title="Đóng (Ẩn xuống khay)">
           <svg viewBox="0 0 11 11"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         </button>
       </div>
@@ -204,22 +204,22 @@
             <div class="landing-os-strip">
               <span class="os-strip-lbl mono-font" data-i18n="landing.os_support_lbl">MÁY TRẠM HỖ TRỢ:</span>
               <div class="os-pills-row">
-                <div class="os-pill" title="Windows 10 / 11 / Server (64-bit)">
+                <div class="os-pill" data-i18n-title="os.win_title" title="Windows 10 / 11 / Server (64-bit)">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg>
                   <span>Windows</span>
                   <span class="os-sub-badge mono-font">EXE / 2-TIER</span>
                 </div>
-                <div class="os-pill" title="Ubuntu, Debian, Fedora, Arch, Raspberry Pi">
+                <div class="os-pill" data-i18n-title="os.linux_title" title="Ubuntu, Debian, Fedora, Arch, Raspberry Pi">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="14" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
                   <span>Linux</span>
                   <span class="os-sub-badge mono-font">SYSTEMD / X11</span>
                 </div>
-                <div class="os-pill" title="macOS Monterey - Sequoia (Apple Silicon M1-M4 & Intel)">
+                <div class="os-pill" data-i18n-title="os.mac_title" title="macOS Monterey - Sequoia (Apple Silicon M1-M4 & Intel)">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.84c.62-.75 1.04-1.8 0.92-2.84-.9.04-1.99.6-2.63 1.35-.57.65-1.07 1.72-.94 2.74 1 .08 2.03-.5 2.65-1.25z"/></svg>
                   <span>macOS</span>
                   <span class="os-sub-badge mono-font">APPLE SILICON</span>
                 </div>
-                <div class="os-pill" title="Chrome, Safari, iPadOS, iOS, Android (Không cần cài)">
+                <div class="os-pill" data-i18n-title="os.web_title" title="Chrome, Safari, iPadOS, iOS, Android (Không cần cài)">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                   <span>Web &amp; iPadOS</span>
                   <span class="os-sub-badge mono-font">ZERO-INSTALL</span>
@@ -349,7 +349,7 @@
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
                       </span>
                       <input type="text" id="landingRoomInput" name="relay_room_token" class="cockpit-input mono-font" placeholder="Nhập Room ID (VD: RD-8924)" required autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
-                      <button type="button" id="btnHeroDemoRoom" class="btn-cockpit-pill" title="Tự động điền mã máy mẫu để thử">
+                      <button type="button" id="btnHeroDemoRoom" class="btn-cockpit-pill" data-i18n-title="hero.demo_room_title" title="Tự động điền mã máy mẫu để thử">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                         <span>Mẫu: RD-8924</span>
                       </button>
@@ -365,7 +365,7 @@
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                       </span>
                       <input type="password" id="landingPinInput" name="relay_pin_token" class="cockpit-input mono-font" placeholder="6 chữ số PIN bảo mật" maxlength="6" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
-                      <button type="button" id="btnToggleHeroPin" class="btn-cockpit-pill btn-cockpit-pill-ghost" title="Ẩn/hiện mã PIN">
+                      <button type="button" id="btnToggleHeroPin" class="btn-cockpit-pill btn-cockpit-pill-ghost" data-i18n-title="hero.toggle_pin_title" title="Ẩn/hiện mã PIN">
                         <svg id="heroEyeSvg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                         <span id="txtHeroEye">Hiện</span>
                       </button>
@@ -982,7 +982,7 @@
 
         <!-- Meikova Universal SSO Button -->
         <div class="auth-sso-box" style="margin-bottom: 10px;">
-          <button type="button" class="btn-sso-gateway" id="btn-sso-gateway" title="Đăng nhập tập trung qua Meikova ID" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 9999px; padding: 11px 18px; color: #22C55E; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+          <button type="button" class="btn-sso-gateway" id="btn-sso-gateway" data-i18n-title="hero.sso_gateway_title" title="Đăng nhập tập trung qua Meikova ID" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 9999px; padding: 11px 18px; color: #22C55E; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               <path d="m9 12 2 2 4-4"/>
@@ -1032,7 +1032,7 @@
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
             <span data-i18n="dashboard.btn_add_device">Thêm máy trạm</span>
           </button>
-          <button id="btnOpenLinkModal" class="btn-pill" title="Kết nối trực tiếp qua Room ID">
+          <button id="btnOpenLinkModal" class="btn-pill" data-i18n-title="hero.open_link_modal_title" title="Kết nối trực tiếp qua Room ID">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
             <span data-i18n="dashboard.btn_quick_connect">Kết nối Room ID</span>
           </button>
@@ -1048,11 +1048,11 @@
       <div id="remoteSessionTabsBar" class="remote-session-bar hidden">
         <div class="session-tab-list" id="remoteSessionTabsList"></div>
         <div class="session-tab-actions">
-          <button type="button" id="btnRemoteNewSessionTab" class="session-tab-btn" title="Kết nối thêm máy khác (Tab mới)">
+          <button type="button" id="btnRemoteNewSessionTab" class="session-tab-btn" data-i18n-title="session.new_tab_title" title="Kết nối thêm máy khác (Tab mới)">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Thêm máy</span>
           </button>
-          <button type="button" id="btnCloseSessionTabsBar" class="session-tab-close" title="Đóng thanh chuyển đổi">
+          <button type="button" id="btnCloseSessionTabsBar" class="session-tab-close" data-i18n-title="session.close_tabs_bar_title" title="Đóng thanh chuyển đổi">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -1068,21 +1068,21 @@
 
       <!-- Mobile Quick Keys Strip (Floating bar for touch remote) -->
       <div id="mobileQuickKeysBar" class="mobile-quick-keys hidden">
-        <button type="button" class="mqk-btn" data-hotkey="cad" title="Mở khóa Windows / Task Manager">Ctrl+Alt+Del</button>
-        <button type="button" class="mqk-btn" data-hotkey="esc" title="Escape">Esc</button>
-        <button type="button" class="mqk-btn" data-hotkey="tab" title="Tab">Tab</button>
-        <button type="button" class="mqk-btn" data-hotkey="win" title="Windows">Win</button>
-        <button type="button" class="mqk-btn" data-hotkey="space" title="Phím cách / Mở khóa">Space</button>
-        <button type="button" class="mqk-btn" data-hotkey="enter" title="Enter">Enter</button>
-        <button type="button" class="mqk-btn" data-hotkey="backspace" title="Xóa lùi">Back</button>
-        <button type="button" class="mqk-btn" data-hotkey="alttab" title="Chuyển cửa sổ">Alt+Tab</button>
-        <button type="button" id="btnCloseQuickKeys" class="mqk-btn mqk-close" title="Đóng phím nhanh">
+        <button type="button" class="mqk-btn" data-hotkey="cad" data-i18n-title="mqk.unlock_title" title="Mở khóa Windows / Task Manager">Ctrl+Alt+Del</button>
+        <button type="button" class="mqk-btn" data-hotkey="esc" data-i18n-title="mqk.esc_title" title="Escape">Esc</button>
+        <button type="button" class="mqk-btn" data-hotkey="tab" data-i18n-title="mqk.tab_title" title="Tab">Tab</button>
+        <button type="button" class="mqk-btn" data-hotkey="win" data-i18n-title="mqk.win_title" title="Windows">Win</button>
+        <button type="button" class="mqk-btn" data-hotkey="space" data-i18n-title="mqk.space_title" title="Phím cách / Mở khóa">Space</button>
+        <button type="button" class="mqk-btn" data-hotkey="enter" data-i18n-title="mqk.enter_title" title="Enter">Enter</button>
+        <button type="button" class="mqk-btn" data-hotkey="backspace" data-i18n-title="mqk.backspace_title" title="Xóa lùi">Back</button>
+        <button type="button" class="mqk-btn" data-hotkey="alttab" data-i18n-title="mqk.alttab_title" title="Chuyển cửa sổ">Alt+Tab</button>
+        <button type="button" id="btnCloseQuickKeys" class="mqk-btn mqk-close" data-i18n-title="mqk.close_title" title="Đóng phím nhanh">
           <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg>
         </button>
       </div>
 
       <!-- Mobile Floating Quick Exit Button (Always reachable in immersive mode) -->
-      <button type="button" id="btnMobileImmersiveExit" class="mobile-immersive-exit hidden" title="Thoát chế độ toàn màn hình">
+      <button type="button" id="btnMobileImmersiveExit" class="mobile-immersive-exit hidden" data-i18n-title="mobile.immersive_exit_title" title="Thoát chế độ toàn màn hình">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         <span>Rời</span>
       </button>
@@ -1149,13 +1149,13 @@
 
         <!-- Grid Layout Quick Switcher Controls -->
         <div id="gridControls" class="grid-controls-deck hidden">
-          <button type="button" id="btnGridSideBySide" class="deck__btn active" title="Bố cục ngang [Màn 1 | Màn 2]" aria-label="Bố cục ngang">
+          <button type="button" id="btnGridSideBySide" class="deck__btn active" data-i18n-title="deck.grid_side_by_side_title" title="Bố cục ngang [Màn 1 | Màn 2]" aria-label="Bố cục ngang">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="1"></rect><rect x="13" y="4" width="8" height="16" rx="1"></rect></svg>
           </button>
-          <button type="button" id="btnGridInvert" class="deck__btn" title="Đảo ngược vị trí [Màn 2 | Màn 1]" aria-label="Đảo ngược vị trí">
+          <button type="button" id="btnGridInvert" class="deck__btn" data-i18n-title="deck.grid_invert_title" title="Đảo ngược vị trí [Màn 2 | Màn 1]" aria-label="Đảo ngược vị trí">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-4 5 4 5M16 17l4-5-4-5"></path></svg>
           </button>
-          <button type="button" id="btnGridStacked" class="deck__btn" title="Bố cục dọc [Màn 1 / Màn 2]" aria-label="Bố cục dọc">
+          <button type="button" id="btnGridStacked" class="deck__btn" data-i18n-title="deck.grid_stacked_title" title="Bố cục dọc [Màn 1 / Màn 2]" aria-label="Bố cục dọc">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="8" rx="1"></rect><rect x="4" y="13" width="16" height="8" rx="1"></rect></svg>
           </button>
         </div>
@@ -1170,7 +1170,7 @@
         </button>
 
         <!-- Compact Quality Preset Trigger Button (Ambient Capsule) -->
-        <button type="button" id="btnQualityMenu" class="deck__btn deck__btn--quality" title="Cấu hình phân giải, FPS & chất lượng" data-i18n-title="deck.quality_title">
+        <button type="button" id="btnQualityMenu" class="deck__btn deck__btn--quality" data-i18n-title="deck.quality_selector_title" title="Cấu hình phân giải, FPS & chất lượng" data-i18n-title="deck.quality_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
             <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
@@ -1182,7 +1182,7 @@
         </button>
 
         <!-- Hidden Native Select (Synchronized for backward compatibility) -->
-        <select id="qualitySelector" class="hidden" title="Cấu hình phân giải, FPS & chất lượng">
+        <select id="qualitySelector" class="hidden" data-i18n-title="deck.quality_selector_title" title="Cấu hình phân giải, FPS & chất lượng">
           <option value="native_1to1">1:1 Chuẩn gốc (Pixel-Perfect)</option>
           <option value="auto_sync">Tự động tối ưu (Auto-Sync)</option>
           <option value="ultra_120">120 FPS Siêu mượt</option>
@@ -1260,16 +1260,16 @@
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
 
-        <button class="deck__btn" data-hotkey="win" title="Windows">
+        <button class="deck__btn" data-hotkey="win" data-i18n-title="mqk.win_title" title="Windows">
           <svg viewBox="0 0 24 24"><path d="M3 12V6.75l6-1.32v6.48L3 12zm17-9v8.75l-10 .15V5.21L20 3zM3 13l6 .09v6.81l-6-1.15V13zm17 .25V22l-10-1.91V13.1l10 .15z" fill="currentColor" stroke="none"/></svg>
         </button>
-        <button class="deck__btn" data-hotkey="taskmgr" title="Ctrl+Shift+Esc">
+        <button class="deck__btn" data-hotkey="taskmgr" data-i18n-title="deck.shortcut_taskmgr_title" title="Ctrl+Shift+Esc">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
         </button>
-        <button class="deck__btn" data-hotkey="alttab" title="Alt+Tab">
+        <button class="deck__btn" data-hotkey="alttab" data-i18n-title="deck.shortcut_alttab_title" title="Alt+Tab">
           <svg viewBox="0 0 24 24"><rect x="2" y="6" width="8" height="12" rx="1"/><rect x="14" y="6" width="8" height="12" rx="1"/><path d="M10 12h4m-1-2l2 2-2 2"/></svg>
         </button>
-        <button class="deck__btn" data-hotkey="esc" title="Escape">
+        <button class="deck__btn" data-hotkey="esc" data-i18n-title="mqk.esc_title" title="Escape">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
 
@@ -1294,7 +1294,7 @@
       <div id="protocolMenuDropdown" class="protocol-menu hidden">
         <div class="protocol-menu-header">
           <span data-i18n="deck.protocol_menu_title">MA TRẬN GIAO THỨC (PROTOCOL MATRIX)</span>
-          <button type="button" id="btnRefreshProtocols" class="protocol-refresh-btn" title="Quét lại giao thức">
+          <button type="button" id="btnRefreshProtocols" class="protocol-refresh-btn" data-i18n-title="proto.refresh_title" title="Quét lại giao thức">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
           </button>
         </div>
@@ -1309,7 +1309,7 @@
               <div id="protoDescRdp" class="protocol-desc">Đang kiểm tra TermService...</div>
             </div>
             <div class="protocol-actions">
-              <button type="button" id="btnDownloadRdp" class="proto-btn" title="Tải file .rdp 1-click">
+              <button type="button" id="btnDownloadRdp" class="proto-btn" data-i18n-title="proto.download_rdp_title" title="Tải file .rdp 1-click">
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 <span>.RDP</span>
               </button>
@@ -1325,7 +1325,7 @@
               <div id="protoDescSsh" class="protocol-desc">Đang kiểm tra OpenSSH...</div>
             </div>
             <div class="protocol-actions">
-              <button type="button" id="btnCopySshCmd" class="proto-btn" title="Sao chép lệnh SSH">
+              <button type="button" id="btnCopySshCmd" class="proto-btn" data-i18n-title="proto.copy_ssh_title" title="Sao chép lệnh SSH">
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                 <span>SSH</span>
               </button>
@@ -1560,10 +1560,10 @@
           <button type="button" class="osk-key space" data-key="Space">Space</button>
           <button type="button" class="osk-key" data-key="AltRight">Alt</button>
           <button type="button" class="osk-key" data-key="ControlRight">Ctrl</button>
-          <button type="button" class="osk-key" data-key="ArrowLeft" title="Mũi tên trái" aria-label="Mũi tên trái"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-          <button type="button" class="osk-key" data-key="ArrowUp" title="Mũi tên lên" aria-label="Mũi tên lên"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
-          <button type="button" class="osk-key" data-key="ArrowDown" title="Mũi tên xuống" aria-label="Mũi tên xuống"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-          <button type="button" class="osk-key" data-key="ArrowRight" title="Mũi tên phải" aria-label="Mũi tên phải"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowLeft" data-i18n-title="osk.left_title" title="Mũi tên trái" aria-label="Mũi tên trái"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowUp" data-i18n-title="osk.up_title" title="Mũi tên lên" aria-label="Mũi tên lên"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowDown" data-i18n-title="osk.down_title" title="Mũi tên xuống" aria-label="Mũi tên xuống"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowRight" data-i18n-title="osk.right_title" title="Mũi tên phải" aria-label="Mũi tên phải"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
         </div>
       </div>
     </section>
@@ -1844,7 +1844,7 @@
     <aside id="shelfDrawer" class="shelf-drawer">
       <div class="shelf-header">
         <h3 class="shelf-title" data-i18n="shelf.title">Tệp tin &amp; Bộ nhớ tạm</h3>
-        <button id="btnCloseShelf" class="btn-pill" title="Đóng" data-i18n-title="shelf.close_title">
+        <button id="btnCloseShelf" class="btn-pill" data-i18n-title="common.close" title="Đóng" data-i18n-title="shelf.close_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -2138,7 +2138,7 @@
         </div>
         <div style="display: flex; gap: 10px; margin-top: 16px;">
           <button type="button" id="btnCancelQC" class="btn-pill" style="flex: 1; padding: 10px; justify-content: center;" data-i18n="qc.btn_cancel">Hủy</button>
-          <button type="button" id="btnQCPopout" class="btn-pill" style="flex: 1; padding: 10px; justify-content: center; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan);" title="Mở trong tab mới / cửa sổ riêng">
+          <button type="button" id="btnQCPopout" class="btn-pill" style="flex: 1; padding: 10px; justify-content: center; border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan);" data-i18n-title="qc.popout_title" title="Mở trong tab mới / cửa sổ riêng">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             <span>Tab mới</span>
           </button>
@@ -2240,7 +2240,7 @@
             <p class="card-subtitle mono-font" id="sessionManagerSubtitle" style="margin:2px 0 0 0; font-size:0.68rem; color:var(--text-faint);">CÁC THIẾT BỊ ĐANG REMOTE VÀO MÁY TRẠM NÀY</p>
           </div>
         </div>
-        <button type="button" id="btnCloseSessionManager" class="btn-pill" style="padding:6px; width:32px; height:32px; justify-content:center;" title="Đóng">
+        <button type="button" id="btnCloseSessionManager" class="btn-pill" style="padding:6px; width:32px; height:32px; justify-content:center;" data-i18n-title="common.close" title="Đóng">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -2283,7 +2283,7 @@
             <span class="mobile-modal__subtitle mono-font" data-i18n="dl_modal.subtitle">MEIKOVA RELAY // CROSS-PLATFORM ECOSYSTEM</span>
           </div>
         </div>
-        <button type="button" id="btnCloseDownloadApps" class="mobile-modal__close" title="Đóng" data-i18n-title="dl_modal.close_title">
+        <button type="button" id="btnCloseDownloadApps" class="mobile-modal__close" data-i18n-title="common.close" title="Đóng" data-i18n-title="dl_modal.close_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -2311,7 +2311,7 @@
             <span class="mobile-modal__sub-tag" id="relayHostServerTag">Relay Server</span>
             <span class="mobile-modal__ip mono-font" id="relayHostServerIp">--</span>
           </div>
-          <button type="button" class="mobile-modal__sub-btn btn-pill" id="btnCopyHostServerUrl" title="Sao chép địa chỉ máy chủ">
+          <button type="button" class="mobile-modal__sub-btn btn-pill" id="btnCopyHostServerUrl" data-i18n-title="modal.copy_server_url_title" title="Sao chép địa chỉ máy chủ">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Sao chép</span>
           </button>
@@ -2324,7 +2324,7 @@
 
         <div class="dl-cards-grid">
           <!-- Windows Host Standalone EXE -->
-          <a href="/api/download/MeikovaRelayHost.exe" class="dl-box-card" title="Tải Standalone EXE cho Windows">
+          <a href="/api/download/MeikovaRelayHost.exe" class="dl-box-card" data-i18n-title="apps.dl_win_exe_title" title="Tải Standalone EXE cho Windows">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
@@ -2336,7 +2336,7 @@
           </a>
 
           <!-- Windows Host Portable Zip -->
-          <a href="/api/download/MeikovaRelayHost-windows-x64.zip" class="dl-box-card" title="Tải bản Portable ZIP cho Windows">
+          <a href="/api/download/MeikovaRelayHost-windows-x64.zip" class="dl-box-card" data-i18n-title="apps.dl_win_zip_title" title="Tải bản Portable ZIP cho Windows">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
@@ -2348,7 +2348,7 @@
           </a>
 
           <!-- 1-Click Auto Setup Script (Windows) -->
-          <a href="/api/download/setup.bat" id="linkDownloadSetupBat" class="dl-box-card dl-box-card--highlight" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (Windows)">
+          <a href="/api/download/setup.bat" id="linkDownloadSetupBat" class="dl-box-card dl-box-card--highlight" data-i18n-title="apps.dl_script_win_title" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (Windows)">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
@@ -2360,7 +2360,7 @@
           </a>
 
           <!-- 1-Click Auto Setup Script (Linux) -->
-          <a href="/api/download/setup-linux.sh" id="linkDownloadSetupLinux" class="dl-box-card" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (Linux)">
+          <a href="/api/download/setup-linux.sh" id="linkDownloadSetupLinux" class="dl-box-card" data-i18n-title="apps.dl_script_linux_title" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (Linux)">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.001 2c-2.42 0-3.999 1.83-3.999 4.08 0 .68.15 1.47.38 2.2-.67.43-1.42 1.1-1.85 1.9-.81 1.5-.7 3.2-.28 4.88-1.05.67-1.75 1.74-1.75 3.02 0 1.94 1.66 3.42 3.84 3.42 1.13 0 2.18-.45 2.97-1.22.88.38 1.83.62 2.82.62 1.05 0 2.05-.26 2.98-.67.79.77 1.83 1.22 2.96 1.22 2.18 0 3.84-1.48 3.84-3.42 0-1.28-.7-2.35-1.75-3.02.42-1.68.53-3.38-.28-4.88-.43-.8-1.18-1.47-1.85-1.9.23-.73.38-1.52.38-2.2 0-2.25-1.58-4.08-3.999-4.08h-.862z"/></svg>
@@ -2372,7 +2372,7 @@
           </a>
 
           <!-- 1-Click Auto Setup Script (macOS) -->
-          <a href="/api/download/setup-macos.sh" id="linkDownloadSetupMac" class="dl-box-card" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (macOS)">
+          <a href="/api/download/setup-macos.sh" id="linkDownloadSetupMac" class="dl-box-card" data-i18n-title="apps.dl_script_mac_title" title="Kịch bản cài đặt tự động 1-click liên kết tài khoản (macOS)">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.84.94-2.91-1 .04-2.18.67-2.88 1.49-.6.69-1.13 1.79-.99 2.85 1.11.09 2.24-.59 2.93-1.43z"/></svg>
@@ -2384,7 +2384,7 @@
           </a>
 
           <!-- Linux Host DEB -->
-          <a href="/api/download/meikova-relay-host_amd64.deb" class="dl-box-card" title="Gói cài đặt Debian / Ubuntu">
+          <a href="/api/download/meikova-relay-host_amd64.deb" class="dl-box-card" data-i18n-title="apps.dl_deb_title" title="Gói cài đặt Debian / Ubuntu">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.001 2c-2.42 0-3.999 1.83-3.999 4.08 0 .68.15 1.47.38 2.2-.67.43-1.42 1.1-1.85 1.9-.81 1.5-.7 3.2-.28 4.88-1.05.67-1.75 1.74-1.75 3.02 0 1.94 1.66 3.42 3.84 3.42 1.13 0 2.18-.45 2.97-1.22.88.38 1.83.62 2.82.62 1.05 0 2.05-.26 2.98-.67.79.77 1.83 1.22 2.96 1.22 2.18 0 3.84-1.48 3.84-3.42 0-1.28-.7-2.35-1.75-3.02.42-1.68.53-3.38-.28-4.88-.43-.8-1.18-1.47-1.85-1.9.23-.73.38-1.52.38-2.2 0-2.25-1.58-4.08-3.999-4.08h-.862z"/></svg>
@@ -2396,7 +2396,7 @@
           </a>
 
           <!-- Linux Tarball -->
-          <a href="/api/download/meikova-relay-host-linux-x64.tar.gz" class="dl-box-card" title="Gói nén Linux x64 Tarball">
+          <a href="/api/download/meikova-relay-host-linux-x64.tar.gz" class="dl-box-card" data-i18n-title="apps.dl_tar_title" title="Gói nén Linux x64 Tarball">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.001 2c-2.42 0-3.999 1.83-3.999 4.08 0 .68.15 1.47.38 2.2-.67.43-1.42 1.1-1.85 1.9-.81 1.5-.7 3.2-.28 4.88-1.05.67-1.75 1.74-1.75 3.02 0 1.94 1.66 3.42 3.84 3.42 1.13 0 2.18-.45 2.97-1.22.88.38 1.83.62 2.82.62 1.05 0 2.05-.26 2.98-.67.79.77 1.83 1.22 2.96 1.22 2.18 0 3.84-1.48 3.84-3.42 0-1.28-.7-2.35-1.75-3.02.42-1.68.53-3.38-.28-4.88-.43-.8-1.18-1.47-1.85-1.9.23-.73.38-1.52.38-2.2 0-2.25-1.58-4.08-3.999-4.08h-.862z"/></svg>
@@ -2408,7 +2408,7 @@
           </a>
 
           <!-- macOS Host DMG -->
-          <a href="/api/download/MeikovaRelayHost-macos.dmg" class="dl-box-card" title="Gói cài đặt macOS Host Agent">
+          <a href="/api/download/MeikovaRelayHost-macos.dmg" class="dl-box-card" data-i18n-title="apps.dl_mac_title" title="Gói cài đặt macOS Host Agent">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.84.94-2.91-1 .04-2.18.67-2.88 1.49-.6.69-1.13 1.79-.99 2.85 1.11.09 2.24-.59 2.93-1.43z"/></svg>
@@ -2470,7 +2470,7 @@
             <span class="mobile-modal__sub-tag" id="relayClientGatewayTag" style="color: #38BDF8; border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.1);">Web Gateway</span>
             <span class="mobile-modal__ip mono-font" id="relayClientGatewayIp">--</span>
           </div>
-          <button type="button" class="mobile-modal__sub-btn btn-pill" id="btnCopyClientGatewayUrl" title="Sao chép liên kết điều khiển">
+          <button type="button" class="mobile-modal__sub-btn btn-pill" id="btnCopyClientGatewayUrl" data-i18n-title="modal.copy_gateway_url_title" title="Sao chép liên kết điều khiển">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Sao chép</span>
           </button>
@@ -2483,7 +2483,7 @@
 
         <div class="dl-cards-grid">
           <!-- Windows Client EXE -->
-          <a href="/api/download/MeikovaRelayClient.exe" class="dl-box-card dl-box-card--highlight-blue" title="Tải Meikova Relay Client Desktop cho Windows">
+          <a href="/api/download/MeikovaRelayClient.exe" class="dl-box-card dl-box-card--highlight-blue" data-i18n-title="apps.dl_client_win_title" title="Tải Meikova Relay Client Desktop cho Windows">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
@@ -2495,7 +2495,7 @@
           </a>
 
           <!-- Windows Client Portable Zip -->
-          <a href="/api/download/MeikovaRelayClient-windows-x64.zip" class="dl-box-card" title="Tải Client Portable ZIP">
+          <a href="/api/download/MeikovaRelayClient-windows-x64.zip" class="dl-box-card" data-i18n-title="apps.dl_client_zip_title" title="Tải Client Portable ZIP">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
@@ -2507,7 +2507,7 @@
           </a>
 
           <!-- macOS Client DMG -->
-          <a href="/api/download/MeikovaRelayClient-macos.dmg" class="dl-box-card" title="Tải Meikova Relay Client cho macOS">
+          <a href="/api/download/MeikovaRelayClient-macos.dmg" class="dl-box-card" data-i18n-title="apps.dl_client_mac_title" title="Tải Meikova Relay Client cho macOS">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.84.94-2.91-1 .04-2.18.67-2.88 1.49-.6.69-1.13 1.79-.99 2.85 1.11.09 2.24-.59 2.93-1.43z"/></svg>
@@ -2519,7 +2519,7 @@
           </a>
 
           <!-- Linux Client Tarball -->
-          <a href="/api/download/meikova-relay-client-linux-x64.tar.gz" class="dl-box-card" title="Tải Meikova Relay Client cho Linux">
+          <a href="/api/download/meikova-relay-client-linux-x64.tar.gz" class="dl-box-card" data-i18n-title="apps.dl_client_linux_title" title="Tải Meikova Relay Client cho Linux">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.001 2c-2.42 0-3.999 1.83-3.999 4.08 0 .68.15 1.47.38 2.2-.67.43-1.42 1.1-1.85 1.9-.81 1.5-.7 3.2-.28 4.88-1.05.67-1.75 1.74-1.75 3.02 0 1.94 1.66 3.42 3.84 3.42 1.13 0 2.18-.45 2.97-1.22.88.38 1.83.62 2.82.62 1.05 0 2.05-.26 2.98-.67.79.77 1.83 1.22 2.96 1.22 2.18 0 3.84-1.48 3.84-3.42 0-1.28-.7-2.35-1.75-3.02.42-1.68.53-3.38-.28-4.88-.43-.8-1.18-1.47-1.85-1.9.23-.73.38-1.52.38-2.2 0-2.25-1.58-4.08-3.999-4.08h-.862z"/></svg>
@@ -2531,7 +2531,7 @@
           </a>
 
           <!-- Android APK / Viewer -->
-          <a href="/api/download/MeikovaRelayClient.apk" class="dl-box-card" title="Tải Meikova Relay Viewer cho Android (.apk)">
+          <a href="/api/download/MeikovaRelayClient.apk" class="dl-box-card" data-i18n-title="apps.dl_client_apk_title" title="Tải Meikova Relay Viewer cho Android (.apk)">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4111 13.8533 8.0805 12 8.0805c-1.8534 0-3.5902.3306-5.1368.8692L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
@@ -2543,7 +2543,7 @@
           </a>
 
           <!-- Web Remote Client (PWA) -->
-          <button type="button" class="dl-box-card dl-box-card--btn" id="btnPwaInstallRelay" title="Cài đặt Meikova Relay làm ứng dụng Web (PWA)">
+          <button type="button" class="dl-box-card dl-box-card--btn" id="btnPwaInstallRelay" data-i18n-title="apps.install_pwa_title" title="Cài đặt Meikova Relay làm ứng dụng Web (PWA)">
             <div class="dl-box-card__head">
               <span class="dl-box-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -2579,7 +2579,7 @@
               href="#"
               target="_blank"
               class="mobile-modal__link mono-font"
-              title="Mở trong tab mới"
+              data-i18n-title="common.open_new_tab" title="Mở trong tab mới"
               >https://meikova-relay.onrender.com ↗</a
             >
           </div>
@@ -2680,7 +2680,7 @@
 
       <!-- Footer Info -->
       <div class="apps-modal-footer-strip">
-        <div class="apps-footer-cmd mono-font" id="btnCopyWingetRelay" title="Nhấp để sao chép lệnh">
+        <div class="apps-footer-cmd mono-font" id="btnCopyWingetRelay" data-i18n-title="modal.copy_winget_title" title="Nhấp để sao chép lệnh">
           <span class="apps-cmd-prompt">$</span>
           <span id="txtWingetRelayCmd">winget install Meikova.Relay.Host</span>
         </div>
@@ -2705,7 +2705,7 @@
           </div>
           <h2 id="modalTunnelTitle" class="brand-font" style="margin:0; font-size: 1.1rem; font-weight: 600; color: #fff; text-align: left;" data-i18n="tunnel.modal_title">Cloudflare Tunnel</h2>
         </div>
-        <button type="button" id="btnCloseTunnelModal" class="btn-pill" style="padding: 6px 10px;" aria-label="Đóng" title="Đóng">
+        <button type="button" id="btnCloseTunnelModal" class="btn-pill" style="padding: 6px 10px;" aria-label="Đóng" data-i18n-title="common.close" title="Đóng">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
@@ -2728,7 +2728,7 @@
         <div class="tunnel-field-label" data-i18n="tunnel.public_url">PUBLIC URL</div>
         <div class="tunnel-url-row">
           <input type="text" id="tunnelUrlInput" class="tunnel-url-input mono-font" readonly spellcheck="false" />
-          <button id="btnCopyTunnelUrl" class="btn-pill btn-copy-pill" type="button" title="Sao chép">
+          <button id="btnCopyTunnelUrl" class="btn-pill btn-copy-pill" type="button" data-i18n-title="common.copy" title="Sao chép">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span data-i18n="common.copy">Chép</span>
           </button>
