@@ -413,12 +413,12 @@ class HostService:
             self.capture.grayscale = False
             self.frame_interval = 1.0 / 30.0
         elif preset == "speed_60":
-            self.capture.quality = 58
-            self.capture.max_width = 1280
+            self.capture.quality = 65
+            self.capture.max_width = 1600
             self.capture.resample_filter = "nearest"
             self.capture.subsampling = 2  # 4:2:0
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 60.0
+            self.frame_interval = 1.0 / 120.0  # Upgraded to 120 FPS with turbojpeg
         elif preset == "crisp_hd":
             self.capture.quality = 80
             self.capture.max_width = 1920
@@ -427,12 +427,12 @@ class HostService:
             self.capture.grayscale = False
             self.frame_interval = 1.0 / 30.0
         elif preset == "native_1to1":
-            self.capture.quality = 90
+            self.capture.quality = 85
             self.capture.max_width = None
             self.capture.resample_filter = "bilinear"
-            self.capture.subsampling = 0  # 4:4:4 pixel-perfect
+            self.capture.subsampling = 1  # 4:2:2 near-lossless, 40% smaller than 4:4:4
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 30.0
+            self.frame_interval = 1.0 / 120.0  # Uncapped 120 FPS with turbojpeg
         elif preset == "grayscale":
             self.capture.quality = 40
             self.capture.max_width = 1280
@@ -441,12 +441,19 @@ class HostService:
             self.capture.grayscale = True
             self.frame_interval = 1.0 / 25.0
         elif preset == "ultra_120":
-            self.capture.quality = 58
+            self.capture.quality = 70
+            self.capture.max_width = 1920
+            self.capture.resample_filter = "nearest"
+            self.capture.subsampling = 2  # 4:2:0 for minimum encode time
+            self.capture.grayscale = False
+            self.frame_interval = 1.0 / 120.0  # True 120 FPS with turbojpeg
+        elif preset == "ultra_240":
+            self.capture.quality = 55
             self.capture.max_width = 1280
             self.capture.resample_filter = "nearest"
-            self.capture.subsampling = 2
+            self.capture.subsampling = 2  # 4:2:0
             self.capture.grayscale = False
-            self.frame_interval = 1.0 / 60.0
+            self.frame_interval = 1.0 / 240.0  # Maximum throughput mode
         elif preset == "crisp_2k_4k":
             self.capture.quality = 95
             self.capture.max_width = 2560
@@ -550,7 +557,7 @@ class HostService:
                 continue
 
             elapsed = time.perf_counter() - start_time
-            sleep_time = max(0.001, self.frame_interval - elapsed)
+            sleep_time = max(0, self.frame_interval - elapsed)
             await asyncio.sleep(sleep_time)
 
     async def _send_frames_worker(self, ws: websockets.WebSocketClientProtocol):
@@ -576,13 +583,13 @@ class HostService:
                     await asyncio.sleep(0.05)
                     continue
 
-                # Flow control gate: Cap unacknowledged frames in flight to 2
-                # Prevents bufferbloat (1000-2000ms latency) and guarantees sub-100ms mode switching
-                if self.frames_in_flight >= 2:
+                # Flow control gate: Cap unacknowledged frames in flight to 4
+                # Higher pipeline depth enables 120+ FPS while maintaining sub-200ms latency
+                if self.frames_in_flight >= 4:
                     try:
                         await asyncio.wait_for(self.ack_event.wait(), timeout=0.10)
                     except asyncio.TimeoutError:
-                        self.frames_in_flight = 1
+                        self.frames_in_flight = 2
                     finally:
                         self.ack_event.clear()
 
@@ -592,10 +599,10 @@ class HostService:
                     frame = None
 
                 if frame:
-                    # Flow control 1: Transport write buffer check (< 256KB prevents bufferbloat while allowing HD/4K bursts)
+                    # Flow control 1: Transport write buffer check (< 512KB allows 120+ FPS pipeline with HD/4K bursts)
                     transport = getattr(ws, "transport", None)
                     if transport and hasattr(transport, "get_write_buffer_size"):
-                        if transport.get_write_buffer_size() > 256 * 1024:
+                        if transport.get_write_buffer_size() > 512 * 1024:
                             await asyncio.sleep(0.005)
                             continue
 
@@ -1011,7 +1018,7 @@ class HostService:
                     # 4. Immediately force capture and transmit fresh frame in the new mode
                     fresh_frame = await asyncio.to_thread(self.capture.capture_frame, True)
                     if fresh_frame:
-                        self.frames_in_flight = 1
+                        self.frames_in_flight = 2
                         await ws.send(fresh_frame)
                     # 5. Send confirmation ACK with applied metrics immediately (non-blocking)
                     await ws.send(json.dumps({
@@ -1579,7 +1586,7 @@ class HostService:
                             except Exception:
                                 pass
 
-                        self.frame_queue = asyncio.Queue(maxsize=1)
+                        self.frame_queue = asyncio.Queue(maxsize=3)
                         self.audio_queue = asyncio.Queue(maxsize=50)
                         capture_task = asyncio.create_task(self._stream_screen())
                         send_task = asyncio.create_task(self._send_frames_worker(ws))

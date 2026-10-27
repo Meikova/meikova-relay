@@ -3539,8 +3539,9 @@
             const presetFallbackVi = {
               'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
               'auto_sync': 'Tự động tối ưu (Auto-Sync)',
+              'ultra_240': '240 FPS Performance',
               'ultra_120': '120 FPS Siêu mượt',
-              'speed_60': '60 FPS Mượt mà (720p)',
+              'speed_60': '120 FPS Mượt mà (720p)',
               'crisp_2k_4k': '2K / 4K Cực nét (95%)',
               'crisp_hd': 'HD Nét (1080p // 85%)',
               'balanced': '30 FPS Cân bằng (900p)',
@@ -4165,9 +4166,10 @@
 
     const labelMap = {
       'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
-      'ultra_120': '120 FPS Siêu mượt',
+      'ultra_240': '240 FPS Performance',
+              'ultra_120': '120 FPS Siêu mượt',
       'crisp_2k_4k': '2K/4K Cực nét',
-      'speed_60': '60 FPS Mượt mà',
+      'speed_60': '120 FPS Mượt mà',
       'crisp_hd': 'HD Nét',
       'balanced': '30 FPS Cân bằng',
       'grayscale': 'Tiết kiệm băng thông'
@@ -4919,8 +4921,9 @@
     const presetFallbackVi = {
       'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
       'auto_sync': 'Tự động tối ưu (Auto-Sync)',
-      'ultra_120': '120 FPS Siêu mượt',
-      'speed_60': '60 FPS Mượt mà (720p)',
+      'ultra_240': '240 FPS Performance',
+              'ultra_120': '120 FPS Siêu mượt',
+      'speed_60': '120 FPS Mượt mà (720p)',
       'crisp_2k_4k': '2K / 4K Cực nét (95%)',
       'crisp_hd': 'HD Nét (1080p // 85%)',
       'balanced': '30 FPS Cân bằng (900p)',

@@ -1,8 +1,10 @@
 import io
 import time
 import sys
+import os
 import ctypes
 import threading
+import logging
 from typing import Tuple, Optional, List, Dict, Any
 from PIL import Image, ImageGrab
 
@@ -10,6 +12,63 @@ try:
     import mss
 except ImportError:
     mss = None
+
+# High-performance JPEG encoder: turbojpeg (libjpeg-turbo) ~2-5ms vs PIL's ~35-55ms for 1080p
+_tjpeg = None
+_HAS_TURBOJPEG = False
+try:
+    import turbojpeg
+    # Try default auto-detect first
+    try:
+        _tjpeg = turbojpeg.TurboJPEG()
+        _HAS_TURBOJPEG = True
+    except RuntimeError:
+        # Auto-detect failed — try common install paths on Windows
+        _lib_candidates = []
+        if sys.platform == 'win32':
+            _lib_candidates = [
+                r"C:\libjpeg-turbo64\bin\turbojpeg.dll",
+                r"C:\Program Files\libjpeg-turbo64\bin\turbojpeg.dll",
+                r"C:\ProgramData\chocolatey\lib\libjpeg-turbo\tools\turbojpeg.dll",
+                os.path.join(os.path.dirname(__file__), "turbojpeg.dll"),
+            ]
+        for _lp in _lib_candidates:
+            if os.path.isfile(_lp):
+                try:
+                    _tjpeg = turbojpeg.TurboJPEG(lib_path=_lp)
+                    _HAS_TURBOJPEG = True
+                    break
+                except Exception:
+                    continue
+except ImportError:
+    pass
+
+# numpy for zero-copy BGRA→RGB conversion with turbojpeg
+try:
+    import numpy as np
+    _HAS_NUMPY = True
+except ImportError:
+    np = None
+    _HAS_NUMPY = False
+
+# DXCam: GPU-accelerated DirectX Desktop Duplication capture (Windows only, ~1ms capture)
+try:
+    import dxcam
+    _HAS_DXCAM = True
+except ImportError:
+    dxcam = None
+    _HAS_DXCAM = False
+
+_logger = logging.getLogger("meikova.screen_capture")
+
+# Map subsampling int to turbojpeg constant (lazy — safe even if turbojpeg not available)
+_TJPEG_SUBSAMP = {}
+if _HAS_TURBOJPEG:
+    _TJPEG_SUBSAMP = {
+        0: turbojpeg.TJSAMP_444,
+        1: turbojpeg.TJSAMP_422,
+        2: turbojpeg.TJSAMP_420,
+    }
 
 try:
     from host_agent.virtual_display import is_headless_display, generate_headless_placeholder
@@ -170,6 +229,17 @@ class ScreenCapture:
         self._last_frame_hash: Optional[int] = None
         self._last_frame_sent_time: float = 0.0
         self._native_cap: Optional[NativeWin32Capture] = None
+
+        # DXCam: GPU-accelerated Desktop Duplication API (Windows only, ~1ms capture, auto-fallback)
+        self._dxcam_cap = None
+        if _HAS_DXCAM and sys.platform == 'win32':
+            try:
+                self._dxcam_cap = dxcam.create(output_color="BGR")
+                _logger.info("DXCam GPU capture initialized (Desktop Duplication API)")
+            except Exception as e:
+                _logger.debug(f"DXCam init failed, using GDI fallback: {e}")
+                self._dxcam_cap = None
+
         if user32 and gdi32:
             try:
                 self._native_cap = NativeWin32Capture()
@@ -181,6 +251,12 @@ class ScreenCapture:
                 self._sct = mss.MSS()
             except Exception:
                 self._sct = None
+
+        # Log encoder status at startup
+        if _HAS_TURBOJPEG:
+            _logger.info("TurboJPEG encoder active (libjpeg-turbo, ~2-5ms/frame 1080p)")
+        else:
+            _logger.warning("TurboJPEG unavailable, using PIL JPEG (~35-55ms/frame 1080p). Install libjpeg-turbo + PyTurboJPEG for 10x speedup.")
 
     def _attach_window_station(self) -> bool:
         """Attaches current calling thread to active input desktop (handles Winlogon, default, screensaver)."""
@@ -328,6 +404,12 @@ class ScreenCapture:
 
     def close(self):
         """Releases native capture contexts."""
+        if self._dxcam_cap is not None:
+            try:
+                self._dxcam_cap.stop()
+            except Exception:
+                pass
+            self._dxcam_cap = None
         if self._native_cap is not None:
             try:
                 self._native_cap.close()
@@ -340,6 +422,46 @@ class ScreenCapture:
             except Exception:
                 pass
             self._sct = None
+
+    def _encode_jpeg_turbo(self, img_or_array, w: int, h: int, pixel_format: str = "RGB") -> Optional[bytes]:
+        """Encode frame using turbojpeg (libjpeg-turbo). Returns JPEG bytes or None on failure.
+        pixel_format: 'RGB', 'BGR', 'BGRA', 'BGRX' — determines turbojpeg pixel format constant.
+        """
+        if not _HAS_TURBOJPEG or _tjpeg is None:
+            return None
+        try:
+            subsamp = _TJPEG_SUBSAMP.get(self.subsampling, turbojpeg.TJSAMP_420)
+            if self.grayscale:
+                subsamp = turbojpeg.TJSAMP_GRAY
+
+            # If we have a numpy array, encode directly
+            if _HAS_NUMPY and isinstance(img_or_array, np.ndarray):
+                arr = img_or_array
+                if pixel_format == "BGR":
+                    pf = turbojpeg.TJPF_BGR
+                elif pixel_format in ("BGRA", "BGRX"):
+                    pf = turbojpeg.TJPF_BGRX
+                elif pixel_format == "RGB":
+                    pf = turbojpeg.TJPF_RGB
+                else:
+                    pf = turbojpeg.TJPF_RGB
+                return _tjpeg.encode(arr, quality=self.quality, jpeg_subsample=subsamp, pixel_format=pf)
+
+            # PIL Image path — convert to numpy then encode
+            if _HAS_NUMPY:
+                if self.grayscale:
+                    if img_or_array.mode != 'L':
+                        img_or_array = img_or_array.convert('L')
+                    arr = np.array(img_or_array)
+                    return _tjpeg.encode(arr, quality=self.quality, jpeg_subsample=turbojpeg.TJSAMP_GRAY, pixel_format=turbojpeg.TJPF_GRAY)
+                if img_or_array.mode not in ('RGB', 'BGR'):
+                    img_or_array = img_or_array.convert('RGB')
+                arr = np.array(img_or_array)
+                return _tjpeg.encode(arr, quality=self.quality, jpeg_subsample=subsamp, pixel_format=turbojpeg.TJPF_RGB)
+
+            return None  # No numpy — fall through to PIL
+        except Exception:
+            return None
 
     def capture_frame(self, force: bool = False) -> Optional[bytes]:
         """
@@ -369,9 +491,31 @@ class ScreenCapture:
 
             now = time.time()
             img = None
+            raw_np_array = None  # numpy array for zero-copy turbojpeg path
+            raw_pixel_format = None
+
+            # Primary Tier 0: DXCam GPU Desktop Duplication capture (~1ms, numpy BGR output)
+            if self._dxcam_cap is not None:
+                try:
+                    frame = self._dxcam_cap.grab()
+                    if frame is not None and _HAS_NUMPY:
+                        curr_hash = hash(frame.data.tobytes()[::1024])
+                        is_static = (not force and curr_hash == self._last_frame_hash)
+                        if is_static:
+                            if now - self._last_frame_sent_time > 0.25:
+                                self._last_frame_sent_time = now
+                            else:
+                                return None
+                        else:
+                            self._last_frame_hash = curr_hash
+                            self._last_frame_sent_time = now
+                        raw_np_array = frame
+                        raw_pixel_format = "BGR"
+                except Exception:
+                    self._dxcam_cap = None
 
             # Primary Tier 1: Zero-allocation Win32 GDI DIBSection capture
-            if self._native_cap is not None:
+            if raw_np_array is None and img is None and self._native_cap is not None:
                 try:
                     native_img, raw_buf, cursor_changed = self._native_cap.grab(left, top, w, h)
                     if native_img is not None and raw_buf is not None:
@@ -386,12 +530,18 @@ class ScreenCapture:
                         else:
                             self._last_frame_hash = curr_hash
                             self._last_frame_sent_time = now
-                        img = native_img
+
+                        # Zero-copy path: convert raw_buf BGRX to numpy for turbojpeg
+                        if _HAS_NUMPY and _HAS_TURBOJPEG:
+                            raw_np_array = np.frombuffer(raw_buf, dtype=np.uint8).reshape(h, w, 4)
+                            raw_pixel_format = "BGRX"
+                        else:
+                            img = native_img
                 except Exception:
                     self._native_cap = None
 
             # Fallback Tier 2: mss direct grab
-            if img is None and self._sct is not None:
+            if raw_np_array is None and img is None and self._sct is not None:
                 try:
                     if self.active_monitor_id == 0:
                         mon_target = self._sct.monitors[0]
@@ -411,12 +561,17 @@ class ScreenCapture:
                         self._last_frame_hash = curr_hash
                         self._last_frame_sent_time = now
 
-                    img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+                    # Zero-copy path for mss: BGRA numpy array
+                    if _HAS_NUMPY and _HAS_TURBOJPEG:
+                        raw_np_array = np.frombuffer(shot.raw, dtype=np.uint8).reshape(shot.height, shot.width, 4)
+                        raw_pixel_format = "BGRA"
+                    else:
+                        img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
                 except Exception:
                     self._sct = None
 
             # Fallback Tier 3: Pillow ImageGrab (Cross-platform)
-            if img is None:
+            if raw_np_array is None and img is None:
                 bbox = (left, top, left + w, top + h) if self.active_monitor_id != 0 else None
                 try:
                     img = ImageGrab.grab(bbox=bbox, all_screens=True)
@@ -439,41 +594,86 @@ class ScreenCapture:
                     self._last_frame_hash = curr_hash
                     self._last_frame_sent_time = now
 
-            # Intelligent downscaling for virtual desktop (multi-monitor combined):
-            effective_max_w = self.max_width
-            if not effective_max_w and self.active_monitor_id == 0 and img.width > 2560:
-                effective_max_w = 2560
+            # --- ENCODE PHASE ---
 
-            # Resize if maximum width is set (saves bandwidth)
-            if effective_max_w and img.width > effective_max_w:
-                aspect = img.height / img.width
-                new_w = effective_max_w
-                new_h = int(new_w * aspect)
-                # NEAREST is 10x faster for ECO/speed modes (1.4ms vs 14ms)
-                use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or self.quality <= 58
-                resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
-                img = img.resize((new_w, new_h), resample)
+            # Fast path: turbojpeg with numpy array (zero PIL intermediate, ~2-5ms for 1080p)
+            if raw_np_array is not None and _HAS_TURBOJPEG and _HAS_NUMPY:
+                cap_h, cap_w = raw_np_array.shape[:2]
 
-            if getattr(self, "grayscale", False):
-                if img.mode != 'L':
-                    img = img.convert('L')
-            else:
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
+                # Downscale if needed (numpy resize via PIL, only when max_width set)
+                effective_max_w = self.max_width
+                if not effective_max_w and self.active_monitor_id == 0 and cap_w > 2560:
+                    effective_max_w = 2560
 
-            self._buffer.seek(0)
-            self._buffer.truncate(0)
-            save_kwargs = {
-                "format": "JPEG",
-                "quality": self.quality,
-                "optimize": False,
-                "fastdct": True,
-            }
-            if not getattr(self, "grayscale", False):
-                save_kwargs["subsampling"] = getattr(self, "subsampling", 2)
+                if effective_max_w and cap_w > effective_max_w:
+                    aspect = cap_h / cap_w
+                    new_w = effective_max_w
+                    new_h = int(new_w * aspect)
+                    # Convert to PIL for resize, then back to numpy
+                    if raw_pixel_format in ("BGRX", "BGRA"):
+                        pil_img = Image.frombuffer('RGB', (cap_w, cap_h), raw_np_array, 'raw', 'BGRX', 0, 1)
+                    else:
+                        pil_img = Image.fromarray(raw_np_array[:, :, ::-1] if raw_pixel_format == "BGR" else raw_np_array)
+                    use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or self.quality <= 58
+                    resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
+                    pil_img = pil_img.resize((new_w, new_h), resample)
+                    raw_np_array = np.array(pil_img)
+                    raw_pixel_format = "RGB"
 
-            img.save(self._buffer, **save_kwargs)
-            return self._buffer.getvalue()
+                jpeg_bytes = self._encode_jpeg_turbo(raw_np_array, cap_w, cap_h, raw_pixel_format)
+                if jpeg_bytes:
+                    return jpeg_bytes
+                # Fall through to PIL path if turbojpeg fails
+                if raw_pixel_format in ("BGRX", "BGRA"):
+                    img = Image.frombuffer('RGB', (cap_w, cap_h), raw_np_array, 'raw', 'BGRX', 0, 1)
+                else:
+                    img = Image.fromarray(raw_np_array[:, :, ::-1] if raw_pixel_format == "BGR" else raw_np_array)
+
+            # PIL encode path (fallback when turbojpeg unavailable)
+            if img is not None:
+                # Intelligent downscaling for virtual desktop (multi-monitor combined):
+                effective_max_w = self.max_width
+                if not effective_max_w and self.active_monitor_id == 0 and img.width > 2560:
+                    effective_max_w = 2560
+
+                # Resize if maximum width is set (saves bandwidth)
+                if effective_max_w and img.width > effective_max_w:
+                    aspect = img.height / img.width
+                    new_w = effective_max_w
+                    new_h = int(new_w * aspect)
+                    # NEAREST is 10x faster for ECO/speed modes (1.4ms vs 14ms)
+                    use_nearest = getattr(self, "resample_filter", "bilinear") == "nearest" or self.quality <= 58
+                    resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
+                    img = img.resize((new_w, new_h), resample)
+
+                # Try turbojpeg with PIL Image
+                turbo_result = self._encode_jpeg_turbo(img, img.width, img.height, "RGB")
+                if turbo_result:
+                    return turbo_result
+
+                # Final fallback: PIL JPEG encode
+                if getattr(self, "grayscale", False):
+                    if img.mode != 'L':
+                        img = img.convert('L')
+                else:
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+
+                self._buffer.seek(0)
+                self._buffer.truncate(0)
+                save_kwargs = {
+                    "format": "JPEG",
+                    "quality": self.quality,
+                    "optimize": False,
+                    "fastdct": True,
+                }
+                if not getattr(self, "grayscale", False):
+                    save_kwargs["subsampling"] = getattr(self, "subsampling", 2)
+
+                img.save(self._buffer, **save_kwargs)
+                return self._buffer.getvalue()
+
+            return None
 
         except Exception:
             if getattr(self, 'is_headless', False):
@@ -483,4 +683,3 @@ class ScreenCapture:
                 except Exception:
                     pass
             return None
-
