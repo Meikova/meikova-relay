@@ -1207,10 +1207,11 @@
 
       <!-- Floating Pill Deck Controller -->
       <footer class="deck" id="floatingDeck">
-        <!-- Mobile Native Keyboard & Touch Mode Controls -->
-        <button type="button" id="btnMobileKeyboard" class="deck__btn btn-mobile-only" title="Mở bàn phím ảo di động" data-i18n-title="deck.mobile_keyboard">
+        <!-- Mobile Keyboard Type Selection & Touch Mode Controls -->
+        <button type="button" id="btnMobileKeyboard" class="deck__btn btn-mobile-only" title="Chọn loại bàn phím (Điện thoại / Bàn phím ảo)" data-i18n-title="deck.keyboard_menu_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
-          <span data-i18n="deck.keyboard_btn">Phím</span>
+          <span id="keyboardCurrentLabel" data-i18n="deck.keyboard_btn">Phím</span>
+          <svg class="deck-chevron" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
         <button type="button" id="btnMobileQuickKeysToggle" class="deck__btn btn-mobile-only" title="Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)" data-i18n-title="deck.quick_keys_title">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -1642,6 +1643,29 @@
         </div>
       </div>
 
+      <!-- Keyboard Type Selection Popover Menu -->
+      <div id="keyboardMenuDropdown" class="quality-menu keyboard-menu hidden">
+        <div class="quality-menu-header" data-i18n="deck.keyboard_menu_header">CHỌN LOẠI BÀN PHÍM</div>
+        <div class="quality-menu-list">
+          <button type="button" class="quality-menu-item" id="btnOptPhoneKeyboard">
+            <span class="quality-item-badge">PHONE</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.kb_phone_title">Bàn phím điện thoại</div>
+              <div class="quality-item-desc" data-i18n="deck.kb_phone_desc">Bàn phím cảm ứng native iOS & Android, gõ tiếng Việt</div>
+            </div>
+            <span class="quality-check hidden" id="checkPhoneKeyboard"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
+          </button>
+          <button type="button" class="quality-menu-item" id="btnOptVirtualOSK">
+            <span class="quality-item-badge">OSK</span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.kb_osk_title">Bàn phím ảo trên màn hình</div>
+              <div class="quality-item-desc" data-i18n="deck.kb_osk_desc">Bàn phím ảo nổi đầy đủ phím Esc, F1-F12, Ctrl, Alt, Win...</div>
+            </div>
+            <span class="quality-check hidden" id="checkVirtualOSK"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
+          </button>
+        </div>
+      </div>
+
       <!-- Multi-Monitor Floating Menu -->
 
       <div id="monitorMenuDropdown" class="quality-menu monitor-menu hidden">
@@ -1791,6 +1815,12 @@
 
       <!-- Virtual On-Screen Keyboard (OSK) -->
       <div id="oskOverlay" class="osk-overlay hidden">
+        <div class="osk-header">
+          <span class="osk-title mono-font">VIRTUAL OSK</span>
+          <button type="button" class="osk-close-btn" id="btnCloseOSK" title="Đóng bàn phím ảo" aria-label="Đóng bàn phím ảo">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
         <div class="osk-row">
           <button type="button" class="osk-key" data-key="Escape">Esc</button>
           <button type="button" class="osk-key" data-key="F1">F1</button>

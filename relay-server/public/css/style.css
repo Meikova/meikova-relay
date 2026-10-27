@@ -2381,6 +2381,45 @@ input:-webkit-autofill:active {
   flex-shrink: 0;
 }
 
+.keyboard-menu {
+  min-width: 290px;
+  max-width: 360px;
+}
+
+.osk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 6px 4px;
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: 6px;
+}
+
+.osk-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.osk-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.osk-close-btn:hover {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
 /* Virtual On-Screen Keyboard */
 .osk-overlay {
   position: absolute;
@@ -6667,7 +6706,8 @@ body.is-desktop-app .desktop-titlebar {
   .monitor-menu,
   .protocol-menu,
   .power-menu,
-  .deck-mode-menu {
+  .deck-mode-menu,
+  .keyboard-menu {
     max-width: calc(100vw - 16px) !important;
     width: calc(100vw - 16px) !important;
     max-height: calc(100dvh - 60px) !important;

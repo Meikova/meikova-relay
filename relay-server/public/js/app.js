@@ -185,6 +185,13 @@
   const btnMobileTouchMode = document.getElementById('btnMobileTouchMode');
   const touchModeLabel = document.getElementById('touchModeLabel');
   const btnMobileRightClick = document.getElementById('btnMobileRightClick');
+  const keyboardMenuDropdown = document.getElementById('keyboardMenuDropdown');
+  const btnOptPhoneKeyboard = document.getElementById('btnOptPhoneKeyboard');
+  const btnOptVirtualOSK = document.getElementById('btnOptVirtualOSK');
+  const checkPhoneKeyboard = document.getElementById('checkPhoneKeyboard');
+  const checkVirtualOSK = document.getElementById('checkVirtualOSK');
+  const keyboardCurrentLabel = document.getElementById('keyboardCurrentLabel');
+  const btnCloseOSK = document.getElementById('btnCloseOSK');
 
   const roStatus = document.getElementById('roStatus');
   const roTr = document.getElementById('ro-tr');
@@ -4578,6 +4585,9 @@
     if (powerMenuDropdown && !powerMenuDropdown.classList.contains('hidden') && btnPowerMenu) {
       positionDeckDropdown(btnPowerMenu, powerMenuDropdown);
     }
+    if (keyboardMenuDropdown && !keyboardMenuDropdown.classList.contains('hidden') && btnMobileKeyboard) {
+      positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
+    }
     if (typeof placeAllIndicators === 'function') placeAllIndicators();
   }
 
@@ -4934,17 +4944,27 @@
       return;
     }
 
-    // 2. Three-finger Tap -> Toggle Soft Keyboard
+    // 2. Three-finger Tap -> Toggle Preferred Keyboard (Phone Native Soft KB or Virtual OSK)
     if (e.touches.length === 0 && threeFingerTouchStartTime > 0) {
       const elapsed3 = performance.now() - threeFingerTouchStartTime;
       threeFingerTouchStartTime = 0;
       if (elapsed3 < 320 && !threeFingerMoved) {
         e.preventDefault();
         if (navigator.vibrate) try { navigator.vibrate([25, 40, 25]); } catch {}
-        if (document.activeElement === mobileVirtualInput) {
-          closeMobileSoftKeyboard();
+        const pref = localStorage.getItem('meikova_keyboard_pref') || 'phone';
+        if (pref === 'osk') {
+          if (oskOverlay) {
+            const isHidden = oskOverlay.classList.contains('hidden');
+            oskOverlay.classList.toggle('hidden', !isHidden);
+            btnToggleOSK?.classList.toggle('btn-active', isHidden);
+            updateKeyboardMenuUI();
+          }
         } else {
-          openMobileSoftKeyboard();
+          if (document.activeElement === mobileVirtualInput) {
+            closeMobileSoftKeyboard();
+          } else {
+            openMobileSoftKeyboard();
+          }
         }
         return;
       }
@@ -5901,44 +5921,130 @@
     }, 100);
   }
 
-  // --- MOBILE SOFT KEYBOARD BRIDGE ---
+  // --- MOBILE KEYBOARD CONTROLLER & BRIDGE ---
+  function updateKeyboardMenuUI() {
+    const isPhoneActive = (document.activeElement === mobileVirtualInput);
+    const isOskActive = (oskOverlay && !oskOverlay.classList.contains('hidden'));
+
+    if (checkPhoneKeyboard) {
+      checkPhoneKeyboard.classList.toggle('hidden', !isPhoneActive);
+    }
+    if (checkVirtualOSK) {
+      checkVirtualOSK.classList.toggle('hidden', !isOskActive);
+    }
+    if (btnOptPhoneKeyboard) {
+      btnOptPhoneKeyboard.classList.toggle('active', isPhoneActive);
+    }
+    if (btnOptVirtualOSK) {
+      btnOptVirtualOSK.classList.toggle('active', isOskActive);
+    }
+    if (btnMobileKeyboard) {
+      btnMobileKeyboard.classList.toggle('btn-active', isPhoneActive || isOskActive);
+    }
+    if (btnToggleOSK) {
+      btnToggleOSK.classList.toggle('btn-active', isOskActive);
+    }
+  }
+
   function openMobileSoftKeyboard() {
     if (!mobileVirtualInput) return;
     mobileVirtualInput.value = '';
     mobileVirtualInput.focus({ preventScroll: true });
-    btnMobileKeyboard?.classList.add('btn-active');
+    updateKeyboardMenuUI();
   }
 
   function closeMobileSoftKeyboard() {
     if (!mobileVirtualInput) return;
     mobileVirtualInput.blur();
-    btnMobileKeyboard?.classList.remove('btn-active');
+    updateKeyboardMenuUI();
   }
 
-  if (btnMobileKeyboard && mobileVirtualInput) {
-    let isVirtualComposing = false;
-
-    const handleKbToggle = (e) => {
+  if (btnMobileKeyboard && keyboardMenuDropdown) {
+    btnMobileKeyboard.addEventListener('click', (e) => {
       e.stopPropagation();
-      e.preventDefault();
+      const isOpening = keyboardMenuDropdown.classList.contains('hidden');
+      monitorMenuDropdown?.classList.add('hidden');
+      btnMonitorMenu?.classList.remove('btn-active');
+      resolutionMenuDropdown?.classList.add('hidden');
+      btnResolutionMenu?.classList.remove('btn-active');
+      qualityMenuDropdown?.classList.add('hidden');
+      btnQualityMenu?.classList.remove('btn-active');
+      protocolMenuDropdown?.classList.add('hidden');
+      btnProtocolMenu?.classList.remove('btn-active');
+      powerMenuDropdown?.classList.add('hidden');
+      btnPowerMenu?.classList.remove('btn-active');
+      deckModeDropdown?.classList.add('hidden');
+      btnDeckDisplayMode?.classList.remove('btn-active');
+      snippetsMenuDropdown?.classList.add('hidden');
+      btnSnippetsMenu?.classList.remove('btn-active');
+
+      keyboardMenuDropdown.classList.toggle('hidden', !isOpening);
+      if (isOpening) {
+        updateKeyboardMenuUI();
+        positionDeckDropdown(btnMobileKeyboard, keyboardMenuDropdown);
+      } else {
+        updateKeyboardMenuUI();
+      }
+    });
+
+    btnOptPhoneKeyboard?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.setItem('meikova_keyboard_pref', 'phone');
+      keyboardMenuDropdown.classList.add('hidden');
+      if (oskOverlay && !oskOverlay.classList.contains('hidden')) {
+        oskOverlay.classList.add('hidden');
+        btnToggleOSK?.classList.remove('btn-active');
+      }
       if (document.activeElement === mobileVirtualInput) {
         closeMobileSoftKeyboard();
-        showToast(t('toast.soft_keyboard_closed') || 'Đã đóng bàn phím ảo di động', 'info', 1000);
+        showToast(t('toast.soft_keyboard_closed') || 'Đã đóng bàn phím điện thoại', 'info', 1000);
       } else {
         openMobileSoftKeyboard();
-        showToast(t('toast.soft_keyboard_opened') || 'Đã mở bàn phím ảo di động', 'info', 1200);
+        showToast(t('toast.soft_keyboard_opened') || 'Đã mở bàn phím điện thoại', 'info', 1200);
       }
-    };
+      updateKeyboardMenuUI();
+    });
 
-    btnMobileKeyboard.addEventListener('click', handleKbToggle);
-    btnMobileKeyboard.addEventListener('touchend', handleKbToggle);
+    btnOptVirtualOSK?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.setItem('meikova_keyboard_pref', 'osk');
+      keyboardMenuDropdown.classList.add('hidden');
+      if (mobileVirtualInput && document.activeElement === mobileVirtualInput) {
+        closeMobileSoftKeyboard();
+      }
+      if (oskOverlay) {
+        const isHidden = oskOverlay.classList.contains('hidden');
+        oskOverlay.classList.toggle('hidden', !isHidden);
+        btnToggleOSK?.classList.toggle('btn-active', isHidden);
+        if (isHidden) {
+          showToast(t('toast.osk_opened') || 'Đã mở bàn phím ảo trên màn hình', 'info', 1200);
+        } else {
+          showToast(t('toast.osk_closed') || 'Đã đóng bàn phím ảo trên màn hình', 'info', 1000);
+        }
+      }
+      updateKeyboardMenuUI();
+    });
+  }
+
+  if (btnCloseOSK) {
+    btnCloseOSK.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (oskOverlay) oskOverlay.classList.add('hidden');
+      btnToggleOSK?.classList.remove('btn-active');
+      updateKeyboardMenuUI();
+      showToast(t('toast.osk_closed') || 'Đã đóng bàn phím ảo trên màn hình', 'info', 1000);
+    });
+  }
+
+  if (mobileVirtualInput) {
+    let isVirtualComposing = false;
 
     mobileVirtualInput.addEventListener('focus', () => {
-      btnMobileKeyboard?.classList.add('btn-active');
+      updateKeyboardMenuUI();
     });
 
     mobileVirtualInput.addEventListener('blur', () => {
-      btnMobileKeyboard?.classList.remove('btn-active');
+      updateKeyboardMenuUI();
     });
 
     mobileVirtualInput.addEventListener('compositionstart', () => {
@@ -6602,6 +6708,10 @@
       snippetsMenuDropdown.classList.add('hidden');
       if (btnSnippetsMenu) btnSnippetsMenu.classList.remove('btn-active');
     }
+    if (keyboardMenuDropdown && !keyboardMenuDropdown.contains(e.target) && e.target !== btnMobileKeyboard && (!btnMobileKeyboard || !btnMobileKeyboard.contains(e.target))) {
+      keyboardMenuDropdown.classList.add('hidden');
+      updateKeyboardMenuUI();
+    }
   });
 
   document.querySelectorAll('[data-power]').forEach(btn => {
@@ -6650,6 +6760,7 @@
   btnToggleOSK.addEventListener('click', () => {
     oskOverlay.classList.toggle('hidden');
     btnToggleOSK.classList.toggle('btn-active', !oskOverlay.classList.contains('hidden'));
+    updateKeyboardMenuUI();
   });
 
   oskOverlay.addEventListener('click', (e) => {

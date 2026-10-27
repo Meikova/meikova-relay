@@ -169,7 +169,13 @@
 
       // View 3: Remote Desktop & Floating Deck
 
-      'deck.mobile_keyboard': 'Bật bàn phím ảo di động',
+      'deck.mobile_keyboard': 'Chọn loại bàn phím (Điện thoại / Bàn phím ảo)',
+      'deck.keyboard_menu_title': 'Chọn loại bàn phím (Điện thoại / Bàn phím ảo)',
+      'deck.keyboard_menu_header': 'CHỌN LOẠI BÀN PHÍM',
+      'deck.kb_phone_title': 'Bàn phím điện thoại',
+      'deck.kb_phone_desc': 'Bàn phím cảm ứng native iOS & Android, gõ tiếng Việt',
+      'deck.kb_osk_title': 'Bàn phím ảo trên màn hình',
+      'deck.kb_osk_desc': 'Bàn phím ảo nổi đầy đủ phím Esc, F1-F12, Ctrl, Alt, Win...',
       'deck.keyboard_btn': 'Phím',
       'deck.quick_keys_title': 'Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)',
       'deck.quick_keys_btn': 'Phím tắt',
@@ -897,6 +903,8 @@
       'toast.cad_sent': 'Đã gửi Ctrl+Alt+Del',
       'toast.soft_keyboard_opened': 'Đã mở bàn phím ảo di động',
       'toast.soft_keyboard_closed': 'Đã đóng bàn phím ảo di động',
+      'toast.osk_opened': 'Đã mở bàn phím ảo trên màn hình',
+      'toast.osk_closed': 'Đã đóng bàn phím ảo trên màn hình',
       'toast.right_click': 'Chuột phải',
       'toast.rescanning_protocols': 'Đang quét lại các giao thức trên máy trạm...',
       'toast.rdp_downloaded': 'Đã tải tệp cấu hình RDP (.rdp)',
@@ -1074,7 +1082,13 @@
 
       // View 3: Remote Desktop & Floating Deck
 
-      'deck.mobile_keyboard': 'Bật bàn phím ảo di động',
+      'deck.mobile_keyboard': 'Select keyboard type (Phone / Virtual OSK)',
+      'deck.keyboard_menu_title': 'Select keyboard type (Phone / Virtual OSK)',
+      'deck.keyboard_menu_header': 'SELECT KEYBOARD TYPE',
+      'deck.kb_phone_title': 'Phone Native Keyboard',
+      'deck.kb_phone_desc': 'Native iOS & Android IME keyboard for local typing',
+      'deck.kb_osk_title': 'On-Screen Virtual Keyboard',
+      'deck.kb_osk_desc': 'Full floating OSK with Esc, F1-F12, Ctrl, Alt, Win...',
       'deck.keyboard_btn': 'Phím',
       'deck.quick_keys_title': 'Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)',
       'deck.quick_keys_btn': 'Phím tắt',
@@ -1802,6 +1816,8 @@
       'toast.cad_sent': 'Sent Ctrl+Alt+Del',
       'toast.soft_keyboard_opened': 'Opened soft keyboard',
       'toast.soft_keyboard_closed': 'Closed soft keyboard',
+      'toast.osk_opened': 'On-screen virtual keyboard opened',
+      'toast.osk_closed': 'On-screen virtual keyboard closed',
       'toast.right_click': 'Right Click',
       'toast.rescanning_protocols': 'Rescanning protocols on host...',
       'toast.rdp_downloaded': 'Downloaded RDP config (.rdp)',
