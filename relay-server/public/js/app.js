@@ -200,11 +200,6 @@
     if (metricPing) metricPing.textContent = '--';
     if (metricFps) metricFps.textContent = '--';
     if (metricRes) metricRes.textContent = '--';
-    if (telemetryRtt) telemetryRtt.textContent = '--ms';
-    if (telemetryFps) telemetryFps.textContent = '--fps';
-    if (telemetrySpeed) telemetrySpeed.textContent = '--KB/s';
-    if (telemetryDot) telemetryDot.className = 'telemetry-status-dot';
-    sessionBytesWindow = 0;
     pingSamples.length = 0;
     if (sparkCtx && sparklineCanvas) {
       sparkCtx.clearRect(0, 0, sparklineCanvas.width, sparklineCanvas.height);
@@ -681,11 +676,6 @@
   const btnWbClearAll = document.getElementById('btnWbClearAll');
   const btnSnippetsMenu = document.getElementById('btnSnippetsMenu');
   const snippetsMenuDropdown = document.getElementById('snippetsMenuDropdown');
-  const networkTelemetryPill = document.getElementById('networkTelemetryPill');
-  const telemetryDot = document.getElementById('telemetryDot');
-  const telemetryRtt = document.getElementById('telemetryRtt');
-  const telemetryFps = document.getElementById('telemetryFps');
-  const telemetrySpeed = document.getElementById('telemetrySpeed');
   const modalSendPassword = document.getElementById('modalSendPassword');
   const inputSecurePassword = document.getElementById('inputSecurePassword');
   const btnConfirmSendPassword = document.getElementById('btnConfirmSendPassword');
@@ -792,8 +782,6 @@
   let wbStrokes = [];
   let wbAnimFrameId = null;
 
-  // Telemetry Byte Rate Tracking
-  let sessionBytesWindow = 0;
   let auditSearchDebounce = null;
 
   // Key code mapping
@@ -3630,10 +3618,6 @@
           const rtt = Math.round(performance.now() - lastPingSend);
           metricPing.textContent = rtt;
           recordPingSample(rtt);
-          if (telemetryRtt) telemetryRtt.textContent = `${rtt}ms`;
-          if (telemetryDot) {
-            telemetryDot.className = 'telemetry-status-dot' + (rtt < 60 ? '' : rtt < 150 ? ' warn' : ' danger');
-          }
         } else if (msg.type === 'chat_message') {
           appendChatMessage(msg.sender || 'Máy trạm', msg.message, false);
           const isChatVisible = shelfDrawer.classList.contains('open') && !shelfChatTab.classList.contains('hidden');
@@ -4000,9 +3984,6 @@
   let isFrameRendering = false;
 
   function handleIncomingFrame(blob) {
-    if (blob && blob.size) {
-      sessionBytesWindow += blob.size;
-    }
     // Retain newest frame; drop stale intermediate frames to eliminate rendering latency backlog
     pendingFrameBlob = blob;
 
@@ -4093,14 +4074,6 @@
         if (metricFps) {
           metricFps.textContent = actualFps;
         }
-        if (telemetryFps) {
-          telemetryFps.textContent = `${actualFps}fps`;
-        }
-        const speedKb = Math.round((sessionBytesWindow / elapsed) / 1024);
-        if (telemetrySpeed) {
-          telemetrySpeed.textContent = `${speedKb}KB/s`;
-        }
-        sessionBytesWindow = 0;
         frameCount = 0;
         lastFpsUpdate = now;
       }

@@ -7397,50 +7397,7 @@ body.is-desktop-app .desktop-titlebar {
 }
 
 /* ------------------------------------------------------------------ ADVANCED REMOTE UTILITIES */
-/* 1. Realtime Network Telemetry Pill */
-.deck__pill-telemetry {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--round);
-  background: var(--ink-0);
-  color: var(--text-muted);
-  font-size: 11px;
-  font-family: var(--font-mono);
-  font-weight: 500;
-  line-height: 1;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  user-select: none;
-}
 
-.telemetry-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7);
-  transition: background-color 0.25s ease, box-shadow 0.25s ease;
-  flex-shrink: 0;
-}
-
-.telemetry-status-dot.warn {
-  background: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
-}
-
-.telemetry-status-dot.danger {
-  background: #ef4444;
-  box-shadow: 0 0 6px rgba(239, 68, 68, 0.7);
-}
-
-.telemetry-sep {
-  opacity: 0.35;
-  font-size: 10px;
-}
 
 /* 2. Live Whiteboard Canvas & Toolbar */
 .whiteboard-canvas {
@@ -7561,14 +7518,6 @@ body.is-desktop-app .desktop-titlebar {
 
 /* 5. Mobile responsive tweaks */
 @media (max-width: 768px) {
-  .deck__pill-telemetry {
-    padding: 0 6px;
-    font-size: 10px;
-  }
-  .deck__pill-telemetry #telemetrySpeed,
-  .deck__pill-telemetry .telemetry-sep:last-of-type {
-    display: none;
-  }
   .snippets-menu {
     min-width: 280px;
     width: calc(100vw - 32px);
