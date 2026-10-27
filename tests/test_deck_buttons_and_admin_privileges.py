@@ -141,7 +141,6 @@ class TestDeckButtonsAndAdminPrivileges(unittest.IsolatedAsyncioTestCase):
 
     # --- 4. TEST ADMIN PRIVILEGE ENFORCEMENT: HOST DOES NOT HAVE ADMIN RIGHTS ---
     @patch("host_service.is_current_user_admin", return_value=False)
-    @patch("sys.platform", "win32")
     @patch("host_service.InputInjector.set_block_input", return_value=False)
     @patch("host_service.privacy_curtain.enable")
     @patch("host_service.PowerManager.restart_machine")

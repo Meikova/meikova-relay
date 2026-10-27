@@ -2,10 +2,11 @@
 import unittest
 import os
 import re
+from pathlib import Path
 
 class TestKeyboardSelection(unittest.TestCase):
     def setUp(self):
-        self.base_dir = r"D:\JOB\DEV\meikova\meikova-relay\relay-server\public"
+        self.base_dir = str(Path(__file__).resolve().parent.parent / "relay-server" / "public")
         self.html_path = os.path.join(self.base_dir, "index.html")
         self.css_path = os.path.join(self.base_dir, "css", "style.css")
         self.app_js_path = os.path.join(self.base_dir, "js", "app.js")

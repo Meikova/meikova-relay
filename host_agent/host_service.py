@@ -1101,7 +1101,7 @@ class HostService:
                     if action == "lock":
                         PowerManager.lock_workstation()
                     elif action in ("restart", "shutdown"):
-                        if sys.platform == "win32" and not is_admin:
+                        if not is_admin:
                             logger.warning(f"[HostService] power_action {action} rejected: Administrator privileges required")
                             ok = False
                             await ws.send(json.dumps({
@@ -1411,7 +1411,7 @@ class HostService:
                 elif ev_type == "block_input":
                     blocked = bool(event.get("blocked", False))
                     is_admin = is_current_user_admin()
-                    if sys.platform == "win32" and not is_admin:
+                    if not is_admin:
                         logger.warning("[HostService] block_input rejected: Administrator privileges required")
                         await ws.send(json.dumps({
                             "type": "block_input_response",
@@ -1432,7 +1432,7 @@ class HostService:
                 elif ev_type == "system_hotkey":
                     combo = str(event.get("combo", "")).strip().lower()
                     is_admin = is_current_user_admin()
-                    if combo in ("cad", "ctrl_alt_del") and sys.platform == "win32" and not is_admin:
+                    if combo in ("cad", "ctrl_alt_del") and not is_admin:
                         logger.info(f"[HostService] CAD hotkey requested without admin rights, attempting fallback...")
                         ok = InputInjector.trigger_system_hotkey(combo)
                         await ws.send(json.dumps({
@@ -1456,7 +1456,7 @@ class HostService:
                     enabled = bool(event.get("enabled", False))
                     sess_id = event.get("sessionId") or event.get("session_id") or "default"
                     is_admin = is_current_user_admin()
-                    if enabled and sys.platform == "win32" and not is_admin:
+                    if enabled and not is_admin:
                         logger.warning("[HostService] toggle_privacy_curtain rejected: Administrator privileges required")
                         await ws.send(json.dumps({
                             "type": "privacy_curtain_response",
