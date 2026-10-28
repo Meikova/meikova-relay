@@ -232,6 +232,11 @@ async function ensureInit() {
         await client.execute(sql);
       } catch (_) {}
     }
+
+    // Reset stale online flags on server startup
+    try {
+      await client.execute('UPDATE devices SET is_online = 0;');
+    } catch (_) {}
   })().catch(err => {
     initPromise = null;
     throw err;
@@ -807,6 +812,15 @@ const DB = {
       sql: 'UPDATE devices SET is_online = ?, last_seen = ? WHERE room_id = ?',
       args: [isOnline ? 1 : 0, now, roomId]
     });
+  },
+
+  async resetAllDevicesOffline() {
+    await ensureInit();
+    try {
+      await client.execute('UPDATE devices SET is_online = 0;');
+    } catch (err) {
+      console.warn('[DB] Failed to reset device online states:', err.message);
+    }
   },
 
   async touchDeviceAccess(roomId, hostMeta = null) {

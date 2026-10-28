@@ -3,8 +3,8 @@
 
 @property --pulse { syntax: "<number>"; inherits: true; initial-value: 0; }
 @property --acc-l { syntax: "<number>"; inherits: true; initial-value: 0.78; }
-@property --acc-c { syntax: "<number>"; inherits: true; initial-value: 0.16; }
-@property --acc-h { syntax: "<number>"; inherits: true; initial-value: 145; }
+@property --acc-c { syntax: "<number>"; inherits: true; initial-value: 0.14; }
+@property --acc-h { syntax: "<number>"; inherits: true; initial-value: 225; }
 @property --gh { syntax: "<number>"; inherits: true; initial-value: 235; }
 @property --gc { syntax: "<number>"; inherits: true; initial-value: 0.012; }
 

@@ -1495,11 +1495,16 @@ const server = http.createServer(async (req, res) => {
 
         })) : [];
 
+        // If DB had device marked online but host is absent or disconnected in memory, sync DB to offline
+        if (!isOnline && d.is_online === 1) {
+          DB.setDeviceOnlineStatus(d.room_id, false).catch(() => {});
+        }
+
         return {
 
           ...d,
 
-          is_online: isOnline ? 1 : d.is_online,
+          is_online: isOnline ? 1 : 0,
 
           is_admin: (room && room.hostMeta && room.hostMeta.isAdmin !== undefined) ? Boolean(room.hostMeta.isAdmin) : Boolean(d.is_admin),
 
@@ -1507,7 +1512,7 @@ const server = http.createServer(async (req, res) => {
 
           last_accessed: (room && room.lastAccessed) ? Math.max(Number(d.last_accessed || 0), room.lastAccessed) : Number(d.last_accessed || 0),
 
-          group_name: d.group_name || 'Mặc định',
+          group_name: d.group_name || 'Default',
 
           tags: Array.isArray(d.tags) ? d.tags : [],
 
@@ -3121,7 +3126,15 @@ function broadcastSessionList(room, targetWs = null) {
 
 async function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết nối', expectedHostWs = null) {
 
-  if (!roomId || !rooms.has(roomId)) return;
+  if (!roomId) return;
+
+  try {
+    await DB.setDeviceOnlineStatus(roomId, false);
+  } catch (err) {
+    console.error(`[DB Error in closeRoomClients]: ${err.message}`);
+  }
+
+  if (!rooms.has(roomId)) return;
 
   const room = rooms.get(roomId);
 
@@ -3131,16 +3144,6 @@ async function closeRoomClients(roomId, reason = 'Máy trạm đã ngắt kết 
   }
 
   removeAllEdgesForRoom(room);
-
-  try {
-
-    await DB.setDeviceOnlineStatus(roomId, false);
-
-  } catch (err) {
-
-    console.error(`[DB Error in closeRoomClients]: ${err.message}`);
-
-  }
 
   if (!expectedHostWs || room.hostWs === expectedHostWs) {
     room.hostWs = null;
@@ -3229,8 +3232,10 @@ function getOrCreateRoom(roomId) {
 
 
 wss.on('connection', (ws, req) => {
-  if (ws._socket && typeof ws._socket.setNoDelay === 'function') {
-    try { ws._socket.setNoDelay(true); } catch (_) {}
+  const sock = ws._socket || req.socket;
+  if (sock) {
+    try { if (typeof sock.setNoDelay === 'function') sock.setNoDelay(true); } catch (_) {}
+    try { if (typeof sock.setKeepAlive === 'function') sock.setKeepAlive(true, 5000); } catch (_) {}
   }
 
   let role = null;
@@ -3254,7 +3259,10 @@ wss.on('connection', (ws, req) => {
 
 
   ws.on('pong', () => { ws.isAlive = true; });
-  ws.on('error', (err) => { console.warn(`[WS Socket Error] (${ws.sessionId || ws.machineId || 'client'}):`, err.message); });
+  ws.on('error', (err) => {
+    console.warn(`[WS Socket Error] (${ws.sessionId || ws.machineId || role || 'client'}):`, err.message);
+    try { ws.terminate(); } catch (_) {}
+  });
 
 
 
@@ -3362,6 +3370,10 @@ wss.on('connection', (ws, req) => {
       role = 'host';
 
       currentRoomId = roomId;
+
+      ws.role = 'host';
+
+      ws.currentRoomId = roomId;
 
       ws.machineId = hostMachineId;
 
@@ -3765,6 +3777,10 @@ wss.on('connection', (ws, req) => {
       role = 'client';
 
       currentRoomId = roomId;
+
+      ws.role = 'client';
+
+      ws.currentRoomId = roomId;
 
       // Cleanly evict any stale/previous session from the same browser tab reload or reconnect_session_id
       const requestedReconnectId = String(data.reconnect_session_id || data.session_id || '').trim();
@@ -4923,21 +4939,21 @@ wss.on('connection', (ws, req) => {
 
 
 
-// Heartbeat sweep
-
+// Heartbeat sweep (every 10s for responsive offline VM detection)
 setInterval(() => {
-
   wss.clients.forEach((ws) => {
-
-    if (ws.isAlive === false) return ws.terminate();
-
+    if (ws.isAlive === false) {
+      console.log(`[Heartbeat Sweep] Dead socket terminated (${ws.role || 'client'}, room: ${ws.currentRoomId || 'none'})`);
+      return ws.terminate();
+    }
     ws.isAlive = false;
-
-    ws.ping();
-
+    try {
+      ws.ping();
+    } catch (_) {
+      try { ws.terminate(); } catch (__) {}
+    }
   });
-
-}, 30000);
+}, 10000);
 
 
 

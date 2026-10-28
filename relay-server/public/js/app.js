@@ -559,8 +559,8 @@
 
     // Soft area fill under sparkline
     const grad = sparkCtx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, 'rgba(34, 197, 94, 0.35)');
-    grad.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
+    grad.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
+    grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
     sparkCtx.fillStyle = grad;
     sparkCtx.beginPath();
     sparkCtx.moveTo(pts[0].x, h);
@@ -570,7 +570,7 @@
     sparkCtx.fill();
 
     // Crisp signal line
-    sparkCtx.strokeStyle = '#22c55e';
+    sparkCtx.strokeStyle = '#38bdf8';
     sparkCtx.lineWidth = 1.5;
     sparkCtx.lineJoin = 'round';
     sparkCtx.beginPath();
@@ -1633,13 +1633,13 @@
     const chordPairs = [
       // Left Loop (Host Workstation cluster - Amber / Copper / Emerald / Mint)
       { t1: Math.PI * 0.62, t2: Math.PI * 1.38, cpOffset: -0.15, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.72, t2: Math.PI * 1.28, cpOffset: -0.25, color: 'rgba(34, 197, 94, ' },
+      { t1: Math.PI * 0.72, t2: Math.PI * 1.28, cpOffset: -0.25, color: 'rgba(56, 189, 248, ' },
       { t1: Math.PI * 0.55, t2: Math.PI * 1.45, cpOffset: -0.08, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.85, t2: Math.PI * 1.15, cpOffset: -0.35, color: 'rgba(34, 197, 94, ' },
+      { t1: Math.PI * 0.85, t2: Math.PI * 1.15, cpOffset: -0.35, color: 'rgba(56, 189, 248, ' },
       { t1: Math.PI * 0.92, t2: Math.PI * 1.08, cpOffset: -0.42, color: 'rgba(234, 88, 12, ' },
       { t1: Math.PI * 0.68, t2: Math.PI * 1.32, cpOffset: -0.20, color: 'rgba(16, 185, 129, ' },
       { t1: Math.PI * 0.78, t2: Math.PI * 1.22, cpOffset: -0.30, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.58, t2: Math.PI * 1.42, cpOffset: -0.10, color: 'rgba(34, 197, 94, ' },
+      { t1: Math.PI * 0.58, t2: Math.PI * 1.42, cpOffset: -0.10, color: 'rgba(56, 189, 248, ' },
       { t1: Math.PI * 0.88, t2: Math.PI * 1.12, cpOffset: -0.38, color: 'rgba(234, 88, 12, ' },
       { t1: Math.PI * 0.95, t2: Math.PI * 1.05, cpOffset: -0.45, color: 'rgba(245, 158, 11, ' },
 
@@ -1663,7 +1663,7 @@
       { t1: Math.PI * 0.46, t2: Math.PI * 1.54, cpOffset: 0, color: 'rgba(226, 232, 240, ' },
       { t1: Math.PI * 0.54, t2: Math.PI * 1.46, cpOffset: 0, color: 'rgba(56, 189, 248, ' },
       { t1: Math.PI * 0.38, t2: Math.PI * 1.30, cpOffset: 0, color: 'rgba(96, 165, 250, ' },
-      { t1: Math.PI * 0.62, t2: Math.PI * 1.70, cpOffset: 0, color: 'rgba(34, 197, 94, ' }
+      { t1: Math.PI * 0.62, t2: Math.PI * 1.70, cpOffset: 0, color: 'rgba(56, 189, 248, ' }
     ];
 
     let lastTime = performance.now();
@@ -1757,7 +1757,7 @@
       // Left Lobe Nebula (Host Station: Emerald-Amber glow)
       const gLeft = ctx.createRadialGradient(cx - scaleX * 0.55, cy, 0, cx - scaleX * 0.55, cy, scaleX * 0.75);
       gLeft.addColorStop(0, `rgba(245, 158, 11, ${0.10 + pulseT})`);
-      gLeft.addColorStop(0.38, `rgba(34, 197, 94, ${0.06 + pulseT})`);
+      gLeft.addColorStop(0.38, `rgba(56, 189, 248, ${0.06 + pulseT})`);
       gLeft.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = gLeft;
       ctx.beginPath();
@@ -1915,7 +1915,7 @@
       // Multi-Speed High-Frequency Micro Data Blips
       const microPulses = [
         { t: (now * 0.00068) % (Math.PI * 2), color: '#38BDF8', size: 1.8 },
-        { t: (now * 0.00062 + Math.PI * 0.5) % (Math.PI * 2), color: '#22C55E', size: 1.8 },
+        { t: (now * 0.00062 + Math.PI * 0.5) % (Math.PI * 2), color: '#38BDF8', size: 1.8 },
         { t: (now * 0.00054 + Math.PI * 1.2) % (Math.PI * 2), color: '#F59E0B', size: 1.6 },
         { t: (now * 0.00078 + Math.PI * 1.7) % (Math.PI * 2), color: '#FFFFFF', size: 2.0 }
       ];
@@ -1946,7 +1946,7 @@
         const spPos = getPoint((comet2T + offset + Math.PI * 4) % (Math.PI * 2));
         ctx.beginPath();
         ctx.arc(spPos.x, spPos.y, 2.2 - idx * 0.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(34, 197, 94, ${0.75 - idx * 0.22})`;
+        ctx.fillStyle = `rgba(56, 189, 248, ${0.75 - idx * 0.22})`;
         ctx.fill();
       });
 
@@ -2073,7 +2073,7 @@
       // Comet 1: Cyan / Electric Blue (Video Stream 120 FPS)
       drawPhotonHead(comet1Pos, '#FFFFFF', 'rgba(56, 189, 248, 0.85)', 'rgba(56, 189, 248, 0.22)');
       // Comet 2: Amber / Emerald (Input Stream)
-      drawPhotonHead(comet2Pos, '#FFFFFF', 'rgba(245, 158, 11, 0.85)', 'rgba(34, 197, 94, 0.22)');
+      drawPhotonHead(comet2Pos, '#FFFFFF', 'rgba(245, 158, 11, 0.85)', 'rgba(56, 189, 248, 0.22)');
 
       // --- 8. Center Relay Hub Nexus (Rotating Holographic Gimbal Reticle) ---
       const dC1 = Math.hypot(comet1Pos.x - cx, comet1Pos.y - cy);
@@ -2152,7 +2152,7 @@
           if (rs === 0) ctx.moveTo(pt3.x, pt3.y);
           else ctx.lineTo(pt3.x, pt3.y);
         }
-        ctx.strokeStyle = rg === 0 ? 'rgba(56, 189, 248, 0.16)' : (rg === 1 ? 'rgba(34, 197, 94, 0.14)' : 'rgba(245, 158, 11, 0.12)');
+        ctx.strokeStyle = rg === 0 ? 'rgba(56, 189, 248, 0.16)' : (rg === 1 ? 'rgba(56, 189, 248, 0.14)' : 'rgba(245, 158, 11, 0.12)');
         ctx.lineWidth = 0.85;
         ctx.stroke();
       }
@@ -2257,7 +2257,7 @@
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         let col = `rgba(56, 189, 248, ${p.alpha})`;
-        if (p.hue === 150) col = `rgba(34, 197, 94, ${p.alpha})`;
+        if (p.hue === 150) col = `rgba(56, 189, 248, ${p.alpha})`;
         else if (p.hue === 38) col = `rgba(245, 158, 11, ${p.alpha})`;
         ctx.fillStyle = col;
         ctx.fill();
@@ -2306,7 +2306,7 @@
         // Secondary Outer Harmonic Ring (Emerald)
         ctx.beginPath();
         ctx.arc(rp.x, rp.y, Math.max(0, rp.r - 8), 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(34, 197, 94, ${rp.alpha * 0.45})`;
+        ctx.strokeStyle = `rgba(56, 189, 248, ${rp.alpha * 0.45})`;
         ctx.lineWidth = 0.8;
         ctx.stroke();
       }
@@ -3319,15 +3319,15 @@
       const isSelf = !!sess.isSelf || (sess.id && sess.id === mySessionId) || (sess.machineId && myMachineId && sess.machineId === myMachineId);
       const connTime = formatTimeAgo(sess.connectedAt);
       return `
-        <div class="session-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--ink-1); border:1px solid ${isSelf ? 'rgba(34,197,94,0.3)' : 'var(--line)'}; border-radius:var(--radius); gap:12px;">
+        <div class="session-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--ink-1); border:1px solid ${isSelf ? 'rgba(56,189,248,0.3)' : 'var(--line)'}; border-radius:var(--radius); gap:12px;">
           <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
-            <div style="width:36px; height:36px; border-radius:50%; background:${isSelf ? 'rgba(34,197,94,0.1)' : 'rgba(56,189,248,0.1)'}; border:1px solid ${isSelf ? 'rgba(34,197,94,0.3)' : 'rgba(56,189,248,0.3)'}; color:${isSelf ? 'var(--accent)' : '#38bdf8'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <div style="width:36px; height:36px; border-radius:50%; background:${'rgba(56,189,248,0.1)'}; border:1px solid ${'rgba(56,189,248,0.3)'}; color:${isSelf ? 'var(--accent)' : '#38bdf8'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <div style="min-width:0; flex:1;">
               <div style="display:flex; align-items:center; gap:6px;">
                 <strong style="font-size:0.85rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(sess.username || 'Khách (Ẩn danh)')}</strong>
-                ${isSelf ? `<span class="spec-chip mono-font" style="background:rgba(34,197,94,0.15); color:var(--accent); font-size:0.62rem; padding:1px 6px;">BẠN</span>` : `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.12); color:#38bdf8; font-size:0.62rem; padding:1px 6px;">KHÁCH</span>`}
+                ${isSelf ? `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.15); color:var(--accent); font-size:0.62rem; padding:1px 6px;">BẠN</span>` : `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.12); color:#38bdf8; font-size:0.62rem; padding:1px 6px;">KHÁCH</span>`}
               </div>
               <div class="mono-font" style="font-size:0.68rem; color:var(--text-muted); display:flex; gap:8px; margin-top:3px; flex-wrap:wrap;">
                 <span>IP: ${escapeHtml(sess.clientIp || '127.0.0.1')}</span>
@@ -3470,10 +3470,10 @@
             <span class="spec-chip">${getOsSvg(d.os_info)} <span>${escapeHtml(formatFriendlyOsInfo(d.os_info))}</span></span>
             <span class="spec-chip">${resSvg} <span>${escapeHtml(d.resolution || '1920x1080')}</span></span>
             <span class="spec-chip">${roomSvg} <span>${escapeHtml(d.room_id)}</span></span>
-            <span class="spec-chip" style="border-color: rgba(56,189,248,0.3); color: #38bdf8;"><span>${escapeHtml(d.group_name || 'Default')}</span></span>
+            ${(d.group_name && d.group_name !== 'Default' && d.group_name !== 'Mặc định' && d.group_name.toLowerCase() !== 'default') ? `<span class="spec-chip group-chip" style="border-color: rgba(56,189,248,0.3); color: #38bdf8;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>${escapeHtml(d.group_name)}</span></span>` : ''}
             ${d.is_admin ? '<span class="spec-chip" style="border-color: rgba(245,158,11,0.4); color: #fbbf24;">ADMIN</span>' : ''}
           </div>
-          ${d.tags ? `<div class="device-tags-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${String(d.tags).split(',').map(tg => tg.trim()).filter(Boolean).map(tg => `<span class="mono-font" style="font-size:0.65rem;padding:1px 6px;border-radius:4px;background:rgba(34,197,94,0.1);color:var(--accent);border:1px solid rgba(34,197,94,0.25);">#${escapeHtml(tg)}</span>`).join('')}</div>` : ''}
+          ${d.tags ? `<div class="device-tags-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${String(d.tags).split(',').map(tg => tg.trim()).filter(Boolean).map(tg => `<span class="mono-font" style="font-size:0.65rem;padding:1px 6px;border-radius:4px;background:rgba(56,189,248,0.1);color:var(--accent);border:1px solid rgba(56,189,248,0.25);">#${escapeHtml(tg)}</span>`).join('')}</div>` : ''}
           <div class="device-last-access mono-font" style="font-size:0.68rem;color:var(--text-faint);margin-top:6px;display:flex;justify-content:space-between;align-items:center;">
             <span>${t('dashboard.last_accessed', { time: d.last_accessed ? formatTimeAgo(new Date(d.last_accessed).getTime()) : (d.last_seen ? formatTimeAgo(new Date(d.last_seen).getTime()) : 'Vừa xong') })}</span>
             <button type="button" class="btn-edit-device-meta btn-pill" data-room="${escapeHtml(d.room_id)}" data-name="${escapeHtml(d.device_name)}" data-group="${escapeHtml(d.group_name || 'Default')}" data-tags="${escapeHtml(d.tags || '')}" data-notes="${escapeHtml(d.notes || '')}" style="padding:1px 7px;font-size:0.65rem;height:20px;" data-i18n="dashboard.btn_edit_meta">${t('dashboard.btn_edit_meta') || 'Nhóm & Thẻ'}</button>
