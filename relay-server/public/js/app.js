@@ -296,8 +296,8 @@
         if (iconAlert) iconAlert.classList.remove('hidden');
       } else {
         if (iconWrap) {
-          iconWrap.style.background = 'rgba(34, 197, 94, 0.12)';
-          iconWrap.style.color = '#22C55E';
+          iconWrap.style.background = 'rgba(131, 232, 172, 0.12)';
+          iconWrap.style.color = '#83E8AC';
         }
         if (iconCheck) iconCheck.classList.remove('hidden');
         if (iconAlert) iconAlert.classList.add('hidden');
@@ -383,8 +383,8 @@
       }
 
       if (iconWrap) {
-        iconWrap.style.background = 'rgba(56, 189, 248, 0.12)';
-        iconWrap.style.color = '#38BDF8';
+        iconWrap.style.background = 'rgba(131, 232, 172, 0.12)';
+        iconWrap.style.color = '#83E8AC';
       }
       if (iconCheck) iconCheck.classList.remove('hidden');
       if (iconAlert) iconAlert.classList.add('hidden');
@@ -469,8 +469,8 @@
       }
 
       if (iconWrap) {
-        iconWrap.style.background = 'rgba(56, 189, 248, 0.12)';
-        iconWrap.style.color = '#38BDF8';
+        iconWrap.style.background = 'rgba(131, 232, 172, 0.12)';
+        iconWrap.style.color = '#83E8AC';
       }
       if (iconCheck) iconCheck.classList.remove('hidden');
       if (iconAlert) iconAlert.classList.add('hidden');
@@ -559,8 +559,8 @@
 
     // Soft area fill under sparkline
     const grad = sparkCtx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
-    grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+    grad.addColorStop(0, 'rgba(131, 232, 172, 0.35)');
+    grad.addColorStop(1, 'rgba(131, 232, 172, 0.0)');
     sparkCtx.fillStyle = grad;
     sparkCtx.beginPath();
     sparkCtx.moveTo(pts[0].x, h);
@@ -570,7 +570,7 @@
     sparkCtx.fill();
 
     // Crisp signal line
-    sparkCtx.strokeStyle = '#38bdf8';
+    sparkCtx.strokeStyle = '#83e8ac';
     sparkCtx.lineWidth = 1.5;
     sparkCtx.lineJoin = 'round';
     sparkCtx.beginPath();
@@ -1633,37 +1633,37 @@
     const chordPairs = [
       // Left Loop (Host Workstation cluster - Amber / Copper / Emerald / Mint)
       { t1: Math.PI * 0.62, t2: Math.PI * 1.38, cpOffset: -0.15, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.72, t2: Math.PI * 1.28, cpOffset: -0.25, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.72, t2: Math.PI * 1.28, cpOffset: -0.25, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.55, t2: Math.PI * 1.45, cpOffset: -0.08, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.85, t2: Math.PI * 1.15, cpOffset: -0.35, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.85, t2: Math.PI * 1.15, cpOffset: -0.35, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.92, t2: Math.PI * 1.08, cpOffset: -0.42, color: 'rgba(234, 88, 12, ' },
       { t1: Math.PI * 0.68, t2: Math.PI * 1.32, cpOffset: -0.20, color: 'rgba(16, 185, 129, ' },
       { t1: Math.PI * 0.78, t2: Math.PI * 1.22, cpOffset: -0.30, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.58, t2: Math.PI * 1.42, cpOffset: -0.10, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.58, t2: Math.PI * 1.42, cpOffset: -0.10, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.88, t2: Math.PI * 1.12, cpOffset: -0.38, color: 'rgba(234, 88, 12, ' },
       { t1: Math.PI * 0.95, t2: Math.PI * 1.05, cpOffset: -0.45, color: 'rgba(245, 158, 11, ' },
 
       // Right Loop (Remote Client cluster - Sky Cyan / Electric Slate / Indigo / Violet)
-      { t1: Math.PI * 0.18, t2: Math.PI * 1.82, cpOffset: 0.25, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.18, t2: Math.PI * 1.82, cpOffset: 0.25, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.28, t2: Math.PI * 1.72, cpOffset: 0.15, color: 'rgba(96, 165, 250, ' },
-      { t1: Math.PI * 0.08, t2: Math.PI * 1.92, cpOffset: 0.35, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.08, t2: Math.PI * 1.92, cpOffset: 0.35, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.36, t2: Math.PI * 1.64, cpOffset: 0.08, color: 'rgba(129, 140, 248, ' },
-      { t1: Math.PI * 0.42, t2: Math.PI * 1.58, cpOffset: 0.02, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.42, t2: Math.PI * 1.58, cpOffset: 0.02, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.22, t2: Math.PI * 1.78, cpOffset: 0.20, color: 'rgba(167, 139, 250, ' },
-      { t1: Math.PI * 0.12, t2: Math.PI * 1.88, cpOffset: 0.30, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.12, t2: Math.PI * 1.88, cpOffset: 0.30, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.32, t2: Math.PI * 1.68, cpOffset: 0.12, color: 'rgba(96, 165, 250, ' },
       { t1: Math.PI * 0.04, t2: Math.PI * 1.96, cpOffset: 0.40, color: 'rgba(129, 140, 248, ' },
-      { t1: Math.PI * 0.38, t2: Math.PI * 1.62, cpOffset: 0.05, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.38, t2: Math.PI * 1.62, cpOffset: 0.05, color: 'rgba(131, 232, 172, ' },
 
       // Trans-Lobe Nexus Crossing Bridges (Outbound Relay Telemetry)
       { t1: Math.PI * 0.48, t2: Math.PI * 1.52, cpOffset: 0, color: 'rgba(255, 255, 255, ' },
-      { t1: Math.PI * 0.52, t2: Math.PI * 1.48, cpOffset: 0, color: 'rgba(56, 189, 248, ' },
-      { t1: Math.PI * 0.32, t2: Math.PI * 1.25, cpOffset: 0, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.52, t2: Math.PI * 1.48, cpOffset: 0, color: 'rgba(131, 232, 172, ' },
+      { t1: Math.PI * 0.32, t2: Math.PI * 1.25, cpOffset: 0, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.68, t2: Math.PI * 1.75, cpOffset: 0, color: 'rgba(245, 158, 11, ' },
       { t1: Math.PI * 0.46, t2: Math.PI * 1.54, cpOffset: 0, color: 'rgba(226, 232, 240, ' },
-      { t1: Math.PI * 0.54, t2: Math.PI * 1.46, cpOffset: 0, color: 'rgba(56, 189, 248, ' },
+      { t1: Math.PI * 0.54, t2: Math.PI * 1.46, cpOffset: 0, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.38, t2: Math.PI * 1.30, cpOffset: 0, color: 'rgba(96, 165, 250, ' },
-      { t1: Math.PI * 0.62, t2: Math.PI * 1.70, cpOffset: 0, color: 'rgba(56, 189, 248, ' }
+      { t1: Math.PI * 0.62, t2: Math.PI * 1.70, cpOffset: 0, color: 'rgba(131, 232, 172, ' }
     ];
 
     let lastTime = performance.now();
@@ -1757,7 +1757,7 @@
       // Left Lobe Nebula (Host Station: Emerald-Amber glow)
       const gLeft = ctx.createRadialGradient(cx - scaleX * 0.55, cy, 0, cx - scaleX * 0.55, cy, scaleX * 0.75);
       gLeft.addColorStop(0, `rgba(245, 158, 11, ${0.10 + pulseT})`);
-      gLeft.addColorStop(0.38, `rgba(56, 189, 248, ${0.06 + pulseT})`);
+      gLeft.addColorStop(0.38, `rgba(131, 232, 172, ${0.06 + pulseT})`);
       gLeft.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = gLeft;
       ctx.beginPath();
@@ -1766,7 +1766,7 @@
 
       // Right Lobe Nebula (Remote Client: Cyan-Indigo glow)
       const gRight = ctx.createRadialGradient(cx + scaleX * 0.55, cy, 0, cx + scaleX * 0.55, cy, scaleX * 0.75);
-      gRight.addColorStop(0, `rgba(56, 189, 248, ${0.11 + pulseT})`);
+      gRight.addColorStop(0, `rgba(131, 232, 172, ${0.11 + pulseT})`);
       gRight.addColorStop(0.38, `rgba(129, 140, 248, ${0.06 + pulseT})`);
       gRight.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = gRight;
@@ -1777,7 +1777,7 @@
       // Center Relay Nexus Pulse
       const gNexus = ctx.createRadialGradient(cx, cy, 0, cx, cy, 180);
       gNexus.addColorStop(0, `rgba(255, 255, 255, ${0.05 + pulseT * 0.5})`);
-      gNexus.addColorStop(0.45, 'rgba(56, 189, 248, 0.025)');
+      gNexus.addColorStop(0.45, 'rgba(131, 232, 172, 0.025)');
       gNexus.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = gNexus;
       ctx.beginPath();
@@ -1788,7 +1788,7 @@
       ctx.beginPath();
       ctx.moveTo(cx - scaleX * 0.55, cy);
       ctx.lineTo(cx + scaleX * 0.55, cy);
-      ctx.strokeStyle = `rgba(56, 189, 248, ${0.04 + pulseT * 0.5})`;
+      ctx.strokeStyle = `rgba(131, 232, 172, ${0.04 + pulseT * 0.5})`;
       ctx.lineWidth = 0.8;
       ctx.stroke();
 
@@ -1914,8 +1914,8 @@
 
       // Multi-Speed High-Frequency Micro Data Blips
       const microPulses = [
-        { t: (now * 0.00068) % (Math.PI * 2), color: '#38BDF8', size: 1.8 },
-        { t: (now * 0.00062 + Math.PI * 0.5) % (Math.PI * 2), color: '#38BDF8', size: 1.8 },
+        { t: (now * 0.00068) % (Math.PI * 2), color: '#83E8AC', size: 1.8 },
+        { t: (now * 0.00062 + Math.PI * 0.5) % (Math.PI * 2), color: '#83E8AC', size: 1.8 },
         { t: (now * 0.00054 + Math.PI * 1.2) % (Math.PI * 2), color: '#F59E0B', size: 1.6 },
         { t: (now * 0.00078 + Math.PI * 1.7) % (Math.PI * 2), color: '#FFFFFF', size: 2.0 }
       ];
@@ -1936,7 +1936,7 @@
         const spPos = getPoint((comet1T + offset + Math.PI * 4) % (Math.PI * 2));
         ctx.beginPath();
         ctx.arc(spPos.x, spPos.y, 2.2 - idx * 0.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(56, 189, 248, ${0.75 - idx * 0.22})`;
+        ctx.fillStyle = `rgba(131, 232, 172, ${0.75 - idx * 0.22})`;
         ctx.fill();
       });
 
@@ -1946,7 +1946,7 @@
         const spPos = getPoint((comet2T + offset + Math.PI * 4) % (Math.PI * 2));
         ctx.beginPath();
         ctx.arc(spPos.x, spPos.y, 2.2 - idx * 0.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(56, 189, 248, ${0.75 - idx * 0.22})`;
+        ctx.fillStyle = `rgba(131, 232, 172, ${0.75 - idx * 0.22})`;
         ctx.fill();
       });
 
@@ -2005,14 +2005,14 @@
         const normX = (bp.x - cx) / scaleX;
         let colorStr = '';
         if (normX < -0.15) {
-          // Host cluster: Amber (#F59E0B) to Emerald (#22C55E)
+          // Host cluster: Amber (#F59E0B) to Emerald (#83E8AC)
           const mix = (-normX - 0.15) / 0.85;
           const r = Math.round(245 * (1 - mix * 0.5) + 34 * (mix * 0.5));
           const g = Math.round(158 * (1 - mix * 0.5) + 197 * (mix * 0.5));
           const b = Math.round(11 * (1 - mix * 0.5) + 94 * (mix * 0.5));
           colorStr = `rgba(${r}, ${g}, ${b}, ${blkAlpha})`;
         } else if (normX > 0.15) {
-          // Client cluster: Sky Cyan (#38BDF8) to Electric Slate/Indigo (#818CF8)
+          // Client cluster: Sky Cyan (#83E8AC) to Electric Slate/Indigo (#818CF8)
           const mix = (normX - 0.15) / 0.85;
           const r = Math.round(56 * (1 - mix) + 129 * mix);
           const g = Math.round(189 * (1 - mix) + 140 * mix);
@@ -2071,9 +2071,9 @@
       }
 
       // Comet 1: Cyan / Electric Blue (Video Stream 120 FPS)
-      drawPhotonHead(comet1Pos, '#FFFFFF', 'rgba(56, 189, 248, 0.85)', 'rgba(56, 189, 248, 0.22)');
+      drawPhotonHead(comet1Pos, '#FFFFFF', 'rgba(131, 232, 172, 0.85)', 'rgba(131, 232, 172, 0.22)');
       // Comet 2: Amber / Emerald (Input Stream)
-      drawPhotonHead(comet2Pos, '#FFFFFF', 'rgba(245, 158, 11, 0.85)', 'rgba(56, 189, 248, 0.22)');
+      drawPhotonHead(comet2Pos, '#FFFFFF', 'rgba(245, 158, 11, 0.85)', 'rgba(131, 232, 172, 0.22)');
 
       // --- 8. Center Relay Hub Nexus (Rotating Holographic Gimbal Reticle) ---
       const dC1 = Math.hypot(comet1Pos.x - cx, comet1Pos.y - cy);
@@ -2085,7 +2085,7 @@
       if (isNexusActive) {
         const gBurst = ctx.createRadialGradient(cx, cy, 0, cx, cy, 84);
         gBurst.addColorStop(0, 'rgba(255, 255, 255, 0.40)');
-        gBurst.addColorStop(0.35, 'rgba(56, 189, 248, 0.22)');
+        gBurst.addColorStop(0.35, 'rgba(131, 232, 172, 0.22)');
         gBurst.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = gBurst;
         ctx.beginPath();
@@ -2099,7 +2099,7 @@
       ctx.rotate(now * 0.0008);
       ctx.beginPath();
       ctx.arc(0, 0, 16, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(56, 189, 248, ${nexusAlpha * 1.2})`;
+      ctx.strokeStyle = `rgba(131, 232, 172, ${nexusAlpha * 1.2})`;
       ctx.lineWidth = 0.9;
       ctx.stroke();
       for (let a = 0; a < 4; a++) {
@@ -2132,7 +2132,7 @@
       ctx.moveTo(cx + 24, cy); ctx.lineTo(cx + 44, cy);
       ctx.moveTo(cx, cy - 44); ctx.lineTo(cx, cy - 24);
       ctx.moveTo(cx, cy + 24); ctx.lineTo(cx, cy + 44);
-      ctx.strokeStyle = `rgba(56, 189, 248, ${nexusAlpha * 0.9})`;
+      ctx.strokeStyle = `rgba(131, 232, 172, ${nexusAlpha * 0.9})`;
       ctx.lineWidth = 1;
       ctx.stroke();
 
@@ -2152,7 +2152,7 @@
           if (rs === 0) ctx.moveTo(pt3.x, pt3.y);
           else ctx.lineTo(pt3.x, pt3.y);
         }
-        ctx.strokeStyle = rg === 0 ? 'rgba(56, 189, 248, 0.16)' : (rg === 1 ? 'rgba(56, 189, 248, 0.14)' : 'rgba(245, 158, 11, 0.12)');
+        ctx.strokeStyle = rg === 0 ? 'rgba(131, 232, 172, 0.16)' : (rg === 1 ? 'rgba(131, 232, 172, 0.14)' : 'rgba(245, 158, 11, 0.12)');
         ctx.lineWidth = 0.85;
         ctx.stroke();
       }
@@ -2160,9 +2160,9 @@
       // Center Singularity Core Pip
       ctx.beginPath();
       ctx.arc(cx, cy, isNexusActive ? 3.5 : 2.2, 0, Math.PI * 2);
-      ctx.fillStyle = isNexusActive ? '#FFFFFF' : 'rgba(56, 189, 248, 0.9)';
+      ctx.fillStyle = isNexusActive ? '#FFFFFF' : 'rgba(131, 232, 172, 0.9)';
       if (isNexusActive) {
-        ctx.shadowColor = '#38BDF8';
+        ctx.shadowColor = '#83E8AC';
         ctx.shadowBlur = 12;
       }
       ctx.fill();
@@ -2195,9 +2195,9 @@
       const pClient = getPoint(0);
       ctx.save();
       ctx.font = '8px Consolas, monospace';
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.fillStyle = 'rgba(131, 232, 172, 0.45)';
       ctx.fillText('NODE-02 // CLIENT COCKPIT', pClient.x + 16, pClient.y - 12);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+      ctx.strokeStyle = 'rgba(131, 232, 172, 0.35)';
       ctx.lineWidth = 0.8;
       const rx = pClient.x - 8, ry = pClient.y - 8, rw = 16, rh = 16;
       ctx.beginPath();
@@ -2228,7 +2228,7 @@
           ctx.beginPath();
           ctx.moveTo(landingPointer.x, landingPointer.y);
           ctx.lineTo(nearestP.x, nearestP.y);
-          ctx.strokeStyle = `rgba(56, 189, 248, ${tetherAlpha})`;
+          ctx.strokeStyle = `rgba(131, 232, 172, ${tetherAlpha})`;
           ctx.lineWidth = 0.75;
           ctx.setLineDash([2, 4]);
           ctx.stroke();
@@ -2236,12 +2236,12 @@
 
           ctx.beginPath();
           ctx.arc(nearestP.x, nearestP.y, 5, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(56, 189, 248, ${tetherAlpha * 1.5})`;
+          ctx.strokeStyle = `rgba(131, 232, 172, ${tetherAlpha * 1.5})`;
           ctx.lineWidth = 1;
           ctx.stroke();
 
           ctx.font = '7px Consolas, monospace';
-          ctx.fillStyle = `rgba(56, 189, 248, ${tetherAlpha * 1.8})`;
+          ctx.fillStyle = `rgba(131, 232, 172, ${tetherAlpha * 1.8})`;
           ctx.fillText(`LOCK // ${Math.round(dist)}px`, landingPointer.x + 10, landingPointer.y - 10);
         }
       }
@@ -2256,8 +2256,8 @@
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        let col = `rgba(56, 189, 248, ${p.alpha})`;
-        if (p.hue === 150) col = `rgba(56, 189, 248, ${p.alpha})`;
+        let col = `rgba(131, 232, 172, ${p.alpha})`;
+        if (p.hue === 150) col = `rgba(131, 232, 172, ${p.alpha})`;
         else if (p.hue === 38) col = `rgba(245, 158, 11, ${p.alpha})`;
         ctx.fillStyle = col;
         ctx.fill();
@@ -2277,7 +2277,7 @@
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
+            ctx.strokeStyle = `rgba(131, 232, 172, ${alpha})`;
             ctx.lineWidth = 0.6;
             ctx.stroke();
           }
@@ -2296,9 +2296,9 @@
         // Primary Ring (Cyan)
         ctx.beginPath();
         ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(56, 189, 248, ${rp.alpha * 0.75})`;
+        ctx.strokeStyle = `rgba(131, 232, 172, ${rp.alpha * 0.75})`;
         ctx.lineWidth = 1.6;
-        ctx.shadowColor = '#38BDF8';
+        ctx.shadowColor = '#83E8AC';
         ctx.shadowBlur = 10;
         ctx.stroke();
         ctx.shadowBlur = 0;
@@ -2306,7 +2306,7 @@
         // Secondary Outer Harmonic Ring (Emerald)
         ctx.beginPath();
         ctx.arc(rp.x, rp.y, Math.max(0, rp.r - 8), 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(56, 189, 248, ${rp.alpha * 0.45})`;
+        ctx.strokeStyle = `rgba(131, 232, 172, ${rp.alpha * 0.45})`;
         ctx.lineWidth = 0.8;
         ctx.stroke();
       }
@@ -3321,13 +3321,13 @@
       return `
         <div class="session-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--ink-1); border:1px solid ${isSelf ? 'rgba(56,189,248,0.3)' : 'var(--line)'}; border-radius:var(--radius); gap:12px;">
           <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
-            <div style="width:36px; height:36px; border-radius:50%; background:${'rgba(56,189,248,0.1)'}; border:1px solid ${'rgba(56,189,248,0.3)'}; color:${isSelf ? 'var(--accent)' : '#38bdf8'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <div style="width:36px; height:36px; border-radius:50%; background:${'rgba(56,189,248,0.1)'}; border:1px solid ${'rgba(56,189,248,0.3)'}; color:${isSelf ? 'var(--accent)' : '#83e8ac'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <div style="min-width:0; flex:1;">
               <div style="display:flex; align-items:center; gap:6px;">
                 <strong style="font-size:0.85rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(sess.username || 'Khách (Ẩn danh)')}</strong>
-                ${isSelf ? `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.15); color:var(--accent); font-size:0.62rem; padding:1px 6px;">BẠN</span>` : `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.12); color:#38bdf8; font-size:0.62rem; padding:1px 6px;">KHÁCH</span>`}
+                ${isSelf ? `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.15); color:var(--accent); font-size:0.62rem; padding:1px 6px;">BẠN</span>` : `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.12); color:#83e8ac; font-size:0.62rem; padding:1px 6px;">KHÁCH</span>`}
               </div>
               <div class="mono-font" style="font-size:0.68rem; color:var(--text-muted); display:flex; gap:8px; margin-top:3px; flex-wrap:wrap;">
                 <span>IP: ${escapeHtml(sess.clientIp || '127.0.0.1')}</span>
@@ -3470,7 +3470,7 @@
             <span class="spec-chip">${getOsSvg(d.os_info)} <span>${escapeHtml(formatFriendlyOsInfo(d.os_info))}</span></span>
             <span class="spec-chip">${resSvg} <span>${escapeHtml(d.resolution || '1920x1080')}</span></span>
             <span class="spec-chip">${roomSvg} <span>${escapeHtml(d.room_id)}</span></span>
-            ${(d.group_name && d.group_name !== 'Default' && d.group_name !== 'Mặc định' && d.group_name.toLowerCase() !== 'default') ? `<span class="spec-chip group-chip" style="border-color: rgba(56,189,248,0.3); color: #38bdf8;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>${escapeHtml(d.group_name)}</span></span>` : ''}
+            ${(d.group_name && d.group_name !== 'Default' && d.group_name !== 'Mặc định' && d.group_name.toLowerCase() !== 'default') ? `<span class="spec-chip group-chip" style="border-color: rgba(56,189,248,0.3); color: #83e8ac;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>${escapeHtml(d.group_name)}</span></span>` : ''}
             ${d.is_admin ? '<span class="spec-chip" style="border-color: rgba(245,158,11,0.4); color: #fbbf24;">ADMIN</span>' : ''}
           </div>
           ${d.tags ? `<div class="device-tags-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${String(d.tags).split(',').map(tg => tg.trim()).filter(Boolean).map(tg => `<span class="mono-font" style="font-size:0.65rem;padding:1px 6px;border-radius:4px;background:rgba(56,189,248,0.1);color:var(--accent);border:1px solid rgba(56,189,248,0.25);">#${escapeHtml(tg)}</span>`).join('')}</div>` : ''}
@@ -3484,7 +3484,7 @@
               <span>${(d.session_count || 0) > 0 ? `${d.session_count} phiên đang kết nối` : 'Chưa có phiên kết nối'}</span>
             </span>
             ${(d.session_count || 0) > 0 ? `
-              <button type="button" class="btn-manage-sessions btn-pill" data-room="${escapeHtml(d.room_id)}" data-name="${escapeHtml(d.device_name)}" style="padding: 2px 8px; font-size: 0.68rem; height: 22px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; background: rgba(56, 189, 248, 0.08);" title="Quản lý & ngắt phiên kết nối">
+              <button type="button" class="btn-manage-sessions btn-pill" data-room="${escapeHtml(d.room_id)}" data-name="${escapeHtml(d.device_name)}" style="padding: 2px 8px; font-size: 0.68rem; height: 22px; border-color: rgba(131, 232, 172, 0.4); color: #83e8ac; background: rgba(131, 232, 172, 0.08);" title="Quản lý & ngắt phiên kết nối">
                 <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:3px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
                 <span>Quản lý</span>
               </button>
@@ -3827,8 +3827,8 @@
               btnInstallVDisplay?.classList.remove('hidden');
             } else {
               vdDisplayBadge.textContent = (typeof t === 'function') ? t('virtual.display_active') : 'SẴN SÀNG';
-              vdDisplayBadge.style.background = 'rgba(34, 197, 94, 0.15)';
-              vdDisplayBadge.style.color = '#22c55e';
+              vdDisplayBadge.style.background = 'rgba(131, 232, 172, 0.15)';
+              vdDisplayBadge.style.color = '#83e8ac';
               btnInstallVDisplay?.classList.add('hidden');
             }
           }
@@ -4026,8 +4026,8 @@
               btnInstallVAudio?.classList.remove('hidden');
             } else {
               vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_active') : 'SẴN SÀNG';
-              vdAudioBadge.style.background = 'rgba(34, 197, 94, 0.15)';
-              vdAudioBadge.style.color = '#22c55e';
+              vdAudioBadge.style.background = 'rgba(131, 232, 172, 0.15)';
+              vdAudioBadge.style.color = '#83e8ac';
               btnInstallVAudio?.classList.add('hidden');
             }
           }
@@ -5971,7 +5971,7 @@
 
             // PiP Border
             recCtx.save();
-            recCtx.strokeStyle = '#38BDF8';
+            recCtx.strokeStyle = '#83E8AC';
             recCtx.lineWidth = 3;
             recCtx.beginPath();
             if (recCtx.roundRect) {
@@ -8682,7 +8682,7 @@
     const ext = (item.ext || (item.name ? item.name.slice(item.name.lastIndexOf('.')).toLowerCase() : '')).toLowerCase();
 
     if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'].includes(ext)) {
-      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #38BDF8; vertical-align: middle; margin-right: 8px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #83E8AC; vertical-align: middle; margin-right: 8px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
     }
     if (['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.webm', '.flv'].includes(ext)) {
       return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #F43F5E; vertical-align: middle; margin-right: 8px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`;
@@ -9633,17 +9633,17 @@
 
     switch (action) {
       case 'SESSION_CONNECTED':
-        color = '#22C55E'; bg = 'rgba(34, 197, 94, 0.15)'; text = 'KẾT NỐI PHIÊN'; break;
+        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = 'KẾT NỐI PHIÊN'; break;
       case 'SESSION_DISCONNECTED':
         color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'NGẮT KẾT NỐI'; break;
       case 'CONNECT_PIN_FAILED':
         color = '#F43F5E'; bg = 'rgba(244, 63, 94, 0.15)'; text = 'SAI MÃ PIN'; break;
       case 'HOST_ONLINE':
-        color = '#38BDF8'; bg = 'rgba(56, 189, 248, 0.15)'; text = 'TRẠM ONLINE'; break;
+        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = 'TRẠM ONLINE'; break;
       case 'HOST_OFFLINE':
         color = '#64748B'; bg = 'rgba(100, 116, 139, 0.15)'; text = 'TRẠM OFFLINE'; break;
       case 'CMD_EXEC':
-        color = '#38BDF8'; bg = 'rgba(56, 189, 248, 0.15)'; text = 'LỆNH CMD'; break;
+        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = 'LỆNH CMD'; break;
       case 'FILE_BROWSE':
         color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = 'XEM THƯ MỤC'; break;
       case 'FILE_DOWNLOAD':
@@ -9669,7 +9669,7 @@
       case 'AUTH_REGISTER':
         color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = 'ĐĂNG KÝ'; break;
       case 'DEVICE_LINKED':
-        color = '#38BDF8'; bg = 'rgba(56, 189, 248, 0.15)'; text = 'LIÊN KẾT TRẠM'; break;
+        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = 'LIÊN KẾT TRẠM'; break;
     }
 
     return `<span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: ${color}; background: ${bg}; border: 1px solid ${color}40;">${text}</span>`;
