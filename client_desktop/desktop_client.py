@@ -42,6 +42,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger("meikova.relay.desktop_client")
+APP_VERSION = "1.2.0"
 
 try:
     import webview
@@ -707,7 +708,7 @@ class ClientTray:
         item_pad = Padding(4, 5, 4, 5)
 
         # 1. Header (Branding, Disabled)
-        header = ToolStripMenuItem("MEIKOVA RELAY // v1.0.25")
+        header = ToolStripMenuItem(f"MEIKOVA RELAY // v{APP_VERSION}")
         header.Enabled = False
         header.Font = font_bold
         header.Padding = Padding(4, 6, 4, 6)
@@ -849,7 +850,7 @@ class ClientTray:
 
             auto_on = is_autostart_enabled()
             menu = pystray.Menu(
-                pystray.MenuItem("MEIKOVA RELAY // v1.0.25", None, enabled=False),
+                pystray.MenuItem("MEIKOVA RELAY // v1.2.0", None, enabled=False),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Mở Meikova Relay", on_show, default=True),
                 pystray.MenuItem("Mở trên trình duyệt Web", on_web),

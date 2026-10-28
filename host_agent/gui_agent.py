@@ -26,7 +26,7 @@ from typing import Optional
 import multiprocessing
 multiprocessing.freeze_support()
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 
 # Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":
@@ -1413,9 +1413,14 @@ class MeikovaRelayHostGUI:
     def _disconnect_active_client(self):
         if self.host_service and self.host_service.ws and self.host_service.loop:
             self._log(self.t("log_emergency_disconnect"))
+            room_id = self.config.get("room_id", "")
             try:
                 asyncio.run_coroutine_threadsafe(
-                    self.host_service.ws.send(json.dumps({"type": "client_disconnected"})),
+                    self.host_service.ws.send(json.dumps({"type": "host_disconnect_clients", "room_id": room_id})),
+                    self.host_service.loop
+                )
+                asyncio.run_coroutine_threadsafe(
+                    self.host_service.ws.send(json.dumps({"type": "client_disconnected", "room_id": room_id})),
                     self.host_service.loop
                 )
             except Exception:
@@ -2020,13 +2025,21 @@ class HostApi:
             PowerManager.prevent_sleep(True)
 
         try:
+            fps_cfg = int(self._config.get("fps", 120))
             self._host_service = HostService(
                 relay_url=relay_url,
                 room_id=room_id,
                 pin=pin,
                 device_name=device_name,
-                account=account, user_id=self._config.get("user_id")
+                account=account,
+                user_id=self._config.get("user_id"),
+                fps=fps_cfg,
+                host_config=self._config,
             )
+            def _on_cfg_updated(new_cfg):
+                self._config.update(new_cfg)
+                self._save_config()
+            self._host_service.on_config_updated = _on_cfg_updated
             self._host_service.on_status_change = self._on_service_status
             self._host_service.on_client_connect = self._on_client_connected
             self._host_service.on_client_disconnect = self._on_client_disconnected
@@ -2165,15 +2178,117 @@ class HostApi:
     def disconnect_client(self):
         if self._host_service and self._host_service.ws and self._host_service.loop:
             self._log(self.t("log_emergency_disconnect"))
+            room_id = self._config.get("room_id", "")
             try:
                 asyncio.run_coroutine_threadsafe(
-                    self._host_service.ws.send(json.dumps({"type": "client_disconnected"})),
+                    self._host_service.ws.send(json.dumps({"type": "host_disconnect_clients", "room_id": room_id})),
+                    self._host_service.loop
+                )
+                asyncio.run_coroutine_threadsafe(
+                    self._host_service.ws.send(json.dumps({"type": "client_disconnected", "room_id": room_id})),
                     self._host_service.loop
                 )
             except Exception:
                 pass
             self._host_service.has_active_client = False
             self._on_client_disconnected()
+
+    def toggle_admin_elevation(self, is_on: bool) -> dict:
+        """Toggles Administrator privilege mode on the Host GUI (triggers UAC elevation on Windows if needed)."""
+        from host_agent.deployment_manager import elevate_and_execute, is_current_user_admin
+        is_adm = is_current_user_admin()
+        if is_on:
+            if is_adm:
+                self._config["admin_elevated"] = True
+                self._save_config()
+                msg = "Đã bật Cần gạt Quản trị viên (Quyền Administrator đang hoạt động)."
+                self._log(msg)
+                return {"success": True, "is_admin": True, "message": msg}
+            if sys.platform == "win32" and "unittest" not in sys.modules:
+                elevated = elevate_and_execute("--admin --restart")
+                if elevated:
+                    self._config["admin_elevated"] = True
+                    self._save_config()
+                    msg = "Đang khởi chạy lại với quyền Quản trị viên (UAC Admin)..."
+                    self._log(msg)
+                    return {"success": True, "is_admin": True, "message": msg}
+                msg = "Người dùng đã từ chối cấp quyền UAC Administrator."
+                self._log(msg)
+                return {"success": False, "is_admin": False, "message": msg}
+            self._config["admin_elevated"] = True
+            self._save_config()
+            msg = "Đã bật chế độ cấu hình Quản trị viên (Admin)."
+            self._log(msg)
+            return {"success": True, "is_admin": True, "message": msg}
+        else:
+            self._config["admin_elevated"] = False
+            self._config["block_input"] = False
+            self._config["privacy_curtain"] = False
+            self._save_config()
+            try:
+                from host_agent.input_injector import InputInjector
+                from host_agent.privacy_curtain import privacy_curtain
+                InputInjector.set_block_input(False)
+                privacy_curtain.disable()
+            except Exception:
+                pass
+            msg = "Đã tắt Cần gạt Quản trị viên."
+            self._log(msg)
+            return {"success": True, "is_admin": False, "message": msg}
+
+    def toggle_stealth_mode(self, is_on: bool) -> dict:
+        """Enables or disables Stealth Mode (hides tray icon and window)."""
+        self._config["stealth_mode"] = bool(is_on)
+        self._config["show_tray_icon"] = not bool(is_on)
+        self._save_config()
+        if self._tray_icon:
+            try:
+                self._tray_icon.visible = not bool(is_on)
+            except Exception:
+                pass
+        if self._host_service:
+            self._host_service.host_config["stealth_mode"] = bool(is_on)
+            self._host_service.host_config["show_tray_icon"] = not bool(is_on)
+        msg = "Chế độ Tàng hình (Stealth Mode): ĐÃ BẬT" if is_on else "Chế độ Tàng hình (Stealth Mode): ĐÃ TẮT"
+        self._log(msg)
+        return {"success": True, "stealth_mode": bool(is_on), "message": msg}
+
+    def toggle_auto_wakeup(self, is_on: bool, wake_time: str = "08:00") -> dict:
+        """Enables or disables scheduled RTC hardware Auto-Wakeup."""
+        res = PowerManager.configure_auto_wakeup(bool(is_on), wake_time)
+        self._config["auto_wakeup"] = bool(is_on)
+        self._config["auto_wakeup_time"] = str(wake_time or "08:00")
+        self._save_config()
+        if self._host_service:
+            self._host_service.host_config["auto_wakeup"] = bool(is_on)
+            self._host_service.host_config["auto_wakeup_time"] = str(wake_time or "08:00")
+        self._log(res.get("message", "Cập nhật Auto-Wakeup"))
+        return res
+
+    def toggle_block_input(self, is_on: bool) -> dict:
+        """Blocks or unblocks physical mouse and keyboard on the host."""
+        from host_agent.input_injector import InputInjector
+        ok = InputInjector.set_block_input(bool(is_on))
+        self._config["block_input"] = bool(is_on) if ok else False
+        self._save_config()
+        msg = f"Chặn chuột & bàn phím vật lý: {'BẬT' if is_on else 'TẮT'}"
+        self._log(msg)
+        return {"success": ok, "blocked": bool(is_on) if ok else False, "message": msg}
+
+    def toggle_privacy_curtain(self, is_on: bool) -> dict:
+        """Enables or disables Privacy Curtain on the host."""
+        from host_agent.privacy_curtain import privacy_curtain
+        from host_agent.input_injector import InputInjector
+        if is_on:
+            res = privacy_curtain.enable()
+            InputInjector.set_block_input(True)
+        else:
+            res = privacy_curtain.disable()
+            InputInjector.set_block_input(False)
+        self._config["privacy_curtain"] = bool(privacy_curtain.is_active)
+        self._save_config()
+        self._log(res.get("message", "Cập nhật Màn hình riêng tư"))
+        return res
 
     def toggle_autostart(self, is_on: bool):
         try:
@@ -2390,6 +2505,11 @@ class SingleInstanceLock:
                     self.is_primary = True
                     return True
                 except (IOError, OSError):
+                    try:
+                        self._lock_file.close()
+                    except Exception:
+                        pass
+                    self._lock_file = None
                     self.is_primary = False
                     return False
             else:
@@ -2399,6 +2519,11 @@ class SingleInstanceLock:
                     self.is_primary = True
                     return True
                 except (IOError, OSError):
+                    try:
+                        self._lock_file.close()
+                    except Exception:
+                        pass
+                    self._lock_file = None
                     self.is_primary = False
                     return False
         except Exception:
@@ -2734,8 +2859,74 @@ def main():
             print("[INFO] Máy trạm đang offline hoặc chưa bật dịch vụ.")
             sys.exit(1)
 
+    if "--help" in sys.argv or "-h" in sys.argv:
+        from host_agent.host_service import build_cli_parser
+        parser = build_cli_parser()
+        parser.print_help()
+        sys.exit(0)
+
     cfg_file = _get_default_config_path()
     initial_config = _load_initial_config(cfg_file)
+
+    # Apply direct CLI parameter overrides (--relay, --room, --pin, --fps, --uncapped, --stealth, --admin, etc.)
+    argv = sys.argv[1:]
+    cli_dirty = False
+    for idx, arg in enumerate(argv):
+        nxt = argv[idx + 1] if idx + 1 < len(argv) and not argv[idx + 1].startswith("--") else ""
+        if arg == "--relay" and nxt:
+            initial_config["relay"] = nxt
+            cli_dirty = True
+        elif arg == "--room" and nxt:
+            initial_config["room_id"] = nxt
+            cli_dirty = True
+        elif arg in ("--pin", "--perm-pin") and nxt:
+            initial_config["pin"] = nxt
+            initial_config["perm_pin"] = nxt
+            cli_dirty = True
+        elif arg == "--name" and nxt:
+            initial_config["device_name"] = nxt
+            cli_dirty = True
+        elif arg == "--account" and nxt:
+            initial_config["account"] = nxt
+            cli_dirty = True
+        elif arg == "--fps" and nxt:
+            try:
+                initial_config["fps"] = int(nxt)
+                cli_dirty = True
+            except ValueError:
+                pass
+        elif arg == "--uncapped":
+            initial_config["fps"] = 0
+            cli_dirty = True
+        elif arg == "--stealth":
+            initial_config["stealth_mode"] = True
+            initial_config["show_tray_icon"] = False
+            cli_dirty = True
+        elif arg == "--keep-awake":
+            initial_config["keep_awake"] = True
+            cli_dirty = True
+        elif arg == "--no-keep-awake":
+            initial_config["keep_awake"] = False
+            cli_dirty = True
+        elif arg == "--auto-wakeup" and nxt:
+            initial_config["auto_wakeup"] = True
+            initial_config["auto_wakeup_time"] = nxt
+            cli_dirty = True
+        elif arg == "--block-input":
+            initial_config["block_input"] = True
+            cli_dirty = True
+        elif arg == "--curtain":
+            initial_config["privacy_curtain"] = True
+            cli_dirty = True
+        elif arg == "--admin":
+            initial_config["admin_elevated"] = True
+            cli_dirty = True
+    if cli_dirty:
+        try:
+            with open(cfg_file, "w", encoding="utf-8") as f:
+                json.dump(initial_config, f, indent=2)
+        except Exception:
+            pass
 
     # Tắt chế độ headless mặc định theo yêu cầu người dùng.
     # Chỉ chạy headless khi có cờ CLI chỉ định rõ ràng (--headless hoặc --service-headless).

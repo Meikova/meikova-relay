@@ -13,7 +13,7 @@ import urllib.request
 import urllib.parse
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Dict
 import concurrent.futures
 try:
     import websockets
@@ -25,6 +25,8 @@ except ImportError:
         def connect(*args, **kwargs):
             raise RuntimeError("websockets package is required for live relay connections")
     websockets = _WebsocketsStub()
+
+APP_VERSION = "1.2.0"
 
 # --- Resilient Network Infrastructure: DNS Bypass, Corporate Proxy, and Resilient SSL ---
 _ORIGINAL_GETADDRINFO = socket.getaddrinfo
@@ -52,7 +54,6 @@ def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     try:
         return _ORIGINAL_GETADDRINFO(host, port, family, type, proto, flags)
     except socket.gaierror:
-        # Fallback to DoH if system DNS fails (corporate firewall or ISP block)
         ip = _resolve_doh(host)
         if ip:
             return _ORIGINAL_GETADDRINFO(ip, port, family, type, proto, flags)
@@ -103,6 +104,7 @@ try:
     from host_agent.file_manager import FileManager
     from host_agent.terminal_manager import TerminalManager
     from host_agent.system_manager import SystemManager
+    from host_agent.engines import get_active_os_engine, create_platform_engine
     from host_agent.power_manager import PowerManager
     from host_agent.audio_capture import AudioCapture
     from host_agent.audio_playback import AudioPlayback
@@ -111,6 +113,7 @@ try:
     from host_agent.privacy_curtain import privacy_curtain
     from host_agent.protocol_prober import probe_all_protocols
     from host_agent.tcp_tunnel import TcpTunnelManager
+    from host_agent.deployment_manager import elevate_and_execute, get_deployment_status, manage_windows_service
 except ModuleNotFoundError:
     from protocol import Protocol
     from screen_capture import ScreenCapture
@@ -120,6 +123,11 @@ except ModuleNotFoundError:
     from file_manager import FileManager
     from terminal_manager import TerminalManager
     from system_manager import SystemManager
+    try:
+        from engines import get_active_os_engine, create_platform_engine
+    except ImportError:
+        def get_active_os_engine(): return None
+        def create_platform_engine(plat=None): return None
     from power_manager import PowerManager
     from audio_capture import AudioCapture
     from audio_playback import AudioPlayback
@@ -128,6 +136,12 @@ except ModuleNotFoundError:
     from privacy_curtain import privacy_curtain
     from protocol_prober import probe_all_protocols
     from tcp_tunnel import TcpTunnelManager
+    try:
+        from deployment_manager import elevate_and_execute, get_deployment_status, manage_windows_service
+    except ImportError:
+        def elevate_and_execute(args_str: str) -> bool: return False
+        def get_deployment_status() -> dict: return {}
+        def manage_windows_service(action: str = "install"): return False, "Unsupported"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -135,6 +149,10 @@ logging.basicConfig(
     datefmt='%H:%M:%S'
 )
 logger = logging.getLogger("HostAgent")
+
+# 4-byte binary micro-frame representing a zero-bandwidth static cached frame repeat tick
+MICRO_FRAME_REPEAT = b"MKR0"
+
 
 def is_current_user_admin() -> bool:
     """Checks whether the current host agent process has Administrator/root privileges."""
@@ -150,10 +168,24 @@ def is_current_user_admin() -> bool:
         except Exception:
             return False
 
+
 class HostService:
     """Manages outbound WebSocket connection to Relay Server and streams desktop + handles all remote events."""
 
-    def __init__(self, relay_url: str, room_id: str, pin: str, device_name: str = "Workstation", account: str = "", fps: int = 120, quality: int = 70, user_id: Optional[str] = None):
+    def __init__(
+        self,
+        relay_url: str,
+        room_id: str,
+        pin: str,
+        device_name: str = "Workstation",
+        account: str = "",
+        fps: int = 120,
+        quality: int = 70,
+        user_id: Optional[str] = None,
+        host_config: Optional[Dict[str, Any]] = None,
+        fps_limit: int = 0,
+        uncapped_fps: bool = False,
+    ):
         self.relay_url = relay_url
         self.room_id = room_id
         self.pin = pin
@@ -163,12 +195,21 @@ class HostService:
         self._client_is_lan: Optional[bool] = None
         self.last_rtt_ms: float = 0.0
         self.active_preset: str = "balanced"
-        self.custom_fps_limit: int = 0  # 0 = Auto (120 FPS LAN / 60 FPS WAN), >0 = explicit FPS lock from client session
-        self.custom_resolution_lock: Optional[Tuple[int, int]] = None  # Explicit resolution set via Resolution Menu
+        self.custom_fps_limit: int = int(fps_limit or 0)
+        self.fps_limit: int = self.custom_fps_limit
+        self.uncapped_fps: bool = bool(uncapped_fps or fps == 0)
+        self.custom_resolution_lock: Optional[Tuple[int, int]] = None
         self.fps = fps if fps != 25 else (120 if self._detect_url_is_lan(relay_url) else 60)
-        self.frame_interval = 1.0 / max(1, self.fps)
+        if self.uncapped_fps:
+            self.fps = max(self.fps, 240)
+            self.frame_interval = 1.0 / 1000.0
+        else:
+            self.frame_interval = 1.0 / max(1, self.fps)
         self.quality = quality
+        self.os_engine = get_active_os_engine()
         self.capture = ScreenCapture(quality=self.quality)
+        if self.uncapped_fps:
+            self.capture.bg_min_interval = 0.0002
         self._capture_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="MeikovaCapture")
         self.file_manager = FileManager()
         self.running = True
@@ -179,8 +220,28 @@ class HostService:
         self.frame_queue: Optional[asyncio.Queue] = None
         self.frames_in_flight: int = 0
         self.ack_event: Optional[asyncio.Event] = None
+        self._last_ack_rx_time: float = 0.0
+        self._last_sent_frame_obj_id: Optional[int] = None
+        self._force_full_frame: bool = True
         self._consecutive_high_rtt: int = 0
         self._consecutive_low_rtt: int = 0
+
+        # Host Configuration Dictionary (Basic & Admin-Required settings)
+        self.host_config: Dict[str, Any] = {
+            "keep_awake": True,
+            "auto_wakeup": False,
+            "auto_wakeup_time": "08:00",
+            "stealth_mode": False,
+            "service_mode": False,
+            "autostart": False,
+            "open_on_boot": False,
+            "close_to_tray": True,
+            "show_tray_icon": True,
+            "block_input": False,
+            "privacy_curtain": False,
+        }
+        if isinstance(host_config, dict):
+            self.host_config.update(host_config)
 
         # Audio Capture & Stream
         self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk, on_status=self._on_audio_status)
@@ -194,6 +255,7 @@ class HostService:
         self.on_client_connect = None
         self.on_client_disconnect = None
         self.on_status_change = None
+        self.on_config_updated = None
 
         # Clipboard Sync (Multi-type: Text, Images, Files)
         self.clipboard = ClipboardManager(
@@ -214,9 +276,56 @@ class HostService:
         self.tunnel_manager = TcpTunnelManager(send_ws_fn=self._send_ws_tunnel_msg)
         self.curtain_active_sessions = set()
 
+    @staticmethod
+    def get_os_info() -> str:
+        """Returns friendly OS display string (e.g. 'Windows 11 Pro 64-bit', 'macOS 14.5 (arm64)', 'Ubuntu 24.04 LTS')."""
+        try:
+            return SystemManager.get_os_display_name()
+        except Exception:
+            if sys.platform == "win32":
+                return "Windows 64-bit"
+            elif sys.platform == "darwin":
+                return "macOS"
+            return "Linux 64-bit"
+
+    def get_host_config_snapshot(self) -> Dict[str, Any]:
+        """Returns complete snapshot of Host capabilities, Admin status, and Basic/Admin configuration."""
+        is_adm = is_current_user_admin()
+        dep = {}
+        try:
+            dep = get_deployment_status()
+        except Exception:
+            pass
+        return {
+            "is_admin": is_adm,
+            "os_platform": sys.platform,
+            "os_engine": getattr(self.os_engine, "engine_name", sys.platform),
+            "os_info": self.get_os_info(),
+            "device_name": self.device_name,
+            "room_id": self.room_id,
+            "relay_url": self.relay_url,
+            "account": self.account,
+            "active_preset": getattr(self, "active_preset", "balanced"),
+            "fps_limit": self.custom_fps_limit,
+            "uncapped_fps": self.uncapped_fps,
+            "applied_fps": 0 if self.uncapped_fps else int(round(1.0 / max(0.0001, self.frame_interval))),
+            "quality": self.capture.quality,
+            "max_width": self.capture.max_width,
+            "keep_awake": bool(self.host_config.get("keep_awake", True)),
+            "auto_wakeup": bool(self.host_config.get("auto_wakeup", False)),
+            "auto_wakeup_time": str(self.host_config.get("auto_wakeup_time", "08:00")),
+            "stealth_mode": bool(self.host_config.get("stealth_mode", False)),
+            "service_mode": bool(dep.get("service_installed", self.host_config.get("service_mode", False))),
+            "autostart": bool(dep.get("user_installed", self.host_config.get("autostart", False))),
+            "open_on_boot": bool(self.host_config.get("open_on_boot", False)),
+            "close_to_tray": bool(self.host_config.get("close_to_tray", True)),
+            "show_tray_icon": bool(self.host_config.get("show_tray_icon", True)),
+            "block_input": bool(getattr(InputInjector, "is_input_blocked", False)),
+            "privacy_curtain": bool(getattr(privacy_curtain, "is_active", False)),
+        }
+
     def stop(self):
         """Gracefully stop HostService, notifying relay server and tearing down connections."""
-        # ponytail: explicit host_closing packet + ws.close prevents ghost sessions on cloud relay
         self.running = False
         self.has_active_client = False
         self.audio_enabled = False
@@ -450,7 +559,7 @@ class HostService:
         return False
 
     def is_local_or_lan(self) -> bool:
-        """Returns True when streaming over Localhost or LAN (targets 120 FPS), False on WAN (targets 60 FPS, min 30 FPS)."""
+        """Returns True when streaming over Localhost or LAN (targets 120+ FPS), False on WAN (targets 60-120 FPS)."""
         if self._client_is_lan is not None:
             return self._client_is_lan
         if 0.0 < self.last_rtt_ms < 20.0:
@@ -460,7 +569,7 @@ class HostService:
         return self._detect_url_is_lan(self.relay_url)
 
     def apply_quality_preset(self, preset: str) -> str:
-        """Applies visual resolution and compression parameters while honoring any custom Resolution Lock or FPS Limit from the client session."""
+        """Applies visual resolution and compression parameters while honoring any custom Resolution Lock or FPS Limit / Uncapped mode from the client session."""
         is_lan = self.is_local_or_lan()
         high_fps_interval = (1.0 / 120.0) if is_lan else (1.0 / 60.0)
         eco_fps_interval = (1.0 / 60.0) if is_lan else (1.0 / 30.0)
@@ -549,25 +658,29 @@ class HostService:
         if res_lock and preset not in ("native_1to1", "native_120_1to1", "eco", "grayscale"):
             self.capture.max_width = int(res_lock[0])
 
-        # If the remote client locked a specific FPS limit (30 / 60 / 90 / 120 / 144 / 240), honor it without conflict
+        # Honor explicit FPS Limit or Uncapped (Unlimited) FPS mode from client session
         if getattr(self, "custom_fps_limit", 0) and self.custom_fps_limit > 0:
-            self.frame_interval = 1.0 / float(max(10, min(240, self.custom_fps_limit)))
+            self.frame_interval = 1.0 / float(max(1, min(1000, self.custom_fps_limit)))
+            self.capture.bg_min_interval = max(0.0002, min(0.002, self.frame_interval * 0.5))
+        elif getattr(self, "uncapped_fps", False):
+            self.frame_interval = 1.0 / 1000.0
+            self.capture.bg_min_interval = 0.0002
 
         self.active_preset = preset
         self.capture.keepalive_interval = 0.0
         self.capture._last_encoded_frame = None
+        self._force_full_frame = True
         return preset
 
     def _update_congestion_control(self, rtt_ms: float):
-        """Dynamic Congestion Control (DCC) adapting compression quality & FPS across Localhost/LAN (120 FPS) and WAN (60 FPS, min 30 FPS)."""
+        """Dynamic Congestion Control (DCC) adapting compression quality & FPS across Localhost/LAN and WAN/Cloudflare Tunnel."""
         self.last_rtt_ms = float(rtt_ms)
-        has_custom_fps = bool(getattr(self, "custom_fps_limit", 0) and self.custom_fps_limit > 0)
+        has_custom_fps = bool((getattr(self, "custom_fps_limit", 0) and self.custom_fps_limit > 0) or getattr(self, "uncapped_fps", False))
         if rtt_ms > 240:
             self._client_is_lan = False
             self._consecutive_high_rtt += 1
             self._consecutive_low_rtt = 0
             if self._consecutive_high_rtt >= 3:
-                # Alleviate congestion by lowering JPEG quality slightly and clamping WAN FPS between 30 and 60 FPS
                 if self.capture.quality > 40:
                     self.capture.quality = max(38, self.capture.quality - 8)
                 if not has_custom_fps:
@@ -585,13 +698,11 @@ class HostService:
             self._consecutive_low_rtt += 1
             self._consecutive_high_rtt = 0
             if self._consecutive_low_rtt >= 10:
-                # Gradually recover quality when network clears
                 target_q = 70 if self.capture.max_width == 1600 else (90 if self.capture.max_width is None else 58)
                 if self.capture.quality < target_q:
                     self.capture.quality = min(target_q, self.capture.quality + 4)
                 self._consecutive_low_rtt = 0
         else:
-            # Normal WAN RTT (60ms - 240ms): maintain 60 FPS target (min 30 FPS for eco/grayscale)
             self._client_is_lan = False
             if not has_custom_fps and self.active_preset not in ("ultra_120", "extreme_144", "native_120_1to1", "eco", "grayscale") and self.frame_interval < (1.0 / 60.0):
                 self.frame_interval = 1.0 / 60.0
@@ -599,19 +710,15 @@ class HostService:
     def negotiate_optimal_display_profile(self, client_w: int, client_h: int, client_fps: int = 60) -> dict:
         """
         Negotiates highest optimal resolution & frame profile between host monitor and controller client.
-        // ponytail: deterministic capability matching prioritizing 120 FPS on LAN/high-Hz & 60 FPS on WAN
         """
         host_w, host_h = self.capture.resolution
 
-        # High refresh rate priority (>= 60 FPS)
         if client_fps >= 60:
             recommended = "speed_60"
             suggested_scale = "fit"
-        # Native 1:1 Pixel-Perfect priority if controller can display host resolution unscaled
         elif client_w >= host_w and client_h >= host_h:
             recommended = "native_1to1"
             suggested_scale = "1to1"
-        # Crisp HD fidelity for high resolution displays
         elif client_w >= 1920:
             recommended = "crisp_hd"
             suggested_scale = "fit"
@@ -620,7 +727,7 @@ class HostService:
             suggested_scale = "fit"
 
         applied = self.apply_quality_preset(recommended)
-        if not (getattr(self, "custom_fps_limit", 0) and self.custom_fps_limit > 0):
+        if not ((getattr(self, "custom_fps_limit", 0) and self.custom_fps_limit > 0) or getattr(self, "uncapped_fps", False)):
             if client_fps >= 120 or (client_fps >= 60 and self.is_local_or_lan()):
                 self.frame_interval = 1.0 / 120.0
             elif client_fps >= 60:
@@ -632,7 +739,7 @@ class HostService:
             "client_res": [client_w, client_h],
             "client_fps": client_fps,
             "recommended_preset": applied,
-            "applied_fps": int(round(1.0 / self.frame_interval)),
+            "applied_fps": 0 if self.uncapped_fps else int(round(1.0 / self.frame_interval)),
             "applied_quality": self.capture.quality,
             "suggested_scale": suggested_scale,
             "monitors": self.capture.monitors,
@@ -640,8 +747,8 @@ class HostService:
         }
 
     async def _stream_screen(self):
-        """Streams encoded frames with deadline-tracked 120-240 FPS pacing."""
-        fps_target = int(round(1.0 / self.frame_interval))
+        """Streams encoded frames with deadline-tracked 120-500+ FPS (or Unlimited) pacing."""
+        fps_target = "UNCAPPED" if self.uncapped_fps else int(round(1.0 / max(0.0001, self.frame_interval)))
         logger.info(f"Screen capture loop started targeting {fps_target} FPS")
         loop = asyncio.get_running_loop()
         next_deadline = time.perf_counter()
@@ -653,7 +760,6 @@ class HostService:
                 continue
 
             try:
-                # Fast non-blocking read when background producer has already encoded a frame
                 if self.capture._last_encoded_frame is not None and callable(getattr(self.capture.capture_frame, "__self__", None)):
                     frame_bytes = self.capture.capture_frame(False)
                 else:
@@ -675,6 +781,11 @@ class HostService:
                 next_deadline = time.perf_counter()
                 continue
 
+            if getattr(self, "uncapped_fps", False) or self.frame_interval <= 0.0015:
+                next_deadline = time.perf_counter()
+                await asyncio.sleep(0)
+                continue
+
             next_deadline += self.frame_interval
             now = time.perf_counter()
             remaining = next_deadline - now
@@ -687,11 +798,14 @@ class HostService:
                 await asyncio.sleep(0)
 
     async def _send_frames_worker(self, ws: Any):
-        """Non-blocking leaky-bucket frame sender with adaptive socket write-buffer backpressure."""
+        """Non-blocking leaky-bucket frame sender with Cloudflare Tunnel / WAN congestion protection
+        and 4-byte Micro-Frame (MKR0) deduplication for static frames."""
         logger.info("Frame sender worker started")
         last_heartbeat = time.time()
         self.frames_in_flight = 0
         self.ack_event = asyncio.Event()
+        self._last_sent_frame_obj_id = None
+        self._force_full_frame = True
 
         while self.running:
             if not self.has_active_client:
@@ -709,10 +823,10 @@ class HostService:
                     await asyncio.sleep(0.02)
                     continue
 
-                # Socket write-buffer backpressure check BEFORE dequeuing so newest frame stays in leaky-bucket queue
+                is_lan = self.is_local_or_lan()
                 transport = getattr(ws, "transport", None)
                 if transport and hasattr(transport, "get_write_buffer_size"):
-                    max_buf = (4 * 1024 * 1024) if self.is_local_or_lan() else (1024 * 1024)
+                    max_buf = (8 * 1024 * 1024) if is_lan else (384 * 1024)
                     if transport.get_write_buffer_size() > max_buf:
                         await asyncio.sleep(0.002)
                         continue
@@ -723,8 +837,42 @@ class HostService:
                     frame = None
 
                 if frame:
-                    self.frames_in_flight = min(32, self.frames_in_flight + 1)
-                    await ws.send(frame)
+                    # Drain any newer frame already sitting in frame_queue so we always send the freshest state
+                    while not self.frame_queue.empty():
+                        try:
+                            frame = self.frame_queue.get_nowait()
+                        except asyncio.QueueEmpty:
+                            break
+
+                    is_real_jpeg = len(frame) >= 512
+                    is_same_cached_obj = (
+                        is_real_jpeg
+                        and not getattr(self, "_force_full_frame", False)
+                        and id(frame) == getattr(self, "_last_sent_frame_obj_id", None)
+                    )
+
+                    if is_same_cached_obj:
+                        # Screen is unchanged since last transmitted JPEG: send 4-byte micro-frame tick (0.002% bandwidth!)
+                        await ws.send(MICRO_FRAME_REPEAT)
+                    else:
+                        # Real changed frame: enforce end-to-end in-flight window over WAN / Cloudflare Tunnel
+                        max_in_flight = 14 if is_lan else 3
+                        now_pc = time.perf_counter()
+                        if is_real_jpeg and self.frames_in_flight >= max_in_flight:
+                            if (now_pc - getattr(self, "_last_ack_rx_time", 0.0)) < 0.14 and self.ack_event is not None:
+                                self.ack_event.clear()
+                                try:
+                                    await asyncio.wait_for(self.ack_event.wait(), timeout=0.005)
+                                except asyncio.TimeoutError:
+                                    pass
+                            else:
+                                # Auto-decay if client hasn't sent ACK within 140ms
+                                self.frames_in_flight = max(0, self.frames_in_flight - 1)
+
+                        self._last_sent_frame_obj_id = id(frame)
+                        self._force_full_frame = False
+                        self.frames_in_flight = min(32, self.frames_in_flight + 1)
+                        await ws.send(frame)
 
                 if time.time() - last_heartbeat > 10:
                     try:
@@ -812,7 +960,6 @@ class HostService:
                             self.on_status_change("reconnecting", detail=msg)
                         except Exception:
                             pass
-                    # Stop agent to prevent ping-pong reconnection loop against newer active instance
                     self.running = False
                     break
 
@@ -821,8 +968,11 @@ class HostService:
                     client_ip = str(event.get("clientIp") or event.get("client_ip") or "").strip()
                     if client_ip:
                         self._client_is_lan = self._detect_url_is_lan(client_ip) and self._detect_url_is_lan(self.relay_url)
+                    self._force_full_frame = True
+                    self._last_sent_frame_obj_id = None
+                    self.frames_in_flight = 0
                     self.apply_quality_preset(getattr(self, "active_preset", "balanced"))
-                    logger.info(f"[+] Client connected (ip={client_ip}, lan={self.is_local_or_lan()}, target_fps={int(round(1.0 / self.frame_interval))})! Streaming live.")
+                    logger.info(f"[+] Client connected (ip={client_ip}, lan={self.is_local_or_lan()}, target_fps={'UNCAPPED' if self.uncapped_fps else int(round(1.0 / self.frame_interval))})! Streaming live.")
                     self.has_active_client = True
                     if self.on_client_connect:
                         try:
@@ -831,12 +981,23 @@ class HostService:
                             pass
                     initial_frame = self.capture.capture_frame(force=True)
                     if initial_frame:
+                        self._last_sent_frame_obj_id = id(initial_frame)
                         await ws.send(initial_frame)
                     await ws.send(json.dumps({
                         "type": "monitors_list",
                         "monitors": self.capture.monitors,
                         "active_id": self.capture.active_monitor_id,
                         "is_headless": getattr(self.capture, "is_headless", False)
+                    }))
+                    # Broadcast Host Admin privileges & full configuration snapshot so Client Deck can enable/disable Admin-gated controls
+                    await ws.send(json.dumps({
+                        "type": "host_capabilities",
+                        "is_admin": is_current_user_admin(),
+                        "os_platform": sys.platform,
+                        "os_info": self.get_os_info(),
+                        "device_name": self.device_name,
+                        "host_config": self.get_host_config_snapshot(),
+                        "config": self.get_host_config_snapshot()
                     }))
                     has_output = is_audio_output_available()
                     await ws.send(json.dumps({
@@ -857,7 +1018,6 @@ class HostService:
                         "type": "cursor_update",
                         "cursor": cur_shape
                     }))
-                    # Probe and broadcast native protocol matrix
                     try:
                         loop = asyncio.get_running_loop()
                         self.protocol_matrix = await loop.run_in_executor(None, probe_all_protocols)
@@ -867,11 +1027,10 @@ class HostService:
                         "type": "protocol_matrix",
                         "matrix": self.protocol_matrix
                     }))
-                    # Send initial terminal prompt & working directory
                     cwd = os.getcwd()
                     await ws.send(json.dumps({
                         "type": "terminal_output",
-                        "data": f"=== MEIKOVA RELAY POWERSHELL (UTF-8) SẴN SÀNG ===\r\nThiết bị: {self.device_name} | Thư mục: {cwd}\r\nPS {cwd}> "
+                        "data": f"=== MEIKOVA RELAY POWERSHELL (UTF-8) SẴN SÀNG ===\r\nThiết bị: {self.device_name} | Thư mục: {cwd}\r\n__MKV_CWD__{cwd}\n"
                     }))
                     if privacy_curtain.is_active:
                         await ws.send(json.dumps({
@@ -890,14 +1049,13 @@ class HostService:
                     if sess_id:
                         self.curtain_active_sessions.discard(sess_id)
 
-                    # Fail-safe auto-exit: if all clients left, or all requesting sessions disconnected
                     if client_count <= 0 or not self.curtain_active_sessions:
                         if privacy_curtain.is_active:
                             logger.info("[PrivacyCurtain] Auto-disabling curtain mode: requesting client disconnected.")
                             privacy_curtain.disable()
                             InputInjector.set_block_input(False)
                             self.curtain_active_sessions.clear()
-                            if ws and not ws.closed:
+                            if ws and not getattr(ws, "closed", False):
                                 try:
                                     await ws.send(json.dumps({
                                         "type": "privacy_curtain_response",
@@ -927,14 +1085,141 @@ class HostService:
 
                 elif ev_type == "frame_ack":
                     self.frames_in_flight = max(0, self.frames_in_flight - 1)
+                    self._last_ack_rx_time = time.perf_counter()
                     if self.ack_event is not None and not self.ack_event.is_set():
                         self.ack_event.set()
-                    # Only calculate RTT if timestamp originated from host
+                    if event.get("dropped"):
+                        # Relay server dropped a buffered frame due to WAN/Cloudflare Tunnel congestion:
+                        # lower quality slightly and ensure next frame is a fresh full frame
+                        self._force_full_frame = True
+                        if self.capture.quality > 42 and self.active_preset not in ("native_1to1", "crisp_2k_4k"):
+                            self.capture.quality = max(42, self.capture.quality - 4)
                     host_ts = event.get("host_ts")
                     if host_ts:
-                        rtt_ms = (time.time() * 1000) - host_ts
+                        rtt_ms = (time.time() * 1000) - float(host_ts)
                         if 0 < rtt_ms < 5000:
                             self._update_congestion_control(rtt_ms)
+                    continue
+
+                elif ev_type == "client_rtt":
+                    rtt_val = float(event.get("rtt_ms", 0) or 0)
+                    if 0 < rtt_val < 5000:
+                        self._update_congestion_control(rtt_val)
+                    continue
+
+                # Host Configuration & Admin Privilege Control via Remote Client
+                elif ev_type == "get_host_config":
+                    await ws.send(json.dumps({
+                        "type": "host_config_response",
+                        "is_admin": is_current_user_admin(),
+                        "host_config": self.get_host_config_snapshot(),
+                        "config": self.get_host_config_snapshot()
+                    }))
+                    continue
+
+                elif ev_type == "set_host_config":
+                    updates = event.get("config") or event
+                    is_adm = is_current_user_admin()
+                    admin_only_keys = {"block_input", "privacy_curtain", "auto_wakeup", "service_mode"}
+                    rejected_admin = [k for k in admin_only_keys if k in updates and bool(updates[k]) and not is_adm]
+                    if rejected_admin:
+                        await ws.send(json.dumps({
+                            "type": "host_config_response",
+                            "success": False,
+                            "requires_admin": True,
+                            "is_admin": is_adm,
+                            "rejected_keys": rejected_admin,
+                            "host_config": self.get_host_config_snapshot(),
+                            "config": self.get_host_config_snapshot(),
+                            "message": "Nhóm chức năng nâng cao yêu cầu quyền Quản trị viên (Admin) trên máy trạm."
+                        }))
+                        continue
+
+                    if "keep_awake" in updates:
+                        val = bool(updates["keep_awake"])
+                        self.host_config["keep_awake"] = val
+                        PowerManager.prevent_sleep(val)
+                    if "auto_wakeup" in updates or "auto_wakeup_time" in updates:
+                        aw_en = bool(updates.get("auto_wakeup", self.host_config.get("auto_wakeup", False)))
+                        aw_tm = str(updates.get("auto_wakeup_time", self.host_config.get("auto_wakeup_time", "08:00")))
+                        self.host_config["auto_wakeup"] = aw_en
+                        self.host_config["auto_wakeup_time"] = aw_tm
+                        PowerManager.configure_auto_wakeup(aw_en, aw_tm)
+                    if "stealth_mode" in updates:
+                        st_en = bool(updates["stealth_mode"])
+                        self.host_config["stealth_mode"] = st_en
+                        self.host_config["show_tray_icon"] = not st_en
+                    if "show_tray_icon" in updates:
+                        self.host_config["show_tray_icon"] = bool(updates["show_tray_icon"])
+                    if "close_to_tray" in updates:
+                        self.host_config["close_to_tray"] = bool(updates["close_to_tray"])
+                    if "open_on_boot" in updates:
+                        self.host_config["open_on_boot"] = bool(updates["open_on_boot"])
+                    if "autostart" in updates:
+                        self.host_config["autostart"] = bool(updates["autostart"])
+                    if "service_mode" in updates and is_adm:
+                        srv_en = bool(updates["service_mode"])
+                        self.host_config["service_mode"] = srv_en
+                        manage_windows_service("install" if srv_en else "uninstall")
+                    if "block_input" in updates and is_adm:
+                        blk = bool(updates["block_input"])
+                        self.host_config["block_input"] = blk
+                        InputInjector.set_block_input(blk)
+                    if "privacy_curtain" in updates and is_adm:
+                        curt = bool(updates["privacy_curtain"])
+                        self.host_config["privacy_curtain"] = curt
+                        if curt:
+                            privacy_curtain.enable()
+                            InputInjector.set_block_input(True)
+                        else:
+                            privacy_curtain.disable()
+                            InputInjector.set_block_input(False)
+                    if "fps_limit" in updates:
+                        fl = int(updates.get("fps_limit") or 0)
+                        if fl <= 0:
+                            self.custom_fps_limit = 0
+                            self.uncapped_fps = True
+                            self.frame_interval = 1.0 / 1000.0
+                            self.capture.bg_min_interval = 0.0002
+                        else:
+                            self.custom_fps_limit = max(1, min(1000, fl))
+                            self.uncapped_fps = False
+                            self.frame_interval = 1.0 / float(self.custom_fps_limit)
+
+                    if self.on_config_updated:
+                        try:
+                            self.on_config_updated(self.host_config)
+                        except Exception:
+                            pass
+
+                    await ws.send(json.dumps({
+                        "type": "host_config_response",
+                        "success": True,
+                        "requires_admin": False,
+                        "is_admin": is_adm,
+                        "host_config": self.get_host_config_snapshot(),
+                        "config": self.get_host_config_snapshot(),
+                        "message": "Đã cập nhật cấu hình máy trạm thành công."
+                    }))
+                    continue
+
+                elif ev_type == "request_admin_elevation":
+                    is_adm = is_current_user_admin()
+                    if is_adm:
+                        await ws.send(json.dumps({
+                            "type": "admin_elevation_response",
+                            "success": True,
+                            "is_admin": True,
+                            "message": "Máy trạm đã đang chạy với quyền Quản trị viên (Admin)."
+                        }))
+                    else:
+                        elevated = elevate_and_execute("--admin --restart")
+                        await ws.send(json.dumps({
+                            "type": "admin_elevation_response",
+                            "success": elevated,
+                            "is_admin": is_current_user_admin(),
+                            "message": "Đã gửi yêu cầu nâng quyền UAC trên màn hình máy trạm." if elevated else "Không thể kích hoạt UAC hoặc người dùng tại máy trạm đã từ chối."
+                        }))
                     continue
 
                 # Protocol Probing & Tunnel Events
@@ -1009,7 +1294,6 @@ class HostService:
                     logger.info("[HostService] Received client request to install Virtual Display Driver.")
                     loop = asyncio.get_running_loop()
                     res = await loop.run_in_executor(None, download_and_install_virtual_display)
-                    # Refresh monitors list
                     self.capture.monitors = self.capture.detect_monitors()
                     self.capture.is_headless = getattr(self.capture, "is_headless", False) and len(self.capture.monitors) == 0
                     await ws.send(json.dumps({
@@ -1025,6 +1309,7 @@ class HostService:
                     }))
                     initial_frame = self.capture.capture_frame(force=True)
                     if initial_frame:
+                        self._last_sent_frame_obj_id = id(initial_frame)
                         await ws.send(initial_frame)
                     continue
 
@@ -1034,7 +1319,6 @@ class HostService:
                     h = int(event.get("height", 0))
                     fps = int(event.get("fps", 120 if self.is_local_or_lan() else 60))
                     if w <= 0 or h <= 0:
-                        # Reset to native physical monitor resolution
                         self.custom_resolution_lock = None
                         self.capture.custom_virtual_resolution = None
                         self.capture.monitors = self.capture.detect_monitors()
@@ -1046,8 +1330,9 @@ class HostService:
                         loop = asyncio.get_running_loop()
                         res = await loop.run_in_executor(None, set_display_resolution, w, h, fps)
                         self.custom_resolution_lock = (w, h)
-                        self.capture.set_custom_resolution(w, h)
+                        self.capture.set_custom_resolution(w, h, native_applied=bool(res.get("native", False)))
                         self.capture.max_width = w
+                    self._force_full_frame = True
                     await ws.send(json.dumps({
                         "type": "screen_resolution_result",
                         "success": res.get("success", True),
@@ -1063,6 +1348,7 @@ class HostService:
                     }))
                     initial_frame = self.capture.capture_frame(force=True)
                     if initial_frame:
+                        self._last_sent_frame_obj_id = id(initial_frame)
                         await ws.send(initial_frame)
                     continue
 
@@ -1117,6 +1403,7 @@ class HostService:
                     mon_id = int(event.get("monitor_id", 1))
                     self.capture.monitors = self.capture.detect_monitors()
                     self.capture.set_active_monitor(mon_id)
+                    self._force_full_frame = True
                     w, h = self.capture.resolution
                     await ws.send(json.dumps({
                         "type": "host_ready",
@@ -1127,17 +1414,32 @@ class HostService:
                     }))
                     initial_frame = self.capture.capture_frame(force=True)
                     if initial_frame:
+                        self._last_sent_frame_obj_id = id(initial_frame)
                         await ws.send(initial_frame)
                     continue
 
-                # Session-Managed FPS Limit Control (Decoupled from Visual Quality Preset)
+                # Session-Managed FPS Limit Control (Supports explicit FPS 1..1000 OR 0 = Unlimited / Uncapped)
                 elif ev_type == "set_fps_limit":
-                    fps_lim = int(event.get("fps_limit", 0) or 0)
-                    self.custom_fps_limit = max(0, min(240, fps_lim))
-                    if self.custom_fps_limit > 0:
-                        self.frame_interval = 1.0 / float(max(10, self.custom_fps_limit))
+                    raw_lim = event.get("fps_limit", 0)
+                    try:
+                        fps_lim = int(raw_lim or 0)
+                    except (ValueError, TypeError):
+                        fps_lim = 0
+                    is_uncapped = bool(event.get("uncapped", False)) or (fps_lim <= 0 and event.get("mode") != "preset_auto")
+                    if is_uncapped or fps_lim <= 0:
+                        self.custom_fps_limit = 0
+                        self.uncapped_fps = True
+                        self.frame_interval = 1.0 / 1000.0
+                        self.capture.bg_min_interval = 0.0002
                     else:
-                        self.apply_quality_preset(getattr(self, "active_preset", "balanced"))
+                        self.custom_fps_limit = max(1, min(1000, fps_lim))
+                        self.uncapped_fps = False
+                        self.frame_interval = 1.0 / float(max(1, self.custom_fps_limit))
+                        self.capture.bg_min_interval = max(0.0002, min(0.002, self.frame_interval * 0.5))
+                    if "encoder_mode" in event and event["encoder_mode"]:
+                        self.capture.encoder_mode = str(event["encoder_mode"])
+                    if "static_cache" in event and event["static_cache"] is not None:
+                        self.capture.static_cache_enabled = bool(event["static_cache"])
                     if self.frame_queue is not None:
                         while not self.frame_queue.empty():
                             try:
@@ -1147,7 +1449,8 @@ class HostService:
                     await ws.send(json.dumps({
                         "type": "fps_limit_applied",
                         "fps_limit": self.custom_fps_limit,
-                        "applied_fps": int(round(1.0 / self.frame_interval)),
+                        "uncapped": self.uncapped_fps,
+                        "applied_fps": 0 if self.uncapped_fps else int(round(1.0 / self.frame_interval)),
                         "quality": self.capture.quality,
                         "preset": getattr(self, "active_preset", "balanced")
                     }))
@@ -1157,36 +1460,44 @@ class HostService:
                 elif ev_type == "set_quality_preset":
                     preset = event.get("preset", "balanced")
                     if "fps_limit" in event and event["fps_limit"] is not None:
-                        self.custom_fps_limit = max(0, min(240, int(event["fps_limit"])))
+                        fl = int(event["fps_limit"] or 0)
+                        if fl <= 0 and event.get("uncapped"):
+                            self.custom_fps_limit = 0
+                            self.uncapped_fps = True
+                        elif fl > 0:
+                            self.custom_fps_limit = max(1, min(1000, fl))
+                            self.uncapped_fps = False
+                    if "encoder_mode" in event and event["encoder_mode"]:
+                        self.capture.encoder_mode = str(event["encoder_mode"])
+                    if "static_cache" in event and event["static_cache"] is not None:
+                        self.capture.static_cache_enabled = bool(event["static_cache"])
                     applied = self.apply_quality_preset(preset)
                     logger.info(f"Applied Quality Preset: {applied} (Quality: {self.capture.quality}, Interval: {self.frame_interval})")
-                    # 1. Reset flow control state immediately
                     self.frames_in_flight = 0
+                    self._force_full_frame = True
                     if self.ack_event is not None:
                         self.ack_event.set()
-                    # 2. Drain stale frame backlog immediately
                     if self.frame_queue is not None:
                         while not self.frame_queue.empty():
                             try:
                                 self.frame_queue.get_nowait()
                             except (asyncio.QueueEmpty, ValueError):
                                 break
-                    # 3. Reset hash cache so next capture produces fresh frame
                     self.capture._last_frame_hash = None
-                    # 4. Immediately force capture and transmit fresh frame in the new mode
                     fresh_frame = await asyncio.to_thread(self.capture.capture_frame, True)
                     if fresh_frame:
                         self.frames_in_flight = 1
+                        self._last_sent_frame_obj_id = id(fresh_frame)
                         await ws.send(fresh_frame)
-                    # 5. Send confirmation ACK with applied metrics immediately (non-blocking)
                     await ws.send(json.dumps({
                         "type": "quality_preset_applied",
                         "preset": applied,
                         "req_id": event.get("req_id"),
                         "quality": self.capture.quality,
                         "max_width": self.capture.max_width,
-                        "fps": int(round(1.0 / self.frame_interval)),
-                        "fps_limit": self.custom_fps_limit
+                        "fps": 0 if self.uncapped_fps else int(round(1.0 / self.frame_interval)),
+                        "fps_limit": self.custom_fps_limit,
+                        "uncapped": self.uncapped_fps
                     }))
                     continue
 
@@ -1199,6 +1510,7 @@ class HostService:
                     await ws.send(json.dumps(res_payload))
                     initial_frame = self.capture.capture_frame(force=True)
                     if initial_frame:
+                        self._last_sent_frame_obj_id = id(initial_frame)
                         await ws.send(initial_frame)
                     logger.info(f"Negotiated Display Profile: {res_payload['message']}")
                     continue
@@ -1226,7 +1538,6 @@ class HostService:
                                 if cmd.lower() in ("winver", "dxdiag", "taskmgr", "msconfig", "calc", "regedit"):
                                     subprocess.Popen(cmd, shell=True)
                                 else:
-                                    # Spawn visible interactive CMD window on desktop
                                     subprocess.Popen(f'cmd.exe /k "{cmd}"', shell=True)
                             except Exception as ex:
                                 logger.warning(f"[QuickMacro] Failed to spawn GUI process: {ex}")
@@ -1242,7 +1553,8 @@ class HostService:
                     continue
 
                 elif ev_type == "process_list_request":
-                    procs = SystemManager.get_process_list(limit=50)
+                    limit = int(event.get("limit", 80) or 80)
+                    procs = SystemManager.get_process_list(limit=limit)
                     await ws.send(json.dumps({
                         "type": "process_list_response",
                         "processes": procs
@@ -1259,7 +1571,7 @@ class HostService:
                     }))
                     continue
 
-                # Power Management
+                # Power Management & Wake-on-LAN / Auto-Wakeup
                 elif ev_type == "power_action":
                     action = event.get("action")
                     is_admin = is_current_user_admin()
@@ -1291,7 +1603,40 @@ class HostService:
                     }))
                     continue
 
-                # File Browser
+                elif ev_type == "auto_wakeup_request":
+                    is_admin = is_current_user_admin()
+                    enabled = bool(event.get("enabled", False))
+                    wake_time = str(event.get("wake_time", "08:00"))
+                    if enabled and not is_admin:
+                        await ws.send(json.dumps({
+                            "type": "auto_wakeup_response",
+                            "success": False,
+                            "requires_admin": True,
+                            "message": "Hẹn giờ tự động bật/đánh thức máy (Auto-Wakeup) yêu cầu quyền Quản trị viên (Admin)."
+                        }))
+                        continue
+                    res = PowerManager.configure_auto_wakeup(enabled, wake_time)
+                    self.host_config["auto_wakeup"] = enabled
+                    self.host_config["auto_wakeup_time"] = wake_time
+                    await ws.send(json.dumps({
+                        "type": "auto_wakeup_response",
+                        "requires_admin": False,
+                        **res
+                    }))
+                    continue
+
+                elif ev_type == "wake_on_lan_request":
+                    mac = str(event.get("mac", ""))
+                    bcast = str(event.get("broadcast_ip", "255.255.255.255"))
+                    port = int(event.get("port", 9) or 9)
+                    res = PowerManager.send_wake_on_lan(mac, bcast, port)
+                    await ws.send(json.dumps({
+                        "type": "wake_on_lan_response",
+                        **res
+                    }))
+                    continue
+
+                # File Browser & Rich File Operations
                 elif ev_type == "file_browse_request":
                     path = event.get("path", "")
                     data = self.file_manager.browse_path(path)
@@ -1301,7 +1646,27 @@ class HostService:
                     }))
                     continue
 
-                # File Delete Request
+                elif ev_type == "file_search_request":
+                    root_dir = event.get("path", "")
+                    query = event.get("query", "")
+                    data = self.file_manager.search_files(root_dir, query)
+                    await ws.send(json.dumps({
+                        "type": "file_search_response",
+                        "data": data
+                    }))
+                    continue
+
+                elif ev_type == "file_create_request":
+                    parent_dir = event.get("parent_dir", "")
+                    filename = event.get("name", "")
+                    content = event.get("content", "")
+                    res = self.file_manager.create_file(parent_dir, filename, content)
+                    await ws.send(json.dumps({
+                        "type": "file_create_response",
+                        "result": res
+                    }))
+                    continue
+
                 elif ev_type == "file_delete_request":
                     filepath = unicodedata.normalize('NFC', event.get("filepath", ""))
                     ok = self.file_manager.delete_item(filepath)
@@ -1312,7 +1677,6 @@ class HostService:
                     }))
                     continue
 
-                # File Create Folder Request
                 elif ev_type == "file_create_folder_request":
                     parent_dir = event.get("parent_dir", "")
                     folder_name = event.get("name", "")
@@ -1323,7 +1687,6 @@ class HostService:
                     }))
                     continue
 
-                # File Copy Request
                 elif ev_type == "file_copy_request":
                     src = unicodedata.normalize('NFC', event.get("src") or event.get("src_path", ""))
                     dst = unicodedata.normalize('NFC', event.get("dst") or event.get("dst_dir", ""))
@@ -1334,7 +1697,6 @@ class HostService:
                     }))
                     continue
 
-                # File Move Request
                 elif ev_type == "file_move_request":
                     src = unicodedata.normalize('NFC', event.get("src") or event.get("src_path", ""))
                     dst = unicodedata.normalize('NFC', event.get("dst") or event.get("dst_dir", ""))
@@ -1345,7 +1707,6 @@ class HostService:
                     }))
                     continue
 
-                # File Rename Request
                 elif ev_type == "file_rename_request":
                     old_path = unicodedata.normalize('NFC', event.get("old_path", ""))
                     new_name = unicodedata.normalize('NFC', event.get("new_name", ""))
@@ -1356,7 +1717,6 @@ class HostService:
                     }))
                     continue
 
-                # Direct File Read (Online Editor)
                 elif ev_type == "file_read_request":
                     filepath = unicodedata.normalize('NFC', event.get("filepath", ""))
                     res = self.file_manager.read_file_content(filepath)
@@ -1366,7 +1726,6 @@ class HostService:
                     }))
                     continue
 
-                # Direct File Save (Online Editor)
                 elif ev_type == "file_save_request":
                     filepath = unicodedata.normalize('NFC', event.get("filepath", ""))
                     content = event.get("content", "")
@@ -1378,7 +1737,6 @@ class HostService:
                     }))
                     continue
 
-                # File Download Request
                 elif ev_type == "file_download_request":
                     filepath = unicodedata.normalize('NFC', event.get("filepath", ""))
                     transfer_id = event.get("transfer_id", f"dl_{int(time.time()*1000)}")
@@ -1481,7 +1839,7 @@ class HostService:
                     }))
                     continue
 
-                # File Upload Events
+                # File Upload & Direct Drag-and-Drop Events
                 elif ev_type == "file_upload_start":
                     transfer_id = event.get("transfer_id", "default")
                     filename = event.get("filename", "unknown.bin")
@@ -1489,10 +1847,15 @@ class HostService:
                     checksum = event.get("checksum", "")
                     target_dir = event.get("target_dir", "")
                     dest_path = self.file_manager.start_upload(transfer_id, filename, filesize, checksum, target_dir)
+                    if transfer_id in self.file_manager.active_transfers:
+                        self.file_manager.active_transfers[transfer_id]["drop_x"] = event.get("drop_x")
+                        self.file_manager.active_transfers[transfer_id]["drop_y"] = event.get("drop_y")
+                        self.file_manager.active_transfers[transfer_id]["auto_paste_drop"] = bool(event.get("auto_paste_drop", False))
                     await ws.send(json.dumps({
                         "type": "file_upload_ack",
                         "transfer_id": transfer_id,
-                        "status": "ready"
+                        "status": "ready",
+                        "dest_path": dest_path
                     }))
                     continue
 
@@ -1510,10 +1873,24 @@ class HostService:
 
                 elif ev_type == "file_upload_finish":
                     transfer_id = event.get("transfer_id")
+                    transfer_meta = self.file_manager.active_transfers.get(transfer_id, {})
+                    drop_x = event.get("drop_x", transfer_meta.get("drop_x"))
+                    drop_y = event.get("drop_y", transfer_meta.get("drop_y"))
+                    auto_paste_drop = bool(event.get("auto_paste_drop", transfer_meta.get("auto_paste_drop", False)))
                     res = self.file_manager.finish_upload(transfer_id)
                     if res.get("status") == "success" and res.get("path"):
                         try:
                             self.clipboard.set_clipboard_files([res["path"]])
+                            if auto_paste_drop:
+                                if drop_x is not None and drop_y is not None:
+                                    mon_rect = self.capture.active_monitor_rect
+                                    InputInjector.mouse_move(float(drop_x), float(drop_y), monitor_rect=mon_rect)
+                                    InputInjector.mouse_down("left")
+                                    InputInjector.mouse_up("left")
+                                InputInjector.key_down(0x11)
+                                InputInjector.key_down(0x56)
+                                InputInjector.key_up(0x56)
+                                InputInjector.key_up(0x11)
                         except Exception:
                             pass
                     await ws.send(json.dumps({
@@ -1589,6 +1966,7 @@ class HostService:
                         }))
                     else:
                         ok = InputInjector.set_block_input(blocked)
+                        self.host_config["block_input"] = blocked if ok else False
                         await ws.send(json.dumps({
                             "type": "block_input_response",
                             "blocked": blocked if ok else False,
@@ -1646,6 +2024,7 @@ class HostService:
                             InputInjector.set_block_input(False)
                         else:
                             res = {"success": True, "active": True, "message": "Chế độ riêng tư vẫn duy trì do phiên khác đang yêu cầu."}
+                    self.host_config["privacy_curtain"] = bool(privacy_curtain.is_active)
                     await ws.send(json.dumps({
                         "type": "privacy_curtain_response",
                         "enabled": privacy_curtain.is_active,
@@ -1680,8 +2059,10 @@ class HostService:
     async def start(self):
         self.loop = asyncio.get_running_loop()
         w, h = self.capture.resolution
-        logger.info(f"Starting Host Agent for Room [{self.room_id}] (Res: {w}x{h})")
-        PowerManager.prevent_sleep(True)
+        os_display = self.get_os_info()
+        logger.info(f"Starting Host Agent v{APP_VERSION} for Room [{self.room_id}] (OS: {os_display}, Res: {w}x{h}, Admin: {is_current_user_admin()})")
+        if self.host_config.get("keep_awake", True):
+            PowerManager.prevent_sleep(True)
 
         system_proxy = configure_system_proxies()
         parsed_url = urllib.parse.urlparse(self.relay_url)
@@ -1731,7 +2112,10 @@ class HostService:
                             "account": self.account,
                             "user_id": self.user_id,
                             "machine_id": self.get_machine_id(),
-                            "os_info": "Windows 11 x64",
+                            "os_info": os_display,
+                            "is_admin": is_current_user_admin(),
+                            "host_config": self.get_host_config_snapshot(),
+                            "config": self.get_host_config_snapshot(),
                             "monitors": self.capture.monitors
                         })
                         await ws.send(init_pkt)
@@ -1749,14 +2133,14 @@ class HostService:
                             await asyncio.sleep(5)
                             continue
 
-                        logger.info(f"Host Registered Successfully! Room: {self.room_id}")
+                        logger.info(f"Host Registered Successfully! Room: {self.room_id} ({os_display})")
                         if self.on_status_change:
                             try:
                                 self.on_status_change("ready")
                             except Exception:
                                 pass
 
-                        self.frame_queue = asyncio.Queue(maxsize=1)
+                        self.frame_queue = asyncio.Queue(maxsize=2)
                         self.audio_queue = asyncio.Queue(maxsize=50)
                         capture_task = asyncio.create_task(self._stream_screen())
                         send_task = asyncio.create_task(self._send_frames_worker(ws))
@@ -1771,7 +2155,6 @@ class HostService:
                             t.cancel()
                         self.audio_capture.stop()
                         self.audio_playback.stop()
-                        # Fail-safe: ensure privacy curtain and input block are immediately disabled on disconnect
                         self.curtain_active_sessions.clear()
                         privacy_curtain.disable()
                         InputInjector.set_block_input(False)
@@ -1781,7 +2164,6 @@ class HostService:
                     if not self.running:
                         break
                     err_str = str(e) or type(e).__name__
-                    # Detect corporate SSL Inspection and auto-switch to enterprise bypass
                     is_ssl_err = isinstance(e, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in err_str or "self-signed certificate" in err_str or "certificate verify failed" in err_str
                     if is_ssl_err and not self._allow_insecure_ssl:
                         logger.warning(f"Corporate SSL inspection detected ({err_str}). Switching to enterprise TLS bypass mode...")
@@ -1816,6 +2198,7 @@ class HostService:
             InputInjector.set_block_input(False)
             PowerManager.prevent_sleep(False)
 
+
 def resolve_config_path() -> Optional[Path]:
     candidates = []
     if getattr(sys, "frozen", False):
@@ -1835,22 +2218,56 @@ def resolve_config_path() -> Optional[Path]:
             return c
     return None
 
-def main():
-    parser = argparse.ArgumentParser(description="Meikova Relay Desktop - Host Agent")
-    parser.add_argument("--config", default="", help="Path to config.json")
-    parser.add_argument("--relay", default="", help="Relay Server URL")
-    parser.add_argument("--room", default="", help="Room ID / Session Code")
-    parser.add_argument("--pin", default="", help="Security PIN")
-    parser.add_argument("--name", default="", help="Device Name")
-    parser.add_argument("--account", default="", help="Linked user account (email or username)")
-    parser.add_argument("--user-id", default="", help="Linked user ID")
-    parser.add_argument("--fps", type=int, default=0, help="Target capture FPS")
-    parser.add_argument("--quality", type=int, default=0, help="JPEG quality 1-100")
+
+def build_cli_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="meikova-host",
+        description="Meikova Relay Desktop - High-Performance Cross-Platform Workstation Host Agent (Windows, macOS, Linux)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python host_service.py --relay ws://localhost:8080 --room RD-8888 --pin 123456 --uncapped\n"
+            "  python host_service.py --relay wss://meikova-relay.onrender.com --fps 144 --quality 80 --keep-awake\n"
+            "  python host_service.py --admin --service --stealth --auto-wakeup 08:00\n"
+        )
+    )
+    parser.add_argument("--config", default="", help="Path to custom config.json file")
+    parser.add_argument("--relay", default="", help="Relay Server WebSocket URL (e.g., ws://localhost:8080 or wss://...)")
+    parser.add_argument("--room", default="", help="Room ID / Session Code (e.g., RD-8888)")
+    parser.add_argument("--pin", default="", help="Session or Permanent Access PIN (6 digits)")
+    parser.add_argument("--perm-pin", default="", help="Permanent Unattended Access PIN")
+    parser.add_argument("--name", default="", help="Workstation Fleet Display Name")
+    parser.add_argument("--account", default="", help="Linked Owner Account (email or username)")
+    parser.add_argument("--user-id", default="", help="Linked Owner User ID")
+    parser.add_argument("--fps", type=int, default=-1, help="Target capture FPS limit (0 = Unlimited/Uncapped, or 30..1000)")
+    parser.add_argument("--uncapped", action="store_true", help="Unlock Unlimited FPS (removes frame sleep ceiling)")
+    parser.add_argument("--quality", type=int, default=0, help="JPEG compression quality (10-100)")
+    parser.add_argument("--preset", default="", help="Initial quality preset (eco, speed_60, balanced, crisp_hd, native_1to1, ultra_120, extreme_144)")
+    parser.add_argument("--admin", action="store_true", help="Request UAC Administrator elevation on startup")
+    parser.add_argument("--stealth", action="store_true", help="Run in Stealth Mode (hide tray icon and main window)")
+    parser.add_argument("--service", action="store_true", help="Install/run as 24/7 System Service (requires Admin)")
+    parser.add_argument("--autostart", action="store_true", help="Enable automatic startup on OS login")
+    parser.add_argument("--close-to-tray", action="store_true", help="Minimize to system tray when window is closed")
+    parser.add_argument("--keep-awake", "--anti-sleep", dest="keep_awake", action="store_true", help="Prevent OS sleep and screen turn-off (Anti-Sleep)")
+    parser.add_argument("--no-keep-awake", action="store_true", help="Allow normal OS sleep behavior")
+    parser.add_argument("--auto-wakeup", default="", metavar="HH:MM", help="Schedule daily RTC hardware auto-wakeup time (e.g., 08:00, requires Admin)")
+    parser.add_argument("--block-input", action="store_true", help="Block physical mouse & keyboard on workstation (requires Admin)")
+    parser.add_argument("--curtain", action="store_true", help="Enable Privacy Curtain blank screen mode on startup (requires Admin)")
     parser.add_argument("--install-virtual-audio", action="store_true", help="Download and install VB-Audio Virtual Cable for headless audio")
     parser.add_argument("--install-virtual-display", action="store_true", help="Download and install Microsoft IddCx Virtual Display Driver for headless display")
     parser.add_argument("--probe-protocols", action="store_true", help="Probe and display native protocol negotiation matrix")
+    return parser
 
+
+def main():
+    parser = build_cli_parser()
     args = parser.parse_args()
+
+    if getattr(args, "admin", False) and sys.platform == "win32" and not is_current_user_admin():
+        forwarded = " ".join(f'"{a}"' if " " in a else a for a in sys.argv[1:] if a != "--admin")
+        if elevate_and_execute(forwarded):
+            sys.exit(0)
+
     if getattr(args, "probe_protocols", False):
         matrix = probe_all_protocols()
         print("=== MEIKOVA NATIVE PROTOCOL MATRIX ===")
@@ -1879,12 +2296,30 @@ def main():
 
     relay_url = args.relay or cfg_data.get("relay") or "ws://127.0.0.1:8080"
     room_id = args.room or cfg_data.get("room_id") or "RD-8888"
-    pin = args.pin or cfg_data.get("pin") or "123456"
+    pin = args.pin or args.perm_pin or cfg_data.get("pin") or "123456"
     device_name = args.name or cfg_data.get("device_name") or os.environ.get("COMPUTERNAME", socket.gethostname())
     account = args.account or cfg_data.get("account") or ""
     user_id = args.user_id or cfg_data.get("user_id") or None
-    fps = args.fps if args.fps > 0 else int(cfg_data.get("fps", 120))
-    quality = args.quality if args.quality > 0 else int(cfg_data.get("quality", 65))
+    if args.uncapped or args.fps == 0:
+        fps = 0
+    elif args.fps > 0:
+        fps = args.fps
+    else:
+        fps = int(cfg_data.get("fps", 120))
+    quality = args.quality if args.quality > 0 else int(cfg_data.get("quality", 70))
+
+    host_cfg = {
+        "keep_awake": False if args.no_keep_awake else bool(args.keep_awake or cfg_data.get("keep_awake", True)),
+        "auto_wakeup": bool(args.auto_wakeup or cfg_data.get("auto_wakeup", False)),
+        "auto_wakeup_time": str(args.auto_wakeup or cfg_data.get("auto_wakeup_time", "08:00")),
+        "stealth_mode": bool(args.stealth or cfg_data.get("stealth_mode", False)),
+        "service_mode": bool(args.service or cfg_data.get("service_mode", False)),
+        "autostart": bool(args.autostart or cfg_data.get("autostart", False)),
+        "close_to_tray": bool(args.close_to_tray or cfg_data.get("close_to_tray", True)),
+        "show_tray_icon": not bool(args.stealth or cfg_data.get("stealth_mode", False)),
+        "block_input": bool(args.block_input or cfg_data.get("block_input", False)),
+        "privacy_curtain": bool(args.curtain or cfg_data.get("privacy_curtain", False)),
+    }
 
     service = HostService(
         relay_url=relay_url,
@@ -1894,13 +2329,23 @@ def main():
         account=account,
         user_id=user_id,
         fps=fps,
-        quality=quality
+        quality=quality,
+        host_config=host_cfg,
     )
+    if args.preset:
+        service.apply_quality_preset(args.preset)
+    if host_cfg["auto_wakeup"] and is_current_user_admin():
+        PowerManager.configure_auto_wakeup(True, host_cfg["auto_wakeup_time"])
+    if host_cfg["block_input"] and is_current_user_admin():
+        InputInjector.set_block_input(True)
+    if host_cfg["privacy_curtain"] and is_current_user_admin():
+        privacy_curtain.enable()
 
     try:
         asyncio.run(service.start())
     except KeyboardInterrupt:
         logger.info("Host Agent stopped by user.")
+
 
 if __name__ == "__main__":
     main()

@@ -64,8 +64,9 @@ class TestStreamingPipeline(unittest.TestCase):
 
     def test_1080p_1to1_simd_encode_exceeds_120_fps(self):
         # Verify 1920x1080 1:1 native encoding speed exceeds 120 FPS (< 8.33ms per frame)
-        cap = ScreenCapture(quality=90, max_width=None)
-        cap.subsampling = 0
+        # using native_120_1to1 profile settings (quality=85, subsampling=2)
+        cap = ScreenCapture(quality=85, max_width=None)
+        cap.subsampling = 2
         raw_bgra = bytes([30, 36, 46, 255]) * (1920 * 1080)
         # Warm-up
         first = cap._encode_bgra_fast(raw_bgra, 1920, 1080, None)

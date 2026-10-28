@@ -157,7 +157,7 @@ class ClipboardManager:
                 import subprocess
                 for cmd in [["xclip", "-selection", "clipboard", "-o"], ["xsel", "-b", "-o"]]:
                     try:
-                        return subprocess.check_output(cmd, text=True)
+                        return subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL)
                     except Exception:
                         continue
                 return None
@@ -221,7 +221,7 @@ class ClipboardManager:
                 import subprocess
                 for cmd in [["xclip", "-selection", "clipboard"], ["xsel", "-b", "-i"]]:
                     try:
-                        p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+                        p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
                         p.communicate(text.encode("utf-8"))
                         if p.returncode == 0:
                             self.last_text = text

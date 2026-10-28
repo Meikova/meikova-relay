@@ -5,6 +5,7 @@ import io
 import shutil
 import ctypes
 import signal
+import platform
 import subprocess
 from typing import Dict, Any, List
 
@@ -15,20 +16,89 @@ try:
         _fields_ = [
             ('dwLength', wintypes.DWORD),
             ('dwMemoryLoad', wintypes.DWORD),
-            ('ullTotalPhys', ctypes.c_uint64),
-            ('ullAvailPhys', ctypes.c_uint64),
-            ('ullTotalPageFile', ctypes.c_uint64),
-            ('ullAvailPageFile', ctypes.c_uint64),
-            ('ullTotalVirtual', ctypes.c_uint64),
-            ('ullAvailVirtual', ctypes.c_uint64),
-            ('ullAvailExtendedVirtual', ctypes.c_uint64),
+            ('ullTotalPhys', wintypes.c_uint64),
+            ('ullAvailPhys', wintypes.c_uint64),
+            ('ullTotalPageFile', wintypes.c_uint64),
+            ('ullAvailPageFile', wintypes.c_uint64),
+            ('ullTotalVirtual', wintypes.c_uint64),
+            ('ullAvailVirtual', wintypes.c_uint64),
+            ('ullAvailExtendedVirtual', wintypes.c_uint64),
         ]
     HAS_WINTYPES = True
 except Exception:
     pass
 
+
 class SystemManager:
-    """Monitors system performance, processes, and manages tasks natively across Windows, Linux, and macOS."""
+    """Monitors system performance, OS metadata, processes, and manages tasks natively across Windows, Linux, and macOS."""
+
+    @staticmethod
+    def get_os_display_name() -> str:
+        """Returns a human-friendly, accurate OS name such as 'Windows 11 Pro 64-bit', 'macOS 14.5 (arm64)', or 'Ubuntu 24.04 LTS 64-bit'."""
+        arch = "64-bit" if (sys.maxsize > 2**32 or platform.machine().endswith("64")) else "32-bit"
+
+        if sys.platform == "win32":
+            product_name = ""
+            build_num = 0
+            try:
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion") as key:
+                    try:
+                        product_name, _ = winreg.QueryValueEx(key, "ProductName")
+                    except Exception:
+                        product_name = ""
+                    for b_key in ("CurrentBuildNumber", "CurrentBuild"):
+                        try:
+                            b_val, _ = winreg.QueryValueEx(key, b_key)
+                            if str(b_val).strip().isdigit():
+                                build_num = int(str(b_val).strip())
+                                break
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+            if not build_num:
+                try:
+                    build_num = int(getattr(sys.getwindowsversion(), "build", 0) or 0)
+                except Exception:
+                    build_num = 0
+
+            if product_name:
+                clean_name = str(product_name).strip()
+                # Windows 11 (Build >= 22000) keeps 'Windows 10' in ProductName registry value
+                if build_num >= 22000 and "Windows 10" in clean_name:
+                    clean_name = clean_name.replace("Windows 10", "Windows 11")
+                return f"{clean_name} {arch}"
+
+            win_ver = "Windows 11" if build_num >= 22000 else "Windows 10"
+            return f"{win_ver} {arch}"
+
+        elif sys.platform == "darwin":
+            try:
+                mac_ver = platform.mac_ver()[0]
+                m_arch = platform.machine() or arch
+                if mac_ver:
+                    return f"macOS {mac_ver} ({m_arch})"
+            except Exception:
+                pass
+            return f"macOS ({arch})"
+
+        else:
+            # Linux / POSIX
+            try:
+                os_rel = "/etc/os-release"
+                if os.path.isfile(os_rel):
+                    with open(os_rel, "r", encoding="utf-8", errors="ignore") as f:
+                        for line in f:
+                            if line.startswith("PRETTY_NAME="):
+                                pretty = line.split("=", 1)[1].strip().strip('"').strip("'")
+                                if pretty:
+                                    return f"{pretty} ({arch})" if arch not in pretty else pretty
+            except Exception:
+                pass
+            sys_name = platform.system() or "Linux"
+            return f"{sys_name} {arch}"
 
     @staticmethod
     def get_hardware_telemetry() -> Dict[str, Any]:
@@ -95,7 +165,7 @@ class SystemManager:
                 "percent": ram_percent
             },
             "disks": disks,
-            "os": "Windows" if sys.platform == 'win32' else ("macOS" if sys.platform == 'darwin' else "Linux")
+            "os": SystemManager.get_os_display_name()
         }
 
     @staticmethod

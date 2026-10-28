@@ -303,6 +303,7 @@
     }
     .card-tag.cyan { color: var(--accent-cyan); }
     .card-tag.green { color: var(--accent); }
+    .card-tag.amber { color: var(--accent-amber); }
 
     .card-row {
       display: flex;
@@ -445,6 +446,10 @@
       border-radius: var(--radius-sm);
       padding: 8px 12px;
       cursor: pointer;
+      transition: border-color 0.2s, opacity 0.2s;
+    }
+    .toggle-row:hover {
+      border-color: var(--line-hover);
     }
     .toggle-lbl {
       font-size: 11px;
@@ -458,6 +463,7 @@
       border: 1px solid var(--line);
       border-radius: var(--round);
       transition: all 0.2s;
+      flex-shrink: 0;
     }
     .toggle-switch.on {
       background: var(--accent);
@@ -476,6 +482,33 @@
     .toggle-switch.on .toggle-thumb {
       transform: translateX(16px);
       background: var(--bg-main);
+    }
+
+    /* Master Admin Elevation Lever Card */
+    .admin-lever-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(16, 27, 46, 0.85) 100%);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .admin-lever-card.elevated {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.14) 0%, rgba(16, 27, 46, 0.85) 100%);
+      border-color: rgba(34, 197, 94, 0.55);
+    }
+    .admin-group-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: opacity 0.2s ease;
+    }
+    .admin-group-container.locked {
+      opacity: 0.45;
+      pointer-events: none;
     }
 
     /* 2-Tier Installation Cards */
@@ -508,6 +541,11 @@
       background: rgba(34, 197, 94, 0.12);
       color: var(--accent);
       border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .badge-mini.amber {
+      background: rgba(245, 158, 11, 0.14);
+      color: var(--accent-amber);
+      border: 1px solid rgba(245, 158, 11, 0.38);
     }
     .install-desc {
       font-size: 10.5px;
@@ -662,9 +700,8 @@
       gap: 4px;
     }
     .chat-live-led {
-      color: var(--accent-green);
+      color: var(--accent);
       font-size: 10px;
-      animation: pulseGlow 1.8s infinite;
     }
     .btn-popout-chat {
       display: inline-flex;
@@ -727,7 +764,7 @@
       margin-bottom: 3px;
       padding: 0 4px;
     }
-    .host-bubble-row.local .host-bubble-meta { color: var(--accent-green); }
+    .host-bubble-row.local .host-bubble-meta { color: var(--accent); }
     .host-bubble-row.remote .host-bubble-meta { color: var(--accent-cyan); }
 
     .host-bubble {
@@ -846,7 +883,7 @@
           <path fill-rule="evenodd" d="M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z"/>
         </g>
       </svg>
-      <span class="titlebar-title">MEIKOVA RELAY HOST <span class="host-version-pill" id="txtHostVersion">v1.0.74</span></span>
+      <span class="titlebar-title">MEIKOVA RELAY HOST <span class="host-version-pill" id="txtHostVersion">v1.1.0</span></span>
     </div>
     <div class="titlebar-spacer pywebview-drag-region"></div>
     <div class="titlebar-actions">
@@ -871,7 +908,7 @@
     <!-- Subheader Row -->
     <div class="sub-header">
       <div id="txtKicker" class="telemetry-kicker mono">
-        MÁY TRẠM: PC-LOCAL // 120 FPS // TRUY CẬP KÉP
+        MÁY TRẠM: PC-LOCAL // 120+ FPS // TRUY CẬP KÉP
       </div>
       <div class="sub-header-right">
         <div class="lang-box">
@@ -914,7 +951,7 @@
 
       <!-- PIN Card -->
       <div class="card">
-        <div class="card-tag green" id="txtPinLabel">MẬT KHẨ PHIÊN // ACCESS PIN</div>
+        <div class="card-tag green" id="txtPinLabel">MẬT KHẨU PHIÊN // ACCESS PIN</div>
         <div class="card-row">
           <div id="txtPin" class="card-val green mono">123456</div>
           <div class="btn-group">
@@ -1026,17 +1063,79 @@
       </button>
     </section>
 
-    <!-- Panel 3: Cấu hình Relay -->
+    <!-- Panel 3: Cấu hình Hệ thống & Cần gạt Quản trị (Basic vs Admin-Required) -->
     <section id="panelSettings" class="panel">
-      <div class="panel-intro" id="txtSettingsTitle">Cấu hình kết nối hệ thống</div>
-      <div class="panel-sub" id="txtSettingsDesc">Địa chỉ Relay Server trung chuyển WebSocket độ trễ thấp.</div>
+      <div class="panel-intro" id="txtSettingsTitle">Cấu hình Máy trạm & Quyền Quản trị</div>
+      <div class="panel-sub" id="txtSettingsDesc">Quản lý cấu hình cơ bản và nhóm tính năng yêu cầu quyền Quản trị viên (Admin).</div>
+
+      <!-- Master Admin Elevation Lever (Cần gạt Quản trị) -->
+      <div class="admin-lever-card" id="cardAdminLever" onclick="toggleAdminElevation()">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="card-tag amber" id="txtAdminLeverTag">CẦN GẠT QUYỀN QUẢN TRỊ VIÊN // ADMIN LEVER</span>
+          <div style="display:inline-flex; align-items:center; gap:8px;">
+            <span class="badge-mini amber" id="badgeAdminStatus">CHƯA BẬT ADMIN</span>
+            <div id="swAdminElevation" class="toggle-switch"><div class="toggle-thumb"></div></div>
+          </div>
+        </div>
+        <p class="install-desc" id="txtAdminLeverDesc" style="margin:0;">
+          Gạt cần lên để kích hoạt quyền Quản trị viên (UAC Admin), mở khóa nhóm chức năng can thiệp sâu hệ thống bên dưới và trên Deck điều khiển từ xa.
+        </p>
+      </div>
+
+      <!-- Group 1: Basic Configuration (No Admin Needed) -->
+      <div style="font-size: 10px; font-weight: 700; color: var(--accent-cyan); margin: 6px 0 2px;" id="lblBasicGroup">NHÓM CẤU HÌNH CƠ BẢN (KHÔNG CẦN ADMIN):</div>
 
       <div class="field-group">
         <label class="field-label" id="lblRelay">Relay Server WebSocket URL:</label>
         <input type="text" id="inpRelay" class="field-input mono" placeholder="ws://localhost:8080" onchange="saveFields()">
       </div>
 
-      <button class="btn-deck-wide" onclick="saveSettingsBtn()" style="margin-top: 8px;" id="btnSaveSettings">
+      <div class="field-group">
+        <label class="field-label" id="lblHostFpsLimit">Giới hạn FPS mặc định (0 = Không giới hạn / Unlimited):</label>
+        <input type="number" id="inpHostFpsLimit" class="field-input mono" min="0" max="1000" placeholder="0 (Không giới hạn)" onchange="saveFields()">
+      </div>
+
+      <div class="toggle-row" onclick="toggleSwitch('stealth_mode')">
+        <span class="toggle-lbl" id="lblStealthMode">Chế độ chạy Tàng hình (Ẩn cửa sổ & biểu tượng khay)</span>
+        <div id="swStealthMode" class="toggle-switch"><div class="toggle-thumb"></div></div>
+      </div>
+
+      <!-- Group 2: Admin-Required Configuration (Requires Admin Elevation) -->
+      <div style="font-size: 10px; font-weight: 700; color: var(--accent); margin: 8px 0 2px;" id="lblAdminGroup">NHÓM CHỨC NĂNG YÊU CẦU QUẢN TRỊ (CẦN BẬT CẦN GẠT ADMIN):</div>
+
+      <div id="adminRequiredGroup" class="admin-group-container locked">
+        <div class="toggle-row" onclick="toggleSwitch('admin_keepawake')">
+          <span class="toggle-lbl" id="lblAdminKeepawake">Ngăn máy ngủ & tắt màn hình sâu (Kernel Anti-Sleep)</span>
+          <div id="swAdminKeepawake" class="toggle-switch"><div class="toggle-thumb"></div></div>
+        </div>
+
+        <div class="toggle-row" onclick="toggleSwitch('auto_wakeup')">
+          <span class="toggle-lbl" id="lblAutoWakeup">Tự động đánh thức máy theo giờ (Auto-Wakeup RTC)</span>
+          <div id="swAutoWakeup" class="toggle-switch"><div class="toggle-thumb"></div></div>
+        </div>
+
+        <div class="field-group" style="padding: 0 4px;">
+          <label class="field-label" id="lblWakeupTime">Giờ tự động đánh thức máy hằng ngày (HH:MM):</label>
+          <input type="time" id="inpWakeupTime" class="field-input mono" value="08:00" onchange="saveFields()">
+        </div>
+
+        <div class="toggle-row" onclick="toggleSwitch('block_input')">
+          <span class="toggle-lbl" id="lblBlockInputHost">Chặn chuột & bàn phím vật lý tại máy đích</span>
+          <div id="swBlockInputHost" class="toggle-switch"><div class="toggle-thumb"></div></div>
+        </div>
+
+        <div class="toggle-row" onclick="toggleSwitch('privacy_curtain')">
+          <span class="toggle-lbl" id="lblPrivacyCurtainHost">Chế độ Màn hình riêng tư (Tắt màn hình vật lý)</span>
+          <div id="swPrivacyCurtainHost" class="toggle-switch"><div class="toggle-thumb"></div></div>
+        </div>
+
+        <div class="toggle-row" onclick="toggleSwitch('service')">
+          <span class="toggle-lbl" id="lblServiceModeHost">Chạy dạng Dịch vụ Hệ thống 24/7 (Windows Service / Daemon)</span>
+          <div id="swService" class="toggle-switch"><div class="toggle-thumb"></div></div>
+        </div>
+      </div>
+
+      <button class="btn-deck-wide" onclick="saveSettingsBtn()" style="margin-top: 6px;" id="btnSaveSettings">
         <span id="txtSaveSettings">LƯU CẤU HÌNH</span>
       </button>
     </section>
@@ -1115,7 +1214,12 @@
   <script>
     let currentLang = 'vi';
     let isServiceRunning = false;
+    let isAdminActive = false;
     let localConfig = {};
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
+    }
 
     const DICT = {
       vi: {
@@ -1126,7 +1230,7 @@
         ultra_title: "CHẾ ĐỘ HỖ TRỢ TỨC THÌ",
         ultra_desc: "Cung cấp Mã Phòng và PIN bên dưới cho người hỗ trợ.",
         room_label: "MÃ PHÒNG // ROOM ID",
-        pin_label: "MẬT KHẨ PHIÊN // ACCESS PIN",
+        pin_label: "MẬT KHẨU PHIÊN // ACCESS PIN",
         btn_renew_room: "ĐỔI MÃ",
         btn_copy_room: "CHÉP MÃ",
         btn_renew_pin: "ĐỔI PIN",
@@ -1155,11 +1259,24 @@
         tag_tier_admin: "DỊCH VỤ HỆ THỐNG 24/7 // SYSTEM SERVICE",
         badge_need_admin: "CẦN ADMIN (UAC)",
         desc_tier_admin: "Đăng ký Windows Service chạy ngầm lúc bật máy (hỗ trợ màn hình khóa Lock Screen, gõ mật khẩu từ xa, tương tác cửa sổ UAC không bị đen).",
-        lbl_keepawake: "Chống tắt màn hình / Sleep (Anti-Sleep)",
         btn_minimize_tray: "THU NHỎ VÀO KHAY HỆ THỐNG",
-        settings_title: "Cấu hình kết nối hệ thống",
-        settings_desc: "Địa chỉ Relay Server trung chuyển WebSocket độ trễ thấp.",
+        settings_title: "Cấu hình Máy trạm & Quyền Quản trị",
+        settings_desc: "Quản lý cấu hình cơ bản và nhóm tính năng yêu cầu quyền Quản trị viên (Admin).",
+        admin_lever_tag: "CẦN GẠT QUYỀN QUẢN TRỊ VIÊN // ADMIN LEVER",
+        admin_lever_desc: "Gạt cần lên để kích hoạt quyền Quản trị viên (UAC Admin), mở khóa nhóm chức năng can thiệp sâu hệ thống bên dưới và trên Deck điều khiển từ xa.",
+        badge_admin_on: "ĐÃ BẬT QUYỀN ADMIN",
+        badge_admin_off: "CHƯA BẬT ADMIN",
+        lbl_basic_group: "NHÓM CẤU HÌNH CƠ BẢN (KHÔNG CẦN ADMIN):",
         lbl_relay: "Relay Server WebSocket URL:",
+        lbl_host_fps_limit: "Giới hạn FPS mặc định (0 = Không giới hạn / Unlimited):",
+        lbl_stealth_mode: "Chế độ chạy Tàng hình (Ẩn cửa sổ & biểu tượng khay)",
+        lbl_admin_group: "NHÓM CHỨC NĂNG YÊU CẦU QUẢN TRỊ (CẦN BẬT CẦN GẠT ADMIN):",
+        lbl_admin_keepawake: "Ngăn máy ngủ & tắt màn hình sâu (Kernel Anti-Sleep)",
+        lbl_auto_wakeup: "Tự động đánh thức máy theo giờ (Auto-Wakeup RTC)",
+        lbl_wakeup_time: "Giờ tự động đánh thức máy hằng ngày (HH:MM):",
+        lbl_block_input_host: "Chặn chuột & bàn phím vật lý tại máy đích",
+        lbl_privacy_curtain_host: "Chế độ Màn hình riêng tư (Tắt màn hình vật lý)",
+        lbl_service_mode_host: "Chạy dạng Dịch vụ Hệ thống 24/7 (Windows Service / Daemon)",
         btn_save_settings: "LƯU CẤU HÌNH",
         lbl_log: "NHẬT KÝ HOẠT ĐỘNG:",
         btn_start: "● BẬT DỊCH VỤ",
@@ -1206,11 +1323,24 @@
         tag_tier_admin: "24/7 SYSTEM SERVICE",
         badge_need_admin: "REQUIRES ADMIN (UAC)",
         desc_tier_admin: "Registers a Windows Service running at boot (supports Windows Lock Screen, remote password entry, and UAC interaction without black screens).",
-        lbl_keepawake: "Prevent sleep & screen shutoff (Anti-Sleep)",
         btn_minimize_tray: "MINIMIZE TO SYSTEM TRAY",
-        settings_title: "Connection Configuration",
-        settings_desc: "Low-latency WebSocket Relay Server URL.",
+        settings_title: "Workstation Config & Admin Privileges",
+        settings_desc: "Manage standard settings and Administrator-gated system control features.",
+        admin_lever_tag: "ADMINISTRATOR PRIVILEGE LEVER // UAC ADMIN",
+        admin_lever_desc: "Flip ON to elevate with Administrator privileges (UAC), unlocking deep system controls below and on the remote Client Deck.",
+        badge_admin_on: "ADMIN ACTIVE",
+        badge_admin_off: "STANDARD USER",
+        lbl_basic_group: "STANDARD CONFIGURATION (NO ADMIN REQUIRED):",
         lbl_relay: "Relay Server WebSocket URL:",
+        lbl_host_fps_limit: "Default FPS Limit (0 = Unlimited / Uncapped):",
+        lbl_stealth_mode: "Stealth Mode (Hide window & system tray icon)",
+        lbl_admin_group: "ADMIN-REQUIRED FEATURES (ENABLE ADMIN LEVER TO UNLOCK):",
+        lbl_admin_keepawake: "Deep Kernel Anti-Sleep & Display Keep-Awake",
+        lbl_auto_wakeup: "Scheduled Hardware Auto-Wakeup (RTC Timer)",
+        lbl_wakeup_time: "Daily Auto-Wakeup Time (HH:MM):",
+        lbl_block_input_host: "Block physical mouse & keyboard on workstation",
+        lbl_privacy_curtain_host: "Privacy Curtain Mode (Blank physical screen)",
+        lbl_service_mode_host: "Run as 24/7 System Service (Windows Service / Daemon)",
         btn_save_settings: "SAVE SETTINGS",
         lbl_log: "ACTIVITY LOG:",
         btn_start: "● START SERVICE",
@@ -1254,6 +1384,38 @@
       }
     }
 
+    function updateAdminLeverUI(elevated) {
+      isAdminActive = !!elevated;
+      const card = document.getElementById('cardAdminLever');
+      const sw = document.getElementById('swAdminElevation');
+      const badge = document.getElementById('badgeAdminStatus');
+      const group = document.getElementById('adminRequiredGroup');
+
+      if (card) card.classList.toggle('elevated', isAdminActive);
+      if (sw) sw.classList.toggle('on', isAdminActive);
+      if (badge) {
+        badge.innerText = isAdminActive ? t('badge_admin_on') : t('badge_admin_off');
+        badge.className = isAdminActive ? 'badge-mini green' : 'badge-mini amber';
+      }
+      if (group) {
+        group.classList.toggle('locked', !isAdminActive);
+      }
+    }
+
+    function toggleAdminElevation() {
+      const nextState = !isAdminActive;
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.toggle_admin_elevation) {
+        window.pywebview.api.toggle_admin_elevation(nextState).then(res => {
+          if (res) {
+            updateAdminLeverUI(!!res.is_admin);
+            if (res.message) addLog(res.message);
+          }
+        });
+      } else {
+        updateAdminLeverUI(nextState);
+      }
+    }
+
     function applyTranslations() {
       document.getElementById('tabBtnUltra').innerText = t('tab_ultra');
       document.getElementById('tabBtnChrome').innerText = t('tab_chrome');
@@ -1289,11 +1451,23 @@
       document.getElementById('txtMinimizeTray').innerText = t('btn_minimize_tray');
       document.getElementById('txtSettingsTitle').innerText = t('settings_title');
       document.getElementById('txtSettingsDesc').innerText = t('settings_desc');
+      if (document.getElementById('txtAdminLeverTag')) document.getElementById('txtAdminLeverTag').innerText = t('admin_lever_tag');
+      if (document.getElementById('txtAdminLeverDesc')) document.getElementById('txtAdminLeverDesc').innerText = t('admin_lever_desc');
+      if (document.getElementById('lblBasicGroup')) document.getElementById('lblBasicGroup').innerText = t('lbl_basic_group');
       document.getElementById('lblRelay').innerText = t('lbl_relay');
+      if (document.getElementById('lblHostFpsLimit')) document.getElementById('lblHostFpsLimit').innerText = t('lbl_host_fps_limit');
+      if (document.getElementById('lblStealthMode')) document.getElementById('lblStealthMode').innerText = t('lbl_stealth_mode');
+      if (document.getElementById('lblAdminGroup')) document.getElementById('lblAdminGroup').innerText = t('lbl_admin_group');
+      if (document.getElementById('lblAdminKeepawake')) document.getElementById('lblAdminKeepawake').innerText = t('lbl_admin_keepawake');
+      if (document.getElementById('lblAutoWakeup')) document.getElementById('lblAutoWakeup').innerText = t('lbl_auto_wakeup');
+      if (document.getElementById('lblWakeupTime')) document.getElementById('lblWakeupTime').innerText = t('lbl_wakeup_time');
+      if (document.getElementById('lblBlockInputHost')) document.getElementById('lblBlockInputHost').innerText = t('lbl_block_input_host');
+      if (document.getElementById('lblPrivacyCurtainHost')) document.getElementById('lblPrivacyCurtainHost').innerText = t('lbl_privacy_curtain_host');
+      if (document.getElementById('lblServiceModeHost')) document.getElementById('lblServiceModeHost').innerText = t('lbl_service_mode_host');
       document.getElementById('txtSaveSettings').innerText = t('btn_save_settings');
       document.getElementById('lblLog').innerText = t('lbl_log');
-      
-      const btnMaster = document.getElementById('btnMasterToggle');
+      updateAdminLeverUI(isAdminActive);
+
       if (isServiceRunning) {
         document.getElementById('txtMasterToggle').innerText = t('btn_stop');
       } else {
@@ -1373,8 +1547,8 @@
     function updateDeploymentUI(dep) {
       if (!dep) return;
       currentDeployment = dep;
+      updateAdminLeverUI(!!dep.is_admin || !!localConfig.admin_elevated);
 
-      // User Tier UI
       const cardUser = document.getElementById('cardTierUser');
       const statusUser = document.getElementById('statusTierUser');
       const btnUser = document.getElementById('btnActionUser');
@@ -1394,7 +1568,6 @@
         if (btnUser) btnUser.innerText = "CÀI ĐẶT";
       }
 
-      // Admin Tier UI
       const cardAdmin = document.getElementById('cardTierAdmin');
       const statusAdmin = document.getElementById('statusTierAdmin');
       const btnAdmin = document.getElementById('btnActionAdmin');
@@ -1451,17 +1624,39 @@
       else if (name === 'close_to_tray') swId = 'swCloseToTray';
       else if (name === 'service') swId = 'swService';
       else if (name === 'keepawake') swId = 'swKeepawake';
+      else if (name === 'admin_keepawake') swId = 'swAdminKeepawake';
       else if (name === 'show_tray') swId = 'swShowTray';
+      else if (name === 'stealth_mode') swId = 'swStealthMode';
+      else if (name === 'auto_wakeup') swId = 'swAutoWakeup';
+      else if (name === 'block_input') swId = 'swBlockInputHost';
+      else if (name === 'privacy_curtain') swId = 'swPrivacyCurtainHost';
+
       const sw = document.getElementById(swId);
       if (!sw) return;
       const isOn = sw.classList.toggle('on');
+
+      if (name === 'keepawake') {
+        document.getElementById('swAdminKeepawake')?.classList.toggle('on', isOn);
+      } else if (name === 'admin_keepawake') {
+        document.getElementById('swKeepawake')?.classList.toggle('on', isOn);
+      }
+
       if (window.pywebview && window.pywebview.api) {
         if (name === 'autostart') window.pywebview.api.toggle_autostart(isOn);
         else if (name === 'open_on_boot') window.pywebview.api.toggle_open_on_boot(isOn);
         else if (name === 'close_to_tray') window.pywebview.api.toggle_close_to_tray(isOn);
-        else if (name === 'keepawake') window.pywebview.api.toggle_keepawake(isOn);
+        else if (name === 'keepawake' || name === 'admin_keepawake') window.pywebview.api.toggle_keepawake(isOn);
         else if (name === 'show_tray') window.pywebview.api.toggle_show_tray(isOn);
-        else if (name === 'service') {
+        else if (name === 'stealth_mode' && window.pywebview.api.toggle_stealth_mode) {
+          window.pywebview.api.toggle_stealth_mode(isOn);
+        } else if (name === 'auto_wakeup' && window.pywebview.api.toggle_auto_wakeup) {
+          const wTime = document.getElementById('inpWakeupTime')?.value || '08:00';
+          window.pywebview.api.toggle_auto_wakeup(isOn, wTime);
+        } else if (name === 'block_input' && window.pywebview.api.toggle_block_input) {
+          window.pywebview.api.toggle_block_input(isOn);
+        } else if (name === 'privacy_curtain' && window.pywebview.api.toggle_privacy_curtain) {
+          window.pywebview.api.toggle_privacy_curtain(isOn);
+        } else if (name === 'service') {
           window.pywebview.api.toggle_service(isOn).then(res => {
             if (!res || !res.success) {
               sw.classList.toggle('on', !isOn);
@@ -1485,6 +1680,9 @@
       localConfig.device_name = document.getElementById('inpDeviceName').value;
       localConfig.perm_pin = document.getElementById('inpPermPin').value;
       localConfig.relay_url = document.getElementById('inpRelay').value;
+      const fpsVal = parseInt(document.getElementById('inpHostFpsLimit')?.value || '0', 10);
+      localConfig.fps = isNaN(fpsVal) || fpsVal < 0 ? 0 : fpsVal;
+      localConfig.auto_wakeup_time = document.getElementById('inpWakeupTime')?.value || '08:00';
       if (window.pywebview && window.pywebview.api) {
         window.pywebview.api.save_config(JSON.stringify(localConfig));
       }
@@ -1497,31 +1695,46 @@
 
     // Python-to-JS Event Callbacks
     window.__initData = function(cfg, autostartOn, isRunning, serviceOn, dep) {
-      localConfig = cfg;
+      localConfig = cfg || {};
       isServiceRunning = isRunning;
-      currentLang = cfg.lang || 'vi';
+      currentLang = localConfig.lang || 'vi';
       
-      document.getElementById('txtRoomId').innerText = cfg.room_id || 'RD-8888';
-      document.getElementById('txtPin').innerText = cfg.pin || '123456';
-      document.getElementById('inpAccount').value = cfg.account || '';
-      document.getElementById('inpDeviceName').value = cfg.device_name || '';
-      document.getElementById('inpPermPin').value = cfg.perm_pin || '';
-      document.getElementById('inpRelay').value = cfg.relay_url || 'ws://localhost:8080';
+      document.getElementById('txtRoomId').innerText = localConfig.room_id || 'RD-8888';
+      document.getElementById('txtPin').innerText = localConfig.pin || '123456';
+      document.getElementById('inpAccount').value = localConfig.account || '';
+      document.getElementById('inpDeviceName').value = localConfig.device_name || '';
+      document.getElementById('inpPermPin').value = localConfig.perm_pin || '';
+      document.getElementById('inpRelay').value = localConfig.relay_url || localConfig.relay || 'ws://localhost:8080';
+      if (document.getElementById('inpHostFpsLimit')) {
+        document.getElementById('inpHostFpsLimit').value = localConfig.fps !== undefined ? localConfig.fps : 0;
+      }
+      if (document.getElementById('inpWakeupTime')) {
+        document.getElementById('inpWakeupTime').value = localConfig.auto_wakeup_time || '08:00';
+      }
       
       if (autostartOn && document.getElementById('swAutostart')) document.getElementById('swAutostart').classList.add('on');
-      if (cfg.open_on_boot && document.getElementById('swOpenOnBoot')) document.getElementById('swOpenOnBoot').classList.add('on');
-      if (cfg.close_to_tray !== false && document.getElementById('swCloseToTray')) document.getElementById('swCloseToTray').classList.add('on');
+      if (localConfig.open_on_boot && document.getElementById('swOpenOnBoot')) document.getElementById('swOpenOnBoot').classList.add('on');
+      if (localConfig.close_to_tray !== false && document.getElementById('swCloseToTray')) document.getElementById('swCloseToTray').classList.add('on');
       if (serviceOn && document.getElementById('swService')) document.getElementById('swService').classList.add('on');
-      if (cfg.keep_awake && document.getElementById('swKeepawake')) document.getElementById('swKeepawake').classList.add('on');
-      if (cfg.show_tray_icon !== false && document.getElementById('swShowTray')) document.getElementById('swShowTray').classList.add('on');
+      if (localConfig.keep_awake && document.getElementById('swKeepawake')) document.getElementById('swKeepawake').classList.add('on');
+      if (localConfig.keep_awake && document.getElementById('swAdminKeepawake')) document.getElementById('swAdminKeepawake').classList.add('on');
+      if (localConfig.show_tray_icon !== false && document.getElementById('swShowTray')) document.getElementById('swShowTray').classList.add('on');
+      if (localConfig.stealth_mode && document.getElementById('swStealthMode')) document.getElementById('swStealthMode').classList.add('on');
+      if (localConfig.auto_wakeup && document.getElementById('swAutoWakeup')) document.getElementById('swAutoWakeup').classList.add('on');
+      if (localConfig.block_input && document.getElementById('swBlockInputHost')) document.getElementById('swBlockInputHost').classList.add('on');
+      if (localConfig.privacy_curtain && document.getElementById('swPrivacyCurtainHost')) document.getElementById('swPrivacyCurtainHost').classList.add('on');
       
-      if (dep) updateDeploymentUI(dep);
+      if (dep) {
+        updateDeploymentUI(dep);
+      } else {
+        updateAdminLeverUI(!!localConfig.admin_elevated);
+      }
       
       document.getElementById('btnLangVi').classList.toggle('active', currentLang === 'vi');
       document.getElementById('btnLangEn').classList.toggle('active', currentLang === 'en');
       
-      const hostName = cfg.device_name || 'PC-LOCAL';
-      document.getElementById('txtKicker').innerText = `MÁY TRẠM: ${hostName} // 120 FPS // TRUY CẬP KÉP`;
+      const hostName = localConfig.device_name || 'PC-LOCAL';
+      document.getElementById('txtKicker').innerText = `MÁY TRẠM: ${hostName} // 120+ FPS // TRUY CẬP KÉP`;
       
       applyTranslations();
       addLog("Meikova Relay Host sẵn sàng.");

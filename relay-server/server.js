@@ -8,7 +8,12 @@ const path = require('path');
 
 const os = require('os');
 
-const { WebSocketServer, WebSocket } = require('ws');
+let WebSocketServer, WebSocket;
+try {
+  ({ WebSocketServer, WebSocket } = require('ws'));
+} catch (_) {
+  ({ WebSocketServer, WebSocket } = require('./ws_fallback'));
+}
 
 const DB = require('./db');
 const { tunnelManager } = require('./tunnel_manager');
@@ -1496,6 +1501,16 @@ const server = http.createServer(async (req, res) => {
 
           is_online: isOnline ? 1 : d.is_online,
 
+          is_admin: (room && room.hostMeta && room.hostMeta.isAdmin !== undefined) ? Boolean(room.hostMeta.isAdmin) : Boolean(d.is_admin),
+
+          host_config: (room && room.hostMeta && room.hostMeta.hostConfig) ? room.hostMeta.hostConfig : (d.host_config || {}),
+
+          last_accessed: (room && room.lastAccessed) ? Math.max(Number(d.last_accessed || 0), room.lastAccessed) : Number(d.last_accessed || 0),
+
+          group_name: d.group_name || 'Mặc định',
+
+          tags: Array.isArray(d.tags) ? d.tags : [],
+
           active_sessions: activeSessions,
 
           session_count: activeSessions.length
@@ -1506,6 +1521,36 @@ const server = http.createServer(async (req, res) => {
 
       return jsonResponse(res, 200, { success: true, devices });
 
+    }
+
+    // 4.05 Devices: Update Group, Tags, Display Name, Notes & Metadata
+    if ((pathname === '/api/devices/meta' || (pathname.startsWith('/api/devices/') && pathname.endsWith('/meta'))) && (req.method === 'POST' || req.method === 'PUT')) {
+      if (!session) {
+        return jsonResponse(res, 401, { success: false, code: 'AUTH_UNAUTHORIZED', message: 'Yêu cầu đăng nhập' });
+      }
+      const body = await parseBody(req);
+      const targetId = body.deviceId || body.id || body.roomId || pathname.split('/')[3];
+      if (!targetId) {
+        return jsonResponse(res, 400, { success: false, code: 'VALIDATION_FAILED', message: 'Thiếu ID hoặc Room ID thiết bị' });
+      }
+      const ok = await DB.updateDeviceMeta(targetId, session.id, {
+        deviceName: body.deviceName ?? body.device_name,
+        groupName: body.groupName ?? body.group_name,
+        tags: body.tags,
+        notes: body.notes,
+        hostConfig: body.hostConfig ?? body.host_config
+      });
+      await DB.logAudit({
+        action: 'DEVICE_META_UPDATED',
+        userId: session.id,
+        username: session.username,
+        clientIp: getClientIp(req),
+        clientDevice: parseClientDevice(req.headers['user-agent']),
+        roomId: body.roomId || targetId,
+        targetDevice: body.deviceName || targetId,
+        details: { groupName: body.groupName ?? body.group_name, tags: body.tags }
+      });
+      return jsonResponse(res, 200, { success: ok, message: ok ? 'Đã cập nhật thông tin nhóm & thẻ máy trạm' : 'Đã lưu nhãn cục bộ' });
     }
 
 
@@ -1783,6 +1828,22 @@ const server = http.createServer(async (req, res) => {
 
     }
 
+    if (pathname === '/api/audit-logs/record' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const id = await DB.logAudit({
+        action: body.action || 'CLIENT_ACTION',
+        userId: session ? session.id : (body.userId || null),
+        username: session ? session.username : (body.username || 'Khách (Ẩn danh)'),
+        clientIp: getClientIp(req),
+        clientDevice: parseClientDevice(req.headers['user-agent']),
+        roomId: body.roomId || null,
+        targetDevice: body.targetDevice || null,
+        targetOs: body.targetOs || null,
+        details: body.details || {}
+      });
+      return jsonResponse(res, 200, { success: true, id });
+    }
+
 
 
     // 5.6 Audit Logs: Export
@@ -1865,7 +1926,42 @@ const server = http.createServer(async (req, res) => {
 
 
 
-    // 6. Download: Pre-configured Setup Batch Script
+    // 5.9 Download: Custom Host JSON Configuration (Advanced Mode)
+    if (pathname === '/api/download/custom-config.json' && req.method === 'GET') {
+      const account = url.searchParams.get('account') || (session ? session.username : 'User');
+      const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
+      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
+      const cfgObj = {
+        relay: relayWs,
+        account,
+        user_id: userIdParam,
+        device_name: url.searchParams.get('name') || 'Workstation',
+        room_id: url.searchParams.get('room') || `RD-${Math.floor(1000 + Math.random() * 9000)}`,
+        pin: url.searchParams.get('pin') || String(Math.floor(100000 + Math.random() * 900000)),
+        fps: parseInt(url.searchParams.get('fps') ?? '0', 10),
+        quality: parseInt(url.searchParams.get('quality') || '75', 10),
+        preset: url.searchParams.get('preset') || 'balanced',
+        stealth_mode: url.searchParams.get('stealth') === '1',
+        service_mode: url.searchParams.get('service') === '1',
+        admin_elevated: url.searchParams.get('admin') === '1',
+        keep_awake: url.searchParams.get('keepAwake') !== '0',
+        auto_wakeup: Boolean(url.searchParams.get('autoWakeup')),
+        auto_wakeup_time: url.searchParams.get('autoWakeup') || '08:00',
+        block_input: url.searchParams.get('blockInput') === '1',
+        privacy_curtain: url.searchParams.get('curtain') === '1',
+        autostart: url.searchParams.get('autostart') !== '0',
+        close_to_tray: url.searchParams.get('closeToTray') !== '0'
+      };
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="config.json"',
+        'Cache-Control': 'no-cache'
+      });
+      return res.end(JSON.stringify(cfgObj, null, 2));
+    }
+
+    // 6. Download: Pre-configured Setup Batch Script (Supports both Standard & Advanced Custom Parameters)
 
     if (pathname === '/api/download/setup.bat' && req.method === 'GET') {
 
@@ -1877,7 +1973,31 @@ const server = http.createServer(async (req, res) => {
 
       const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
 
-      const isHeadless = url.searchParams.get('headless') === '1' || url.searchParams.get('silent') === '1' || url.searchParams.get('mode') === 'headless';
+      const isHeadless = url.searchParams.get('headless') === '1' || url.searchParams.get('silent') === '1' || url.searchParams.get('mode') === 'headless' || url.searchParams.get('stealth') === '1' || url.searchParams.get('service') === '1';
+      const isAdvanced = url.searchParams.get('advanced') === '1';
+      const customRoom = url.searchParams.get('room') || '%RAND_ROOM%';
+      const customPin = url.searchParams.get('pin') || '%RAND_PIN%';
+      const customName = url.searchParams.get('name') || '%COMPUTERNAME%';
+      const customFps = url.searchParams.get('fps') !== null ? parseInt(url.searchParams.get('fps'), 10) : 120;
+      const customQuality = parseInt(url.searchParams.get('quality') || '70', 10);
+      const customPreset = url.searchParams.get('preset') || 'balanced';
+      const advStealth = url.searchParams.get('stealth') === '1';
+      const advService = url.searchParams.get('service') === '1';
+      const advAdmin = url.searchParams.get('admin') === '1';
+      const advKeepAwake = url.searchParams.get('keepAwake') !== '0';
+      const advAutoWakeup = url.searchParams.get('autoWakeup') || '';
+      const advBlockInput = url.searchParams.get('blockInput') === '1';
+      const advCurtain = url.searchParams.get('curtain') === '1';
+      const extraCliFlags = isAdvanced ? [
+        advAdmin ? '--admin' : '',
+        advStealth ? '--stealth' : '',
+        advService ? '--service' : '',
+        customFps === 0 ? '--uncapped' : `--fps ${customFps}`,
+        advKeepAwake ? '--keep-awake' : '--no-keep-awake',
+        advAutoWakeup ? `--auto-wakeup ${advAutoWakeup}` : '',
+        advBlockInput ? '--block-input' : '',
+        advCurtain ? '--curtain' : ''
+      ].filter(Boolean).join(' ') : '';
 
 
 
@@ -2077,11 +2197,33 @@ echo   "account": "${account}",
 
 echo   "user_id": "${userIdParam}",
 
-echo   "device_name": "%COMPUTERNAME%",
+echo   "device_name": "${customName}",
 
-echo   "room_id": "%RAND_ROOM%",
+echo   "room_id": "${customRoom}",
 
-echo   "pin": "%RAND_PIN%",
+echo   "pin": "${customPin}",
+
+echo   "fps": ${customFps},
+
+echo   "quality": ${customQuality},
+
+echo   "preset": "${customPreset}",
+
+echo   "stealth_mode": ${advStealth ? 'true' : 'false'},
+
+echo   "service_mode": ${advService ? 'true' : 'false'},
+
+echo   "admin_elevated": ${advAdmin ? 'true' : 'false'},
+
+echo   "keep_awake": ${advKeepAwake ? 'true' : 'false'},
+
+echo   "auto_wakeup": ${advAutoWakeup ? 'true' : 'false'},
+
+echo   "auto_wakeup_time": "${advAutoWakeup || '08:00'}",
+
+echo   "block_input": ${advBlockInput ? 'true' : 'false'},
+
+echo   "privacy_curtain": ${advCurtain ? 'true' : 'false'},
 
 echo   "headless": %HEADLESS_BOOL%
 
@@ -3135,8 +3277,14 @@ wss.on('connection', (ws, req) => {
 
             if (client.ws.readyState === WebSocket.OPEN) {
 
-              // High-FPS backpressure: allow up to 4MB burst for 120 FPS 1:1 frames; send frame_ack if dropped so host never stalls
-              if (client.ws.bufferedAmount > 4 * 1024 * 1024) {
+              // Ultra-FPS WAN/Cloudflare Tunnel & LAN backpressure:
+              // If message is a 4-byte MKR0 static micro-frame and socket already has queued data, skip redundant tick
+              const msgLen = message ? (message.byteLength || message.length || 0) : 0;
+              if (msgLen === 4 && client.ws.bufferedAmount > 32 * 1024) {
+                continue;
+              }
+              // Keep socket buffer tight (512KB) so Cloudflare Tunnel never suffers multi-megabyte bufferbloat
+              if (client.ws.bufferedAmount > 512 * 1024) {
                 if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
                   try { room.hostWs.send(JSON.stringify({ type: 'frame_ack', dropped: true, ts: Date.now() })); } catch (_) {}
                 }
@@ -3243,13 +3391,18 @@ wss.on('connection', (ws, req) => {
 
         deviceName: data.device_name || 'Host-PC',
 
-        osInfo: data.os_info || 'Windows',
+        osInfo: (!data.os_info || /^win32\s*(\(|$)/i.test(String(data.os_info).trim())) ? 'Windows 64-bit' : String(data.os_info).trim(),
 
         monitors: data.monitors || [],
 
-        machineId: hostMachineId
+        machineId: hostMachineId,
+
+        isAdmin: Boolean(data.is_admin),
+
+        hostConfig: data.host_config || {}
 
       };
+      DB.touchDeviceAccess(roomId, room.hostMeta).catch(() => {});
 
       if (!room.streamConfig) {
 
@@ -3613,9 +3766,34 @@ wss.on('connection', (ws, req) => {
 
       currentRoomId = roomId;
 
-      const sessionId = 'sess_' + Math.random().toString(36).substring(2, 9);
+      // Cleanly evict any stale/previous session from the same browser tab reload or reconnect_session_id
+      const requestedReconnectId = String(data.reconnect_session_id || data.session_id || '').trim();
+      for (const [oldSessId, existingClient] of room.clients.entries()) {
+        const isSameSession = requestedReconnectId && oldSessId === requestedReconnectId;
+        const isSameMachineReload = Boolean(
+          data.is_reconnect &&
+          clientMachineId &&
+          existingClient.machineId === clientMachineId &&
+          existingClient.clientIp === ws.clientIp
+        );
+        if (isSameSession || isSameMachineReload) {
+          if (existingClient.machineId && targetHostMachineId) {
+            removeRemoteEdge(existingClient.machineId, targetHostMachineId, oldSessId);
+          }
+          room.clients.delete(oldSessId);
+          if (existingClient.ws && existingClient.ws !== ws && existingClient.ws.readyState === WebSocket.OPEN) {
+            try { existingClient.ws.close(4001, 'Session replaced by reconnect'); } catch (_) {}
+          }
+        }
+      }
+
+      const sessionId = (requestedReconnectId && !room.clients.has(requestedReconnectId))
+        ? requestedReconnectId
+        : ('sess_' + Math.random().toString(36).substring(2, 9));
 
       ws.sessionId = sessionId;
+      room.lastAccessed = Date.now();
+      DB.touchDeviceAccess(roomId, room.hostMeta).catch(() => {});
 
 
 
@@ -3862,6 +4040,67 @@ wss.on('connection', (ws, req) => {
     }
 
 
+
+    // --- Explicit Client Leave (Immediate Session Cleanup) ---
+    if ((type === 'client_leave' || type === 'client_disconnect') && role === 'client' && currentRoomId) {
+      const room = rooms.get(currentRoomId);
+      if (room && room.clients && ws.sessionId && room.clients.has(ws.sessionId)) {
+        const clientEntry = room.clients.get(ws.sessionId);
+        const cMachine = clientEntry?.machineId || ws.machineId;
+        const hMachine = room.hostMeta?.machineId;
+        if (cMachine && hMachine) {
+          removeRemoteEdge(cMachine, hMachine, ws.sessionId);
+        }
+        room.clients.delete(ws.sessionId);
+        broadcastSessionList(room);
+        if (room.clients.size === 0) room.isStreaming = false;
+        if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
+          room.hostWs.send(JSON.stringify({
+            type: 'client_disconnected',
+            clientCount: room.clients.size,
+            sessionId: ws.sessionId,
+            username: ws.username
+          }));
+        }
+      }
+      try { ws.close(1000, 'Client disconnected'); } catch (_) {}
+      return;
+    }
+
+    // --- Host Initiated Client Disconnect ("NGẮT PHIÊN" button on Host GUI) ---
+    if ((type === 'host_disconnect_clients' || type === 'client_disconnected') && role === 'host' && currentRoomId) {
+      const room = rooms.get(currentRoomId);
+      if (room && room.clients && room.clients.size > 0) {
+        console.log(`[Host Disconnected Clients] Room: ${currentRoomId} | Clearing ${room.clients.size} client session(s)`);
+        removeAllEdgesForRoom(room);
+        for (const client of room.clients.values()) {
+          if (client.ws && client.ws.readyState === WebSocket.OPEN) {
+            try {
+              client.ws.send(JSON.stringify({
+                type: 'session_killed',
+                reason: 'host_disconnect',
+                message: 'Chủ máy trạm đã ngắt phiên điều khiển từ xa.'
+              }));
+              client.ws.close(1000, 'Disconnected by host');
+            } catch (_) {}
+          }
+        }
+        room.clients.clear();
+        room.isStreaming = false;
+        room.curtainActive = false;
+        broadcastSessionList(room);
+        await DB.logAudit({
+          action: 'HOST_DISCONNECTED_CLIENTS',
+          roomId: currentRoomId,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          targetDevice: room.hostMeta?.deviceName,
+          targetOs: room.hostMeta?.osInfo,
+          details: { initiatedBy: 'host_gui' }
+        });
+      }
+      return;
+    }
 
     // --- Host Graceful Shutdown ---
 
@@ -4480,6 +4719,18 @@ wss.on('connection', (ws, req) => {
 
         });
 
+      } else if (type === 'set_fps_limit' || type === 'set_quality_preset' || type === 'set_host_config' || type === 'request_admin_elevation' || type === 'auto_wakeup_request' || type === 'wake_on_lan_request' || type === 'file_create_request' || type === 'file_search_request' || type === 'toggle_privacy_curtain') {
+        await DB.logAudit({
+          action: type.toUpperCase(),
+          userId: ws.userId,
+          username: ws.username,
+          clientIp: ws.clientIp,
+          clientDevice: ws.clientDevice,
+          roomId: currentRoomId,
+          targetDevice,
+          targetOs,
+          details: data
+        });
       }
 
     }
@@ -4550,6 +4801,12 @@ wss.on('connection', (ws, req) => {
 
         if (type === 'privacy_curtain_response') {
           room.curtainActive = !!data.enabled;
+        } else if (type === 'host_capabilities' || type === 'host_config_response' || type === 'admin_elevation_response') {
+          if (room.hostMeta) {
+            if (data.is_admin !== undefined) room.hostMeta.isAdmin = Boolean(data.is_admin);
+            if (data.host_config) room.hostMeta.hostConfig = data.host_config;
+            DB.touchDeviceAccess(currentRoomId, room.hostMeta).catch(() => {});
+          }
         }
 
         const msgStr = message.toString();

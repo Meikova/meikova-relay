@@ -1,4 +1,26 @@
-const { createClient } = require('@libsql/client');
+
+function normalizeOsInfoString(rawOs) {
+  const s = String(rawOs || "").trim();
+  if (!s) return "Windows 64-bit";
+  const low = s.toLowerCase();
+  if (low === "win32 (nt)" || low === "win32" || low === "nt" || low === "windows_nt") {
+    return "Windows 64-bit";
+  }
+  if (low === "darwin (posix)" || low === "darwin") {
+    return "macOS (64-bit)";
+  }
+  if (low === "linux (posix)" || low === "linux" || low === "posix") {
+    return "Linux 64-bit";
+  }
+  return s;
+}
+
+let createClient;
+try {
+  ({ createClient } = require('@libsql/client'));
+} catch (_) {
+  ({ createClient } = require('./libsql_fallback'));
+}
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -60,8 +82,14 @@ const SCHEMA_SQL = `
     pin TEXT NOT NULL,
     is_online INTEGER DEFAULT 0,
     last_seen INTEGER NOT NULL,
+    last_accessed INTEGER DEFAULT 0,
     os_info TEXT DEFAULT 'Windows',
     resolution TEXT DEFAULT '1920x1080',
+    group_name TEXT DEFAULT 'Mặc định',
+    tags TEXT DEFAULT '[]',
+    is_admin INTEGER DEFAULT 0,
+    host_config TEXT DEFAULT '{}',
+    notes TEXT DEFAULT '',
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
 
@@ -190,6 +218,12 @@ async function ensureInit() {
       'CREATE INDEX IF NOT EXISTS idx_users_gateway ON users(gateway_user_id);',
       'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON auth_sync_queue(status);',
       'ALTER TABLE devices ADD COLUMN machine_id TEXT;',
+      'ALTER TABLE devices ADD COLUMN last_accessed INTEGER DEFAULT 0;',
+      'ALTER TABLE devices ADD COLUMN group_name TEXT DEFAULT "Mặc định";',
+      'ALTER TABLE devices ADD COLUMN tags TEXT DEFAULT "[]";',
+      'ALTER TABLE devices ADD COLUMN is_admin INTEGER DEFAULT 0;',
+      'ALTER TABLE devices ADD COLUMN host_config TEXT DEFAULT "{}";',
+      'ALTER TABLE devices ADD COLUMN notes TEXT DEFAULT "";',
       'CREATE INDEX IF NOT EXISTS idx_devices_machine ON devices(machine_id);',
       'CREATE INDEX IF NOT EXISTS idx_devices_user_machine ON devices(user_id, machine_id);'
     ];
@@ -602,7 +636,8 @@ const DB = {
     await this.deduplicateDevices(userId);
     const res = await client.execute({
       sql: `
-        SELECT id, machine_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution 
+        SELECT id, machine_id, device_name, room_id, pin, is_online, last_seen, last_accessed,
+               os_info, resolution, group_name, tags, is_admin, host_config, notes
         FROM devices 
         WHERE user_id = ? 
            OR user_id IN (SELECT id FROM users WHERE gateway_user_id = ? OR id = ?)
@@ -611,7 +646,20 @@ const DB = {
       `,
       args: [userId, userId, userId, userId]
     });
-    return res.rows;
+    return (res.rows || []).map(r => {
+      let parsedTags = [];
+      let parsedCfg = {};
+      try { parsedTags = typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []); } catch (_) {}
+      try { parsedCfg = typeof r.host_config === 'string' ? JSON.parse(r.host_config || '{}') : (r.host_config || {}); } catch (_) {}
+      return {
+        ...r,
+        group_name: r.group_name || 'Mặc định',
+        tags: Array.isArray(parsedTags) ? parsedTags : [],
+        host_config: parsedCfg,
+        is_admin: Number(r.is_admin || 0) === 1,
+        last_accessed: Number(r.last_accessed || 0)
+      };
+    });
   },
 
   async deduplicateDevices(userId) {
@@ -707,7 +755,7 @@ const DB = {
                 machine_id = COALESCE(?, machine_id)
             WHERE id = ?
           `,
-          args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, validatedUserId, cleanMachineId, existing.id]
+          args: [roomId, deviceName, pin, resolution || '1920x1080', normalizeOsInfoString(osInfo), now, validatedUserId, cleanMachineId, existing.id]
         });
         return existing.id;
       } else {
@@ -718,7 +766,7 @@ const DB = {
             INSERT INTO devices (id, user_id, machine_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
             VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
           `,
-          args: [id, validatedUserId, cleanMachineId, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
+          args: [id, validatedUserId, cleanMachineId, deviceName, roomId, pin, now, normalizeOsInfoString(osInfo), resolution || '1920x1080']
         });
         return id;
       }
@@ -733,7 +781,7 @@ const DB = {
                   machine_id = COALESCE(?, machine_id)
               WHERE id = ?
             `,
-            args: [roomId, deviceName, pin, resolution || '1920x1080', osInfo || 'Windows', now, cleanMachineId, existing.id]
+            args: [roomId, deviceName, pin, resolution || '1920x1080', normalizeOsInfoString(osInfo), now, cleanMachineId, existing.id]
           });
           return existing.id;
         } else {
@@ -743,7 +791,7 @@ const DB = {
               INSERT INTO devices (id, user_id, machine_id, device_name, room_id, pin, is_online, last_seen, os_info, resolution)
               VALUES (?, NULL, ?, ?, ?, ?, 1, ?, ?, ?)
             `,
-            args: [id, cleanMachineId, deviceName, roomId, pin, now, osInfo || 'Windows', resolution || '1920x1080']
+            args: [id, cleanMachineId, deviceName, roomId, pin, now, normalizeOsInfoString(osInfo), resolution || '1920x1080']
           });
           return id;
         }
@@ -759,6 +807,51 @@ const DB = {
       sql: 'UPDATE devices SET is_online = ?, last_seen = ? WHERE room_id = ?',
       args: [isOnline ? 1 : 0, now, roomId]
     });
+  },
+
+  async touchDeviceAccess(roomId, hostMeta = null) {
+    if (!roomId) return;
+    await ensureInit();
+    const now = Date.now();
+    try {
+      if (hostMeta && (hostMeta.isAdmin !== undefined || hostMeta.hostConfig)) {
+        await client.execute({
+          sql: 'UPDATE devices SET last_accessed = ?, is_admin = ?, host_config = ? WHERE room_id = ?',
+          args: [now, hostMeta.isAdmin ? 1 : 0, JSON.stringify(hostMeta.hostConfig || {}), roomId]
+        });
+      } else {
+        await client.execute({
+          sql: 'UPDATE devices SET last_accessed = ? WHERE room_id = ?',
+          args: [now, roomId]
+        });
+      }
+    } catch (_) {}
+  },
+
+  async updateDeviceMeta(deviceIdOrRoom, userId, { deviceName, groupName, tags, notes, hostConfig, isAdmin } = {}) {
+    if (!deviceIdOrRoom || !userId) return false;
+    await ensureInit();
+    const existingRes = await client.execute({
+      sql: 'SELECT id, device_name, group_name, tags, notes, host_config, is_admin FROM devices WHERE (id = ? OR room_id = ?) AND user_id = ?',
+      args: [deviceIdOrRoom, deviceIdOrRoom, userId]
+    });
+    const row = existingRes.rows[0];
+    if (!row) return false;
+
+    const nextName = deviceName !== undefined ? String(deviceName).trim() : row.device_name;
+    const nextGroup = groupName !== undefined ? String(groupName).trim() || 'Mặc định' : (row.group_name || 'Mặc định');
+    const nextTags = tags !== undefined ? (Array.isArray(tags) ? JSON.stringify(tags) : String(tags)) : (row.tags || '[]');
+    const nextNotes = notes !== undefined ? String(notes) : (row.notes || '');
+    const nextCfg = hostConfig !== undefined ? (typeof hostConfig === 'object' ? JSON.stringify(hostConfig) : String(hostConfig)) : (row.host_config || '{}');
+    const nextAdmin = isAdmin !== undefined ? (isAdmin ? 1 : 0) : Number(row.is_admin || 0);
+
+    await client.execute({
+      sql: `UPDATE devices
+            SET device_name = ?, group_name = ?, tags = ?, notes = ?, host_config = ?, is_admin = ?
+            WHERE id = ?`,
+      args: [nextName, nextGroup, nextTags, nextNotes, nextCfg, nextAdmin, row.id]
+    });
+    return true;
   },
 
   async googleAuth(email, displayName) {

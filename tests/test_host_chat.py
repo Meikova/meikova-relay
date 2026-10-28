@@ -103,10 +103,10 @@ class TestHostChat(unittest.TestCase):
     def test_chat_window_headless(self):
         import sys
         import os
-        import tkinter as tk
         replies = []
 
         try:
+            import tkinter as tk
             root = tk.Tk()
             root.withdraw()
             chat = HostChatWindow(on_send_reply=lambda t: replies.append(t), parent=root)

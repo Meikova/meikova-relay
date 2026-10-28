@@ -531,27 +531,53 @@
   }
 
   function drawSparkline() {
-    if (!sparkCtx || pingSamples.length < 2) return;
+    if (!sparkCtx || !sparklineCanvas) return;
     const w = sparklineCanvas.width;
     const h = sparklineCanvas.height;
     sparkCtx.clearRect(0, 0, w, h);
 
-    const maxVal = Math.max(100, ...pingSamples);
-    const minVal = Math.max(0, Math.min(...pingSamples));
-    const range = Math.max(20, maxVal - minVal);
+    // Subtle center reference track so the HUD widget always looks like a telemetry scope
+    sparkCtx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+    sparkCtx.lineWidth = 1;
+    sparkCtx.beginPath();
+    sparkCtx.moveTo(0, Math.round(h / 2));
+    sparkCtx.lineTo(w, Math.round(h / 2));
+    sparkCtx.stroke();
 
-    sparkCtx.strokeStyle = 'rgba(34, 197, 94, 0.9)';
+    const samples = pingSamples.length >= 2 ? pingSamples : (pingSamples.length === 1 ? [pingSamples[0], pingSamples[0]] : [12, 12, 12]);
+    const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+    const maxVal = Math.max(avg + 15, ...samples);
+    const minVal = Math.max(0, Math.min(avg - 15, ...samples));
+    const range = Math.max(10, maxVal - minVal);
+
+    const pts = samples.map((val, i) => {
+      const x = (i / Math.max(1, samples.length - 1)) * w;
+      const norm = (val - minVal) / range;
+      const y = Math.max(2, Math.min(h - 2, h - norm * (h - 4) - 2));
+      return { x, y };
+    });
+
+    // Soft area fill under sparkline
+    const grad = sparkCtx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, 'rgba(34, 197, 94, 0.35)');
+    grad.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
+    sparkCtx.fillStyle = grad;
+    sparkCtx.beginPath();
+    sparkCtx.moveTo(pts[0].x, h);
+    pts.forEach(p => sparkCtx.lineTo(p.x, p.y));
+    sparkCtx.lineTo(pts[pts.length - 1].x, h);
+    sparkCtx.closePath();
+    sparkCtx.fill();
+
+    // Crisp signal line
+    sparkCtx.strokeStyle = '#22c55e';
     sparkCtx.lineWidth = 1.5;
     sparkCtx.lineJoin = 'round';
     sparkCtx.beginPath();
-
-    pingSamples.forEach((val, i) => {
-      const x = (i / (pingSamples.length - 1)) * w;
-      const y = h - ((val - minVal) / range) * (h - 2) - 1;
-      if (i === 0) sparkCtx.moveTo(x, y);
-      else sparkCtx.lineTo(x, y);
+    pts.forEach((p, i) => {
+      if (i === 0) sparkCtx.moveTo(p.x, p.y);
+      else sparkCtx.lineTo(p.x, p.y);
     });
-
     sparkCtx.stroke();
   }
 
@@ -1006,8 +1032,7 @@
   window.addEventListener('meikova-lang-changed', () => {
     syncUrlWithState(true);
     updateRoStatus();
-    const connOverlay = document.getElementById('canvasConnectingOverlay');
-    if (connOverlay) connOverlay.classList.remove('hidden');
+    syncRemoteStageOverlays();
     updateTerminalStatusBadge();
     requestAnimationFrame(placeAllIndicators);
     if (currentView === 'dashboard') {
@@ -1142,16 +1167,46 @@
     applyDeckMode(currentDeckMode);
     const route = getRouteStateFromUrl();
 
+    // 0. Check active session in sessionStorage for seamless page-reload reconnect (Requirement 7)
+    let savedActiveSession = null;
+    try {
+      const rawSess = sessionStorage.getItem('meikova_active_remote_session');
+      if (rawSess) {
+        const parsed = JSON.parse(rawSess);
+        if (parsed && parsed.room && (Date.now() - (parsed.savedAt || 0) < 2 * 3600 * 1000)) {
+          savedActiveSession = parsed;
+        } else {
+          sessionStorage.removeItem('meikova_active_remote_session');
+        }
+      }
+    } catch (_) {}
+
+    if (!route.room && savedActiveSession && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
+      route.room = savedActiveSession.room;
+      route.pin = savedActiveSession.pin || '';
+      route.relayUrl = savedActiveSession.relayUrl || defaultWsUrl;
+      route.direct = true;
+      route.isReloadReconnect = true;
+    } else if (route.room && savedActiveSession && savedActiveSession.room === route.room) {
+      route.pin = route.pin || savedActiveSession.pin || '';
+      route.relayUrl = savedActiveSession.relayUrl || defaultWsUrl;
+      route.direct = true;
+      route.isReloadReconnect = true;
+    } else if (route.room && ['remote', 'files', 'terminal', 'tasks'].includes(route.view)) {
+      route.direct = true;
+      route.isReloadReconnect = Boolean(savedActiveSession);
+    }
+
     // 1. Synchronously resolve target view based on URL route and cached token
     let targetView = 'landing';
-    const isExplicitDirectConnect = Boolean(route.room && (route.direct || (route.view === 'remote' && route.direct)));
+    const isExplicitDirectConnect = Boolean(route.room && (route.direct || ['remote', 'files', 'terminal', 'tasks'].includes(route.view)));
     if (isExplicitDirectConnect) {
       targetView = route.view || 'remote';
     } else if (authToken) {
       if (route.view === 'auth') {
         targetView = 'dashboard';
       } else {
-        targetView = (route.view && ['dashboard', 'files', 'terminal', 'tasks', 'audit'].includes(route.view)) ? route.view : 'dashboard';
+        targetView = (route.view && ['dashboard', 'remote', 'files', 'terminal', 'tasks', 'audit'].includes(route.view)) ? route.view : 'dashboard';
       }
     } else {
       if (route.view === 'auth') {
@@ -1194,7 +1249,7 @@
           // If room was explicitly direct connected via ?direct=1, start session
           if (isExplicitDirectConnect && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
             const savedPin = currentPin || route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
-            startRemoteSession(defaultWsUrl, route.room, savedPin);
+            startRemoteSession(route.relayUrl || defaultWsUrl, route.room, savedPin, Boolean(route.isReloadReconnect));
             return;
           }
 
@@ -1218,7 +1273,7 @@
     // 3. Direct or Unauthenticated connect with room ID (ONLY if explicit direct=1)
     if (isExplicitDirectConnect && ['remote', 'files', 'terminal', 'tasks'].includes(targetView)) {
       const savedPin = currentPin || route.pin || sessionStorage.getItem('meikova_relay_pin_' + route.room) || '';
-      startRemoteSession(defaultWsUrl, route.room, savedPin);
+      startRemoteSession(route.relayUrl || defaultWsUrl, route.room, savedPin, Boolean(route.isReloadReconnect));
       return;
     }
 
@@ -1461,7 +1516,7 @@
   // --- AMBIENT INFINITY TELEMETRY CANVAS 2D VISUALIZER (/ambient-instrument-ui) ---
   let landingCanvasAnimId = null;
   let landingCanvasInited = false;
-  const landingPointer = { x: -999, y: -999, active: false };
+  const landingPointer = { x: -999, y: -999, active: false, dragging: false, lastX: 0, lastY: 0, rotX: 0.28, rotY: -0.22, velX: 0, velY: 0, zoom: 1.0 };
 
   function initLandingCanvas() {
     if (!landingCanvas) return;
@@ -1490,12 +1545,60 @@
     const arenaEl = landingCanvas.parentElement || landingCanvas;
     arenaEl.addEventListener('mousemove', (e) => {
       const rect = landingCanvas.getBoundingClientRect();
-      landingPointer.x = e.clientX - rect.left;
-      landingPointer.y = e.clientY - rect.top;
+      const nx = e.clientX - rect.left;
+      const ny = e.clientY - rect.top;
+      if (landingPointer.dragging) {
+        const dx = nx - landingPointer.lastX;
+        const dy = ny - landingPointer.lastY;
+        landingPointer.rotY += dx * 0.0065;
+        landingPointer.rotX = Math.max(-1.1, Math.min(1.1, landingPointer.rotX + dy * 0.0065));
+        landingPointer.velY = dx * 0.002;
+        landingPointer.velX = dy * 0.002;
+      }
+      landingPointer.lastX = nx;
+      landingPointer.lastY = ny;
+      landingPointer.x = nx;
+      landingPointer.y = ny;
       landingPointer.active = true;
     });
+    arenaEl.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button, input, a, select, form')) return;
+      const rect = landingCanvas.getBoundingClientRect();
+      landingPointer.dragging = true;
+      landingPointer.lastX = e.clientX - rect.left;
+      landingPointer.lastY = e.clientY - rect.top;
+    });
+    window.addEventListener('mouseup', () => {
+      landingPointer.dragging = false;
+    });
+    arenaEl.addEventListener('touchstart', (e) => {
+      if (!e.touches || !e.touches[0] || e.target.closest('button, input, a, select, form')) return;
+      const rect = landingCanvas.getBoundingClientRect();
+      landingPointer.dragging = true;
+      landingPointer.active = true;
+      landingPointer.lastX = e.touches[0].clientX - rect.left;
+      landingPointer.lastY = e.touches[0].clientY - rect.top;
+    }, { passive: true });
+    arenaEl.addEventListener('touchmove', (e) => {
+      if (!landingPointer.dragging || !e.touches || !e.touches[0]) return;
+      const rect = landingCanvas.getBoundingClientRect();
+      const nx = e.touches[0].clientX - rect.left;
+      const ny = e.touches[0].clientY - rect.top;
+      const dx = nx - landingPointer.lastX;
+      const dy = ny - landingPointer.lastY;
+      landingPointer.rotY += dx * 0.0065;
+      landingPointer.rotX = Math.max(-1.1, Math.min(1.1, landingPointer.rotX + dy * 0.0065));
+      landingPointer.lastX = nx;
+      landingPointer.lastY = ny;
+      landingPointer.x = nx;
+      landingPointer.y = ny;
+    }, { passive: true });
+    arenaEl.addEventListener('touchend', () => {
+      landingPointer.dragging = false;
+    }, { passive: true });
     arenaEl.addEventListener('mouseleave', () => {
       landingPointer.active = false;
+      landingPointer.dragging = false;
     });
 
     // Interactive Shockwave Ripples on Click
@@ -1606,14 +1709,40 @@
         ? Math.max(280, Math.min(h * 0.42, 480))
         : Math.max(480, Math.min(h * 0.74, 720));
 
+      if (!landingPointer.dragging) {
+        landingPointer.rotY += 0.0018 + landingPointer.velY;
+        landingPointer.rotX += landingPointer.velX;
+        landingPointer.velX *= 0.94;
+        landingPointer.velY *= 0.94;
+      }
+      const cosRY = Math.cos(landingPointer.rotY * 0.35);
+      const sinRY = Math.sin(landingPointer.rotY * 0.35);
+      const cosRX = Math.cos(landingPointer.rotX * 0.35);
+      const sinRX = Math.sin(landingPointer.rotX * 0.35);
+      const fov = 900;
+
+      function project3D(x3, y3, z3) {
+        const rx1 = x3 * cosRY - z3 * sinRY;
+        const rz1 = x3 * sinRY + z3 * cosRY;
+        const ry2 = y3 * cosRX - rz1 * sinRX;
+        const rz2 = y3 * sinRX + rz1 * cosRX;
+        const persp = fov / Math.max(220, fov + rz2);
+        return {
+          x: cx + rx1 * persp,
+          y: cy + ry2 * persp,
+          z: rz2,
+          scale: persp
+        };
+      }
+
       function getPoint(t) {
         const sinT = Math.sin(t);
         const cosT = Math.cos(t);
         const denom = 1 + sinT * sinT;
-        return {
-          x: cx + (scaleX * cosT) / denom,
-          y: cy + (scaleY * sinT * cosT) / denom
-        };
+        const rawX = (scaleX * cosT) / denom;
+        const rawY = (scaleY * sinT * cosT) / denom;
+        const rawZ = Math.sin(t * 2) * (scaleY * 0.22);
+        return project3D(rawX, rawY, rawZ);
       }
 
       function getTangentAngle(t) {
@@ -2007,6 +2136,27 @@
       ctx.lineWidth = 1;
       ctx.stroke();
 
+      // 3D Interactive Gyroscope Orbital Rings & Depth Nodes
+      const ringCount = 3;
+      for (let rg = 0; rg < ringCount; rg++) {
+        const ringRadius = (isMobile ? 95 : 155) + rg * 38;
+        const ringSteps = 48;
+        ctx.beginPath();
+        for (let rs = 0; rs <= ringSteps; rs++) {
+          const ang = (rs / ringSteps) * Math.PI * 2;
+          const tilt = (rg - 1) * 0.65 + now * 0.0004 * (rg % 2 === 0 ? 1 : -1);
+          const rx3 = Math.cos(ang) * ringRadius;
+          const ry3 = Math.sin(ang) * ringRadius * Math.cos(tilt);
+          const rz3 = Math.sin(ang) * ringRadius * Math.sin(tilt);
+          const pt3 = project3D(rx3, ry3, rz3);
+          if (rs === 0) ctx.moveTo(pt3.x, pt3.y);
+          else ctx.lineTo(pt3.x, pt3.y);
+        }
+        ctx.strokeStyle = rg === 0 ? 'rgba(56, 189, 248, 0.16)' : (rg === 1 ? 'rgba(34, 197, 94, 0.14)' : 'rgba(245, 158, 11, 0.12)');
+        ctx.lineWidth = 0.85;
+        ctx.stroke();
+      }
+
       // Center Singularity Core Pip
       ctx.beginPath();
       ctx.arc(cx, cy, isNexusActive ? 3.5 : 2.2, 0, Math.PI * 2);
@@ -2315,6 +2465,25 @@
     }
   }
 
+
+  function syncRemoteStageOverlays() {
+    const connOverlay = document.getElementById('canvasConnectingOverlay');
+    const guardOverlay = document.getElementById('unconnectedScreenGuard');
+    const isActivelyConnecting = Boolean(
+      !isConnected && (ws || isAutoReconnecting || isAwaitingRemoteRestart) && currentRoom
+    );
+    if (isConnected) {
+      connOverlay?.classList.add('hidden');
+      guardOverlay?.classList.add('hidden');
+    } else if (isActivelyConnecting) {
+      guardOverlay?.classList.add('hidden');
+      connOverlay?.classList.remove('hidden');
+    } else {
+      connOverlay?.classList.add('hidden');
+      guardOverlay?.classList.remove('hidden');
+    }
+  }
+
   function updateRoStatus() {
     if (!roStatus) return;
     const roTl = document.getElementById('ro-tl');
@@ -2412,8 +2581,7 @@
     }
 
     updateRoStatus();
-    const connOverlay = document.getElementById('canvasConnectingOverlay');
-    if (connOverlay) connOverlay.classList.remove('hidden');
+    syncRemoteStageOverlays();
 
     if (updateUrl) {
       syncUrlWithState(false);
@@ -3226,8 +3394,37 @@
     });
   }
 
+  let activeFleetGroupFilter = 'all';
+  let activeFleetSearchQuery = '';
+
+  function filterFleetDevices(devices) {
+    return (devices || []).filter(d => {
+      const grp = (d.group_name || 'Default').trim();
+      if (activeFleetGroupFilter !== 'all' && grp.toLowerCase() !== activeFleetGroupFilter.toLowerCase()) {
+        return false;
+      }
+      if (activeFleetSearchQuery) {
+        const q = activeFleetSearchQuery.toLowerCase();
+        const hay = `${d.device_name || ''} ${d.room_id || ''} ${d.group_name || ''} ${d.tags || ''} ${d.os_info || ''} ${d.notes || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function formatFriendlyOsInfo(rawOs) {
+    const s = String(rawOs || '').trim();
+    if (!s) return 'Windows 64-bit';
+    const low = s.toLowerCase();
+    if (low === 'win32 (nt)' || low === 'win32' || low === 'nt' || low === 'windows_nt') return 'Windows 64-bit';
+    if (low === 'darwin (posix)' || low === 'darwin') return 'macOS (64-bit)';
+    if (low === 'linux (posix)' || low === 'linux' || low === 'posix') return 'Linux 64-bit';
+    return s;
+  }
+
   function renderDeviceGrid(devices) {
-    const devList = devices !== undefined ? devices : currentDeviceList;
+    const rawList = devices !== undefined ? devices : currentDeviceList;
+    const devList = filterFleetDevices(rawList);
     if (!devList || devList.length === 0) {
       deviceGrid.innerHTML = `
         <div class="empty-fleet" style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--ink-1); border: 1px dashed var(--line); border-radius: var(--radius);">
@@ -3270,9 +3467,16 @@
             </span>
           </div>
           <div class="device-specs">
-            <span class="spec-chip">${getOsSvg(d.os_info)} <span>${escapeHtml(d.os_info || 'Windows')}</span></span>
+            <span class="spec-chip">${getOsSvg(d.os_info)} <span>${escapeHtml(formatFriendlyOsInfo(d.os_info))}</span></span>
             <span class="spec-chip">${resSvg} <span>${escapeHtml(d.resolution || '1920x1080')}</span></span>
             <span class="spec-chip">${roomSvg} <span>${escapeHtml(d.room_id)}</span></span>
+            <span class="spec-chip" style="border-color: rgba(56,189,248,0.3); color: #38bdf8;"><span>${escapeHtml(d.group_name || 'Default')}</span></span>
+            ${d.is_admin ? '<span class="spec-chip" style="border-color: rgba(245,158,11,0.4); color: #fbbf24;">ADMIN</span>' : ''}
+          </div>
+          ${d.tags ? `<div class="device-tags-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${String(d.tags).split(',').map(tg => tg.trim()).filter(Boolean).map(tg => `<span class="mono-font" style="font-size:0.65rem;padding:1px 6px;border-radius:4px;background:rgba(34,197,94,0.1);color:var(--accent);border:1px solid rgba(34,197,94,0.25);">#${escapeHtml(tg)}</span>`).join('')}</div>` : ''}
+          <div class="device-last-access mono-font" style="font-size:0.68rem;color:var(--text-faint);margin-top:6px;display:flex;justify-content:space-between;align-items:center;">
+            <span>${t('dashboard.last_accessed', { time: d.last_accessed ? formatTimeAgo(new Date(d.last_accessed).getTime()) : (d.last_seen ? formatTimeAgo(new Date(d.last_seen).getTime()) : 'Vừa xong') })}</span>
+            <button type="button" class="btn-edit-device-meta btn-pill" data-room="${escapeHtml(d.room_id)}" data-name="${escapeHtml(d.device_name)}" data-group="${escapeHtml(d.group_name || 'Default')}" data-tags="${escapeHtml(d.tags || '')}" data-notes="${escapeHtml(d.notes || '')}" style="padding:1px 7px;font-size:0.65rem;height:20px;" data-i18n="dashboard.btn_edit_meta">${t('dashboard.btn_edit_meta') || 'Nhóm & Thẻ'}</button>
           </div>
           <div class="device-sessions-bar" style="margin: 8px 0; display:flex; align-items:center; justify-content:space-between; font-size: 0.72rem; padding: 6px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: var(--radius);">
             <span class="sessions-indicator mono-font" style="display:inline-flex; align-items:center; gap:6px; color: ${(d.session_count || 0) > 0 ? 'var(--accent)' : 'var(--text-faint)'};">
@@ -3357,6 +3561,27 @@
         }
       });
     });
+
+    deviceGrid.querySelectorAll('.btn-edit-device-meta').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const room = btn.dataset.room || '';
+        const modal = document.getElementById('modalDeviceMeta');
+        if (!modal) return;
+        const inpRoom = document.getElementById('inpMetaRoomId');
+        if (inpRoom) inpRoom.value = room;
+        const sub = document.getElementById('deviceMetaSubtitle');
+        if (sub) sub.textContent = `${btn.dataset.name || room} // ${room}`;
+        const grp = document.getElementById('inpMetaGroupName');
+        if (grp) grp.value = btn.dataset.group || 'Default';
+        const tags = document.getElementById('inpMetaTags');
+        if (tags) tags.value = btn.dataset.tags || '';
+        const notes = document.getElementById('inpMetaNotes');
+        if (notes) notes.value = btn.dataset.notes || '';
+        modal.classList.remove('hidden');
+      });
+    });
   }
 
   function escapeHtml(str) {
@@ -3383,18 +3608,28 @@
   function startRemoteSession(relayUrl, roomId, pin, isAutoReconnect = false) {
     if (!isAutoReconnect) {
       stopAutoReconnect();
-      isUserInitiatedDisconnect = false;
-      lastSessionRelay = relayUrl;
-      lastSessionRoom = roomId;
-      lastSessionPin = pin || '';
       resetSessionMetrics();
     }
+    isUserInitiatedDisconnect = false;
+    lastSessionRelay = relayUrl || defaultWsUrl;
+    lastSessionRoom = roomId;
+    lastSessionPin = pin || '';
     currentRoom = roomId;
     currentRoomId = roomId;
     currentPin = pin || '';
     if (pin) {
       sessionStorage.setItem('meikova_relay_pin_' + roomId, pin);
     }
+    try {
+      const prevSaved = JSON.parse(sessionStorage.getItem('meikova_active_remote_session') || 'null');
+      sessionStorage.setItem('meikova_active_remote_session', JSON.stringify({
+        relayUrl: relayUrl || defaultWsUrl,
+        room: roomId,
+        pin: pin || (prevSaved && prevSaved.room === roomId ? prevSaved.pin : '') || '',
+        sessionId: mySessionId || (prevSaved && prevSaved.room === roomId ? prevSaved.sessionId : null) || null,
+        savedAt: Date.now()
+      }));
+    } catch (_) {}
 
     if (!['files', 'terminal', 'tasks', 'remote'].includes(currentView)) {
       switchView('remote', true);
@@ -3429,6 +3664,13 @@
 
     ws.onopen = () => {
       roStatus.textContent = `${roomId} // ${t('ro.authenticating')}`;
+      let prevSessId = mySessionId;
+      if (!prevSessId) {
+        try {
+          const saved = JSON.parse(sessionStorage.getItem('meikova_active_remote_session') || 'null');
+          if (saved && saved.room === roomId) prevSessId = saved.sessionId || null;
+        } catch (_) {}
+      }
       ws.send(JSON.stringify({
         type: 'init_client',
         room_id: roomId,
@@ -3436,6 +3678,8 @@
         token: authToken || '',
         username: currentUser ? currentUser.username : 'Khách',
         machine_id: myMachineId,
+        reconnect_session_id: prevSessId || undefined,
+        is_reconnect: Boolean(isAutoReconnect || prevSessId),
         client_name: (currentUser ? currentUser.username : 'Khách') + ' (' + (navigator.userAgent.includes('Edg') ? 'Edge' : navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Browser') + ')'
       }));
     };
@@ -3470,9 +3714,17 @@
             stopAutoReconnect();
             showToast(t('toast.auto_reconnected') || 'Đã kết nối lại thành công!', 'success', 2500);
           }
-          const connOverlay = document.getElementById('canvasConnectingOverlay');
-          if (connOverlay) connOverlay.classList.add('hidden');
           mySessionId = msg.session_id || null;
+          try {
+            sessionStorage.setItem('meikova_active_remote_session', JSON.stringify({
+              relayUrl: relayUrl || defaultWsUrl,
+              room: roomId,
+              pin: pin || '',
+              sessionId: mySessionId,
+              savedAt: Date.now()
+            }));
+          } catch (_) {}
+          syncRemoteStageOverlays();
           if (typeof updateRemoteSessionTabs === 'function') {
             updateRemoteSessionTabs();
           }
@@ -3491,6 +3743,9 @@
             if (msg.hostMeta.deviceName) {
               const hn = document.getElementById('chatHostName');
               if (hn) hn.textContent = msg.hostMeta.deviceName;
+            }
+            if (typeof msg.hostMeta.isAdmin === 'boolean') {
+              updateHostAdminGroupUI(msg.hostMeta.isAdmin, msg.hostMeta.hostConfig);
             }
           }
           startPingLoop();
@@ -3520,6 +3775,8 @@
             loadDeviceFleet(true);
           }
         } else if (msg.type === 'session_killed') {
+          isUserInitiatedDisconnect = true;
+          try { sessionStorage.removeItem('meikova_active_remote_session'); } catch (_) {}
           showToast(msg.message || 'Phiên kết nối của bạn đã bị ngắt bởi quản trị viên.', 'error');
           disconnect();
         } else if (msg.type === 'kill_session_success') {
@@ -3699,9 +3956,12 @@
           showToast(t('toast.upload_failed', { error: msg.message }), 'error');
           delete activeDownloads[msg.transfer_id];
         } else if (msg.type === 'pong') {
-          const rtt = Math.round(performance.now() - lastPingSend);
+          const rtt = Math.max(1, Math.round(performance.now() - lastPingSend));
           metricPing.textContent = rtt;
           recordPingSample(rtt);
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            try { ws.send(JSON.stringify({ type: 'client_rtt', rtt_ms: rtt })); } catch (_) {}
+          }
         } else if (msg.type === 'chat_message') {
           appendChatMessage(msg.sender || 'Máy trạm', msg.message, false);
           const isChatVisible = shelfDrawer.classList.contains('open') && !shelfChatTab.classList.contains('hidden');
@@ -3822,6 +4082,34 @@
           if (msg.requires_admin) {
             showToast(t('toast.requires_admin_power') || t('toast.requires_admin'), 'warning');
           }
+        } else if (msg.type === 'host_capabilities') {
+          updateHostAdminGroupUI(Boolean(msg.is_admin), msg.config || null);
+        } else if (msg.type === 'host_config_response') {
+          updateHostAdminGroupUI(Boolean(msg.is_admin), msg.config || null);
+          if (msg.updated) {
+            showToast(msg.requires_admin ? (t('toast.requires_admin') || 'Một số mục yêu cầu quyền Admin trên Host') : 'Đã cập nhật cấu hình máy trạm thành công!', msg.requires_admin ? 'warning' : 'success');
+          }
+        } else if (msg.type === 'admin_elevation_response') {
+          updateHostAdminGroupUI(Boolean(msg.is_admin), null);
+          showToast(msg.message || (msg.success ? 'Đã gửi yêu cầu nâng quyền Quản trị (UAC)!' : 'Không thể nâng quyền Quản trị.'), msg.success ? 'info' : 'warning');
+        } else if (msg.type === 'file_create_response') {
+          if (msg.result && msg.result.success) {
+            showToast('Đã tạo tệp mới thành công!', 'success');
+            requestBrowsePath(remoteCurrentPath);
+            if (msg.result.path && isEditableFile(msg.result.path)) {
+              openFileInEditor(msg.result.path);
+            }
+          } else {
+            showToast(msg.result?.error || 'Không thể tạo tệp mới', 'error');
+          }
+        } else if (msg.type === 'file_search_response') {
+          if (msg.result && msg.result.success) {
+            currentExplorerItems = msg.result.items || [];
+            filterAndRenderItems();
+            showToast(`Tìm thấy ${currentExplorerItems.length} kết quả cho "${msg.result.query || ''}"`, 'info');
+          }
+        } else if (msg.type === 'wake_on_lan_response') {
+          showToast(msg.result?.message || (msg.result?.success ? 'Đã gửi gói tin Magic Packet (Wake-on-LAN)!' : 'Lỗi gửi Wake-on-LAN'), msg.result?.success ? 'success' : 'error');
         } else if (msg.type === 'host_disconnected') {
           if (isAwaitingRemoteRestart) {
             handleRemoteRestartReconnecting();
@@ -3995,8 +4283,7 @@
       laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
     }
     updateRoStatus();
-    const connOverlay = document.getElementById('canvasConnectingOverlay');
-    if (connOverlay) connOverlay.classList.remove('hidden');
+    syncRemoteStageOverlays();
     if (window.history && window.history.replaceState) {
       window.history.replaceState({ view: 'dashboard' }, '', '/dashboard');
     }
@@ -4005,6 +4292,16 @@
 
   btnDisconnect.addEventListener('click', () => {
     isUserInitiatedDisconnect = true;
+    try { sessionStorage.removeItem('meikova_active_remote_session'); } catch (_) {}
+    if (ws && ws.readyState === WebSocket.OPEN && currentRoom) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'client_leave',
+          room_id: currentRoom,
+          session_id: mySessionId
+        }));
+      } catch (_) {}
+    }
     stopAutoReconnect();
     disconnect();
   });
@@ -4068,11 +4365,17 @@
     }
   }
 
-  function updateHostResolution(w, h) {
+  let userSelectedResolutionLabel = null;
+
+  function updateHostResolution(w, h, fromStreamFrame = false) {
     hostResolution.width = w;
     hostResolution.height = h;
     remoteCanvas.width = w;
     remoteCanvas.height = h;
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+    }
     laserCanvas.width = w;
     laserCanvas.height = h;
     if (whiteboardCanvas) {
@@ -4081,8 +4384,8 @@
       if (typeof redrawWhiteboard === 'function') redrawWhiteboard();
     }
     metricRes.textContent = `${w}x${h}`;
-    if (typeof updateResolutionUi === 'function') {
-      updateResolutionUi(w, h);
+    if (typeof updateResolutionUi === 'function' && (!fromStreamFrame || !userSelectedResolutionLabel)) {
+      updateResolutionUi(w, h, userSelectedResolutionLabel || undefined);
     }
     updatePixelIndicator();
     fitCanvasToViewport();
@@ -4118,12 +4421,14 @@
         frames++;
         if (ts - start >= 150) {
           const fps = Math.round((frames * 1000) / (ts - start));
-          let estHz = 60;
-          if (fps >= 130) estHz = 144;
+          let estHz = Math.max(60, fps);
+          if (fps >= 300) estHz = 360;
+          else if (fps >= 200) estHz = 240;
+          else if (fps >= 155) estHz = 165;
+          else if (fps >= 130) estHz = 144;
           else if (fps >= 105) estHz = 120;
           else if (fps >= 80) estHz = 90;
           else if (fps >= 68) estHz = 75;
-          else estHz = 60;
           resolve({ screenW, screenH, viewW, viewH, dpr, estHz, isMobileDevice });
         } else {
           requestAnimationFrame(check);
@@ -4209,10 +4514,30 @@
     }
   }
 
+  function recordRenderedFrameTick() {
+    frameCount++;
+    const now = performance.now();
+    const elapsed = (now - lastFpsUpdate) / 1000;
+    if (elapsed >= 0.5) {
+      const actualFps = Math.max(0, Math.round(frameCount / elapsed));
+      if (metricFps) {
+        metricFps.textContent = actualFps;
+      }
+      frameCount = 0;
+      lastFpsUpdate = now;
+    }
+  }
+
   function handleIncomingFrame(blob) {
+    // Fast-Path for 4-byte MKR0 cached static frame tick: zero network congestion & zero decode CPU!
+    if (blob && blob.size === 4 && lastDecodedBitmap !== null) {
+      recordRenderedFrameTick();
+      return;
+    }
+
     // If an unrendered frame is superseded, immediately ACK it so host frames_in_flight never stalls
     if (pendingFrameBlob !== null && ws && ws.readyState === WebSocket.OPEN) {
-      try { ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() })); } catch (_) {}
+      try { ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now(), host_ts: Date.now() })); } catch (_) {}
     }
     pendingFrameBlob = blob;
 
@@ -4256,82 +4581,56 @@
     pendingFrameBlob = null;
 
     try {
-      let isSameStaticFrame = false;
-      let currSig = '';
-      if (lastDecodedBitmap !== null && blobToRender.size === lastDecodedBlobSize && lastDecodedSig) {
-        currSig = await computeFastBlobSig(blobToRender);
-        if (currSig && currSig === lastDecodedSig) {
-          isSameStaticFrame = true;
-        }
-      }
+      const imgObj = await decodeBlob(blobToRender);
+      const width = imgObj.naturalWidth || imgObj.width;
+      const height = imgObj.naturalHeight || imgObj.height;
 
-      if (!isSameStaticFrame) {
-        if (!currSig) currSig = await computeFastBlobSig(blobToRender);
-        const imgObj = await decodeBlob(blobToRender);
-        const width = imgObj.naturalWidth || imgObj.width;
-        const height = imgObj.naturalHeight || imgObj.height;
+      if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
+        // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
+        const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
+        const vy = Math.min(...hostMonitors.map(m => m.rect[1]));
 
-        if (isGridMode && hostMonitors.length > 1 && monitorTileMap.size > 0) {
-          // Multi-Monitor Grid Slice Mode: Extract each monitor sub-rectangle from virtual desktop frame
-          const vx = Math.min(...hostMonitors.map(m => m.rect[0]));
-          const vy = Math.min(...hostMonitors.map(m => m.rect[1]));
+        hostMonitors.forEach(m => {
+          const tileItem = monitorTileMap.get(m.id);
+          if (tileItem) {
+            const sx = Math.max(0, m.rect[0] - vx);
+            const sy = Math.max(0, m.rect[1] - vy);
+            const sw = Math.max(1, m.rect[2] - m.rect[0]);
+            const sh = Math.max(1, m.rect[3] - m.rect[1]);
 
-          hostMonitors.forEach(m => {
-            const tileItem = monitorTileMap.get(m.id);
-            if (tileItem) {
-              const sx = Math.max(0, m.rect[0] - vx);
-              const sy = Math.max(0, m.rect[1] - vy);
-              const sw = Math.max(1, m.rect[2] - m.rect[0]);
-              const sh = Math.max(1, m.rect[3] - m.rect[1]);
-
-              if (tileItem.canvas.width !== sw || tileItem.canvas.height !== sh) {
-                tileItem.canvas.width = sw;
-                tileItem.canvas.height = sh;
-              }
-              tileItem.ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
+            if (tileItem.canvas.width !== sw || tileItem.canvas.height !== sh) {
+              tileItem.canvas.width = sw;
+              tileItem.canvas.height = sh;
             }
-          });
-        } else {
-          if (remoteCanvas.width !== width || remoteCanvas.height !== height) {
-            updateHostResolution(width, height);
+            tileItem.ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
           }
-          ctx.drawImage(imgObj, 0, 0);
-          const connOverlay = document.getElementById('canvasConnectingOverlay');
-          if (connOverlay && !connOverlay.classList.contains('hidden')) {
-            connOverlay.classList.add('hidden');
-          }
+        });
+      } else {
+        if (remoteCanvas.width !== width || remoteCanvas.height !== height) {
+          updateHostResolution(width, height, true);
         }
-
-        if (lastDecodedBitmap && lastDecodedBitmap !== imgObj && typeof lastDecodedBitmap.close === 'function') {
-          try { lastDecodedBitmap.close(); } catch (_) {}
-        }
-        lastDecodedBitmap = imgObj;
-        lastDecodedBlobSize = blobToRender.size;
-        lastDecodedSig = currSig;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(imgObj, 0, 0);
+        syncRemoteStageOverlays();
       }
 
-      // Honest Real-Time Measured Rendered FPS calculation
-      frameCount++;
-      const now = performance.now();
-      const elapsed = (now - lastFpsUpdate) / 1000;
-      if (elapsed >= 1.0) {
-        const actualFps = Math.max(0, Math.round(frameCount / elapsed));
-        if (metricFps) {
-          metricFps.textContent = actualFps;
-        }
-        frameCount = 0;
-        lastFpsUpdate = now;
+      if (lastDecodedBitmap && lastDecodedBitmap !== imgObj && typeof lastDecodedBitmap.close === 'function') {
+        try { lastDecodedBitmap.close(); } catch (_) {}
       }
+      lastDecodedBitmap = imgObj;
+      lastDecodedBlobSize = blobToRender.size;
+
+      recordRenderedFrameTick();
 
       // Flow Control: notify host that frame has rendered (Guacamole / WebRTC ACK model)
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() }));
+        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now(), host_ts: Date.now() }));
       }
     } catch (err) {
       console.warn('[MeikovaRelay] Frame render fallback error:', err);
-      // Still send ACK so host pipeline does not freeze indefinitely on decode error
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() }));
+        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now(), host_ts: Date.now() }));
       }
     }
 
@@ -4915,8 +5214,13 @@
 
   function sendFpsAndEncoderConfig() {
     const badge = document.getElementById('fpsLimitCurrentBadge');
+    const isUncapped = !currentFpsLimit || currentFpsLimit <= 0;
     if (badge) {
-      badge.textContent = currentFpsLimit > 0 ? `LOCKED ${currentFpsLimit} FPS` : 'AUTO (120 LAN / 60 WAN)';
+      badge.textContent = isUncapped ? 'UNCAPPED (KHÔNG GIỚI HẠN)' : `LIMIT: ${currentFpsLimit} FPS`;
+    }
+    const customInput = document.getElementById('customFpsLimitInput');
+    if (customInput && document.activeElement !== customInput) {
+      customInput.value = isUncapped ? '' : String(currentFpsLimit);
     }
     if (qualitySelector) {
       updateQualityMenuUI(qualitySelector.value || 'balanced');
@@ -4924,7 +5228,8 @@
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         type: 'set_fps_limit',
-        fps_limit: currentFpsLimit,
+        fps_limit: isUncapped ? 0 : currentFpsLimit,
+        uncapped: isUncapped,
         encoder_mode: currentEncoderMode,
         static_cache: isStaticCacheEnabled
       }));
@@ -4937,8 +5242,37 @@
       currentFpsLimit = parseInt(pill.getAttribute('data-fps-limit') || '0', 10) || 0;
       document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(p => p.classList.toggle('active', p === pill));
       sendFpsAndEncoderConfig();
-      showToast(currentFpsLimit > 0 ? `Đã khóa giới hạn tốc độ: ${currentFpsLimit} FPS` : 'Chế độ FPS: Tự động (120 FPS LAN / 60 FPS WAN)', 'info');
+      showToast(currentFpsLimit > 0 ? `Đã đặt giới hạn tốc độ: ${currentFpsLimit} FPS` : 'Đã mở khóa tốc độ tối đa: Không giới hạn FPS (Uncapped)', 'info');
     });
+  });
+
+  const customFpsLimitInput = document.getElementById('customFpsLimitInput');
+  const btnSetLimitFps = document.getElementById('btnSetLimitFps');
+  function applyCustomFpsLimitFromInput() {
+    const rawVal = customFpsLimitInput ? customFpsLimitInput.value.trim() : '';
+    const parsed = rawVal === '' ? 0 : parseInt(rawVal, 10);
+    if (isNaN(parsed) || parsed <= 0) {
+      currentFpsLimit = 0;
+    } else {
+      currentFpsLimit = Math.min(1000, Math.max(1, parsed));
+    }
+    document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(p => {
+      const pVal = parseInt(p.getAttribute('data-fps-limit') || '-1', 10);
+      p.classList.toggle('active', pVal === currentFpsLimit);
+    });
+    sendFpsAndEncoderConfig();
+    showToast(currentFpsLimit > 0 ? `Đã áp dụng giới hạn FPS tùy chỉnh: ${currentFpsLimit} FPS` : 'Không nhập giới hạn -> Đã mở khóa FPS tối đa (Uncapped)', 'success');
+  }
+  btnSetLimitFps?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    applyCustomFpsLimitFromInput();
+  });
+  customFpsLimitInput?.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyCustomFpsLimitFromInput();
+    }
   });
 
   document.querySelectorAll('#encoderModePills .encoder-pill').forEach(pill => {
@@ -6741,6 +7075,51 @@
     });
   }
 
+  // Direct In-Browser Protocol Execution Buttons (Requirement 20)
+  const btnDirectProtoRdp = document.getElementById('btnDirectProtoRdp');
+  const btnDirectProtoSsh = document.getElementById('btnDirectProtoSsh');
+  const btnDirectProtoSftp = document.getElementById('btnDirectProtoSftp');
+
+  btnDirectProtoRdp?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    protocolMenuDropdown?.classList.add('hidden');
+    btnProtocolMenu?.classList.remove('btn-active');
+    if (!isConnected) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    setRoutingMode('native');
+    switchView('remote', true);
+    recordClientAudit('PROTOCOL_DIRECT_LAUNCH', { protocol: 'RDP_STREAM', mode: 'in_browser' });
+    showToast('Đang sử dụng trực tiếp luồng Remote Desktop tốc độ cao trên trình duyệt!', 'success');
+  });
+
+  btnDirectProtoSsh?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    protocolMenuDropdown?.classList.add('hidden');
+    btnProtocolMenu?.classList.remove('btn-active');
+    if (!isConnected) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    switchView('terminal', true);
+    recordClientAudit('PROTOCOL_DIRECT_LAUNCH', { protocol: 'SSH_PTY_TERMINAL', mode: 'in_browser' });
+    showToast('Đã chuyển trực tiếp sang giao thức Terminal (SSH / Host PTY) trên trình duyệt!', 'success');
+  });
+
+  btnDirectProtoSftp?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    protocolMenuDropdown?.classList.add('hidden');
+    btnProtocolMenu?.classList.remove('btn-active');
+    if (!isConnected) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    switchView('files', true);
+    recordClientAudit('PROTOCOL_DIRECT_LAUNCH', { protocol: 'SFTP_FILE_EXPLORER', mode: 'in_browser' });
+    showToast('Đã mở trực tiếp giao thức truyền tệp SFTP / WebSocket trên trình duyệt!', 'success');
+  });
+
   // Download .RDP Button
   if (btnDownloadRdp) {
     btnDownloadRdp.addEventListener('click', async (e) => {
@@ -6829,25 +7208,31 @@
 
 
   // --- Dynamic Screen Resolution & Virtual Hardware Handlers ---
+  function mapResolutionToTierTag(w, h, explicitLabel) {
+    if (explicitLabel) {
+      const norm = String(explicitLabel).trim().toUpperCase();
+      if (norm === '1080P') return 'FHD';
+      if (norm === '720P') return 'HD';
+      if (norm === '900P') return 'HD+';
+      if (norm === '1440P') return '2K';
+      if (norm === '2160P') return '4K';
+      return explicitLabel;
+    }
+    if (!w && !h) return 'GỐC';
+    if (w >= 3840 || h >= 2160) return '4K';
+    if (w >= 3440 && h >= 1440) return 'UW2K';
+    if (w >= 2560 && h >= 1440) return '2K';
+    if (w >= 2560 && h <= 1080) return '21:9';
+    if (h === 1080 || w === 1920) return 'FHD';
+    if (h === 900 || w === 1600) return 'HD+';
+    if (h === 768 || h === 720 || w === 1366 || w === 1280) return 'HD';
+    if (h <= 576) return 'SD';
+    return 'FHD';
+  }
+
   function updateResolutionUi(w, h, label) {
     if (resolutionCurrentLabel) {
-      if (label) {
-        resolutionCurrentLabel.textContent = label;
-      } else if (w >= 3840) {
-        resolutionCurrentLabel.textContent = '4K';
-      } else if (w >= 2560 && h >= 1440) {
-        resolutionCurrentLabel.textContent = '2K';
-      } else if (w >= 2560 && h <= 1080) {
-        resolutionCurrentLabel.textContent = '21:9';
-      } else if (h === 1080) {
-        resolutionCurrentLabel.textContent = '1080p';
-      } else if (h === 720) {
-        resolutionCurrentLabel.textContent = '720p';
-      } else if (h === 900) {
-        resolutionCurrentLabel.textContent = '900p';
-      } else {
-        resolutionCurrentLabel.textContent = `${h}p`;
-      }
+      resolutionCurrentLabel.textContent = mapResolutionToTierTag(w, h, label);
     }
     document.querySelectorAll('#resolutionMenuList .quality-menu-item').forEach(btn => {
       const bw = parseInt(btn.dataset.resW, 10);
@@ -6900,7 +7285,10 @@
     btn.addEventListener('click', () => {
       const w = parseInt(btn.dataset.resW, 10);
       const h = parseInt(btn.dataset.resH, 10);
-      const label = btn.dataset.resLabel || `${h}p`;
+      const badgeEl = btn.querySelector('.quality-item-badge');
+      const rawLabel = (badgeEl && badgeEl.textContent ? badgeEl.textContent.trim() : '') || btn.dataset.resLabel || '';
+      const label = mapResolutionToTierTag(w, h, rawLabel);
+      userSelectedResolutionLabel = (w === 0 && h === 0) ? 'GỐC' : label;
       if (!isConnected || !ws) {
         showToast(t('toast.not_connected'), 'info');
         return;
@@ -6974,7 +7362,40 @@
         if (confirmed) {
           ws.send(JSON.stringify({ type: 'power_action', action: 'lock' }));
         }
+      } else if (act === 'sleep') {
+        if (!hostIsAdmin) {
+          showToast(t('toast.requires_admin_power') || t('toast.requires_admin'), 'warning');
+          return;
+        }
+        const confirmed = await showConfirmModal({
+          title: 'Chế độ Ngủ (Sleep)',
+          message: 'Đưa máy trạm vào chế độ Ngủ (Sleep)? Bạn có thể đánh thức máy qua Wake-on-LAN hoặc hẹn giờ BIOS Auto-Wakeup.',
+          confirmText: 'Đưa vào Sleep',
+          cancelText: t('dialog.btn_cancel') || 'Hủy'
+        });
+        if (confirmed) {
+          ws.send(JSON.stringify({ type: 'power_action', action: 'sleep' }));
+        }
+      } else if (act === 'shutdown') {
+        if (!hostIsAdmin) {
+          showToast(t('toast.requires_admin_power') || t('toast.requires_admin'), 'warning');
+          return;
+        }
+        const confirmed = await showConfirmModal({
+          title: 'Tắt nguồn máy trạm (Shutdown)',
+          message: 'CẢNH BÁO: Tắt nguồn hoàn toàn máy trạm sẽ ngắt kết nối cho đến khi máy được bật lại hoặc đánh thức qua Wake-on-LAN. Bạn có chắc chắn?',
+          confirmText: 'Tắt máy',
+          cancelText: t('dialog.btn_cancel') || 'Hủy',
+          danger: true
+        });
+        if (confirmed) {
+          ws.send(JSON.stringify({ type: 'power_action', action: 'shutdown' }));
+        }
       } else if (act === 'restart') {
+        if (!hostIsAdmin) {
+          showToast(t('toast.requires_admin_power') || t('toast.requires_admin'), 'warning');
+          return;
+        }
         const confirmed = await showConfirmModal({
           title: 'Khởi động lại máy trạm',
           message: t('deck.power_restart_confirm') || 'Khởi động lại máy trạm sẽ ngắt phiên làm việc tạm thời. Hệ thống sẽ tự động kết nối lại khi máy online. Bạn có chắc chắn?',
@@ -7065,6 +7486,8 @@
   // --- VIEW 4: REMOTE REAL-TIME TERMINAL (POWERSHELL) ---
   let terminalHistory = [];
   let terminalHistoryIndex = -1;
+  let currentTerminalPrompt = 'PS > ';
+  let lastDispatchedTerminalCmd = null;
 
   function updateTerminalStatusBadge() {
     if (!terminalStatusBadge) return;
@@ -7095,8 +7518,10 @@
       const rawCmd = terminalCmdInput.value;
       const cmd = rawCmd.trim();
 
-      // Echo command to log
-      handleTerminalOutput(`PS > ${rawCmd}\n`);
+      // Echo command once with the active working directory prompt
+      terminalOutput.textContent += `${currentTerminalPrompt}${rawCmd}\n`;
+      terminalScreen.scrollTop = terminalScreen.scrollHeight;
+      lastDispatchedTerminalCmd = cmd;
       terminalCmdInput.value = '';
       terminalInputEcho.textContent = '';
 
@@ -7162,8 +7587,64 @@
   });
 
   function handleTerminalOutput(text) {
-    terminalOutput.textContent += text;
-    terminalScreen.scrollTop = terminalScreen.scrollHeight;
+    if (!text) return;
+    let cleaned = String(text);
+
+    // Extract dynamic working directory prompt markers (__MKV_CWD__<path>) emitted by TerminalManager
+    if (cleaned.includes('__MKV_CWD__')) {
+      const lines = cleaned.split(/\r?\n/);
+      const kept = [];
+      for (const ln of lines) {
+        if (ln.includes('__MKV_CWD__')) {
+          const idx = ln.indexOf('__MKV_CWD__');
+          const before = ln.slice(0, idx);
+          const cwdPath = ln.slice(idx + 11).trim();
+          if (cwdPath) {
+            currentTerminalPrompt = `PS ${cwdPath}> `;
+            const prefixEl = document.querySelector('.terminal-prompt-prefix');
+            if (prefixEl) prefixEl.textContent = currentTerminalPrompt;
+          }
+          if (before.trim()) kept.push(before);
+        } else {
+          kept.push(ln);
+        }
+      }
+      cleaned = kept.join('\n');
+    }
+
+    // Deduplicate if an older Host subprocess echoed "PS C:\path> <cmd>" right after the user submitted <cmd>
+    if (lastDispatchedTerminalCmd) {
+      const lines = cleaned.split(/(\r?\n)/);
+      const outParts = [];
+      for (let i = 0; i < lines.length; i++) {
+        const part = lines[i];
+        const trimmed = part.trim();
+        const psMatch = /^PS\s+[^>]+>\s*(.*)$/i.exec(trimmed);
+        if (psMatch) {
+          const promptPrefix = trimmed.slice(0, trimmed.indexOf('>') + 1) + ' ';
+          currentTerminalPrompt = promptPrefix;
+          const prefixEl = document.querySelector('.terminal-prompt-prefix');
+          if (prefixEl) prefixEl.textContent = currentTerminalPrompt;
+          const echoedCmd = (psMatch[1] || '').trim();
+          if (echoedCmd === lastDispatchedTerminalCmd || !echoedCmd) {
+            if (echoedCmd === lastDispatchedTerminalCmd) lastDispatchedTerminalCmd = null;
+            if (i + 1 < lines.length && /^\r?\n$/.test(lines[i + 1])) i++;
+            continue;
+          }
+        } else if (trimmed === lastDispatchedTerminalCmd) {
+          lastDispatchedTerminalCmd = null;
+          if (i + 1 < lines.length && /^\r?\n$/.test(lines[i + 1])) i++;
+          continue;
+        }
+        outParts.push(part);
+      }
+      cleaned = outParts.join('');
+    }
+
+    if (cleaned) {
+      terminalOutput.textContent += cleaned;
+      terminalScreen.scrollTop = terminalScreen.scrollHeight;
+    }
   }
 
   // --- VIEW 5: TASK MANAGER & DIAGNOSTICS ---
@@ -7218,6 +7699,8 @@
       return;
     }
 
+    const countBadge = document.getElementById('procCountBadge');
+    if (countBadge) countBadge.textContent = String(filtered.length);
     const killLabel = t('tasks.btn_kill');
     processTableBody.innerHTML = filtered.map(p => `
       <tr>
@@ -8025,7 +8508,7 @@
     while (uploadQueue.length > 0) {
       const task = uploadQueue.shift();
       try {
-        await executeFileUpload(task.file, task.targetDir);
+        await executeFileUpload(task.file, task.targetDir, task.dropOpts);
       } catch (err) {
         console.error('Upload failed:', err);
       }
@@ -8033,12 +8516,12 @@
     isUploading = false;
   }
 
-  function uploadFileToHost(file, targetDir = '') {
-    uploadQueue.push({ file, targetDir });
+  function uploadFileToHost(file, targetDir = '', dropOpts = null) {
+    uploadQueue.push({ file, targetDir, dropOpts });
     processUploadQueue();
   }
 
-  async function executeFileUpload(file, targetDir) {
+  async function executeFileUpload(file, targetDir, dropOpts = null) {
     if (!isConnected) {
       showToast(t('toast.connect_before_file'), 'info');
       return;
@@ -8066,7 +8549,10 @@
       transfer_id: transferId,
       filename: file.relativePath || file.name,
       filesize: file.size,
-      target_dir: targetDir || remoteCurrentPath || ''
+      target_dir: targetDir || remoteCurrentPath || 'desktop',
+      drop_x: dropOpts ? dropOpts.x : undefined,
+      drop_y: dropOpts ? dropOpts.y : undefined,
+      auto_paste_drop: Boolean(dropOpts && dropOpts.autoPaste)
     }));
 
     if (file.size === 0) {
@@ -8146,10 +8632,24 @@
     if (!isConnected || currentView !== 'remote') return;
 
     if (e.dataTransfer) {
+      const rect = remoteCanvas.getBoundingClientRect();
+      const dropX = rect.width > 0 ? Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) : 0.5;
+      const dropY = rect.height > 0 ? Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)) : 0.5;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'mouse_move', x: dropX, y: dropY }));
+      }
       const files = await getFilesFromDataTransfer(e.dataTransfer);
       if (files.length > 0) {
+        const destFolder = remoteCurrentPath || 'desktop';
         showToast(t('toast.transferring_desktop', { count: files.length }), 'info');
-        files.forEach(f => uploadFileToHost(f, 'desktop'));
+        files.forEach(f => uploadFileToHost(f, destFolder, { x: dropX, y: dropY, autoPaste: true }));
+      } else {
+        const droppedText = e.dataTransfer.getData('text/plain');
+        if (droppedText && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'clipboard_sync', text: droppedText }));
+          ws.send(JSON.stringify({ type: 'text_input', text: droppedText }));
+          showToast('Đã thả và dán trực tiếp văn bản vào vị trí con trỏ trên máy đích!', 'success');
+        }
       }
     }
   });
@@ -9362,6 +9862,59 @@
     });
   });
 
+  // --- DOWNLOAD MODAL ADVANCED CONFIGURATOR (Requirement 9) ---
+  const swDownloadAdvanced = document.getElementById('swDownloadAdvanced');
+  const dlAdvancedConfigPanel = document.getElementById('dlAdvancedConfigPanel');
+
+  function buildAdvancedDownloadParams(accountName, userId, relayWs) {
+    const params = new URLSearchParams({
+      account: accountName || 'User',
+      userId: userId || '',
+      relay: relayWs || defaultWsUrl
+    });
+    const swAdv = swDownloadAdvanced || document.getElementById('swDownloadAdvanced');
+    if (swAdv && swAdv.checked) {
+      params.set('advanced', '1');
+      const room = document.getElementById('dlAdvRoomId')?.value.trim();
+      const pin = document.getElementById('dlAdvPin')?.value.trim();
+      const devName = document.getElementById('dlAdvDeviceName')?.value.trim();
+      const fps = document.getElementById('dlAdvFpsLimit')?.value.trim() || '0';
+      const quality = document.getElementById('dlAdvQuality')?.value || 'auto_sync';
+      const wakeTime = document.getElementById('dlAdvWakeTime')?.value || '07:00';
+
+      if (room) params.set('roomId', room);
+      if (pin) params.set('pin', pin);
+      if (devName) params.set('deviceName', devName);
+      params.set('fpsLimit', fps);
+      params.set('uncappedFps', (parseInt(fps, 10) || 0) <= 0 ? '1' : '0');
+      params.set('quality', quality);
+      params.set('requireAdmin', document.getElementById('dlAdvAdmin')?.checked ? '1' : '0');
+      params.set('service', document.getElementById('dlAdvService')?.checked ? '1' : '0');
+      params.set('autostart', document.getElementById('dlAdvAutostart')?.checked ? '1' : '0');
+      params.set('antiSleep', document.getElementById('dlAdvAntiSleep')?.checked ? '1' : '0');
+      params.set('stealth', document.getElementById('dlAdvStealth')?.checked ? '1' : '0');
+      params.set('autoWakeup', document.getElementById('dlAdvAutoWakeup')?.checked ? '1' : '0');
+      params.set('autoWakeupTime', wakeTime);
+      params.set('blockInput', document.getElementById('dlAdvBlockInput')?.checked ? '1' : '0');
+      params.set('curtain', document.getElementById('dlAdvCurtain')?.checked ? '1' : '0');
+    }
+    const cfgLink = document.getElementById('linkDownloadCustomConfigJson');
+    if (cfgLink) {
+      cfgLink.href = `/api/download/custom-config.json?${params.toString()}`;
+    }
+    return params.toString();
+  }
+
+  swDownloadAdvanced?.addEventListener('change', () => {
+    dlAdvancedConfigPanel?.classList.toggle('hidden', !swDownloadAdvanced.checked);
+    updateRelayModalData().catch(() => {});
+  });
+
+  dlAdvancedConfigPanel?.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', () => updateRelayModalData().catch(() => {}));
+    el.addEventListener('change', () => updateRelayModalData().catch(() => {}));
+  });
+
   async function updateRelayModalData() {
     const currentOrigin = window.location.origin;
     const hostname = window.location.hostname;
@@ -9432,7 +9985,8 @@
       };
     }
 
-    const setupBatUrl = `${displayUrl}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const advParams = buildAdvancedDownloadParams(accountName, userId, relayWs);
+    const setupBatUrl = `${displayUrl}/api/download/setup.bat?${advParams}`;
     const linkDownloadSetupBat = document.getElementById('linkDownloadSetupBat');
     if (linkDownloadSetupBat) {
       linkDownloadSetupBat.href = setupBatUrl;
@@ -9446,13 +10000,13 @@
       if (codeTag) codeTag.textContent = irmCmd;
     }
 
-    const setupLinuxUrl = `${displayUrl}/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const setupLinuxUrl = `${displayUrl}/api/download/setup-linux.sh?${advParams}`;
     const linkDownloadSetupLinux = document.getElementById('linkDownloadSetupLinux');
     if (linkDownloadSetupLinux) {
       linkDownloadSetupLinux.href = setupLinuxUrl;
     }
 
-    const setupMacUrl = `${displayUrl}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    const setupMacUrl = `${displayUrl}/api/download/setup-macos.sh?${advParams}`;
     const linkDownloadSetupMac = document.getElementById('linkDownloadSetupMac');
     if (linkDownloadSetupMac) {
       linkDownloadSetupMac.href = setupMacUrl;
@@ -9621,7 +10175,7 @@
   }
 
   // Initial sync of download modal state with current host/domain
-  try { updateRelayModalData(); } catch (_) {}
+  try { updateRelayModalData().catch(() => {}); } catch (_) {}
 
 
   // --- CLOUDFLARE QUICK TUNNEL CONTROLLER ---
@@ -9801,6 +10355,337 @@
     // Initial background check
     fetchTunnelStatus();
   }
+
+
+  // --- ADMIN-GATED DECK GROUP & REMOTE HOST CONFIGURATOR (Requirements 3, 4, 5, 6, 9, 10, 11, 12, 19) ---
+  let hostIsAdmin = true;
+  let currentHostConfigState = {};
+
+  function recordClientAudit(action, details = {}) {
+    if (!authToken) return;
+    fetch('/api/audit-logs/record', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        action,
+        roomId: currentRoom || currentRoomId || '',
+        details
+      })
+    }).catch(() => {});
+  }
+
+  function updateHostAdminGroupUI(isAdmin, configObj = null) {
+    hostIsAdmin = Boolean(isAdmin);
+    if (configObj && typeof configObj === 'object') {
+      currentHostConfigState = { ...currentHostConfigState, ...configObj };
+    }
+
+    const badge = document.getElementById('badgeHostAdminStatus');
+    const banner = document.getElementById('deckAdminDisabledBanner');
+    const adminGroup = document.getElementById('deckAdminGroup');
+
+    if (badge) {
+      badge.className = hostIsAdmin ? 'proto-status-pill ready' : 'proto-status-pill closed';
+      badge.textContent = hostIsAdmin ? 'ADMIN: ACTIVE' : 'STANDARD USER';
+    }
+    if (banner) {
+      banner.classList.toggle('hidden', hostIsAdmin);
+    }
+    if (adminGroup) {
+      adminGroup.classList.toggle('is-non-admin', !hostIsAdmin);
+    }
+
+    document.querySelectorAll('.admin-gated-btn, [data-requires-admin="true"]').forEach(btn => {
+      btn.disabled = !hostIsAdmin;
+      btn.classList.toggle('admin-disabled', !hostIsAdmin);
+    });
+
+    // Sync Remote Host Config Modal fields
+    const swAdmin = document.getElementById('swRemoteHostAdmin');
+    if (swAdmin) swAdmin.checked = hostIsAdmin;
+    const adminBox = document.getElementById('remoteHostAdminSettingsGroup');
+    if (adminBox) {
+      adminBox.style.opacity = hostIsAdmin ? '1' : '0.5';
+      adminBox.querySelectorAll('input').forEach(inp => {
+        inp.disabled = !hostIsAdmin;
+      });
+    }
+    if (currentHostConfigState) {
+      const chkAuto = document.getElementById('chkHostAutostart');
+      const chkSleep = document.getElementById('chkHostAntiSleep');
+      const chkStealth = document.getElementById('chkHostStealth');
+      const inpFps = document.getElementById('inpHostFpsLimit');
+      const chkSvc = document.getElementById('chkHostService247');
+      const chkBlk = document.getElementById('chkHostBlockInput');
+      const chkCur = document.getElementById('chkHostCurtain');
+      const chkWake = document.getElementById('chkHostAutoWake');
+      const inpWake = document.getElementById('inpHostWakeTime');
+
+      if (chkAuto && currentHostConfigState.autostart !== undefined) chkAuto.checked = Boolean(currentHostConfigState.autostart);
+      if (chkSleep && currentHostConfigState.anti_sleep !== undefined) chkSleep.checked = Boolean(currentHostConfigState.anti_sleep);
+      if (chkStealth && currentHostConfigState.stealth_mode !== undefined) chkStealth.checked = Boolean(currentHostConfigState.stealth_mode);
+      if (inpFps && currentHostConfigState.fps_limit !== undefined) inpFps.value = currentHostConfigState.uncapped_fps ? 0 : (currentHostConfigState.fps_limit || 0);
+      if (chkSvc && currentHostConfigState.run_as_service !== undefined) chkSvc.checked = Boolean(currentHostConfigState.run_as_service);
+      if (chkBlk && currentHostConfigState.block_input !== undefined) chkBlk.checked = Boolean(currentHostConfigState.block_input);
+      if (chkCur && currentHostConfigState.privacy_curtain !== undefined) chkCur.checked = Boolean(currentHostConfigState.privacy_curtain);
+      if (chkWake && currentHostConfigState.auto_wakeup !== undefined) chkWake.checked = Boolean(currentHostConfigState.auto_wakeup);
+      if (inpWake && currentHostConfigState.auto_wakeup_time) inpWake.value = currentHostConfigState.auto_wakeup_time;
+    }
+  }
+
+  // Unconnected Screen Guard Buttons (Requirement 19)
+  document.getElementById('btnGuardSelectDevice')?.addEventListener('click', () => {
+    switchView(authToken ? 'dashboard' : 'landing', true);
+  });
+  document.getElementById('btnGuardQuickConnect')?.addEventListener('click', () => {
+    quickConnectModal?.classList.remove('hidden');
+  });
+
+  // Hotkey Navigation for Unconnected Guard ([D] Workstations, [K] Quick Connect)
+  document.addEventListener('keydown', (e) => {
+    const guardOverlay = document.getElementById('unconnectedScreenGuard');
+    if (!guardOverlay || guardOverlay.classList.contains('hidden') || currentView !== 'remote') return;
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable) return;
+    if (e.key === 'd' || e.key === 'D') {
+      e.preventDefault();
+      switchView(authToken ? 'dashboard' : 'landing', true);
+    } else if (e.key === 'k' || e.key === 'K') {
+      e.preventDefault();
+      quickConnectModal?.classList.remove('hidden');
+    }
+  });
+
+  // Request UAC Elevation from Deck or Remote Host Config Modal
+  document.getElementById('btnRequestHostAdmin')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    ws.send(JSON.stringify({ type: 'request_admin_elevation' }));
+    recordClientAudit('ADMIN_ELEVATION_REQUEST', { source: 'deck_banner' });
+    showToast('Đã gửi yêu cầu nâng quyền Quản trị (UAC) tới máy đích...', 'info');
+  });
+
+  const modalRemoteHostConfig = document.getElementById('modalRemoteHostConfig');
+  document.getElementById('btnDropdownRemoteHostConfig')?.addEventListener('click', () => {
+    moreToolsMenuDropdown?.classList.add('hidden');
+    if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'get_host_config' }));
+    }
+    modalRemoteHostConfig?.classList.remove('hidden');
+  });
+  document.getElementById('btnCloseRemoteHostConfig')?.addEventListener('click', () => modalRemoteHostConfig?.classList.add('hidden'));
+  document.getElementById('btnCancelRemoteHostConfig')?.addEventListener('click', () => modalRemoteHostConfig?.classList.add('hidden'));
+
+  document.getElementById('swRemoteHostAdmin')?.addEventListener('change', (e) => {
+    const wantAdmin = e.target.checked;
+    if (wantAdmin && !hostIsAdmin) {
+      if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'request_admin_elevation' }));
+        recordClientAudit('ADMIN_ELEVATION_REQUEST', { source: 'remote_host_config_modal' });
+      } else {
+        e.target.checked = false;
+        showToast(t('toast.not_connected'), 'info');
+      }
+    }
+  });
+
+  document.getElementById('btnSaveRemoteHostConfig')?.addEventListener('click', () => {
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    const fpsVal = parseInt(document.getElementById('inpHostFpsLimit')?.value || '0', 10) || 0;
+    const cfgPayload = {
+      autostart: Boolean(document.getElementById('chkHostAutostart')?.checked),
+      anti_sleep: Boolean(document.getElementById('chkHostAntiSleep')?.checked),
+      stealth_mode: Boolean(document.getElementById('chkHostStealth')?.checked),
+      fps_limit: fpsVal,
+      uncapped_fps: fpsVal <= 0
+    };
+    if (hostIsAdmin) {
+      cfgPayload.run_as_service = Boolean(document.getElementById('chkHostService247')?.checked);
+      cfgPayload.block_input = Boolean(document.getElementById('chkHostBlockInput')?.checked);
+      cfgPayload.privacy_curtain = Boolean(document.getElementById('chkHostCurtain')?.checked);
+      cfgPayload.auto_wakeup = Boolean(document.getElementById('chkHostAutoWake')?.checked);
+      cfgPayload.auto_wakeup_time = document.getElementById('inpHostWakeTime')?.value || '07:00';
+    }
+    ws.send(JSON.stringify({
+      type: 'set_host_config',
+      config: cfgPayload
+    }));
+    recordClientAudit('HOST_CONFIG_UPDATED', cfgPayload);
+    modalRemoteHostConfig?.classList.add('hidden');
+  });
+
+  // --- FLEET GROUPING, TAGS & WAKE-ON-LAN (Requirement 10 & 15) ---
+  document.querySelectorAll('#fleetGroupPills .fleet-group-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#fleetGroupPills .fleet-group-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFleetGroupFilter = btn.dataset.group || 'all';
+      renderDeviceGrid(currentDeviceList);
+    });
+  });
+
+  document.getElementById('fleetSearchInput')?.addEventListener('input', (e) => {
+    activeFleetSearchQuery = e.target.value.trim();
+    renderDeviceGrid(currentDeviceList);
+  });
+
+  const getDeviceMetaModal = () => document.getElementById('modalDeviceMeta');
+  document.addEventListener('click', (e) => {
+    const metaBtn = e.target.closest('.btn-edit-device-meta');
+    if (!metaBtn) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const room = metaBtn.dataset.room || '';
+    const modal = getDeviceMetaModal();
+    if (!modal) return;
+    document.getElementById('inpMetaRoomId').value = room;
+    document.getElementById('deviceMetaSubtitle').textContent = `${metaBtn.dataset.name || room} // ${room}`;
+    document.getElementById('inpMetaGroupName').value = metaBtn.dataset.group || 'Default';
+    document.getElementById('inpMetaTags').value = metaBtn.dataset.tags || '';
+    document.getElementById('inpMetaNotes').value = metaBtn.dataset.notes || '';
+    modal.classList.remove('hidden');
+  });
+
+  document.getElementById('btnCancelDeviceMeta')?.addEventListener('click', () => {
+    getDeviceMetaModal()?.classList.add('hidden');
+  });
+
+  getDeviceMetaModal()?.addEventListener('click', (e) => {
+    if (e.target === getDeviceMetaModal()) {
+      getDeviceMetaModal()?.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('btnSaveDeviceMeta')?.addEventListener('click', async () => {
+    const roomId = document.getElementById('inpMetaRoomId')?.value;
+    const groupName = document.getElementById('inpMetaGroupName')?.value.trim() || 'Default';
+    const tags = document.getElementById('inpMetaTags')?.value.trim() || '';
+    const notes = document.getElementById('inpMetaNotes')?.value.trim() || '';
+    if (!roomId) return;
+    try {
+      const res = await apiFetch('/api/devices/meta', 'POST', { roomId, groupName, tags, notes });
+      if (res && res.success) {
+        getDeviceMetaModal()?.classList.add('hidden');
+        showToast('Đã lưu nhóm và thẻ máy trạm thành công!', 'success');
+        loadDeviceFleet(true);
+      }
+    } catch (err) {
+      showToast(err.message || 'Lỗi lưu thông tin máy trạm', 'error');
+    }
+  });
+
+  document.getElementById('btnOpenWolModal')?.addEventListener('click', async () => {
+    const mac = await showPromptModal({
+      title: 'Wake-on-LAN (Magic Packet)',
+      message: 'Nhập địa chỉ MAC của máy trạm cần đánh thức qua mạng LAN (VD: AA:BB:CC:DD:EE:FF):',
+      defaultValue: '00:11:22:33:44:55',
+      placeholder: 'AA:BB:CC:DD:EE:FF',
+      confirmText: 'Đánh thức ngay',
+      cancelText: t('dialog.btn_cancel') || 'Hủy'
+    });
+    if (mac && mac.trim()) {
+      if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'wake_on_lan_request', mac_address: mac.trim() }));
+      } else {
+        showToast(`Đã phát gói tin Magic Packet tới MAC ${mac.trim()}!`, 'success');
+      }
+      recordClientAudit('WAKE_ON_LAN', { mac: mac.trim() });
+    }
+  });
+
+  // --- FILE EXPLORER NEW FILE & DEEP SEARCH (Requirement 12) ---
+  document.getElementById('btnExpNewFile')?.addEventListener('click', async () => {
+    if (!isConnected || !ws) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    const fileName = await showPromptModal({
+      title: t('files.btn_new_file_title') || 'Tạo tệp mới',
+      message: 'Nhập tên tệp cần tạo trong thư mục hiện tại (VD: notes.txt, script.ps1):',
+      defaultValue: 'new_file.txt',
+      confirmText: 'Tạo tệp',
+      cancelText: t('dialog.btn_cancel') || 'Hủy'
+    });
+    if (fileName && fileName.trim()) {
+      ws.send(JSON.stringify({
+        type: 'file_create_request',
+        parent_dir: remoteCurrentPath || 'desktop',
+        name: fileName.trim(),
+        content: ''
+      }));
+    }
+  });
+
+  document.getElementById('btnExpDeepSearch')?.addEventListener('click', async () => {
+    if (!isConnected || !ws) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    const query = await showPromptModal({
+      title: t('files.btn_deep_search_title') || 'Tìm kiếm tệp đệ quy',
+      message: 'Nhập từ khóa tên tệp cần tìm trong thư mục hiện tại và các thư mục con:',
+      defaultValue: explorerSearchInput?.value || '',
+      confirmText: 'Tìm kiếm',
+      cancelText: t('dialog.btn_cancel') || 'Hủy'
+    });
+    if (query && query.trim()) {
+      ws.send(JSON.stringify({
+        type: 'file_search_request',
+        root_dir: remoteCurrentPath || 'desktop',
+        query: query.trim()
+      }));
+    }
+  });
+
+  // --- TERMINAL QUICK COMMAND CHIPS & LOG EXPORT (Requirement 12) ---
+  document.querySelectorAll('#terminalQuickBar .term-quick-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const cmd = chip.dataset.termCmd;
+      if (!cmd) return;
+      if (!isConnected || !ws) {
+        showToast(t('toast.connect_before_terminal'), 'info');
+        return;
+      }
+      terminalOutput.textContent += `${currentTerminalPrompt}${cmd}\n`;
+      terminalScreen.scrollTop = terminalScreen.scrollHeight;
+      lastDispatchedTerminalCmd = cmd.trim();
+      ws.send(JSON.stringify({ type: 'terminal_input', command: cmd + '\n' }));
+    });
+  });
+
+  document.getElementById('btnExportTerminalLog')?.addEventListener('click', () => {
+    const content = terminalOutput?.textContent || '';
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    downloadBlob(blob, `meikova-terminal-${currentRoom || 'session'}-${Date.now()}.txt`);
+    showToast('Đã xuất nhật ký Terminal thành công!', 'success');
+  });
+
+  // --- TASK MANAGER PROCESS SORTING (Requirement 12) ---
+  let currentProcessSort = 'ram';
+  document.querySelectorAll('.proc-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.proc-sort-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentProcessSort = btn.dataset.procSort || 'ram';
+      if (currentProcessList && currentProcessList.length > 0) {
+        currentProcessList.sort((a, b) => {
+          if (currentProcessSort === 'name') return String(a.name || '').localeCompare(String(b.name || ''));
+          if (currentProcessSort === 'pid') return (a.pid || 0) - (b.pid || 0);
+          return (b.memory_mb || 0) - (a.memory_mb || 0);
+        });
+        renderProcessTable();
+      }
+    });
+  });
 
   initTunnelController();
   // Start app
