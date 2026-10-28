@@ -67,13 +67,22 @@ def sync_all(version: str):
     save_version(version)
     print(f"  [+] Saved version.json: {version}")
 
-    # 2. relay-server/package.json
+    # 2. relay-server/package.json & relay-server/package-lock.json
     pkg_file = REPO_ROOT / "relay-server" / "package.json"
     if pkg_file.exists():
         pkg = json.loads(pkg_file.read_text(encoding="utf-8"))
         pkg["version"] = version
         pkg_file.write_text(json.dumps(pkg, indent=2) + "\n", encoding="utf-8")
         print(f"  [+] Updated: relay-server/package.json")
+
+    lock_file = REPO_ROOT / "relay-server" / "package-lock.json"
+    if lock_file.exists():
+        lock = json.loads(lock_file.read_text(encoding="utf-8"))
+        lock["version"] = version
+        if "packages" in lock and "" in lock["packages"]:
+            lock["packages"][""]["version"] = version
+        lock_file.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
+        print(f"  [+] Updated: relay-server/package-lock.json")
 
     # 3. installer_host.iss & installer_client.iss
     for iss in ["installer_host.iss", "installer_client.iss"]:
@@ -97,11 +106,26 @@ def sync_all(version: str):
         f'APP_VERSION = "{version}"'
     )
 
-    # 6. host_agent/host_service.py
+    # 6. host_agent/host_service.py & host_agent/tray_menu.py & host_agent/gui_view.html
     update_file(
         REPO_ROOT / "host_agent" / "host_service.py",
         r'APP_VERSION\s*=\s*"[^"]+"',
         f'APP_VERSION = "{version}"'
+    )
+    update_file(
+        REPO_ROOT / "host_agent" / "tray_menu.py",
+        r'APP_VERSION\s*=\s*"[^"]+"',
+        f'APP_VERSION = "{version}"'
+    )
+    update_file(
+        REPO_ROOT / "host_agent" / "tray_menu.py",
+        r'Meikova Relay // v[0-9\.]+',
+        f'Meikova Relay // v{version}'
+    )
+    update_file(
+        REPO_ROOT / "host_agent" / "gui_view.html",
+        r'id="txtHostVersion">v[0-9\.]+<',
+        f'id="txtHostVersion">v{version}<'
     )
 
     # 7. client_desktop/desktop_client.py
@@ -126,6 +150,12 @@ def sync_all(version: str):
         update_file(p, r'MEIKOVA RELAY v[0-9\.]+', f'MEIKOVA RELAY v{version}')
         # Cache query strings
         update_file(p, r'(\.css|\.js)\?v=[0-9\.]+', rf'\1?v={version}')
+
+    # 9. App logic PWA cache purge (relay-server/public/js/app.js & web-client/js/app.js)
+    for app_rel in ["relay-server/public/js/app.js", "web-client/js/app.js"]:
+        p = REPO_ROOT / app_rel
+        if not p.exists(): continue
+        update_file(p, r"const PWA_VER = '[^']+';", f"const PWA_VER = '{version}';")
 
     # 9. i18n dictionaries (relay-server/public/js/i18n.js & web-client/js/i18n.js)
     for js_rel in ["relay-server/public/js/i18n.js", "web-client/js/i18n.js"]:

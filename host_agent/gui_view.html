@@ -16,10 +16,12 @@
       --text: #F8FAFC;
       --text-muted: #64748B;
       --text-sub: #94A3B8;
-      --accent: #22C55E;
-      --accent-glow: rgba(34, 197, 94, 0.25);
-      --accent-cyan: #38BDF8;
-      --accent-cyan-bg: rgba(56, 189, 248, 0.12);
+      --accent: #5BD691;
+      --brand-mint: #83E8AC;
+      --brand-mint-hi: #A6F0C6;
+      --accent-glow: rgba(91, 214, 145, 0.3);
+      --accent-cyan: #83E8AC;
+      --accent-cyan-bg: rgba(131, 232, 172, 0.12);
       --accent-red: #EF4444;
       --accent-red-bg: rgba(239, 68, 68, 0.14);
       --accent-amber: #F59E0B;
@@ -88,9 +90,9 @@
       font-size: 9px;
       font-weight: 700;
       letter-spacing: 0.04em;
-      color: #38BDF8;
-      background: rgba(56, 189, 248, 0.12);
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #83E8AC;
+      background: rgba(131, 232, 172, 0.12);
+      border: 1px solid rgba(131, 232, 172, 0.3);
       padding: 1px 6px;
       border-radius: 9999px;
     }
@@ -204,7 +206,7 @@
     .status-stopped { background: var(--accent-red-bg); color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); }
     .status-ready { background: rgba(34, 197, 94, 0.12); color: var(--accent); border-color: rgba(34, 197, 94, 0.35); }
     .status-reconnecting { background: var(--accent-amber-bg); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3); }
-    .status-connected { background: var(--accent-cyan-bg); color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.35); }
+    .status-connected { background: var(--accent-cyan-bg); color: var(--accent-cyan); border-color: rgba(131, 232, 172, 0.35); }
 
     .telemetry-kicker {
       font-size: 10px;
@@ -315,7 +317,7 @@
       font-weight: 700;
       letter-spacing: 0.06em;
     }
-    .card-val.cyan { color: var(--text); text-shadow: 0 0 16px rgba(56, 189, 248, 0.4); }
+    .card-val.cyan { color: var(--text); text-shadow: 0 0 16px rgba(131, 232, 172, 0.4); }
     .card-val.green { color: var(--accent); text-shadow: 0 0 16px rgba(34, 197, 94, 0.5); }
 
     .btn-group {
@@ -342,7 +344,7 @@
       border-color: var(--line-hover);
       transform: translateY(-1px);
     }
-    .btn-pill-sm.cyan { color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.3); }
+    .btn-pill-sm.cyan { color: var(--accent-cyan); border-color: rgba(131, 232, 172, 0.3); }
     .btn-pill-sm.green { color: var(--accent); border-color: rgba(34, 197, 94, 0.3); }
 
     .btn-deck-wide {
@@ -363,7 +365,7 @@
     .btn-deck-wide:hover {
       background: var(--btn-surface-hover);
       border-color: var(--accent-cyan);
-      box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
+      box-shadow: 0 0 16px rgba(131, 232, 172, 0.2);
     }
 
     /* Session Banner */
@@ -387,7 +389,7 @@
       line-height: 1;
       vertical-align: middle;
       background: var(--accent-cyan-bg);
-      border: 1px solid rgba(56, 189, 248, 0.4);
+      border: 1px solid rgba(131, 232, 172, 0.4);
       color: var(--accent-cyan);
       font-size: 9px;
       font-weight: 700;
@@ -533,9 +535,9 @@
       font-family: 'Consolas', monospace;
     }
     .badge-mini.cyan {
-      background: rgba(56, 189, 248, 0.12);
+      background: rgba(131, 232, 172, 0.12);
       color: var(--accent-cyan);
-      border: 1px solid rgba(56, 189, 248, 0.35);
+      border: 1px solid rgba(131, 232, 172, 0.35);
     }
     .badge-mini.green {
       background: rgba(34, 197, 94, 0.12);
@@ -744,7 +746,7 @@
       width: 44px;
       height: 44px;
       border-radius: 12px;
-      background: rgba(56, 189, 248, 0.1);
+      background: rgba(131, 232, 172, 0.1);
       color: var(--accent-cyan);
       margin-bottom: 10px;
     }
@@ -783,7 +785,7 @@
     }
     .host-bubble-row.remote .host-bubble {
       background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.6) 100%);
-      border: 1px solid rgba(56, 189, 248, 0.28);
+      border: 1px solid rgba(131, 232, 172, 0.28);
       border-radius: 12px 12px 12px 2px;
       color: #F1F5F9;
     }
@@ -812,7 +814,7 @@
       transition: all 0.15s ease;
     }
     .host-chip:hover {
-      background: rgba(56, 189, 248, 0.12);
+      background: rgba(131, 232, 172, 0.12);
       border-color: var(--accent-cyan);
       color: var(--text);
     }
@@ -838,7 +840,7 @@
     }
     .host-chat-input:focus {
       border-color: var(--accent-cyan);
-      box-shadow: 0 0 0 1px var(--accent-cyan), 0 0 12px -2px rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 0 1px var(--accent-cyan), 0 0 12px -2px rgba(131, 232, 172, 0.35);
     }
     .host-chat-send-btn {
       display: inline-flex;
@@ -883,7 +885,7 @@
           <path fill-rule="evenodd" d="M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z"/>
         </g>
       </svg>
-      <span class="titlebar-title">MEIKOVA RELAY HOST <span class="host-version-pill" id="txtHostVersion">v1.1.0</span></span>
+      <span class="titlebar-title">MEIKOVA RELAY HOST <span class="host-version-pill" id="txtHostVersion">v1.4.0</span></span>
     </div>
     <div class="titlebar-spacer pywebview-drag-region"></div>
     <div class="titlebar-actions">

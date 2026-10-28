@@ -18,6 +18,8 @@ from typing import Optional, Dict, Any
 
 current_dir = Path(__file__).resolve().parent
 
+APP_VERSION = "1.4.0"
+
 try:
     from PIL import Image, ImageDraw
     HAS_PIL = True
@@ -280,7 +282,7 @@ class CustomMenuItem(pystray.MenuItem if HAS_PYSTRAY else object):
 def build_tray_menu(api, on_restore, on_exit):
     """
     Builds dynamic Meikova Harvest-style tray menu:
-    - Header: Meikova Relay // v1.0.22 (Logo icon)
+    - Header: Meikova Relay // v1.4.0 (Logo icon)
     - Status: Room ID & Online/Offline (Status beacon)
     - Separator
     - Mở Meikova Relay (Window icon)
@@ -356,9 +358,10 @@ def build_tray_menu(api, on_restore, on_exit):
                 return api.t(k)
             return k
 
+        header_ver = getattr(api, "app_version", None) or getattr(api, "APP_VERSION", None) or APP_VERSION
         return (
             # 1. App Title Header
-            CustomMenuItem("Meikova Relay // v1.0.22", lambda: None, icon_name="logo", enabled=False),
+            CustomMenuItem(f"Meikova Relay // v{header_ver}", lambda: None, icon_name="logo", enabled=False),
             # 2. Live telemetry status
             CustomMenuItem(status_text, lambda: None, icon_name=status_icon, enabled=False),
             pystray.Menu.SEPARATOR,

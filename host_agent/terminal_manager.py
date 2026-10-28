@@ -7,7 +7,8 @@ import atexit
 from collections import deque
 from typing import Callable, Optional
 
-_PS_ECHO_PROMPT_RE = re.compile(r"^PS\s+[A-Za-z0-9_:\\/\.\-\s~]+>\s*(.*)$")
+# Matches "PS>", "PS >", "PS C:\path>", "C:\path>", or POSIX "$ " / "# " prompts with optional echoed command
+_PS_ECHO_PROMPT_RE = re.compile(r"^(?:PS(?:\s+[^>]*)?>|[A-Za-z]:\\[^>]*>)\s*(.*)$", re.IGNORECASE)
 _CWD_MARKER_PREFIX = "__MKV_CWD__"
 
 
@@ -31,13 +32,13 @@ class TerminalManager:
         self.current_cwd = os.getcwd()
         if sys.platform == "win32":
             # Configure UTF-8 encoding and a custom prompt function that emits the current working directory
-            # with a newline so stdout flushes immediately after every command without leaving a buffered
-            # "PS D:\...> " prefix that duplicates the next typed command.
+            # with a newline so stdout flushes immediately after every command. Returning a single space ' '
+            # prevents PowerShell from falling back to its built-in "PS>" default prompt string.
             init_cmd = (
                 "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); "
                 "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
                 "$OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
-                "function prompt { [Console]::Out.WriteLine('__MKV_CWD__' + $executionContext.SessionState.Path.CurrentLocation); return '' }"
+                "function prompt { [Console]::Out.WriteLine('__MKV_CWD__' + $executionContext.SessionState.Path.CurrentLocation); return ' ' }"
             )
             shell_cmd = ["powershell.exe", "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", init_cmd]
             ready_msg = ""
@@ -72,10 +73,10 @@ class TerminalManager:
         if not stripped:
             return False
 
+        m = _PS_ECHO_PROMPT_RE.match(stripped)
         with self._lock:
             if not self._pending_echo_cmds:
-                # Also strip bare empty PS prompt lines like "PS C:\path>" with no output
-                m = _PS_ECHO_PROMPT_RE.match(stripped)
+                # Always strip bare empty PS prompt lines like "PS>", "PS >", or "PS C:\path>" with no command output
                 if m and not m.group(1).strip():
                     return True
                 return False
@@ -86,13 +87,20 @@ class TerminalManager:
                 self._pending_echo_cmds.popleft()
                 return True
 
-            # PowerShell prompt + command echo match (e.g. "PS D:\path> ls")
-            m = _PS_ECHO_PROMPT_RE.match(stripped)
+            # PowerShell prompt + command echo match (e.g. "PS>ls", "PS > ls", "PS D:\path> ls")
             if m:
                 echoed_cmd = m.group(1).strip()
-                if echoed_cmd == expected or not echoed_cmd:
-                    if echoed_cmd == expected:
-                        self._pending_echo_cmds.popleft()
+                if echoed_cmd == expected:
+                    self._pending_echo_cmds.popleft()
+                    return True
+                if not echoed_cmd:
+                    return True
+                # Check if echoed_cmd matches any queued command in _pending_echo_cmds
+                if echoed_cmd in self._pending_echo_cmds:
+                    try:
+                        self._pending_echo_cmds.remove(echoed_cmd)
+                    except ValueError:
+                        pass
                     return True
         return False
 

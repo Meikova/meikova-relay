@@ -22,7 +22,12 @@ class TestClipboardSync(unittest.TestCase):
             if not ctypes.windll.user32.OpenClipboard(None) and ctypes.windll.kernel32.GetLastError() == 5:
                 raise unittest.SkipTest("Windows clipboard access denied in headless/CI session (WinError 5)")
         self.assertTrue(ok)
-        val = mgr.get_clipboard_text()
+        val = None
+        for _ in range(5):
+            val = mgr.get_clipboard_text()
+            if val == test_content:
+                break
+            time.sleep(0.05)
         self.assertEqual(val, test_content)
 
     def test_on_local_clipboard_change(self):

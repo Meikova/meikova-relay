@@ -26,7 +26,7 @@ from typing import Optional
 import multiprocessing
 multiprocessing.freeze_support()
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.4.0"
 
 # Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":

@@ -151,8 +151,9 @@ let initPromise = null;
 function setupClient(override = {}) {
   const tursoUrl = (override.url || process.env.TURSO_DATABASE_URL || '').trim();
   const tursoToken = (override.authToken || process.env.TURSO_AUTH_TOKEN || '').trim();
+  const hasLocalOverride = Boolean(override.dbPath || process.env.DB_PATH || process.env.NODE_ENV === 'test');
 
-  if (tursoUrl && (tursoToken || tursoUrl.startsWith('libsql:') || tursoUrl.startsWith('https:'))) {
+  if (!hasLocalOverride && tursoUrl && (tursoToken || tursoUrl.startsWith('libsql:') || tursoUrl.startsWith('https:'))) {
     isTurso = true;
     adapterUrl = tursoUrl;
     client = createClient({
@@ -346,6 +347,17 @@ const DB = {
     });
 
     return { token, user: { id: user.id, username: user.username } };
+  },
+
+  async createSession(userId) {
+    await ensureInit();
+    const token = crypto.randomBytes(32).toString('hex');
+    const now = Date.now();
+    await client.execute({
+      sql: 'INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)',
+      args: [token, userId, now]
+    });
+    return { token, userId, createdAt: now };
   },
 
   async validateSession(token) {
@@ -812,15 +824,6 @@ const DB = {
       sql: 'UPDATE devices SET is_online = ?, last_seen = ? WHERE room_id = ?',
       args: [isOnline ? 1 : 0, now, roomId]
     });
-  },
-
-  async resetAllDevicesOffline() {
-    await ensureInit();
-    try {
-      await client.execute('UPDATE devices SET is_online = 0;');
-    } catch (err) {
-      console.warn('[DB] Failed to reset device online states:', err.message);
-    }
   },
 
   async touchDeviceAccess(roomId, hostMeta = null) {

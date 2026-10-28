@@ -1,37 +1,23 @@
 /**
-
  * MEIKOVA RELAY — INTERNATIONALIZATION (i18n) ENGINE
-
  * Default / Primary: Vietnamese ('vi')
-
  * Secondary: English ('en')
-
  * Architecture: Zero-dependency, extensible dictionary with dynamic interpolation,
-
  * DOM translation binding, URL query sync, and localStorage persistence.
-
  */
 
 (function (root, factory) {
-
   if (typeof module === 'object' && module.exports) {
-
     module.exports = factory();
-
   } else {
-
     root.MeikovaI18n = factory();
 
     root.t = root.MeikovaI18n.t;
-
   }
-
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-
   'use strict';
 
   const DEFAULT_LANG = 'vi';
-
   const STORAGE_KEY = 'meikova_relay_lang';
 
   // Master Translation Dictionary
@@ -39,7 +25,6 @@
   // ponytail: Minimal flat-key dictionary; registerLang() allows arbitrary expansion (ja, zh, ko)
 
   const MESSAGES = {
-
     vi: {
 
       // Top Navigation
@@ -247,8 +232,8 @@
       'toast.resolution_failed': 'Không thể đổi độ phân giải màn hình máy trạm',
       'toast.installing_virtual_display': 'Đang tải & kích hoạt Màn hình ảo trên máy trạm...',
       'deck.monitor_all': 'Tất cả',
-      'deck.monitor_single': 'Màn {num}',
-            'deck.protocol_title': 'Giao thức kết nối: Native First & Meikova Bypass',
+      'deck.monitor_single': 'Màn hình #{num}',
+      'deck.protocol_title': 'Giao thức kết nối: Native First & Meikova Bypass',
       'deck.protocol_menu_title': 'MA TRẬN GIAO THỨC (PROTOCOL MATRIX)',
       'deck.proto_remote': 'Remote Desktop',
       'deck.proto_terminal': 'Terminal (PTY)',
@@ -269,7 +254,7 @@
       'deck.proto_download_rdp': 'Tải file .rdp 1-click',
       'deck.proto_copy_ssh': 'Sao chép lệnh SSH',
       'deck.proto_copied': 'Đã sao chép lệnh SSH vào bộ nhớ tạm!',
-'deck.quality_title': 'Cấu hình phân giải, FPS & chất lượng',
+      'deck.quality_title': 'Cấu hình phân giải, FPS & chất lượng',
       'deck.quality_menu_title': 'CHẤT LƯỢNG NÉN & TỐC ĐỘ FPS',
       'deck.quality_native_1to1': '1:1 Chuẩn gốc (Lossless Text)',
       'deck.quality_native_1to1_desc': 'Nguyên bản từng pixel, độ nét tối đa không suy hao',
@@ -386,7 +371,7 @@
       'files.btn_go': 'Đến',
       'files.btn_cancel': 'Hủy',
       'files.edit_path_title': 'Chỉnh sửa đường dẫn trực tiếp',
-    'files.btn_edit_path': 'Đường dẫn',
+      'files.btn_edit_path': 'Đường dẫn',
       'files.btn_up': 'Lên',
       'files.btn_up_title': 'Thư mục cha',
       'files.btn_refresh': 'Làm mới',
@@ -650,7 +635,7 @@
       'deck.tools_remote_host_cfg_desc': 'Tùy chỉnh Anti-Sleep, Auto-Wakeup, Stealth, Service 24/7 & UAC',
       'deck.fps_uncapped': 'MAX',
       'deck.fps_custom_placeholder': 'Không giới hạn (0)',
-      'deck.btn_set_fps_limit': 'Set Limit FPS',
+      'deck.btn_set_fps_limit': 'Đặt FPS',
       'deck.power_sleep': 'Ngủ (Sleep)',
       'deck.power_shutdown': 'Tắt máy (Admin)',
       'proto.direct_rdp_title': 'Sử dụng trực tiếp luồng Remote Desktop ngay trên trình duyệt',
@@ -755,7 +740,7 @@
 
       'nav.home': 'Trang chủ',
       'ro.landing': 'TRANG CHỦ // GIỚI THIỆU',
-      'landing.badge': 'v1.2.0 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
+      'landing.badge': 'v1.4.0 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
       'landing.hero_title': 'ĐIỀU KHIỂN TỪ XA ĐA NỀN TẢNG CHÍNH XÁC CAO',
       'landing.hero_subtitle': 'Màn hình 120 FPS, âm thanh 2 chiều, kéo thả bố cục đa màn hình, thanh Deck 3 chế độ thông minh và quản trị máy trạm Windows, macOS, Linux an toàn qua Outbound Relay.',
       'landing.os_support_lbl': 'MÁY TRẠM HỖ TRỢ:',
@@ -996,6 +981,30 @@
       'proto.refresh_title': 'Quét lại giao thức',
       'proto.download_rdp_title': 'Tải file .rdp 1-click',
       'proto.copy_ssh_title': 'Sao chép lệnh SSH',
+      'proto.checking_rdp': 'Đang kiểm tra TermService...',
+      'proto.checking_ssh': 'Đang kiểm tra OpenSSH...',
+      'proto.checking_file': 'Đang kiểm tra SFTP / FTP...',
+      'proto.status_rdp_ready': 'RDP: SẴN SÀNG',
+      'proto.status_rdp_web': 'RDP: TRỰC TIẾP WEB',
+      'proto.desc_rdp_ready': 'Port 3389 mở (X.224) + Luồng Web',
+      'proto.desc_rdp_web': 'Chạy trực tiếp luồng RDP ngay trên trình duyệt',
+      'proto.status_ssh_ready': 'SSH: SẴN SÀNG',
+      'proto.status_ssh_web': 'SSH: TRỰC TIẾP WEB',
+      'proto.desc_ssh_ready': 'OpenSSH Port 22 + Web PTY Terminal',
+      'proto.desc_ssh_web': 'Chạy trực tiếp SSH / Host PTY trên trình duyệt',
+      'proto.status_sftp_ready': 'SFTP: SẴN SÀNG',
+      'proto.status_ftp_ready': 'FTP: SẴN SÀNG',
+      'proto.status_sftp_web': 'SFTP: TRỰC TIẾP WEB',
+      'proto.desc_sftp_ready': 'SFTP Subsystem + Trình quản lý tệp Web',
+      'proto.desc_ftp_ready': 'FTP Server + Trình quản lý tệp Web',
+      'proto.desc_sftp_web': 'Chạy trực tiếp SFTP File Explorer trên trình duyệt',
+      'proto.mode_auto_label': 'Tự động (Ưu tiên Native First)',
+      'proto.mode_bypass_label': 'Ép buộc Meikova Bypass Stream',
+      'proto.mode_native_label': 'Ép buộc kết nối Native (RDP/SSH)',
+      'toast.proto_direct_rdp_active': 'Đang chạy trực tiếp giao thức Remote Desktop (RDP) ngay trong trình duyệt!',
+      'toast.proto_direct_ssh_active': 'Đã mở trực tiếp giao thức Terminal (SSH / Host PTY) ngay trong trình duyệt!',
+      'toast.proto_direct_sftp_active': 'Đã mở trực tiếp trình quản lý tệp SFTP ngay trong trình duyệt!',
+      'toast.proto_tunnel_opened': 'Đã thiết lập đường hầm WebSocket TCP {proto} (Port {port}) trực tiếp trên trình duyệt!',
 
       // --- OSK Arrows ---
       'osk.left_title': 'Mũi tên trái',
@@ -1108,27 +1117,150 @@
       'toast.tunnel_copied': 'Đã chép liên kết Tunnel vào bộ nhớ tạm!',
       'toast.link_copied': 'Đã chép liên kết!',
       'toast.tunnel_cmd_copied': 'Đã chép lệnh cài đặt cloudflared!',
-      'toast.enter_room_id': 'Vui lòng nhập Room ID'
-
+      'toast.enter_room_id': 'Vui lòng nhập Room ID',
+      'deck.network_syncing': 'Đang đồng bộ khung hình mới nhất...',
+      'deck.stream_mode_label': 'CHẾ ĐỘ ĐIỀU TIẾT KHUNG HÌNH (FRAME PACING)',
+      'deck.stream_mode_vfr': 'Tự động VFR',
+      'deck.stream_mode_cfr': 'Liên tục CFR',
+      'deck.stream_mode_drop': 'Bỏ trễ Drop',
+      'deck.stream_mode_vfr_desc': 'Tần số quét biến thiên (VFR): tự động tăng tốc luồng khung hình khi có thao tác phím/chuột và tiết kiệm băng thông khi màn hình tĩnh',
+      'deck.stream_mode_cfr_desc': 'Tần số quét cố định liên tục (CFR): duy trì luồng đẩy khung hình đều đặn liên tục không nghỉ tĩnh',
+      'deck.stream_mode_drop_desc': 'Hàng đợi 0 độ trễ (Zero Drop): hủy bỏ ngay lập tức mọi khung hình trễ trên đường truyền WAN/Tunnel để chỉ hiển thị khung mới nhất',
+      'deck.stream_mode_hybrid': 'Tự động VFR',
+      'deck.stream_mode_youtube': 'Liên tục CFR',
+      'deck.stream_mode_zero_replay': 'Bỏ trễ Drop',
+      'deck.stream_mode_hybrid_desc': 'Tần số quét biến thiên (Variable Frame Rate): tự động tăng tốc luồng khung hình khi có thao tác phím/chuột và tiết kiệm băng thông khi màn hình tĩnh',
+      'deck.stream_mode_youtube_desc': 'Tần số quét cố định liên tục (Constant Frame Rate): duy trì luồng đẩy khung hình đều đặn liên tục không nghỉ tĩnh',
+      'deck.stream_mode_zero_replay_desc': 'Hàng đợi 0 độ trễ (Latest-Frame Drop): hủy bỏ ngay lập tức mọi khung hình trễ trên đường truyền WAN/Tunnel để chỉ hiển thị khung mới nhất',
+      'host_cfg.stream_mode': 'Phương thức truyền hình (Stream Mode)',
+      'dl_modal.adv_stream_mode': 'Phương thức truyền tải (Stream Mode)',
+      'toast.stream_mode_applied': 'Đã chuyển phương thức truyền tải: {mode}',
+      'deck.fps_badge_uncapped': 'UNCAPPED (KHÔNG GIỚI HẠN)',
+      'deck.fps_badge_limit': 'GIỚI HẠN: {fps} FPS',
+      'toast.fps_limit_set': 'Đã đặt giới hạn tốc độ: {fps} FPS',
+      'toast.fps_uncapped_set': 'Đã mở khóa tốc độ tối đa: Không giới hạn FPS (Uncapped)',
+      'toast.fps_custom_applied': 'Đã áp dụng giới hạn FPS tùy chỉnh: {fps} FPS',
+      'deck.color_filter_label': 'BỘ LỌC HÌNH ẢNH & LÀM NÉT (VISUAL FILTER)',
+      'deck.color_filter_normal': 'Tiêu chuẩn',
+      'deck.color_filter_crisp': 'Văn bản nét',
+      'deck.color_filter_night': 'Lọc đêm',
+      'deck.color_filter_contrast': 'Tương phản cao',
+      'deck.tools_pip_monitor': 'Màn hình nổi PiP (Mini-Monitor)',
+      'deck.tools_pip_monitor_desc': 'Tách luồng màn hình từ xa ra cửa sổ nổi luôn ghim trên cùng',
+      'deck.tools_open_url': 'Mở nhanh URL trên máy đích...',
+      'deck.tools_open_url_desc': 'Gửi đường dẫn web để tự động mở ngay trên trình duyệt máy trạm',
+      'deck.tools_auto_lock': 'Tự khóa máy khi ngắt kết nối (Auto-Lock)',
+      'deck.tools_auto_lock_desc': 'Tự động khóa màn hình OS ngay khi phiên điều khiển kết thúc',
+      'host_cfg.auto_lock': 'Tự khóa OS khi ngắt kết nối (Auto-Lock)',
+      'host_cfg.idle_saver': 'Tiết kiệm FPS khi nhàn rỗi >15s (Idle Eco)',
+      'host_cfg.color_filter': 'Bộ lọc hiển thị (Visual Filter)',
+      'toast.color_filter_applied': 'Đã áp dụng bộ lọc hình ảnh: {filter}',
+      'toast.auto_lock_enabled': 'Đã BẬT tự động khóa máy trạm khi ngắt kết nối (Auto-Lock)',
+      'toast.auto_lock_disabled': 'Đã TẮT tự động khóa máy trạm khi ngắt kết nối',
+      'toast.pip_enabled': 'Đã mở cửa sổ nổi Picture-in-Picture (Mini-Monitor)',
+      'toast.pip_disabled': 'Đã đóng cửa sổ nổi Picture-in-Picture',
+      'toast.pip_unsupported': 'Trình duyệt hiện tại không hỗ trợ Picture-in-Picture cho Canvas',
+      'toast.open_url_prompt': 'Nhập đường dẫn URL cần mở trên máy trạm (VD: https://google.com):',
+      'toast.open_url_sent': 'Đã mở đường dẫn trên máy trạm: {url}',
+      'qc.btn_popout': 'Tab mới',
+      'deck.monitor_primary': 'Màn hình chính',
+      'deck.monitor_primary_short': 'Màn chính',
+      'deck.monitor_single_short': 'Màn {num}',
+      'deck.right_click_btn': 'Chuột phải',
+      'deck.touch_mode_label': 'Chạm',
+      'common.ok': 'Đồng ý',
+      'common.confirm_title': 'Xác nhận',
+      'common.copied': 'Đã sao chép!',
+      'dl_modal.tag_web': 'Máy chủ Web',
+      'dl_modal.tag_wan': 'Cloudflare Tunnel (WAN)',
+      'dl_modal.tag_lan': 'Mạng Wi-Fi (LAN)',
+      'dl_modal.tag_tailscale': 'Tailscale Mesh',
+      'dl_modal.tag_local': 'Local Host',
+      'dl_modal.copy_server_url_title': 'Sao chép địa chỉ máy chủ',
+      'dl_modal.copy_gateway_url_title': 'Sao chép liên kết điều khiển',
+      'dl_modal.win_host_title': 'Windows Host',
+      'dl_modal.win_zip_title': 'Windows Portable',
+      'dl_modal.win_zip_sub': 'Gói ZIP nén sẵn',
+      'dl_modal.setup_win_title': 'Setup Tự Động Windows',
+      'dl_modal.setup_linux_title': 'Setup Tự Động Linux',
+      'dl_modal.setup_mac_title': 'Setup Tự Động macOS',
+      'dl_modal.linux_daemon_title': 'Linux Daemon',
+      'dl_modal.linux_daemon_sub': 'Ubuntu / Debian / Mint',
+      'dl_modal.linux_tar_title': 'Linux Tarball',
+      'dl_modal.linux_tar_sub': 'Chạy trên mọi distro',
+      'dl_modal.mac_host_title': 'macOS Host',
+      'dl_modal.mac_host_sub': 'Apple Silicon & Intel',
+      'dl_modal.powershell_quick_header': 'CÀI NHANH QUA POWERSHELL // WINDOWS TERMINAL',
+      'dl_modal.step1_title': 'Khởi chạy Host Agent trên máy tính cần điều khiển',
+      'dl_modal.step1_desc': 'Chạy file .EXE hoặc dán lệnh PowerShell để tự động kết nối máy trạm tới server.',
+      'dl_modal.step2_title': 'Truyền hình ảnh 60fps & âm thanh thời gian thực',
+      'dl_modal.step2_desc': 'Hỗ trợ Headless Service không cần màn hình ngoài, tự động hồi phục khi rớt mạng.',
+      'dl_modal.security_note': 'Mã hóa E2E · WebRTC Datachannel · Độ trễ < 30ms · Chạy ngầm Service Windows/Linux',
+      'dl_modal.client_win_title': 'Windows Client',
+      'dl_modal.client_zip_title': 'Win Client ZIP',
+      'dl_modal.client_zip_sub': 'Chạy không cài đặt',
+      'dl_modal.client_mac_title': 'macOS Client',
+      'dl_modal.client_mac_sub': 'Universal Binary',
+      'dl_modal.client_linux_title': 'Linux Client',
+      'dl_modal.client_linux_sub': 'Gói nén độc lập',
+      'dl_modal.client_apk_title': 'Android Viewer',
+      'dl_modal.client_apk_sub': 'Mobile Touch Viewer',
+      'dl_modal.client_pwa_title': 'Web App (PWA)',
+      'dl_modal.client_pwa_sub': 'Không cần cài file exe',
+      'dl_modal.qr_scan_title': 'Quét mở ngay trên điện thoại',
+      'dl_modal.qr_scan_desc_prefix': 'Dùng Camera iPhone / Android quét mã QR',
+      'dl_modal.qr_scan_desc_direct': 'để mở bảng điều khiển từ xa trực tiếp trên điện thoại.',
+      'dl_modal.qr_scan_desc_lan': '(cùng mạng Wi-Fi) để mở bảng điều khiển từ xa trên điện thoại.',
+      'dl_modal.qr_scan_desc_tailscale': '(qua Tailscale) để mở bảng điều khiển từ xa trên điện thoại.',
+      'dl_modal.qr_scan_desc_hf': 'để mở trực tiếp qua Hugging Face Space.',
+      'dl_modal.viewer_tab_desktop': 'Máy tính (Desktop)',
+      'dl_modal.viewer_tab_ios': 'iOS (iPhone / iPad)',
+      'dl_modal.viewer_tab_android': 'Android',
+      'dl_modal.viewer_desktop_step1_title': 'Tải Client tương ứng hệ điều hành hoặc mở PWA',
+      'dl_modal.viewer_desktop_step1_desc': 'Khuyên dùng Windows Client .EXE (WebView2) hoặc macOS .DMG để tận hưởng độ trễ 60fps.',
+      'dl_modal.viewer_desktop_step2_title': 'Nhập ID phiên hoặc quét mã để kết nối tức thì',
+      'dl_modal.viewer_desktop_step2_desc': 'Điều khiển mượt mà, hỗ trợ truyền tệp đa luồng, clipboard 2 chiều và chuyển âm thanh stereo.',
+      'dl_modal.viewer_desktop_note': 'Direct WebRTC · WebView2 Hardware Acceleration · Fullscreen & Multi-monitor',
+      'dl_modal.viewer_ios_step1_title': 'Mở Safari hoặc quét mã QR',
+      'dl_modal.viewer_ios_step1_desc': 'Bấm nút <b>Chia sẻ</b> (mũi tên hướng lên) ở thanh dưới cùng của Safari.',
+      'dl_modal.viewer_ios_step2_title': 'Thêm vào MH chính (PWA)',
+      'dl_modal.viewer_ios_step2_desc': 'Dùng như ứng dụng gốc với cử chỉ chạm vuốt cảm ứng mượt mà và bàn phím ảo.',
+      'dl_modal.viewer_ios_note': 'Hỗ trợ Touch Trackpad ảo · Pinch to zoom · Bàn phím điều khiển từ xa',
+      'dl_modal.viewer_android_step1_title': 'Tải file APK trực tiếp hoặc cài PWA',
+      'dl_modal.viewer_android_step1_desc': 'Tải .APK ở trên hoặc mở Chrome bấm menu <b>⋮</b> → <b>Cài đặt ứng dụng</b>.',
+      'dl_modal.viewer_android_step2_title': 'Quản trị máy trạm toàn màn hình',
+      'dl_modal.viewer_android_step2_desc': 'Không có thanh địa chỉ duyệt web, hỗ trợ phím chức năng ảo và chuột cảm ứng.',
+      'dl_modal.viewer_android_note': 'Chế độ Immersive Fullscreen · Hỗ trợ phím Ctrl/Alt/Del ảo · Low-latency streaming',
+      'dl_modal.github_releases': 'GitHub Releases // Xem tất cả bản dựng',
+      'snippets.password_desc': 'Mật khẩu sẽ được truyền trực tiếp vào bàn phím máy trạm qua chuỗi ký tự mà không lưu vào bộ nhớ tạm (Clipboard).',
+      'snippets.password_placeholder': 'Nhập mật khẩu cần truyền...',
+      'host_cfg.subtitle': 'ĐỒNG BỘ TRỰC TIẾP VỚI MEIKOVA HOST AGENT',
+      'deck.telemetry_system': 'HỆ THỐNG',
+      'deck.telemetry_system_val': 'CHỜ LỆNH // SẴN SÀNG',
+      'deck.telemetry_network': 'MẠNG',
+      'deck.telemetry_network_val': '0 KÊNH HOẠT ĐỘNG',
+      'deck.telemetry_protocol': 'GIAO THỨC',
+      'deck.telemetry_protocol_val': 'WEBRTC // ĐỘ TRỄ THẤP',
+      'deck.telemetry_engine': 'ĐỘNG CƠ',
+      'deck.telemetry_engine_val': 'MEIKOVA RELAY v1.3.0',
 
     },
-
     en: {
 
       // Machine-Readable Error Codes (Law 7 Taxonomy)
-      'RELAY_MISSING_CREDENTIALS': 'Missing Room ID or PIN.',
+      'RELAY_MISSING_CREDENTIALS': 'Missing Room ID or PIN code.',
       'RELAY_ROOM_OFFLINE': 'Workstation is offline or does not exist.',
-      'RELAY_INVALID_PIN': 'Incorrect security PIN.',
-      'RELAY_SESSION_NOT_FOUND': 'Connection session not found or disconnected.',
+      'RELAY_INVALID_PIN': 'Security PIN is incorrect.',
+      'RELAY_SESSION_NOT_FOUND': 'Connection session does not exist or has closed.',
       'AUTH_INVALID_CREDENTIALS': 'Invalid username or password.',
-      'AUTH_TOKEN_MISSING': 'Missing SSO authentication token.',
+      'AUTH_TOKEN_MISSING': 'Missing authentication token.',
       'AUTH_TOKEN_INVALID': 'Authentication token is invalid or expired.',
-      'AUTH_GOOGLE_CREDENTIAL_MISSING': 'Missing Google authentication credential.',
+      'AUTH_GOOGLE_CREDENTIAL_MISSING': 'Missing Google credentials.',
       'AUTH_GOOGLE_FAILED': 'Google authentication failed.',
-      'AUTH_UNAUTHORIZED': 'Authentication required.',
-      'AUTH_SESSION_EXPIRED': 'Session has expired.',
+      'AUTH_UNAUTHORIZED': 'Authentication required to perform this action.',
+      'AUTH_SESSION_EXPIRED': 'Login session has expired.',
       'AUTH_REGISTER_FAILED': 'Account registration failed.',
-      'VALIDATION_FAILED': 'Invalid request parameters.',
+      'VALIDATION_FAILED': 'Invalid request payload.',
       'RESOURCE_NOT_FOUND': 'Requested resource not found.',
       'SYSTEM_INTERNAL_ERROR': 'Internal server error.',
 
@@ -1186,21 +1318,21 @@
       'dl_modal.client_role_hint': 'CONTROLLER DEVICE: Install on your device to connect, monitor, and control hosts.',
 
       // Machine-Readable Error Codes (Law 7 Taxonomy)
-      'RELAY_MISSING_CREDENTIALS': 'Thiếu Room ID hoặc mã PIN bảo mật.',
-      'RELAY_ROOM_OFFLINE': 'Máy trạm đang Offline hoặc không tồn tại.',
-      'RELAY_INVALID_PIN': 'Mã PIN bảo mật không chính xác.',
-      'RELAY_SESSION_NOT_FOUND': 'Phiên kết nối không tồn tại hoặc đã bị đóng.',
-      'AUTH_INVALID_CREDENTIALS': 'Sai tên đăng nhập hoặc mật khẩu.',
-      'AUTH_TOKEN_MISSING': 'Thiếu mã xác thực (SSO token).',
-      'AUTH_TOKEN_INVALID': 'Mã xác thực không hợp lệ hoặc đã hết hạn.',
-      'AUTH_GOOGLE_CREDENTIAL_MISSING': 'Thiếu thông tin xác thực Google.',
-      'AUTH_GOOGLE_FAILED': 'Xác thực Google không thành công.',
-      'AUTH_UNAUTHORIZED': 'Yêu cầu đăng nhập để thực hiện thao tác.',
-      'AUTH_SESSION_EXPIRED': 'Phiên đăng nhập đã hết hạn.',
-      'AUTH_REGISTER_FAILED': 'Đăng ký tài khoản không thành công.',
-      'VALIDATION_FAILED': 'Dữ liệu yêu cầu không hợp lệ.',
-      'RESOURCE_NOT_FOUND': 'Không tìm thấy tài nguyên yêu cầu.',
-      'SYSTEM_INTERNAL_ERROR': 'Lỗi máy chủ nội bộ.',
+      'RELAY_MISSING_CREDENTIALS': 'Missing Room ID or PIN code.',
+      'RELAY_ROOM_OFFLINE': 'Workstation is offline or does not exist.',
+      'RELAY_INVALID_PIN': 'Security PIN is incorrect.',
+      'RELAY_SESSION_NOT_FOUND': 'Connection session does not exist or has closed.',
+      'AUTH_INVALID_CREDENTIALS': 'Invalid username or password.',
+      'AUTH_TOKEN_MISSING': 'Missing authentication token.',
+      'AUTH_TOKEN_INVALID': 'Authentication token is invalid or expired.',
+      'AUTH_GOOGLE_CREDENTIAL_MISSING': 'Missing Google credentials.',
+      'AUTH_GOOGLE_FAILED': 'Google authentication failed.',
+      'AUTH_UNAUTHORIZED': 'Authentication required to perform this action.',
+      'AUTH_SESSION_EXPIRED': 'Login session has expired.',
+      'AUTH_REGISTER_FAILED': 'Account registration failed.',
+      'VALIDATION_FAILED': 'Invalid request payload.',
+      'RESOURCE_NOT_FOUND': 'Requested resource not found.',
+      'SYSTEM_INTERNAL_ERROR': 'Internal server error.',
 
       // Telemetry Readouts
 
@@ -1266,11 +1398,11 @@
       'deck.kb_phone_desc': 'Native iOS & Android IME keyboard for local typing',
       'deck.kb_osk_title': 'On-Screen Virtual Keyboard',
       'deck.kb_osk_desc': 'Full floating OSK with Esc, F1-F12, Ctrl, Alt, Win...',
-      'deck.keyboard_btn': 'Phím',
-      'deck.quick_keys_title': 'Bật/Tắt thanh phím tắt (Ctrl+Alt+Del, Esc, Tab)',
-      'deck.quick_keys_btn': 'Phím tắt',
-      'deck.touch_mode_title': 'Chế độ cảm ứng: Chạm trực tiếp / Bàn di chuột ảo',
-      'deck.right_click_title': 'Nhấp chuột phải tại vị trí con trỏ',
+      'deck.keyboard_btn': 'Keys',
+      'deck.quick_keys_title': 'Toggle quick shortcut bar (Ctrl+Alt+Del, Esc, Tab)',
+      'deck.quick_keys_btn': 'Shortcuts',
+      'deck.touch_mode_title': 'Touch mode: Direct Touch / Virtual Trackpad',
+      'deck.right_click_title': 'Right-click at cursor position',
       'deck.monitor_title': 'Select display monitor',
       'deck.monitor_menu_title': 'SELECT STREAMING DISPLAY',
       'deck.monitor_all_title': 'All Displays ({count} screens)',
@@ -1337,8 +1469,8 @@
       'toast.resolution_failed': 'Failed to switch remote screen resolution',
       'toast.installing_virtual_display': 'Downloading & enabling Virtual Display driver...',
       'deck.monitor_all': 'All Screens',
-      'deck.monitor_single': 'Display {num}',
-            'deck.protocol_title': 'Connection Protocol: Native First & Meikova Bypass',
+      'deck.monitor_single': 'Display #{num}',
+      'deck.protocol_title': 'Connection Protocol: Native First & Meikova Bypass',
       'deck.protocol_menu_title': 'PROTOCOL MATRIX',
       'deck.proto_remote': 'Remote Desktop',
       'deck.proto_terminal': 'Terminal (PTY)',
@@ -1359,7 +1491,7 @@
       'deck.proto_download_rdp': 'Download .rdp 1-Click',
       'deck.proto_copy_ssh': 'Copy SSH Command',
       'deck.proto_copied': 'Copied SSH command to clipboard!',
-'deck.quality_title': 'Resolution, FPS & quality profile',
+      'deck.quality_title': 'Resolution, FPS & quality profile',
       'deck.quality_menu_title': 'QUALITY & PERFORMANCE PRESETS',
       'deck.quality_native_1to1': '1:1 Native (Pixel-Perfect)',
       'deck.quality_native_1to1_desc': 'True unscaled native resolution, zero quality loss',
@@ -1476,7 +1608,7 @@
       'files.btn_go': 'Go',
       'files.btn_cancel': 'Cancel',
       'files.edit_path_title': 'Edit path directly',
-    'files.btn_edit_path': 'Path',
+      'files.btn_edit_path': 'Path',
       'files.btn_up': 'Up',
       'files.btn_up_title': 'Parent directory',
       'files.btn_refresh': 'Refresh',
@@ -1739,8 +1871,8 @@
       'deck.tools_remote_host_cfg': 'Remote Host Configuration...',
       'deck.tools_remote_host_cfg_desc': 'Configure Anti-Sleep, Auto-Wakeup, Stealth, 24/7 Service & UAC',
       'deck.fps_uncapped': 'MAX',
-      'deck.fps_custom_placeholder': 'Unlimited (0)',
-      'deck.btn_set_fps_limit': 'Set Limit FPS',
+      'deck.fps_custom_placeholder': 'Uncapped (0)',
+      'deck.btn_set_fps_limit': 'Set FPS',
       'deck.power_sleep': 'Sleep Mode',
       'deck.power_shutdown': 'Shut Down (Admin)',
       'proto.direct_rdp_title': 'Use Remote Desktop stream directly in the browser',
@@ -1845,7 +1977,7 @@
 
       'nav.home': 'Home',
       'ro.landing': 'HOME // OVERVIEW',
-      'landing.badge': 'v1.2.0 // CROSS-PLATFORM // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
+      'landing.badge': 'v1.4.0 // CROSS-PLATFORM // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
       'landing.hero_title': 'PRECISION CROSS-PLATFORM REMOTE CONTROL',
       'landing.hero_subtitle': '120 FPS display, 2-way audio, multi-monitor grid layout, 3-mode smart deck, and secure remote control for Windows, macOS, and Linux workstations via Outbound Relay.',
       'landing.os_support_lbl': 'SUPPORTED WORKSTATIONS:',
@@ -2086,6 +2218,30 @@
       'proto.refresh_title': 'Rescan protocols',
       'proto.download_rdp_title': 'Download 1-click .rdp file',
       'proto.copy_ssh_title': 'Copy SSH command',
+      'proto.checking_rdp': 'Checking TermService...',
+      'proto.checking_ssh': 'Checking OpenSSH...',
+      'proto.checking_file': 'Checking SFTP / FTP...',
+      'proto.status_rdp_ready': 'RDP: READY',
+      'proto.status_rdp_web': 'RDP: WEB DIRECT',
+      'proto.desc_rdp_ready': 'Port 3389 active (X.224) + Web Stream',
+      'proto.desc_rdp_web': 'Runs Direct RDP Stream right in the browser',
+      'proto.status_ssh_ready': 'SSH: READY',
+      'proto.status_ssh_web': 'SSH: WEB DIRECT',
+      'proto.desc_ssh_ready': 'OpenSSH Port 22 + Web PTY Terminal',
+      'proto.desc_ssh_web': 'Runs Direct SSH / Host PTY right in the browser',
+      'proto.status_sftp_ready': 'SFTP: READY',
+      'proto.status_ftp_ready': 'FTP: READY',
+      'proto.status_sftp_web': 'SFTP: WEB DIRECT',
+      'proto.desc_sftp_ready': 'SFTP Subsystem + Web File Explorer',
+      'proto.desc_ftp_ready': 'FTP Server + Web File Explorer',
+      'proto.desc_sftp_web': 'Runs Direct SFTP File Explorer right in the browser',
+      'proto.mode_auto_label': 'Auto (Native First Priority)',
+      'proto.mode_bypass_label': 'Force Meikova Bypass Stream',
+      'proto.mode_native_label': 'Force Native Connection (RDP/SSH)',
+      'toast.proto_direct_rdp_active': 'Running Remote Desktop (RDP) directly inside the browser!',
+      'toast.proto_direct_ssh_active': 'Opened interactive SSH / Host PTY Terminal directly inside the browser!',
+      'toast.proto_direct_sftp_active': 'Opened SFTP File Explorer directly inside the browser!',
+      'toast.proto_tunnel_opened': 'Established in-browser {proto} WebSocket TCP tunnel (Port {port})!',
 
       // --- OSK Arrows ---
       'osk.left_title': 'Left Arrow',
@@ -2198,73 +2354,178 @@
       'toast.tunnel_copied': 'Tunnel link copied to clipboard!',
       'toast.link_copied': 'Link copied to clipboard!',
       'toast.tunnel_cmd_copied': 'Installation command copied to clipboard!',
-      'toast.enter_room_id': 'Please enter Room ID'
-
+      'toast.enter_room_id': 'Please enter Room ID',
+      'deck.network_syncing': 'Syncing latest real-time frame...',
+      'deck.stream_mode_label': 'FRAME PACING & STREAMING MODE',
+      'deck.stream_mode_vfr': 'Adaptive VFR',
+      'deck.stream_mode_cfr': 'Continuous CFR',
+      'deck.stream_mode_drop': 'Zero-Queue Drop',
+      'deck.stream_mode_vfr_desc': 'Variable Frame Rate (VFR): auto-boosts framerate during input activity and saves bandwidth when static',
+      'deck.stream_mode_cfr_desc': 'Constant Frame Rate (CFR): maintains smooth, steady frame delivery continuously',
+      'deck.stream_mode_drop_desc': 'Zero-Queue Drop: drops stale frames on WAN/Tunnel immediately to display only latest frame',
+      'deck.stream_mode_hybrid': 'Adaptive VFR',
+      'deck.stream_mode_youtube': 'Continuous CFR',
+      'deck.stream_mode_zero_replay': 'Zero-Queue Drop',
+      'deck.stream_mode_hybrid_desc': 'Variable Frame Rate (VFR): automatically boosts real-time frame rate on keyboard/mouse input and saves bandwidth when idle',
+      'deck.stream_mode_youtube_desc': 'Constant Frame Rate (CFR): maintains a continuous, steady frame stream without static idle pauses',
+      'deck.stream_mode_zero_replay_desc': 'Zero-Queue Latest-Frame Drop: immediately drops delayed WAN/Tunnel frames and renders only the newest frame',
+      'host_cfg.stream_mode': 'Streaming Engine Mode',
+      'dl_modal.adv_stream_mode': 'Streaming Engine Mode',
+      'toast.stream_mode_applied': 'Switched streaming engine mode: {mode}',
+      'deck.fps_badge_uncapped': 'UNCAPPED (UNLIMITED)',
+      'deck.fps_badge_limit': 'LIMIT: {fps} FPS',
+      'toast.fps_limit_set': 'Target frame rate limit set to: {fps} FPS',
+      'toast.fps_uncapped_set': 'Unlocked maximum speed: Uncapped FPS',
+      'toast.fps_custom_applied': 'Applied custom FPS limit: {fps} FPS',
+      'deck.color_filter_label': 'VISUAL FILTER & TEXT SHARPENING',
+      'deck.color_filter_normal': 'Standard',
+      'deck.color_filter_crisp': 'Crisp Text',
+      'deck.color_filter_night': 'Night Shield',
+      'deck.color_filter_contrast': 'High Contrast',
+      'deck.tools_pip_monitor': 'Floating PiP Mini-Monitor',
+      'deck.tools_pip_monitor_desc': 'Pop out the live remote screen into an always-on-top floating window',
+      'deck.tools_open_url': 'Quick-Launch URL on Host...',
+      'deck.tools_open_url_desc': 'Send a web URL to open immediately in the remote workstation browser',
+      'deck.tools_auto_lock': 'Auto-Lock OS on Disconnect',
+      'deck.tools_auto_lock_desc': 'Automatically lock workstation OS screen when remote session ends',
+      'host_cfg.auto_lock': 'Auto-Lock OS on Disconnect',
+      'host_cfg.idle_saver': 'Idle FPS Bandwidth Saver (>15s)',
+      'host_cfg.color_filter': 'Visual Display Filter',
+      'toast.color_filter_applied': 'Applied visual display filter: {filter}',
+      'toast.auto_lock_enabled': 'ENABLED Auto-Lock on workstation disconnect',
+      'toast.auto_lock_disabled': 'DISABLED Auto-Lock on workstation disconnect',
+      'toast.pip_enabled': 'Opened Floating Picture-in-Picture Mini-Monitor',
+      'toast.pip_disabled': 'Closed Picture-in-Picture Mini-Monitor',
+      'toast.pip_unsupported': 'Picture-in-Picture is not supported on this browser',
+      'toast.open_url_prompt': 'Enter URL to launch on remote workstation (e.g. https://google.com):',
+      'toast.open_url_sent': 'Launched URL on remote workstation: {url}',
+      'qc.btn_popout': 'New Tab',
+      'deck.monitor_primary': 'Primary Display',
+      'deck.monitor_primary_short': 'Primary',
+      'deck.monitor_single_short': 'Disp {num}',
+      'deck.right_click_btn': 'Right Click',
+      'deck.touch_mode_label': 'Touch',
+      'common.ok': 'OK',
+      'common.confirm_title': 'Confirm',
+      'common.copied': 'Copied!',
+      'dl_modal.tag_web': 'Web Server',
+      'dl_modal.tag_wan': 'Cloudflare Tunnel (WAN)',
+      'dl_modal.tag_lan': 'Wi-Fi Network (LAN)',
+      'dl_modal.tag_tailscale': 'Tailscale Mesh',
+      'dl_modal.tag_local': 'Local Host',
+      'dl_modal.copy_server_url_title': 'Copy server address',
+      'dl_modal.copy_gateway_url_title': 'Copy controller link',
+      'dl_modal.win_host_title': 'Windows Host',
+      'dl_modal.win_zip_title': 'Windows Portable',
+      'dl_modal.win_zip_sub': 'Pre-packed ZIP',
+      'dl_modal.setup_win_title': 'Auto Setup Windows',
+      'dl_modal.setup_linux_title': 'Auto Setup Linux',
+      'dl_modal.setup_mac_title': 'Auto Setup macOS',
+      'dl_modal.linux_daemon_title': 'Linux Daemon',
+      'dl_modal.linux_daemon_sub': 'Ubuntu / Debian / Mint',
+      'dl_modal.linux_tar_title': 'Linux Tarball',
+      'dl_modal.linux_tar_sub': 'Runs on any distro',
+      'dl_modal.mac_host_title': 'macOS Host',
+      'dl_modal.mac_host_sub': 'Apple Silicon & Intel',
+      'dl_modal.powershell_quick_header': 'QUICK INSTALL VIA POWERSHELL // WINDOWS TERMINAL',
+      'dl_modal.step1_title': 'Launch Host Agent on target workstation',
+      'dl_modal.step1_desc': 'Run .EXE or paste PowerShell command to connect workstation to server.',
+      'dl_modal.step2_title': 'Stream 60fps video & real-time audio',
+      'dl_modal.step2_desc': 'Headless service support without physical monitor, auto-reconnects on network drops.',
+      'dl_modal.security_note': 'E2E Encrypted · WebRTC Datachannel · < 30ms Latency · Windows/Linux Background Service',
+      'dl_modal.client_win_title': 'Windows Client',
+      'dl_modal.client_zip_title': 'Win Client ZIP',
+      'dl_modal.client_zip_sub': 'Portable, no install',
+      'dl_modal.client_mac_title': 'macOS Client',
+      'dl_modal.client_mac_sub': 'Universal Binary',
+      'dl_modal.client_linux_title': 'Linux Client',
+      'dl_modal.client_linux_sub': 'Standalone tarball',
+      'dl_modal.client_apk_title': 'Android Viewer',
+      'dl_modal.client_apk_sub': 'Mobile Touch Viewer',
+      'dl_modal.client_pwa_title': 'Web App (PWA)',
+      'dl_modal.client_pwa_sub': 'No installation required',
+      'dl_modal.qr_scan_title': 'Scan to open on mobile',
+      'dl_modal.qr_scan_desc_prefix': 'Use iPhone / Android camera to scan QR code',
+      'dl_modal.qr_scan_desc_direct': 'to open the remote dashboard directly on your phone.',
+      'dl_modal.qr_scan_desc_lan': '(same Wi-Fi) to open the remote dashboard on your phone.',
+      'dl_modal.qr_scan_desc_tailscale': '(via Tailscale) to open the remote dashboard on your phone.',
+      'dl_modal.qr_scan_desc_hf': 'to open directly via Hugging Face Space.',
+      'dl_modal.viewer_tab_desktop': 'Desktop PC',
+      'dl_modal.viewer_tab_ios': 'iOS (iPhone / iPad)',
+      'dl_modal.viewer_tab_android': 'Android',
+      'dl_modal.viewer_desktop_step1_title': 'Download OS client or launch PWA',
+      'dl_modal.viewer_desktop_step1_desc': 'Windows Client .EXE (WebView2) or macOS .DMG recommended for smooth 60fps.',
+      'dl_modal.viewer_desktop_step2_title': 'Enter session ID or scan QR to connect instantly',
+      'dl_modal.viewer_desktop_step2_desc': 'Seamless control, multi-thread file transfer, bidirectional clipboard, and stereo audio.',
+      'dl_modal.viewer_desktop_note': 'Direct WebRTC · WebView2 Hardware Acceleration · Fullscreen & Multi-monitor',
+      'dl_modal.viewer_ios_step1_title': 'Open Safari or scan QR code',
+      'dl_modal.viewer_ios_step1_desc': 'Tap <b>Share</b> button (arrow pointing up) at bottom of Safari.',
+      'dl_modal.viewer_ios_step2_title': 'Add to Home Screen (PWA)',
+      'dl_modal.viewer_ios_step2_desc': 'Runs like native app with smooth touch gestures and virtual keyboard.',
+      'dl_modal.viewer_ios_note': 'Virtual Touch Trackpad · Pinch to zoom · Remote control keyboard',
+      'dl_modal.viewer_android_step1_title': 'Download APK directly or install PWA',
+      'dl_modal.viewer_android_step1_desc': 'Download .APK above or open Chrome, tap <b>⋮</b> → <b>Install app</b>.',
+      'dl_modal.viewer_android_step2_title': 'Full-screen workstation management',
+      'dl_modal.viewer_android_step2_desc': 'No browser address bar, virtual function keys, and touch mouse.',
+      'dl_modal.viewer_android_note': 'Immersive Fullscreen · Virtual Ctrl/Alt/Del · Low-latency streaming',
+      'dl_modal.github_releases': 'GitHub Releases // View all builds',
+      'snippets.password_desc': 'Password is typed directly into workstation keyboard keystroke-by-keystroke without touching the clipboard.',
+      'snippets.password_placeholder': 'Enter password to send...',
+      'host_cfg.subtitle': 'SYNCED DIRECTLY WITH MEIKOVA HOST AGENT',
+      'deck.telemetry_system': 'SYSTEM',
+      'deck.telemetry_system_val': 'STANDBY // READY',
+      'deck.telemetry_network': 'NETWORK',
+      'deck.telemetry_network_val': '0 CHANNELS ACTIVE',
+      'deck.telemetry_protocol': 'PROTOCOL',
+      'deck.telemetry_protocol_val': 'WEBRTC // LOW-LATENCY',
+      'deck.telemetry_engine': 'ENGINE',
+      'deck.telemetry_engine_val': 'MEIKOVA RELAY v1.3.0',
 
     }
-
   };
 
   let currentLang = DEFAULT_LANG;
 
   function getSupportedLangs() {
-
     return Object.keys(MESSAGES);
-
   }
 
   function getLang() {
-
     return currentLang;
-
   }
 
   function registerLang(code, messages) {
-
     if (!code || typeof code !== 'string') return;
 
     const cleanCode = code.toLowerCase().trim();
 
     MESSAGES[cleanCode] = Object.assign({}, MESSAGES[DEFAULT_LANG], messages);
-
   }
 
   function t(key, params = {}) {
-
     if (!key) return '';
 
     const langDict = MESSAGES[currentLang] || MESSAGES[DEFAULT_LANG];
-
     let template = langDict[key];
 
     if (template === undefined) {
-
       template = MESSAGES[DEFAULT_LANG][key];
-
     }
 
     if (template === undefined) {
-
       return key;
-
     }
 
     if (params && typeof params === 'object') {
-
       return template.replace(/\{(\w+)\}/g, function (match, p1) {
-
         return params[p1] !== undefined ? params[p1] : match;
-
       });
-
     }
 
     return template;
-
   }
 
   function applyTranslations(root = (typeof document !== 'undefined' ? document : null)) {
-
     if (!root) return;
 
     // 1. Text Content
@@ -2272,17 +2533,17 @@
     const textEls = root.querySelectorAll('[data-i18n]');
 
     for (let i = 0; i < textEls.length; i++) {
-
       const el = textEls[i];
-
       const key = el.getAttribute('data-i18n');
 
       if (key) {
-
-        el.textContent = t(key);
-
+        let params = null;
+        const rawParams = el.getAttribute('data-i18n-params');
+        if (rawParams) {
+          try { params = JSON.parse(rawParams); } catch (_) {}
+        }
+        el.textContent = t(key, params);
       }
-
     }
 
     // 2. HTML Content (safe simple formatting)
@@ -2290,17 +2551,12 @@
     const htmlEls = root.querySelectorAll('[data-i18n-html]');
 
     for (let i = 0; i < htmlEls.length; i++) {
-
       const el = htmlEls[i];
-
       const key = el.getAttribute('data-i18n-html');
 
       if (key) {
-
         el.innerHTML = t(key);
-
       }
-
     }
 
     // 3. Title / Tooltips
@@ -2308,17 +2564,12 @@
     const titleEls = root.querySelectorAll('[data-i18n-title]');
 
     for (let i = 0; i < titleEls.length; i++) {
-
       const el = titleEls[i];
-
       const key = el.getAttribute('data-i18n-title');
 
       if (key) {
-
         el.title = t(key);
-
       }
-
     }
 
     // 4. Placeholders
@@ -2326,17 +2577,12 @@
     const phEls = root.querySelectorAll('[data-i18n-placeholder]');
 
     for (let i = 0; i < phEls.length; i++) {
-
       const el = phEls[i];
-
       const key = el.getAttribute('data-i18n-placeholder');
 
       if (key) {
-
         el.placeholder = t(key);
-
       }
-
     }
 
     // 5. Aria Labels
@@ -2344,25 +2590,18 @@
     const ariaEls = root.querySelectorAll('[data-i18n-aria]');
 
     for (let i = 0; i < ariaEls.length; i++) {
-
       const el = ariaEls[i];
-
       const key = el.getAttribute('data-i18n-aria');
 
       if (key) {
-
         el.setAttribute('aria-label', t(key));
-
       }
-
     }
 
     // 6. Update document lang attribute
 
     if (document.documentElement) {
-
       document.documentElement.lang = currentLang;
-
     }
 
     // 7. Synchronize Language Switcher UI buttons
@@ -2370,51 +2609,36 @@
     const langBtns = document.querySelectorAll('[data-lang-code]');
 
     for (let i = 0; i < langBtns.length; i++) {
-
       const btn = langBtns[i];
 
       btn.classList.toggle('on', btn.getAttribute('data-lang-code') === currentLang);
-
     }
 
     const langSwitch = document.getElementById('langSwitch');
 
     if (langSwitch && typeof window !== 'undefined' && typeof window.placeIndicator === 'function') {
-
       window.placeIndicator(langSwitch);
-
     }
-
   }
 
   function setLang(code, updateStorage = true) {
-
     if (!code) return currentLang;
 
     const cleanCode = code.toLowerCase().trim();
 
     if (MESSAGES[cleanCode]) {
-
       currentLang = cleanCode;
-
     } else {
-
       currentLang = DEFAULT_LANG;
-
     }
 
     if (updateStorage) {
-
       try {
-
         localStorage.setItem(STORAGE_KEY, currentLang);
-
       } catch (e) {
 
         // Ignore quota/private mode errors
-
       }
-
     }
 
     applyTranslations();
@@ -2422,17 +2646,12 @@
     // Dispatch global event for application listeners (dynamic re-renders)
 
     if (typeof window !== 'undefined' && window.dispatchEvent) {
-
       window.dispatchEvent(new CustomEvent('meikova-lang-changed', {
-
         detail: { lang: currentLang }
-
       }));
-
     }
 
     return currentLang;
-
   }
 
   function init() {
@@ -2442,43 +2661,30 @@
     let initialLang = null;
 
     if (typeof window !== 'undefined' && window.location) {
-
       const params = new URLSearchParams(window.location.search);
-
       const urlLang = params.get('lang');
 
       if (urlLang && MESSAGES[urlLang.toLowerCase().trim()]) {
-
         initialLang = urlLang.toLowerCase().trim();
-
       }
-
     }
 
     // 2. Check LocalStorage if URL didn't specify
 
     if (!initialLang) {
-
       try {
-
         const stored = localStorage.getItem(STORAGE_KEY);
 
         if (stored && MESSAGES[stored.toLowerCase().trim()]) {
-
           initialLang = stored.toLowerCase().trim();
-
         }
-
-      } catch (e) {}
-
+      } catch (e) { }
     }
 
     // 3. Fallback to default ('vi')
 
     if (!initialLang) {
-
       initialLang = DEFAULT_LANG;
-
     }
 
     setLang(initialLang, false);
@@ -2486,68 +2692,42 @@
     // Bind click events on any language switcher buttons
 
     if (typeof document !== 'undefined') {
-
       document.addEventListener('click', function (e) {
-
         const btn = e.target.closest('[data-lang-code]');
 
         if (btn) {
-
           e.preventDefault();
 
           const targetCode = btn.getAttribute('data-lang-code');
 
           if (targetCode && targetCode !== currentLang) {
-
             setLang(targetCode, true);
-
           }
-
         }
-
       });
-
     }
-
   }
 
   // Auto-initialize when DOM is ready
 
   if (typeof document !== 'undefined') {
-
     if (document.readyState === 'loading') {
-
       document.addEventListener('DOMContentLoaded', init);
-
     } else {
-
       init();
-
     }
-
   }
 
   return {
-
     DEFAULT_LANG,
-
     MESSAGES,
-
     getSupportedLangs,
-
     getLang,
-
     setLang,
-
     registerLang,
-
     t,
-
     applyTranslations,
-
     init
-
   };
-
 });
 

@@ -17,7 +17,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.4.0"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = REPO_ROOT / "dist"
 
@@ -360,11 +360,6 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         "--add-data", f"{REPO_ROOT / 'host_agent' / 'tray_icons'}{sep}tray_icons",
     ]
     hidden_args = [
-        "--hidden-import", "host_agent.engines",
-        "--hidden-import", "host_agent.engines.base_engine",
-        "--hidden-import", "host_agent.engines.windows_engine",
-        "--hidden-import", "host_agent.engines.macos_engine",
-        "--hidden-import", "host_agent.engines.linux_engine",
         "--hidden-import", "mss",
         "--hidden-import", "websockets",
         "--hidden-import", "numpy",

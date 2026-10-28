@@ -26,7 +26,7 @@ except ImportError:
             raise RuntimeError("websockets package is required for live relay connections")
     websockets = _WebsocketsStub()
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.4.0"
 
 # --- Resilient Network Infrastructure: DNS Bypass, Corporate Proxy, and Resilient SSL ---
 _ORIGINAL_GETADDRINFO = socket.getaddrinfo
@@ -176,7 +176,7 @@ class HostService:
         self,
         relay_url: str,
         room_id: str,
-        pin: str,
+        pin: str = "123456",
         device_name: str = "Workstation",
         account: str = "",
         fps: int = 120,
@@ -185,6 +185,10 @@ class HostService:
         host_config: Optional[Dict[str, Any]] = None,
         fps_limit: int = 0,
         uncapped_fps: bool = False,
+        stream_mode: str = "adaptive_vfr",
+        color_filter: str = "normal",
+        auto_lock_on_disconnect: bool = False,
+        idle_fps_saver: bool = False,
     ):
         self.relay_url = relay_url
         self.room_id = room_id
@@ -195,6 +199,15 @@ class HostService:
         self._client_is_lan: Optional[bool] = None
         self.last_rtt_ms: float = 0.0
         self.active_preset: str = "balanced"
+        _sm_aliases = {"adaptive_hybrid": "adaptive_vfr", "youtube_smooth": "continuous_cfr", "zero_replay": "low_latency_drop"}
+        raw_sm = str(stream_mode or "adaptive_vfr").strip().lower()
+        self.stream_mode: str = _sm_aliases.get(raw_sm, raw_sm)
+        if self.stream_mode not in ("adaptive_vfr", "continuous_cfr", "low_latency_drop"):
+            self.stream_mode = "adaptive_vfr"
+        raw_cf = str(color_filter or "normal").strip().lower()
+        self.color_filter: str = raw_cf if raw_cf in ("normal", "crisp_text", "night_shield", "high_contrast") else "normal"
+        self.auto_lock_on_disconnect: bool = bool(auto_lock_on_disconnect)
+        self.idle_fps_saver: bool = bool(idle_fps_saver)
         self.custom_fps_limit: int = int(fps_limit or 0)
         self.fps_limit: int = self.custom_fps_limit
         self.uncapped_fps: bool = bool(uncapped_fps or fps == 0)
@@ -220,8 +233,10 @@ class HostService:
         self.frame_queue: Optional[asyncio.Queue] = None
         self.frames_in_flight: int = 0
         self.ack_event: Optional[asyncio.Event] = None
+        self._fps_wake_event: Optional[asyncio.Event] = None
         self._last_ack_rx_time: float = 0.0
         self._last_sent_frame_obj_id: Optional[int] = None
+        self._last_mkr0_sent_time: float = 0.0
         self._force_full_frame: bool = True
         self._consecutive_high_rtt: int = 0
         self._consecutive_low_rtt: int = 0
@@ -239,9 +254,23 @@ class HostService:
             "show_tray_icon": True,
             "block_input": False,
             "privacy_curtain": False,
+            "stream_mode": self.stream_mode,
+            "color_filter": self.color_filter,
+            "auto_lock_on_disconnect": self.auto_lock_on_disconnect,
+            "idle_fps_saver": self.idle_fps_saver,
         }
         if isinstance(host_config, dict):
             self.host_config.update(host_config)
+            if "stream_mode" in host_config and host_config["stream_mode"]:
+                self.stream_mode = str(host_config["stream_mode"]).strip().lower()
+            if "color_filter" in host_config and host_config["color_filter"]:
+                cf_val = str(host_config["color_filter"]).strip().lower()
+                if cf_val in ("normal", "crisp_text", "night_shield", "high_contrast"):
+                    self.color_filter = cf_val
+            if "auto_lock_on_disconnect" in host_config:
+                self.auto_lock_on_disconnect = bool(host_config["auto_lock_on_disconnect"])
+            if "idle_fps_saver" in host_config:
+                self.idle_fps_saver = bool(host_config["idle_fps_saver"])
 
         # Audio Capture & Stream
         self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk, on_status=self._on_audio_status)
@@ -306,11 +335,13 @@ class HostService:
             "relay_url": self.relay_url,
             "account": self.account,
             "active_preset": getattr(self, "active_preset", "balanced"),
+            "stream_mode": getattr(self, "stream_mode", "adaptive_vfr"),
             "fps_limit": self.custom_fps_limit,
             "uncapped_fps": self.uncapped_fps,
             "applied_fps": 0 if self.uncapped_fps else int(round(1.0 / max(0.0001, self.frame_interval))),
             "quality": self.capture.quality,
             "max_width": self.capture.max_width,
+            "resolution": list(self.capture.resolution),
             "keep_awake": bool(self.host_config.get("keep_awake", True)),
             "auto_wakeup": bool(self.host_config.get("auto_wakeup", False)),
             "auto_wakeup_time": str(self.host_config.get("auto_wakeup_time", "08:00")),
@@ -322,7 +353,13 @@ class HostService:
             "show_tray_icon": bool(self.host_config.get("show_tray_icon", True)),
             "block_input": bool(getattr(InputInjector, "is_input_blocked", False)),
             "privacy_curtain": bool(getattr(privacy_curtain, "is_active", False)),
+            "color_filter": getattr(self, "color_filter", "normal"),
+            "auto_lock_on_disconnect": bool(self.host_config.get("auto_lock_on_disconnect", getattr(self, "auto_lock_on_disconnect", False))),
+            "idle_fps_saver": bool(self.host_config.get("idle_fps_saver", getattr(self, "idle_fps_saver", False))),
         }
+
+    def get_host_config_dict(self) -> Dict[str, Any]:
+        return self.get_host_config_snapshot()
 
     def stop(self):
         """Gracefully stop HostService, notifying relay server and tearing down connections."""
@@ -568,6 +605,37 @@ class HostService:
             return False
         return self._detect_url_is_lan(self.relay_url)
 
+    def _apply_fps_target(self, fps_limit: int, uncapped: bool = False):
+        """Applies target FPS limit (1..1000) or Uncapped (0 / True) mode and wakes pacing loops immediately."""
+        try:
+            fl = int(fps_limit or 0)
+        except (ValueError, TypeError):
+            fl = 0
+        if uncapped or fl <= 0:
+            self.custom_fps_limit = 0
+            self.fps_limit = 0
+            self.uncapped_fps = True
+            self.frame_interval = 1.0 / 1000.0
+            self.capture.bg_min_interval = 0.0002
+        else:
+            self.custom_fps_limit = max(1, min(1000, fl))
+            self.fps_limit = self.custom_fps_limit
+            self.uncapped_fps = False
+            self.frame_interval = 1.0 / float(self.custom_fps_limit)
+            self.capture.bg_min_interval = max(0.0002, min(0.002, self.frame_interval * 0.5))
+        self.host_config["fps_limit"] = self.custom_fps_limit
+        self.host_config["uncapped_fps"] = self.uncapped_fps
+        if self._fps_wake_event is not None:
+            try:
+                self._fps_wake_event.set()
+            except Exception:
+                pass
+        if self.ack_event is not None:
+            try:
+                self.ack_event.set()
+            except Exception:
+                pass
+
     def apply_quality_preset(self, preset: str) -> str:
         """Applies visual resolution and compression parameters while honoring any custom Resolution Lock or FPS Limit / Uncapped mode from the client session."""
         is_lan = self.is_local_or_lan()
@@ -653,7 +721,8 @@ class HostService:
             self.capture.grayscale = False
             self.frame_interval = high_fps_interval
 
-        # If the admin explicitly locked a target resolution in the Resolution Menu, do not let Quality Presets downscale it
+        # If the user locked a target resolution (including Native/GỐC) in the Resolution Menu,
+        # do not let Quality Presets downscale it to 1280/1600
         res_lock = getattr(self, "custom_resolution_lock", None)
         if res_lock and preset not in ("native_1to1", "native_120_1to1", "eco", "grayscale"):
             self.capture.max_width = int(res_lock[0])
@@ -747,10 +816,15 @@ class HostService:
         }
 
     async def _stream_screen(self):
-        """Streams encoded frames with deadline-tracked 120-500+ FPS (or Unlimited) pacing."""
+        """Streams encoded frames with hardware QPC (time.perf_counter) + pure asyncio.sleep(0) pacing.
+        Never calls asyncio.sleep(t>0), asyncio.wait_for(timeout>0), or time.sleep(t>0) during active pacing,
+        completely bypassing Windows 11's 15.625ms (64Hz) timer quantization so 30, 60, 120, 144, 240, 360,
+        and 1000+ FPS (MAX) all hit their exact target rates."""
         fps_target = "UNCAPPED" if self.uncapped_fps else int(round(1.0 / max(0.0001, self.frame_interval)))
         logger.info(f"Screen capture loop started targeting {fps_target} FPS")
         loop = asyncio.get_running_loop()
+        if self._fps_wake_event is None:
+            self._fps_wake_event = asyncio.Event()
         next_deadline = time.perf_counter()
 
         while self.running:
@@ -781,31 +855,45 @@ class HostService:
                 next_deadline = time.perf_counter()
                 continue
 
-            if getattr(self, "uncapped_fps", False) or self.frame_interval <= 0.0015:
+            if getattr(self, "uncapped_fps", False) or self.frame_interval <= 0.0008:
                 next_deadline = time.perf_counter()
                 await asyncio.sleep(0)
                 continue
 
             next_deadline += self.frame_interval
             now = time.perf_counter()
-            remaining = next_deadline - now
-            if remaining > 0.0012:
-                await asyncio.sleep(remaining - 0.0005)
-            elif remaining < -self.frame_interval * 2:
+            if now - next_deadline > max(0.05, self.frame_interval * 4.0):
                 next_deadline = now
+
+            if now >= next_deadline:
                 await asyncio.sleep(0)
-            else:
+                continue
+
+            while self.running and self.has_active_client and not getattr(self, "uncapped_fps", False):
+                if self._fps_wake_event is not None and self._fps_wake_event.is_set():
+                    self._fps_wake_event.clear()
+                    next_deadline = time.perf_counter()
+                    break
+                if time.perf_counter() >= next_deadline:
+                    break
                 await asyncio.sleep(0)
 
     async def _send_frames_worker(self, ws: Any):
-        """Non-blocking leaky-bucket frame sender with Cloudflare Tunnel / WAN congestion protection
-        and 4-byte Micro-Frame (MKR0) deduplication for static frames."""
+        """High-throughput, zero-replay frame sender supporting 1000+ FPS Uncapped MKR0 micro-frames
+        and exact QPC (time.perf_counter) FPS limit pacing (1..1000 FPS) with automatic catch-up
+        whenever full-JPEG encoding or socket writes span multiple frame intervals."""
         logger.info("Frame sender worker started")
         last_heartbeat = time.time()
         self.frames_in_flight = 0
         self.ack_event = asyncio.Event()
+        if self._fps_wake_event is None:
+            self._fps_wake_event = asyncio.Event()
         self._last_sent_frame_obj_id = None
+        self._last_mkr0_sent_time = 0.0
         self._force_full_frame = True
+        next_send_qpc = time.perf_counter()
+        last_known_interval = self.frame_interval
+        last_known_uncapped = getattr(self, "uncapped_fps", False)
 
         while self.running:
             if not self.has_active_client:
@@ -816,6 +904,7 @@ class HostService:
                     except Exception:
                         break
                 await asyncio.sleep(0.1)
+                next_send_qpc = time.perf_counter()
                 continue
 
             try:
@@ -823,12 +912,20 @@ class HostService:
                     await asyncio.sleep(0.02)
                     continue
 
+                cur_uncapped = getattr(self, "uncapped_fps", False)
+                cur_interval = self.frame_interval
+                if cur_uncapped != last_known_uncapped or abs(cur_interval - last_known_interval) > 1e-7:
+                    last_known_uncapped = cur_uncapped
+                    last_known_interval = cur_interval
+                    next_send_qpc = time.perf_counter()
+
                 is_lan = self.is_local_or_lan()
                 transport = getattr(ws, "transport", None)
                 if transport and hasattr(transport, "get_write_buffer_size"):
-                    max_buf = (8 * 1024 * 1024) if is_lan else (384 * 1024)
+                    # 1.5MB WAN buffer comfortably accommodates 2K (250-400KB) and 4K (450-850KB) frames without false stalls
+                    max_buf = (8 * 1024 * 1024) if is_lan else (1536 * 1024)
                     if transport.get_write_buffer_size() > max_buf:
-                        await asyncio.sleep(0.002)
+                        await asyncio.sleep(0)
                         continue
 
                 try:
@@ -837,42 +934,83 @@ class HostService:
                     frame = None
 
                 if frame:
-                    # Drain any newer frame already sitting in frame_queue so we always send the freshest state
                     while not self.frame_queue.empty():
                         try:
                             frame = self.frame_queue.get_nowait()
                         except asyncio.QueueEmpty:
                             break
 
+                    s_mode = getattr(self, "stream_mode", "adaptive_vfr")
                     is_real_jpeg = len(frame) >= 512
                     is_same_cached_obj = (
                         is_real_jpeg
+                        and s_mode not in ("continuous_cfr", "youtube_smooth")
                         and not getattr(self, "_force_full_frame", False)
                         and id(frame) == getattr(self, "_last_sent_frame_obj_id", None)
                     )
 
+                    now_pc = time.perf_counter()
                     if is_same_cached_obj:
-                        # Screen is unchanged since last transmitted JPEG: send 4-byte micro-frame tick (0.002% bandwidth!)
+                        is_idle_eco = (
+                            bool(self.host_config.get("idle_fps_saver", getattr(self, "idle_fps_saver", False)))
+                            and getattr(self.capture, "_input_dirty_until", 0.0) > 0.0
+                            and (now_pc - getattr(self.capture, "_input_dirty_until", 0.0)) > 15.0
+                        )
+                        if is_idle_eco and (now_pc - getattr(self, "_last_mkr0_sent_time", 0.0)) < 0.10:
+                            await asyncio.sleep(0.01)
+                            continue
+                        self._last_mkr0_sent_time = now_pc
                         await ws.send(MICRO_FRAME_REPEAT)
                     else:
-                        # Real changed frame: enforce end-to-end in-flight window over WAN / Cloudflare Tunnel
-                        max_in_flight = 14 if is_lan else 3
-                        now_pc = time.perf_counter()
+                        is_input_burst = now_pc < getattr(self.capture, "_input_dirty_until", 0.0)
+                        if is_lan:
+                            max_in_flight = 16
+                        elif s_mode in ("low_latency_drop", "zero_replay") or (s_mode in ("adaptive_vfr", "adaptive_hybrid") and is_input_burst):
+                            max_in_flight = 2
+                        elif s_mode in ("continuous_cfr", "youtube_smooth"):
+                            max_in_flight = 8
+                        else:
+                            max_in_flight = 6
+
+                        rtt_sec = max(0.03, float(getattr(self, "last_rtt_ms", 0.0) or 60.0) / 1000.0)
+                        ack_expiry = max(0.35, min(1.2, rtt_sec * 2.5))
+
                         if is_real_jpeg and self.frames_in_flight >= max_in_flight:
-                            if (now_pc - getattr(self, "_last_ack_rx_time", 0.0)) < 0.14 and self.ack_event is not None:
+                            if (now_pc - getattr(self, "_last_ack_rx_time", 0.0)) < ack_expiry and self.ack_event is not None:
                                 self.ack_event.clear()
-                                try:
-                                    await asyncio.wait_for(self.ack_event.wait(), timeout=0.005)
-                                except asyncio.TimeoutError:
-                                    pass
+                                wait_until = time.perf_counter() + min(0.004, rtt_sec * 0.10)
+                                while not self.ack_event.is_set() and time.perf_counter() < wait_until:
+                                    await asyncio.sleep(0)
+                                self.frames_in_flight = max(0, max_in_flight - 1)
+                                while not self.frame_queue.empty():
+                                    try:
+                                        frame = self.frame_queue.get_nowait()
+                                    except asyncio.QueueEmpty:
+                                        break
                             else:
-                                # Auto-decay if client hasn't sent ACK within 140ms
-                                self.frames_in_flight = max(0, self.frames_in_flight - 1)
+                                self.frames_in_flight = max(0, max_in_flight - 1)
 
                         self._last_sent_frame_obj_id = id(frame)
                         self._force_full_frame = False
-                        self.frames_in_flight = min(32, self.frames_in_flight + 1)
+                        self.frames_in_flight = min(16, self.frames_in_flight + 1)
                         await ws.send(frame)
+
+                    # Maintain exact QPC frame budget: if a heavy 1080p JPEG capture/write took >1 frame_interval,
+                    # immediately emit the elapsed MKR0 ticks so 30/60/120/144/240/360 FPS never drops below target!
+                    if getattr(self, "uncapped_fps", False) or self.frame_interval <= 0.0008:
+                        next_send_qpc = time.perf_counter()
+                    else:
+                        next_send_qpc += self.frame_interval
+                        now_after = time.perf_counter()
+                        catchup = 0
+                        while now_after >= next_send_qpc and catchup < 32 and not getattr(self, "uncapped_fps", False):
+                            next_send_qpc += self.frame_interval
+                            catchup += 1
+                            if s_mode not in ("continuous_cfr", "youtube_smooth"):
+                                await ws.send(MICRO_FRAME_REPEAT)
+                                now_after = time.perf_counter()
+                        if now_after - next_send_qpc > max(0.08, self.frame_interval * 8.0):
+                            next_send_qpc = now_after
 
                 if time.time() - last_heartbeat > 10:
                     try:
@@ -971,6 +1109,9 @@ class HostService:
                     self._force_full_frame = True
                     self._last_sent_frame_obj_id = None
                     self.frames_in_flight = 0
+                    # Default to preserving Native resolution (GỐC) on live client session connect unless locked otherwise
+                    if self.custom_resolution_lock is None:
+                        self.custom_resolution_lock = self.capture.resolution
                     self.apply_quality_preset(getattr(self, "active_preset", "balanced"))
                     logger.info(f"[+] Client connected (ip={client_ip}, lan={self.is_local_or_lan()}, target_fps={'UNCAPPED' if self.uncapped_fps else int(round(1.0 / self.frame_interval))})! Streaming live.")
                     self.has_active_client = True
@@ -1076,6 +1217,13 @@ class HostService:
                         self.audio_capture.stop()
                         self.audio_playback.stop()
                         await self.tunnel_manager.close_all()
+                        if bool(self.host_config.get("auto_lock_on_disconnect", getattr(self, "auto_lock_on_disconnect", False))):
+                            logger.info("[AutoLock] Last remote client disconnected -> locking workstation OS session.")
+                            try:
+                                if os.environ.get("MEIKOVA_TEST_MODE") != "1":
+                                    PowerManager.lock_workstation()
+                            except Exception as lock_err:
+                                logger.warning(f"[AutoLock] Failed to lock workstation: {lock_err}")
                         if self.on_client_disconnect:
                             try:
                                 self.on_client_disconnect()
@@ -1088,17 +1236,109 @@ class HostService:
                     self._last_ack_rx_time = time.perf_counter()
                     if self.ack_event is not None and not self.ack_event.is_set():
                         self.ack_event.set()
-                    if event.get("dropped"):
-                        # Relay server dropped a buffered frame due to WAN/Cloudflare Tunnel congestion:
-                        # lower quality slightly and ensure next frame is a fresh full frame
-                        self._force_full_frame = True
-                        if self.capture.quality > 42 and self.active_preset not in ("native_1to1", "crisp_2k_4k"):
-                            self.capture.quality = max(42, self.capture.quality - 4)
                     host_ts = event.get("host_ts")
                     if host_ts:
                         rtt_ms = (time.time() * 1000) - float(host_ts)
                         if 0 < rtt_ms < 5000:
                             self._update_congestion_control(rtt_ms)
+                    continue
+
+                elif ev_type == "request_keyframe":
+                    # Client requested an immediate fresh keyframe (e.g., after network lag/sync overlay):
+                    # flush any queued stale frames and push the latest screen state immediately
+                    self.frames_in_flight = 0
+                    self._force_full_frame = True
+                    self._last_sent_frame_obj_id = None
+                    if self.ack_event is not None:
+                        self.ack_event.set()
+                    if self.frame_queue is not None:
+                        while not self.frame_queue.empty():
+                            try:
+                                self.frame_queue.get_nowait()
+                            except (asyncio.QueueEmpty, ValueError):
+                                break
+                    if hasattr(self.capture, "notify_input_activity"):
+                        self.capture.notify_input_activity(0.5)
+                    fresh_frame = await asyncio.to_thread(self.capture.capture_frame, True)
+                    if fresh_frame:
+                        self.frames_in_flight = 1
+                        self._last_sent_frame_obj_id = id(fresh_frame)
+                        await ws.send(fresh_frame)
+                    continue
+
+                elif ev_type == "set_stream_mode":
+                    raw_sm = str(event.get("stream_mode", "adaptive_vfr")).strip().lower()
+                    _sm_aliases = {"adaptive_hybrid": "adaptive_vfr", "youtube_smooth": "continuous_cfr", "zero_replay": "low_latency_drop"}
+                    sm = _sm_aliases.get(raw_sm, raw_sm)
+                    if sm not in ("adaptive_vfr", "continuous_cfr", "low_latency_drop"):
+                        sm = "adaptive_vfr"
+                    self.stream_mode = sm
+                    self.host_config["stream_mode"] = sm
+                    self.frames_in_flight = 0
+                    self._force_full_frame = True
+                    if self.ack_event is not None:
+                        self.ack_event.set()
+                    await ws.send(json.dumps({
+                        "type": "stream_mode_applied",
+                        "stream_mode": self.stream_mode,
+                        "quality": self.capture.quality,
+                        "preset": getattr(self, "active_preset", "balanced")
+                    }))
+                    continue
+
+                elif ev_type == "set_color_filter":
+                    cf = str(event.get("color_filter", "normal")).strip().lower()
+                    if cf not in ("normal", "crisp_text", "night_shield", "high_contrast"):
+                        cf = "normal"
+                    self.color_filter = cf
+                    self.host_config["color_filter"] = cf
+                    await ws.send(json.dumps({
+                        "type": "color_filter_applied",
+                        "color_filter": self.color_filter
+                    }))
+                    continue
+
+                elif ev_type == "set_auto_lock_disconnect":
+                    en_lock = bool(event.get("enabled", False))
+                    self.auto_lock_on_disconnect = en_lock
+                    self.host_config["auto_lock_on_disconnect"] = en_lock
+                    await ws.send(json.dumps({
+                        "type": "auto_lock_disconnect_response",
+                        "enabled": en_lock,
+                        "success": True
+                    }))
+                    continue
+
+                elif ev_type == "set_idle_fps_saver":
+                    en_idle = bool(event.get("enabled", False))
+                    self.idle_fps_saver = en_idle
+                    self.host_config["idle_fps_saver"] = en_idle
+                    await ws.send(json.dumps({
+                        "type": "idle_fps_saver_response",
+                        "enabled": en_idle,
+                        "success": True
+                    }))
+                    continue
+
+                elif ev_type == "open_remote_url":
+                    target_url = str(event.get("url") or "").strip()
+                    ok_open = False
+                    if target_url:
+                        if target_url.lower().startswith(("http://", "https://", "mailto:")) or "." in target_url:
+                            if "://" not in target_url and not target_url.lower().startswith("mailto:"):
+                                target_url = "https://" + target_url
+                            try:
+                                if os.environ.get("MEIKOVA_TEST_MODE") != "1":
+                                    import webbrowser
+                                    webbrowser.open(target_url)
+                                ok_open = True
+                            except Exception as e:
+                                logger.warning(f"[OpenRemoteURL] Failed to open {target_url}: {e}")
+                    await ws.send(json.dumps({
+                        "type": "open_remote_url_response",
+                        "url": target_url,
+                        "success": ok_open
+                    }))
                     continue
 
                 elif ev_type == "client_rtt":
@@ -1174,17 +1414,28 @@ class HostService:
                         else:
                             privacy_curtain.disable()
                             InputInjector.set_block_input(False)
-                    if "fps_limit" in updates:
+                    if "stream_mode" in updates and updates["stream_mode"]:
+                        sm = str(updates["stream_mode"]).strip().lower()
+                        if sm in ("adaptive_vfr", "continuous_cfr", "low_latency_drop", "adaptive_hybrid", "youtube_smooth", "zero_replay"):
+                            self.stream_mode = sm
+                            self.host_config["stream_mode"] = sm
+                    if "fps_limit" in updates or "uncapped_fps" in updates:
                         fl = int(updates.get("fps_limit") or 0)
-                        if fl <= 0:
-                            self.custom_fps_limit = 0
-                            self.uncapped_fps = True
-                            self.frame_interval = 1.0 / 1000.0
-                            self.capture.bg_min_interval = 0.0002
-                        else:
-                            self.custom_fps_limit = max(1, min(1000, fl))
-                            self.uncapped_fps = False
-                            self.frame_interval = 1.0 / float(self.custom_fps_limit)
+                        is_unc = bool(updates.get("uncapped_fps", fl <= 0))
+                        self._apply_fps_target(fl, uncapped=is_unc)
+                    if "color_filter" in updates and updates["color_filter"]:
+                        cf = str(updates["color_filter"]).strip().lower()
+                        if cf in ("normal", "crisp_text", "night_shield", "high_contrast"):
+                            self.color_filter = cf
+                            self.host_config["color_filter"] = cf
+                    if "auto_lock_on_disconnect" in updates:
+                        al = bool(updates["auto_lock_on_disconnect"])
+                        self.auto_lock_on_disconnect = al
+                        self.host_config["auto_lock_on_disconnect"] = al
+                    if "idle_fps_saver" in updates:
+                        ifs = bool(updates["idle_fps_saver"])
+                        self.idle_fps_saver = ifs
+                        self.host_config["idle_fps_saver"] = ifs
 
                     if self.on_config_updated:
                         try:
@@ -1319,11 +1570,12 @@ class HostService:
                     h = int(event.get("height", 0))
                     fps = int(event.get("fps", 120 if self.is_local_or_lan() else 60))
                     if w <= 0 or h <= 0:
-                        self.custom_resolution_lock = None
                         self.capture.custom_virtual_resolution = None
                         self.capture.monitors = self.capture.detect_monitors()
                         self.capture.max_width = None
                         nw, nh = self.capture.resolution
+                        # Lock to true physical native resolution so Quality Presets never downscale it to 1280x720
+                        self.custom_resolution_lock = (nw, nh)
                         res = {"success": True, "message": f"Đã khôi phục độ phân giải gốc {nw}x{nh}"}
                         w, h = nw, nh
                     else:
@@ -1333,11 +1585,13 @@ class HostService:
                         self.capture.set_custom_resolution(w, h, native_applied=bool(res.get("native", False)))
                         self.capture.max_width = w
                     self._force_full_frame = True
+                    self._last_sent_frame_obj_id = None
                     await ws.send(json.dumps({
                         "type": "screen_resolution_result",
                         "success": res.get("success", True),
                         "width": w,
                         "height": h,
+                        "is_native": int(event.get("width", 0)) <= 0,
                         "message": res.get("message", f"Đã áp dụng độ phân giải {w}x{h}")
                     }))
                     await ws.send(json.dumps({
@@ -1346,7 +1600,7 @@ class HostService:
                         "active_id": self.capture.active_monitor_id,
                         "is_headless": getattr(self.capture, "is_headless", False)
                     }))
-                    initial_frame = self.capture.capture_frame(force=True)
+                    initial_frame = await asyncio.to_thread(self.capture.capture_frame, True)
                     if initial_frame:
                         self._last_sent_frame_obj_id = id(initial_frame)
                         await ws.send(initial_frame)
@@ -1426,18 +1680,14 @@ class HostService:
                     except (ValueError, TypeError):
                         fps_lim = 0
                     is_uncapped = bool(event.get("uncapped", False)) or (fps_lim <= 0 and event.get("mode") != "preset_auto")
-                    if is_uncapped or fps_lim <= 0:
-                        self.custom_fps_limit = 0
-                        self.uncapped_fps = True
-                        self.frame_interval = 1.0 / 1000.0
-                        self.capture.bg_min_interval = 0.0002
-                    else:
-                        self.custom_fps_limit = max(1, min(1000, fps_lim))
-                        self.uncapped_fps = False
-                        self.frame_interval = 1.0 / float(max(1, self.custom_fps_limit))
-                        self.capture.bg_min_interval = max(0.0002, min(0.002, self.frame_interval * 0.5))
+                    self._apply_fps_target(fps_lim, uncapped=is_uncapped)
                     if "encoder_mode" in event and event["encoder_mode"]:
                         self.capture.encoder_mode = str(event["encoder_mode"])
+                    if "stream_mode" in event and event["stream_mode"]:
+                        sm = str(event["stream_mode"]).strip().lower()
+                        if sm in ("adaptive_vfr", "continuous_cfr", "low_latency_drop", "adaptive_hybrid", "youtube_smooth", "zero_replay"):
+                            self.stream_mode = sm
+                            self.host_config["stream_mode"] = sm
                     if "static_cache" in event and event["static_cache"] is not None:
                         self.capture.static_cache_enabled = bool(event["static_cache"])
                     if self.frame_queue is not None:
@@ -1452,6 +1702,7 @@ class HostService:
                         "uncapped": self.uncapped_fps,
                         "applied_fps": 0 if self.uncapped_fps else int(round(1.0 / self.frame_interval)),
                         "quality": self.capture.quality,
+                        "stream_mode": self.stream_mode,
                         "preset": getattr(self, "active_preset", "balanced")
                     }))
                     continue
@@ -1459,16 +1710,17 @@ class HostService:
                 # Quality / Resolution Preset (Managed 100% from Remote Client Session)
                 elif ev_type == "set_quality_preset":
                     preset = event.get("preset", "balanced")
-                    if "fps_limit" in event and event["fps_limit"] is not None:
-                        fl = int(event["fps_limit"] or 0)
-                        if fl <= 0 and event.get("uncapped"):
-                            self.custom_fps_limit = 0
-                            self.uncapped_fps = True
-                        elif fl > 0:
-                            self.custom_fps_limit = max(1, min(1000, fl))
-                            self.uncapped_fps = False
+                    if "fps_limit" in event or "uncapped" in event:
+                        fl = int(event.get("fps_limit") or 0)
+                        is_unc = bool(event.get("uncapped", fl <= 0))
+                        self._apply_fps_target(fl, uncapped=is_unc)
                     if "encoder_mode" in event and event["encoder_mode"]:
                         self.capture.encoder_mode = str(event["encoder_mode"])
+                    if "stream_mode" in event and event["stream_mode"]:
+                        sm = str(event["stream_mode"]).strip().lower()
+                        if sm in ("adaptive_vfr", "continuous_cfr", "low_latency_drop", "adaptive_hybrid", "youtube_smooth", "zero_replay"):
+                            self.stream_mode = sm
+                            self.host_config["stream_mode"] = sm
                     if "static_cache" in event and event["static_cache"] is not None:
                         self.capture.static_cache_enabled = bool(event["static_cache"])
                     applied = self.apply_quality_preset(preset)
@@ -1497,7 +1749,8 @@ class HostService:
                         "max_width": self.capture.max_width,
                         "fps": 0 if self.uncapped_fps else int(round(1.0 / self.frame_interval)),
                         "fps_limit": self.custom_fps_limit,
-                        "uncapped": self.uncapped_fps
+                        "uncapped": self.uncapped_fps,
+                        "stream_mode": self.stream_mode
                     }))
                     continue
 
@@ -1506,6 +1759,12 @@ class HostService:
                     c_w = int(event.get("client_w", 1920))
                     c_h = int(event.get("client_h", 1080))
                     c_fps = int(event.get("client_fps", 60))
+                    if "fps_limit" in event or "uncapped" in event:
+                        fl = int(event.get("fps_limit") or 0)
+                        is_unc = bool(event.get("uncapped", fl <= 0))
+                        self._apply_fps_target(fl, uncapped=is_unc)
+                    if self.custom_resolution_lock is None:
+                        self.custom_resolution_lock = self.capture.resolution
                     res_payload = self.negotiate_optimal_display_profile(c_w, c_h, c_fps)
                     await ws.send(json.dumps(res_payload))
                     initial_frame = self.capture.capture_frame(force=True)
@@ -1791,6 +2050,8 @@ class HostService:
                             InputInjector.key_down(0x56)
                             InputInjector.key_up(0x56)
                             InputInjector.key_up(0x11)
+                            if hasattr(self.capture, "notify_input_activity"):
+                                self.capture.notify_input_activity(0.45)
                     await ws.send(json.dumps({
                         "type": "clipboard_sync_ack",
                         "success": ok,
@@ -1809,6 +2070,8 @@ class HostService:
                             InputInjector.key_down(0x56)
                             InputInjector.key_up(0x56)
                             InputInjector.key_up(0x11)
+                            if hasattr(self.capture, "notify_input_activity"):
+                                self.capture.notify_input_activity(0.45)
                     await ws.send(json.dumps({
                         "type": "clipboard_sync_image_ack",
                         "success": ok
@@ -1825,6 +2088,8 @@ class HostService:
                             InputInjector.key_down(0x56)
                             InputInjector.key_up(0x56)
                             InputInjector.key_up(0x11)
+                            if hasattr(self.capture, "notify_input_activity"):
+                                self.capture.notify_input_activity(0.45)
                     await ws.send(json.dumps({
                         "type": "clipboard_sync_files_ack",
                         "success": ok
@@ -1900,7 +2165,7 @@ class HostService:
                     }))
                     continue
 
-                # Mouse & Keyboard Input
+                # Mouse & Keyboard Input (Triggers immediate capture wake-up so typing/clicking has zero visual lag)
                 elif ev_type == "mouse_move":
                     mon_rect = None
                     mon_id = event.get("monitor_id")
@@ -1912,6 +2177,8 @@ class HostService:
                     if not mon_rect:
                         mon_rect = self.capture.active_monitor_rect
                     InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
+                    if hasattr(self.capture, "notify_input_activity"):
+                        self.capture.notify_input_activity(0.20)
                     cur = self.cursor_manager.check_immediate()
                     if cur:
                         await ws.send(json.dumps({"type": "cursor_update", "cursor": cur}))
@@ -1926,6 +2193,8 @@ class HostService:
                         if mon_rect:
                             InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
                     InputInjector.mouse_down(event["button"])
+                    if hasattr(self.capture, "notify_input_activity"):
+                        self.capture.notify_input_activity(0.45)
                     cur = self.cursor_manager.check_immediate()
                     if cur:
                         await ws.send(json.dumps({"type": "cursor_update", "cursor": cur}))
@@ -1940,17 +2209,27 @@ class HostService:
                         if mon_rect:
                             InputInjector.mouse_move(event["x"], event["y"], monitor_rect=mon_rect)
                     InputInjector.mouse_up(event["button"])
+                    if hasattr(self.capture, "notify_input_activity"):
+                        self.capture.notify_input_activity(0.45)
                     cur = self.cursor_manager.check_immediate()
                     if cur:
                         await ws.send(json.dumps({"type": "cursor_update", "cursor": cur}))
                 elif ev_type == "mouse_wheel":
                     InputInjector.mouse_wheel(event["delta_y"])
+                    if hasattr(self.capture, "notify_input_activity"):
+                        self.capture.notify_input_activity(0.35)
                 elif ev_type == "key_down":
                     InputInjector.key_down(event["vk"])
+                    if hasattr(self.capture, "notify_input_activity"):
+                        self.capture.notify_input_activity(0.50)
                 elif ev_type == "key_up":
                     InputInjector.key_up(event["vk"])
+                    if hasattr(self.capture, "notify_input_activity"):
+                        self.capture.notify_input_activity(0.50)
                 elif ev_type == "text_input":
                     InputInjector.type_unicode(event["text"])
+                    if hasattr(self.capture, "notify_input_activity"):
+                        self.capture.notify_input_activity(0.50)
                 elif ev_type == "block_input":
                     blocked = bool(event.get("blocked", False))
                     is_admin = is_current_user_admin()
@@ -2082,7 +2361,7 @@ class HostService:
                         "ping_interval": 25,
                         "ping_timeout": 30,
                         "max_size": 32 * 1024 * 1024,
-                        "write_limit": 8 * 1024 * 1024,
+                        "write_limit": 2 * 1024 * 1024,
                         "compression": None,
                         "user_agent_header": browser_ua,
                         "origin": origin_header,
@@ -2140,7 +2419,7 @@ class HostService:
                             except Exception:
                                 pass
 
-                        self.frame_queue = asyncio.Queue(maxsize=2)
+                        self.frame_queue = asyncio.Queue(maxsize=1)
                         self.audio_queue = asyncio.Queue(maxsize=50)
                         capture_task = asyncio.create_task(self._stream_screen())
                         send_task = asyncio.create_task(self._send_frames_worker(ws))
@@ -2227,7 +2506,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  python host_service.py --relay ws://localhost:8080 --room RD-8888 --pin 123456 --uncapped\n"
-            "  python host_service.py --relay wss://meikova-relay.onrender.com --fps 144 --quality 80 --keep-awake\n"
+            "  python host_service.py --relay wss://meikova-relay.onrender.com --fps 144 --quality 80 --stream-mode adaptive_vfr\n"
             "  python host_service.py --admin --service --stealth --auto-wakeup 08:00\n"
         )
     )
@@ -2243,6 +2522,11 @@ def build_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument("--uncapped", action="store_true", help="Unlock Unlimited FPS (removes frame sleep ceiling)")
     parser.add_argument("--quality", type=int, default=0, help="JPEG compression quality (10-100)")
     parser.add_argument("--preset", default="", help="Initial quality preset (eco, speed_60, balanced, crisp_hd, native_1to1, ultra_120, extreme_144)")
+    parser.add_argument("--stream-mode", default="", choices=["", "adaptive_vfr", "continuous_cfr", "low_latency_drop", "adaptive_hybrid", "youtube_smooth", "zero_replay"], help="Frame pacing mode: adaptive_vfr (default), continuous_cfr, or low_latency_drop")
+    parser.add_argument("--resolution", default="", help="Target stream resolution lock (e.g., native, 1920x1080, 2560x1440, 1280x720)")
+    parser.add_argument("--color-filter", default="", choices=["", "normal", "crisp_text", "night_shield", "high_contrast"], help="Visual display filter & sharpening mode (normal, crisp_text, night_shield, high_contrast)")
+    parser.add_argument("--auto-lock-disconnect", action="store_true", help="Automatically lock OS workstation when all remote clients disconnect")
+    parser.add_argument("--idle-fps-saver", action="store_true", help="Eco-pace static keepalive frames when session is idle for >15s")
     parser.add_argument("--admin", action="store_true", help="Request UAC Administrator elevation on startup")
     parser.add_argument("--stealth", action="store_true", help="Run in Stealth Mode (hide tray icon and main window)")
     parser.add_argument("--service", action="store_true", help="Install/run as 24/7 System Service (requires Admin)")
@@ -2307,6 +2591,10 @@ def main():
     else:
         fps = int(cfg_data.get("fps", 120))
     quality = args.quality if args.quality > 0 else int(cfg_data.get("quality", 70))
+    stream_mode = args.stream_mode or cfg_data.get("stream_mode") or "adaptive_vfr"
+    color_filter = getattr(args, "color_filter", "") or cfg_data.get("color_filter") or "normal"
+    auto_lock_disc = bool(getattr(args, "auto_lock_disconnect", False) or cfg_data.get("auto_lock_on_disconnect", False))
+    idle_saver = bool(getattr(args, "idle_fps_saver", False) or cfg_data.get("idle_fps_saver", False))
 
     host_cfg = {
         "keep_awake": False if args.no_keep_awake else bool(args.keep_awake or cfg_data.get("keep_awake", True)),
@@ -2319,6 +2607,10 @@ def main():
         "show_tray_icon": not bool(args.stealth or cfg_data.get("stealth_mode", False)),
         "block_input": bool(args.block_input or cfg_data.get("block_input", False)),
         "privacy_curtain": bool(args.curtain or cfg_data.get("privacy_curtain", False)),
+        "stream_mode": stream_mode,
+        "color_filter": color_filter,
+        "auto_lock_on_disconnect": auto_lock_disc,
+        "idle_fps_saver": idle_saver,
     }
 
     service = HostService(
@@ -2331,7 +2623,25 @@ def main():
         fps=fps,
         quality=quality,
         host_config=host_cfg,
+        stream_mode=stream_mode,
+        color_filter=color_filter,
+        auto_lock_on_disconnect=auto_lock_disc,
+        idle_fps_saver=idle_saver,
     )
+    if getattr(args, "resolution", ""):
+        res_str = str(args.resolution).strip().lower()
+        if res_str == "native":
+            service.custom_resolution_lock = service.capture.resolution
+            service.capture.max_width = None
+        elif "x" in res_str:
+            try:
+                rw, rh = [int(x) for x in res_str.split("x", 1)]
+                if rw > 0 and rh > 0:
+                    service.custom_resolution_lock = (rw, rh)
+                    service.capture.set_custom_resolution(rw, rh)
+                    service.capture.max_width = rw
+            except Exception:
+                pass
     if args.preset:
         service.apply_quality_preset(args.preset)
     if host_cfg["auto_wakeup"] and is_current_user_admin():

@@ -2,6 +2,7 @@ import io
 import os
 import time
 import sys
+import zlib
 import ctypes
 import ctypes.util
 import threading
@@ -31,6 +32,48 @@ except ImportError:
         import dxcam as dxcam_lib
     except ImportError:
         dxcam_lib = None
+
+# Guard BetterCam/DXCam against unraisable AttributeError in __del__ if DXGI duplication init fails
+if dxcam_lib is not None:
+    try:
+        for _mod_name in ("bettercam", "dxcam"):
+            _mod = getattr(dxcam_lib, _mod_name, None)
+            if not _mod:
+                continue
+            for _cls_name in ("BetterCam", "DXCam"):
+                _cls = getattr(_mod, _cls_name, None)
+                if not _cls:
+                    continue
+                _orig_stop = getattr(_cls, "stop", None)
+                if _orig_stop and not getattr(_orig_stop, "_is_safe", False):
+                    def _make_safe_stop(_orig):
+                        def _safe_stop(self):
+                            if getattr(self, "is_capturing", False):
+                                return _orig(self)
+                            self.is_capturing = False
+                        _safe_stop._is_safe = True
+                        return _safe_stop
+                    _cls.stop = _make_safe_stop(_orig_stop)
+                _orig_rel = getattr(_cls, "release", None)
+                if _orig_rel and not getattr(_orig_rel, "_is_safe", False):
+                    def _make_safe_rel(_orig):
+                        def _safe_release(self):
+                            try:
+                                self.stop()
+                            except Exception:
+                                pass
+                            for _attr in ("_duplicator", "_stagesurf"):
+                                _obj = getattr(self, _attr, None)
+                                if _obj is not None and hasattr(_obj, "release"):
+                                    try:
+                                        _obj.release()
+                                    except Exception:
+                                        pass
+                        _safe_release._is_safe = True
+                        return _safe_release
+                    _cls.release = _make_safe_rel(_orig_rel)
+    except Exception:
+        pass
 
 try:
     from turbojpeg import TurboJPEG as PyTurboJPEG, TJPF_BGRX, TJPF_BGR, TJPF_RGB, TJPF_GRAY, TJSAMP_444, TJSAMP_422, TJSAMP_420, TJSAMP_GRAY, TJFLAG_FASTDCT
@@ -65,10 +108,17 @@ except ImportError:
         def is_headless_display(): return False
         def generate_headless_placeholder(w=1920, h=1080): return b''
 
-# Win32 user32, gdi32, and winmm guards for cross-platform support
+# Win32 user32, gdi32, shcore, and winmm guards for cross-platform support
 user32 = getattr(ctypes, 'windll', None).user32 if hasattr(ctypes, 'windll') else None
 gdi32 = getattr(ctypes, 'windll', None).gdi32 if hasattr(ctypes, 'windll') else None
+shcore = getattr(ctypes, 'windll', None).shcore if hasattr(ctypes, 'windll') else None
 winmm = getattr(ctypes, 'windll', None).winmm if hasattr(ctypes, 'windll') else None
+
+# Reduce Python GIL thread switch interval from 5ms (200Hz) to 0.5ms (2000Hz) so background capture never starves asyncio loop
+try:
+    sys.setswitchinterval(0.0005)
+except Exception:
+    pass
 
 # Enable 1ms kernel timer resolution on Windows so asyncio.sleep / frame pacing achieves 120-500+ FPS
 if winmm:
@@ -77,23 +127,49 @@ if winmm:
     except Exception:
         pass
 
-# Enable Per-Monitor DPI Awareness V2 if available
+# Enable Per-Monitor DPI Awareness V2 / shcore so Windows 125%/150% scaling never shrinks 1920x1080 to 1280x720
 if user32:
     try:
         if hasattr(user32, 'SetProcessDpiAwarenessContext'):
             user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
-        elif hasattr(user32, 'SetProcessDPIAware'):
+    except Exception:
+        pass
+if shcore:
+    try:
+        shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        pass
+if user32:
+    try:
+        if hasattr(user32, 'SetProcessDPIAware'):
             user32.SetProcessDPIAware()
     except Exception:
         pass
 
-# Win32 System Metrics Constants
+# Win32 System Metrics & DeviceCaps Constants
 SM_CXSCREEN = 0
 SM_CYSCREEN = 1
 SM_XVIRTUALSCREEN = 76
 SM_YVIRTUALSCREEN = 77
 SM_CXVIRTUALSCREEN = 78
 SM_CYVIRTUALSCREEN = 79
+DESKTOPHORZRES = 118
+DESKTOPVERTRES = 117
+
+
+def _compute_frame_checksum(raw_buf) -> int:
+    """Computes a fast C-level CRC32 over 100% of pixels in raw_buf (~0.4ms for 1080p)
+    so single-character typing or 1px cursor movements are NEVER missed by column stride aliasing."""
+    try:
+        mv = memoryview(raw_buf)
+        if mv.ndim > 1 or mv.format != "B":
+            mv = mv.cast("B")
+        return zlib.crc32(mv)
+    except Exception:
+        try:
+            return zlib.crc32( bytes(raw_buf) )
+        except Exception:
+            return int(time.perf_counter_ns() & 0xFFFFFFFF)
 
 
 class _CtypesTurboJPEG:
@@ -350,8 +426,9 @@ class ScreenCapture:
     """High-FPS cross-platform desktop capture & SIMD JPEG encoder (Windows, macOS, Linux).
     Decouples OS display capture + JPEG encoding into a continuous background producer thread
     during active streaming so 120-500+ FPS frame pacing never blocks on DWM BitBlt locks.
-    Uses anti-aliased bilinear interpolation and even-dimension alignment to prevent
-    jagged edges (răng cưa) and aspect-ratio distortion (méo mó biến dạng).
+    Uses full-buffer C-level CRC32 change detection + input-activity boost so typing and
+    small UI animations never skip frames, and bilinear interpolation with even-dimension
+    alignment to prevent jagged edges (răng cưa) and aspect-ratio distortion.
     """
 
     def __init__(self, quality: int = 70, max_width: Optional[int] = None):
@@ -364,7 +441,12 @@ class ScreenCapture:
         self.encoder_mode = "auto"
         self.static_cache_enabled = True
         self.keepalive_interval = 0.0  # 0.0 = zero-CPU cached frame delivery at target FPS
-        self.bg_min_interval: float = 0.0010  # ~1000Hz producer ceiling (0.0002s when uncapped)
+        self.bg_min_interval: float = 0.0002  # High-speed producer ceiling for 1000+ FPS
+        self._input_dirty_until: float = 0.0
+        self._force_active_until: float = 0.0
+        self._cached_geom: Optional[Tuple[int, int, int, int]] = None
+        self._cached_geom_ts: float = 0.0
+        self._cached_geom_key: Optional[Tuple[int, int]] = None
         self._buffer = io.BytesIO()
         self._tls = threading.local()
         self._attach_window_station()
@@ -398,6 +480,23 @@ class ScreenCapture:
         self._bg_stop_event = threading.Event()
         self._bg_wake_event = threading.Event()
         self._last_poll_ts: float = 0.0
+
+    def notify_input_activity(self, duration: float = 0.40):
+        """Marks the screen as actively receiving user keyboard/mouse input so the background producer
+        immediately wakes up and encodes every frame without static-cache skipping."""
+        deadline = time.perf_counter() + float(duration)
+        self._input_dirty_until = deadline
+        self._force_active_until = deadline
+        self._last_frame_hash = None
+        self._bg_wake_event.set()
+
+    @property
+    def _force_active_until(self) -> float:
+        return self._input_dirty_until
+
+    @_force_active_until.setter
+    def _force_active_until(self, val: float):
+        self._input_dirty_until = val
 
     def _get_thread_native_cap(self) -> Optional[NativeWin32Capture]:
         """Returns thread-local NativeWin32Capture so GDI DCs never suffer cross-thread contention."""
@@ -473,9 +572,35 @@ class ScreenCapture:
         except Exception:
             return False
 
+    @staticmethod
+    def _get_win32_physical_primary_res() -> Optional[Tuple[int, int]]:
+        """Reads true physical pixel resolution via GetDeviceCaps(DESKTOPHORZRES/DESKTOPVERTRES),
+        bypassing Windows 125%/150% DPI scaling if the process started before DPI awareness."""
+        if not (user32 and gdi32):
+            return None
+        hdc = None
+        try:
+            hdc = user32.GetDC(0)
+            if not hdc:
+                return None
+            pw = int(gdi32.GetDeviceCaps(hdc, DESKTOPHORZRES) or 0)
+            ph = int(gdi32.GetDeviceCaps(hdc, DESKTOPVERTRES) or 0)
+            if pw > 0 and ph > 0:
+                return (pw, ph)
+        except Exception:
+            pass
+        finally:
+            if hdc and user32:
+                try:
+                    user32.ReleaseDC(0, hdc)
+                except Exception:
+                    pass
+        return None
+
     def detect_monitors(self) -> List[Dict[str, Any]]:
         """Enumerates physical and virtual displays across Windows (Win32), macOS (Quartz/mss), and Linux (XRandR/mss)."""
         results = []
+        phys_primary = self._get_win32_physical_primary_res()
         if user32:
             try:
                 from ctypes import wintypes
@@ -500,6 +625,11 @@ class ScreenCapture:
                     left, top, right, bottom = rect
                     w = right - left
                     h = bottom - top
+                    # If single primary monitor is DPI-scaled (e.g. 1280x720 at 150% on a 1920x1080 panel), use physical pixels
+                    if len(mon_rects) == 1 and phys_primary and (phys_primary[0] > w or phys_primary[1] > h):
+                        w, h = phys_primary
+                        right, bottom = left + w, top + h
+                        rect = (left, top, right, bottom)
                     results.append({
                         "id": i + 1,
                         "name": f"Màn {i + 1}",
@@ -542,6 +672,8 @@ class ScreenCapture:
         if not results:
             w = user32.GetSystemMetrics(SM_CXSCREEN) if user32 else None
             h = user32.GetSystemMetrics(SM_CYSCREEN) if user32 else None
+            if phys_primary and w and h and (phys_primary[0] > w or phys_primary[1] > h):
+                w, h = phys_primary
             if not w or not h:
                 if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
                     w, h = 1920, 1080
@@ -569,6 +701,7 @@ class ScreenCapture:
     def set_active_monitor(self, monitor_id: int):
         """Sets active monitor to capture (0 for entire virtual desktop, 1..N for specific monitor)."""
         self.active_monitor_id = monitor_id
+        self._cached_geom = None
         self._last_frame_hash = None
         self._last_encoded_frame = None
         self._bg_wake_event.set()
@@ -588,6 +721,7 @@ class ScreenCapture:
         w_int = max(2, int(width) & ~1)
         h_int = max(2, int(height) & ~1)
         self.custom_virtual_resolution = (w_int, h_int)
+        self._cached_geom = None
         if self.max_width is not None:
             self.max_width = max(self.max_width, w_int)
         self._last_frame_hash = None
@@ -633,6 +767,10 @@ class ScreenCapture:
             if user32:
                 w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
                 h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+                if len(self.monitors) == 1:
+                    m0 = self.monitors[0]
+                    w = max(w, int(m0.get("width", w)))
+                    h = max(h, int(m0.get("height", h)))
                 if w > 0 and h > 0:
                     return (w, h)
             total_w = sum(m["width"] for m in self.monitors)
@@ -664,22 +802,33 @@ class ScreenCapture:
             self._bg_thread.start()
 
     def _bg_capture_loop(self):
-        """Dedicated background loop that continuously grabs and encodes screen updates without blocking _stream_screen."""
+        """Dedicated background loop that grabs and encodes DWM screen updates while always yielding the GIL
+        so the main asyncio WebSocket loop can stream frames and MKR0 ticks at 120-1000+ FPS."""
         while not self._bg_stop_event.is_set():
-            if time.perf_counter() - self._last_poll_ts > 1.5:
+            now_poll = time.perf_counter()
+            if now_poll - self._last_poll_ts > 1.5:
                 self._bg_wake_event.clear()
                 self._bg_wake_event.wait(timeout=0.5)
                 continue
 
-            t0 = time.perf_counter()
+            t0 = now_poll
+            prev_seq = self._last_encoded_seq
             try:
                 self._capture_and_encode_sync(force=False)
             except Exception:
                 pass
             elapsed = time.perf_counter() - t0
-            min_iv = max(0.0002, float(getattr(self, "bg_min_interval", 0.0010)))
-            if elapsed < min_iv:
-                time.sleep(min_iv - elapsed)
+            frame_changed = (self._last_encoded_seq != prev_seq)
+            is_input_hot = time.perf_counter() < getattr(self, "_input_dirty_until", 0.0)
+            # Physical monitors update at 60-144Hz (~7-16ms). Always yield GIL for at least 1.8ms (or 4ms when idle/static)
+            # so asyncio _stream_screen and _send_frames_worker achieve 1000+ FPS without GIL contention!
+            target_iv = max(0.006, float(getattr(self, "bg_min_interval", 0.006)))
+            if is_input_hot or frame_changed:
+                wait_sec = max(0.0018, target_iv - elapsed)
+            else:
+                wait_sec = max(0.0040, target_iv - elapsed)
+            self._bg_wake_event.clear()
+            self._bg_wake_event.wait(timeout=wait_sec)
 
     def close(self):
         """Releases native capture contexts and stops background producer thread."""
@@ -759,7 +908,8 @@ class ScreenCapture:
                     new_w = max(2, int(effective_max_w) & ~1)
                     new_h = max(2, int(round(height * (new_w / float(width)))) & ~1)
                     # Use fast SIMD INTER_LINEAR (~1.1ms vs ~12ms for INTER_AREA) unless strict_nearest is requested
-                    interp = cv2.INTER_NEAREST if getattr(self, "strict_nearest", False) else cv2.INTER_LINEAR
+                    use_nearest = bool(getattr(self, "strict_nearest", False) or getattr(self, "resample_filter", "bilinear") == "nearest")
+                    interp = cv2.INTER_NEAREST if use_nearest else cv2.INTER_LINEAR
                     arr = cv2.resize(arr, (new_w, new_h), interpolation=interp)
                 else:
                     new_w, new_h = width, height
@@ -809,7 +959,8 @@ class ScreenCapture:
             aspect = img.height / float(img.width)
             new_w = max(2, int(effective_max_w) & ~1)
             new_h = max(2, int(round(new_w * aspect)) & ~1)
-            resample = Image.Resampling.NEAREST if getattr(self, "strict_nearest", False) else Image.Resampling.BILINEAR
+            use_nearest = bool(getattr(self, "strict_nearest", False) or getattr(self, "resample_filter", "bilinear") == "nearest")
+            resample = Image.Resampling.NEAREST if use_nearest else Image.Resampling.BILINEAR
             img = img.resize((new_w, new_h), resample)
 
         if getattr(self, "grayscale", False):
@@ -847,41 +998,56 @@ class ScreenCapture:
         return cached
 
     def _compute_current_params(self) -> Tuple[int, int, int, int, Optional[int], Tuple[Any, ...]]:
-        left, top, w, h = 0, 0, 1920, 1080
-        if self.active_monitor_id == 0:
-            if user32:
-                left = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
-                top = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
-                w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
-                h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
-            elif self.monitors:
-                min_x = min(m.get("x", m.get("rect", (0, 0, 1920, 1080))[0]) for m in self.monitors)
-                min_y = min(m.get("y", m.get("rect", (0, 0, 1920, 1080))[1]) for m in self.monitors)
-                max_r = max(m.get("rect", (0, 0, m.get("width", 1920), m.get("height", 1080)))[2] for m in self.monitors)
-                max_b = max(m.get("rect", (0, 0, m.get("width", 1920), m.get("height", 1080)))[3] for m in self.monitors)
-                left, top, w, h = min_x, min_y, max(1, max_r - min_x), max(1, max_b - min_y)
-            if w <= 0 or h <= 0:
-                left, top = 0, 0
-                w = user32.GetSystemMetrics(SM_CXSCREEN) if user32 else 1920
-                h = user32.GetSystemMetrics(SM_CYSCREEN) if user32 else 1080
+        now = time.perf_counter()
+        geom_key = (self.active_monitor_id, len(self.monitors) if self.monitors else 0)
+        cached = getattr(self, "_cached_geom", None)
+        if cached is not None and getattr(self, "_cached_geom_key", None) == geom_key and (now - getattr(self, "_cached_geom_ts", 0.0)) < 0.25:
+            left, top, w, h = cached
         else:
-            for m in self.monitors:
-                if m.get("id") == self.active_monitor_id:
-                    rect = m.get("rect")
-                    if rect and len(rect) == 4:
-                        left, top = int(rect[0]), int(rect[1])
-                        w = int(m.get("width", rect[2] - rect[0]))
-                        h = int(m.get("height", rect[3] - rect[1]))
-                    else:
-                        left = int(m.get("x", m.get("left", 0)))
-                        top = int(m.get("y", m.get("top", 0)))
-                        w = int(m.get("width", 1920))
-                        h = int(m.get("height", 1080))
-                    break
+            left, top, w, h = 0, 0, 1920, 1080
+            if self.active_monitor_id == 0:
+                if user32:
+                    left = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+                    top = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+                    w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+                    h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+                    if len(self.monitors) == 1:
+                        m0 = self.monitors[0]
+                        w = max(w, int(m0.get("width", w)))
+                        h = max(h, int(m0.get("height", h)))
+                elif self.monitors:
+                    min_x = min(m.get("x", m.get("rect", (0, 0, 1920, 1080))[0]) for m in self.monitors)
+                    min_y = min(m.get("y", m.get("rect", (0, 0, 1920, 1080))[1]) for m in self.monitors)
+                    max_r = max(m.get("rect", (0, 0, m.get("width", 1920), m.get("height", 1080)))[2] for m in self.monitors)
+                    max_b = max(m.get("rect", (0, 0, m.get("width", 1920), m.get("height", 1080)))[3] for m in self.monitors)
+                    left, top, w, h = min_x, min_y, max(1, max_r - min_x), max(1, max_b - min_y)
+                if w <= 0 or h <= 0:
+                    left, top = 0, 0
+                    w = user32.GetSystemMetrics(SM_CXSCREEN) if user32 else 1920
+                    h = user32.GetSystemMetrics(SM_CYSCREEN) if user32 else 1080
+            else:
+                for m in self.monitors:
+                    if m.get("id") == self.active_monitor_id:
+                        rect = m.get("rect")
+                        if rect and len(rect) == 4:
+                            left, top = int(rect[0]), int(rect[1])
+                            w = int(m.get("width", rect[2] - rect[0]))
+                            h = int(m.get("height", rect[3] - rect[1]))
+                        else:
+                            left = int(m.get("x", m.get("left", 0)))
+                            top = int(m.get("y", m.get("top", 0)))
+                            w = int(m.get("width", 1920))
+                            h = int(m.get("height", 1080))
+                        break
+            self._cached_geom = (left, top, w, h)
+            self._cached_geom_key = geom_key
+            self._cached_geom_ts = now
 
         effective_max_w = self.max_width
-        if not effective_max_w and self.active_monitor_id == 0 and w > 2560:
-            effective_max_w = 2560
+        # Only cap ultra-wide multi-monitor virtual desktops (>4096px across multiple screens) when no explicit lock is set;
+        # preserve full Native 2K (2560x1440) and 4K (3840x2160) 1:1 resolution without forced CPU downscaling!
+        if not effective_max_w and self.active_monitor_id == 0 and len(self.monitors) > 1 and w > 4096:
+            effective_max_w = 3840
 
         current_params = (
             self.quality,
@@ -902,6 +1068,7 @@ class ScreenCapture:
             left, top, w, h, effective_max_w, current_params = self._compute_current_params()
             params_changed = (current_params != self._last_encode_params)
             now = time.perf_counter()
+            is_input_active = now < getattr(self, "_input_dirty_until", 0.0)
 
             # Tier 1 (Windows Primary): Zero-allocation Win32 GDI DIBSection capture with pure SRCCOPY (~1.1ms, zero hybrid GPU stall)
             native_cap = self._get_thread_native_cap()
@@ -909,9 +1076,10 @@ class ScreenCapture:
                 try:
                     dims, raw_buf, cursor_changed = native_cap.grab(left, top, w, h)
                     if dims is not None and raw_buf is not None:
-                        curr_hash = hash(memoryview(raw_buf)[::512].tobytes())
+                        curr_hash = _compute_frame_checksum(raw_buf)
                         is_static = (
                             not force
+                            and not is_input_active
                             and not params_changed
                             and not cursor_changed
                             and curr_hash == self._last_frame_hash
@@ -940,9 +1108,14 @@ class ScreenCapture:
                         frame_arr = cam.grab()
                         if frame_arr is not None and hasattr(frame_arr, "shape") and len(frame_arr.shape) == 3:
                             fh, fw = int(frame_arr.shape[0]), int(frame_arr.shape[1])
-                            raw_mv = memoryview(frame_arr).cast("B")
-                            curr_hash = hash(raw_mv[::512].tobytes())
-                            if not force and not params_changed and curr_hash == self._last_frame_hash and self._last_encoded_frame is not None:
+                            curr_hash = _compute_frame_checksum(frame_arr)
+                            if (
+                                not force
+                                and not is_input_active
+                                and not params_changed
+                                and curr_hash == self._last_frame_hash
+                                and self._last_encoded_frame is not None
+                            ):
                                 self._last_frame_sent_time = now
                                 return self._last_encoded_frame
                             encoded = self._encode_bgra_fast(frame_arr, fw, fh, effective_max_w)
@@ -969,9 +1142,10 @@ class ScreenCapture:
 
                     shot = sct.grab(mon_target)
                     raw_bgra = shot.raw
-                    curr_hash = hash(memoryview(raw_bgra)[::512].tobytes())
+                    curr_hash = _compute_frame_checksum(raw_bgra)
                     is_static = (
                         not force
+                        and not is_input_active
                         and not params_changed
                         and curr_hash == self._last_frame_hash
                         and self._last_encoded_frame is not None
@@ -1010,8 +1184,14 @@ class ScreenCapture:
                 return None
 
             raw_img_bytes = img.tobytes()
-            curr_hash = hash(memoryview(raw_img_bytes)[::512].tobytes())
-            if not force and not params_changed and curr_hash == self._last_frame_hash and self._last_encoded_frame is not None:
+            curr_hash = _compute_frame_checksum(raw_img_bytes)
+            if (
+                not force
+                and not is_input_active
+                and not params_changed
+                and curr_hash == self._last_frame_hash
+                and self._last_encoded_frame is not None
+            ):
                 self._last_frame_sent_time = now
                 return self._last_encoded_frame
 

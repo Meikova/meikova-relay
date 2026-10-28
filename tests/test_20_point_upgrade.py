@@ -201,5 +201,227 @@ class TestTwentyPointUpgrade(unittest.IsolatedAsyncioTestCase):
         self.assertIn("route.isReloadReconnect = true;", app_js)
 
 
+
+    def test_23_nine_point_cloudflare_wan_and_ui_fixes(self):
+        """Verifies all 9 fixes: CRC32 full-pixel checksum, input-triggered capture, stream_mode CLI & WS,
+        zero-replay networkSyncOverlay, Native FHD lock, top-deck stageRect offset, non-blocking top trigger,
+        hidden redundant pin button, translucent corner HUDs, and PS>ls terminal echo stripping."""
+        from host_agent.screen_capture import _compute_frame_checksum, ScreenCapture
+        from host_agent.host_service import HostService, build_cli_parser
+        from host_agent.terminal_manager import TerminalManager
+
+        # 1. Full-pixel CRC32 detects single character change at arbitrary column offset (no stride-512 blind spot)
+        buf_a = bytearray(1920 * 1080 * 4)
+        buf_b = bytearray(1920 * 1080 * 4)
+        # Modify pixel at column 7 (which was previously skipped by [::512] stride!)
+        buf_b[7 * 4] = 255
+        self.assertNotEqual(_compute_frame_checksum(buf_a), _compute_frame_checksum(buf_b))
+
+        # 2. Input activity notification wakes capture & sets active input window
+        cap = ScreenCapture(quality=75)
+        cap.notify_input_activity(0.35)
+        self.assertGreater(cap._force_active_until, 0.0)
+
+        # 3. CLI --stream-mode and --resolution flags
+        args = build_cli_parser().parse_args(["--stream-mode", "continuous_cfr", "--resolution", "1920x1080"])
+        self.assertEqual(args.stream_mode, "continuous_cfr")
+        self.assertEqual(args.resolution, "1920x1080")
+
+        svc = HostService(relay_url="ws://localhost:8080", room_id="RD-TEST9", stream_mode="low_latency_drop")
+        self.assertEqual(svc.stream_mode, "low_latency_drop")
+        self.assertIn("stream_mode", svc.get_host_config_dict())
+
+        # 4. TerminalManager strips compact 'PS>ls' as well as 'PS D:\path> ls'
+        tm = TerminalManager(on_output=lambda s: None)
+        tm._pending_echo_cmds.append("ls")
+        self.assertTrue(tm._should_skip_echo_line("PS>ls\r\n"))
+        tm._pending_echo_cmds.append("dir")
+        self.assertTrue(tm._should_skip_echo_line("PS > dir\r\n"))
+
+        # 5. HTML, CSS & JS checks for Network Sync Overlay, Top-Deck positioning, Translucent HUDs, and Hidden Quick Pin
+        html = (BASE_DIR / "relay-server" / "public" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="networkSyncOverlay"', html)
+        self.assertIn('id="streamModeBar"', html)
+        self.assertIn('data-stream-mode="continuous_cfr"', html)
+        self.assertIn('data-stream-mode="low_latency_drop"', html)
+
+        css = (BASE_DIR / "relay-server" / "public" / "css" / "style.css").read_text(encoding="utf-8")
+        self.assertIn(".network-sync-overlay", css)
+        self.assertIn(".readout--corner-fade", css)
+        self.assertIn("#btnDeckPinQuick {\n  display: none !important;\n}", css)
+
+        app_js = (BASE_DIR / "relay-server" / "public" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("btnRect.bottom - stageRect.top", app_js)
+        self.assertIn("request_keyframe", app_js)
+        self.assertIn("set_stream_mode", app_js)
+
+
+    def test_24_high_fps_and_fps_limit_enforcement(self):
+        """Verifies 1000+ FPS Uncapped mode, GIL-friendly background capture loop, WAN non-stalling ACK decay,
+        and end-to-end FPS Limit enforcement across HostService, server.js, and app.js."""
+        import asyncio
+        import json
+        from host_agent.host_service import HostService
+        from host_agent.screen_capture import ScreenCapture
+
+        svc = HostService(relay_url="ws://localhost:8080", room_id="RD-FPS24", pin="123456")
+        try:
+            sent_msgs = []
+
+            class DummyWS:
+                open = True
+                closed = False
+                async def send(self, data):
+                    sent_msgs.append(data)
+
+            ws = DummyWS()
+
+            # 1. Test explicit FPS limit (e.g. 60 FPS -> 1/60s, then 144 FPS -> 1/144s, then Uncapped 0 -> 1/1000s)
+            asyncio.run(svc.handle_control_event(json.dumps({"type": "set_fps_limit", "fps_limit": 60, "uncapped": False}), ws))
+            self.assertFalse(svc.uncapped_fps)
+            self.assertEqual(svc.custom_fps_limit, 60)
+            self.assertAlmostEqual(svc.frame_interval, 1.0 / 60.0)
+            last_resp = json.loads(sent_msgs[-1])
+            self.assertEqual(last_resp["type"], "fps_limit_applied")
+            self.assertEqual(last_resp["fps_limit"], 60)
+            self.assertEqual(last_resp["applied_fps"], 60)
+
+            asyncio.run(svc.handle_control_event(json.dumps({"type": "set_fps_limit", "fps_limit": 240, "uncapped": False}), ws))
+            self.assertFalse(svc.uncapped_fps)
+            self.assertEqual(svc.custom_fps_limit, 240)
+            self.assertAlmostEqual(svc.frame_interval, 1.0 / 240.0)
+
+            asyncio.run(svc.handle_control_event(json.dumps({"type": "set_fps_limit", "fps_limit": 0, "uncapped": True}), ws))
+            self.assertTrue(svc.uncapped_fps)
+            self.assertEqual(svc.custom_fps_limit, 0)
+            self.assertAlmostEqual(svc.frame_interval, 1.0 / 1000.0)
+
+            # 2. Test sync_display_profile and set_quality_preset preserving explicit FPS limit and Uncapped state
+            asyncio.run(svc.handle_control_event(json.dumps({
+                "type": "sync_display_profile",
+                "client_w": 1920,
+                "client_h": 1080,
+                "client_fps": 60,
+                "fps_limit": 30,
+                "uncapped": False
+            }), ws))
+            self.assertFalse(svc.uncapped_fps)
+            self.assertEqual(svc.custom_fps_limit, 30)
+            self.assertAlmostEqual(svc.frame_interval, 1.0 / 30.0)
+
+            asyncio.run(svc.handle_control_event(json.dumps({
+                "type": "set_quality_preset",
+                "preset": "speed_60",
+                "fps_limit": 0,
+                "uncapped": True
+            }), ws))
+            self.assertTrue(svc.uncapped_fps)
+            self.assertEqual(svc.custom_fps_limit, 0)
+            self.assertAlmostEqual(svc.frame_interval, 1.0 / 1000.0)
+
+            # 3. Verify frame_ack with dropped=True does NOT force full-frame resend storm
+            svc._force_full_frame = False
+            svc._last_sent_frame_obj_id = 12345
+            svc.frames_in_flight = 3
+            asyncio.run(svc.handle_control_event(json.dumps({"type": "frame_ack", "dropped": True}), ws))
+            self.assertFalse(svc._force_full_frame)
+            self.assertEqual(svc._last_sent_frame_obj_id, 12345)
+            self.assertEqual(svc.frames_in_flight, 2)
+
+            # 4. Verify web client & relay server high-FPS and FPS limiter hooks
+            app_js = (BASE_DIR / "relay-server" / "public" / "js" / "app.js").read_text(encoding="utf-8")
+            self.assertIn("function syncFpsLimitUI(", app_js)
+            self.assertIn("msg.type === 'fps_limit_applied'", app_js)
+            self.assertIn("recordRenderedFrameTick", app_js)
+            self.assertIn("lastAcceptedFrameTickTime", app_js)
+
+            srv_js = (BASE_DIR / "relay-server" / "server.js").read_text(encoding="utf-8")
+            self.assertIn("client.ws.bufferedAmount > 2 * 1024 * 1024", srv_js)
+            self.assertIn("const highWaterMark = Math.max(512 * 1024, Math.min(1536 * 1024, msgLen * 2));", srv_js)
+        finally:
+            svc.stop()
+
+
+
+    def test_25_new_enterprise_features_and_in_browser_protocol_matrix(self):
+        """Verify new enterprise features (Smart Visual Filter, PiP Mini-Monitor, Remote URL Launcher, Auto-Lock on Disconnect, Idle FPS Saver) and In-Browser Protocol Matrix (RDP, SSH, SFTP)."""
+        svc = HostService(
+            relay_url="ws://127.0.0.1:8080",
+            room_id="TEST-ENT",
+            pin="123456",
+            color_filter="crisp_text",
+            auto_lock_on_disconnect=True,
+            idle_fps_saver=True,
+        )
+        try:
+            self.assertEqual(svc.color_filter, "crisp_text")
+            self.assertTrue(svc.auto_lock_on_disconnect)
+            self.assertTrue(svc.idle_fps_saver)
+
+            class DummyWS:
+                def __init__(self):
+                    self.sent = []
+                async def send(self, data):
+                    self.sent.append(data)
+
+            ws = DummyWS()
+
+            # 1. Test set_color_filter event
+            asyncio.run(svc.handle_control_event(json.dumps({
+                "type": "set_color_filter",
+                "color_filter": "night_shield"
+            }), ws))
+            self.assertEqual(svc.color_filter, "night_shield")
+            last_msg = json.loads(ws.sent[-1])
+            self.assertEqual(last_msg["type"], "color_filter_applied")
+            self.assertEqual(last_msg["color_filter"], "night_shield")
+
+            # 2. Test set_host_config updating color_filter, auto_lock_on_disconnect, idle_fps_saver
+            asyncio.run(svc.handle_control_event(json.dumps({
+                "type": "set_host_config",
+                "color_filter": "high_contrast",
+                "auto_lock_on_disconnect": False,
+                "idle_fps_saver": False
+            }), ws))
+            self.assertEqual(svc.color_filter, "high_contrast")
+            self.assertFalse(svc.auto_lock_on_disconnect)
+            self.assertFalse(svc.idle_fps_saver)
+
+            # 3. Test open_remote_url in MEIKOVA_TEST_MODE (safe, no physical browser spawned)
+            os.environ["MEIKOVA_TEST_MODE"] = "1"
+            asyncio.run(svc.handle_control_event(json.dumps({
+                "type": "open_remote_url",
+                "url": "github.com/meikova"
+            }), ws))
+            url_msg = json.loads(ws.sent[-1])
+            self.assertEqual(url_msg["type"], "open_remote_url_response")
+            self.assertTrue(url_msg["success"])
+            self.assertEqual(url_msg["url"], "https://github.com/meikova")
+
+            # 4. Test probe_protocols and in-browser Protocol Matrix UI bindings
+            asyncio.run(svc.handle_control_event(json.dumps({
+                "type": "probe_protocols"
+            }), ws))
+            proto_msg = json.loads(ws.sent[-1])
+            self.assertEqual(proto_msg["type"], "protocol_matrix")
+            self.assertIn("remote", proto_msg["matrix"])
+            self.assertIn("terminal", proto_msg["matrix"])
+            self.assertIn("file", proto_msg["matrix"])
+
+            app_js = (BASE_DIR / "relay-server" / "public" / "js" / "app.js").read_text(encoding="utf-8")
+            self.assertIn("btnDirectProtoRdp", app_js)
+            self.assertIn("btnDirectProtoSsh", app_js)
+            self.assertIn("btnDirectProtoSftp", app_js)
+            self.assertIn("msg.type === 'tunnel_opened'", app_js)
+            self.assertIn("function updateColorFilterUI(", app_js)
+            self.assertIn("btnDropdownPip", app_js)
+            self.assertIn("btnDropdownOpenUrl", app_js)
+            self.assertIn("btnDropdownAutoLock", app_js)
+        finally:
+            svc.stop()
+
+
 if __name__ == "__main__":
+
+
     unittest.main()

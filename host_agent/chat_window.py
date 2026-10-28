@@ -304,7 +304,7 @@ class HostChatWindow:
 
         # Configure message color tags
         self._text_area.tag_config("time", foreground="#64748B", font=("Consolas", 8))
-        self._text_area.tag_config("remote_sender", foreground="#38BDF8", font=("Segoe UI", 9, "bold"))
+        self._text_area.tag_config("remote_sender", foreground="#83E8AC", font=("Segoe UI", 9, "bold"))
         self._text_area.tag_config("local_sender", foreground="#22C55E", font=("Segoe UI", 9, "bold"))
         self._text_area.tag_config("system", foreground="#94A3B8", font=("Segoe UI", 8, "italic"))
         self._text_area.tag_config("body", foreground="#F8FAFC", font=("Segoe UI", 9))

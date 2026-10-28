@@ -116,34 +116,31 @@ class ClipboardManager:
                     if HAS_WIN32:
                         try:
                             win32clipboard.OpenClipboard()
-                            if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_UNICODETEXT):
-                                data = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
-                                win32clipboard.CloseClipboard()
-                                return data
-                            win32clipboard.CloseClipboard()
-                            return None
-                        except Exception:
-                            try: win32clipboard.CloseClipboard()
-                            except Exception: pass
-
-                    # Native Windows ctypes fallback (64-bit safe)
-                    try:
-                        if user32.OpenClipboard(None):
                             try:
-                                if user32.IsClipboardFormatAvailable(CF_UNICODETEXT):
-                                    h_mem = user32.GetClipboardData(CF_UNICODETEXT)
-                                    if h_mem:
-                                        p_mem = kernel32.GlobalLock(h_mem)
-                                        if p_mem:
-                                            try:
-                                                return ctypes.wstring_at(p_mem)
-                                            finally:
-                                                kernel32.GlobalUnlock(h_mem)
-                                return None
+                                if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_UNICODETEXT):
+                                    return win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
                             finally:
-                                user32.CloseClipboard()
-                    except Exception:
-                        pass
+                                win32clipboard.CloseClipboard()
+                        except Exception:
+                            pass
+                    else:
+                        # Native Windows ctypes fallback (64-bit safe)
+                        try:
+                            if user32.OpenClipboard(None):
+                                try:
+                                    if user32.IsClipboardFormatAvailable(CF_UNICODETEXT):
+                                        h_mem = user32.GetClipboardData(CF_UNICODETEXT)
+                                        if h_mem:
+                                            p_mem = kernel32.GlobalLock(h_mem)
+                                            if p_mem:
+                                                try:
+                                                    return ctypes.wstring_at(p_mem)
+                                                finally:
+                                                    kernel32.GlobalUnlock(h_mem)
+                                finally:
+                                    user32.CloseClipboard()
+                        except Exception:
+                            pass
                     time.sleep(0.02)
                 return None
             elif sys.platform == "darwin":
@@ -172,39 +169,40 @@ class ClipboardManager:
                     if HAS_WIN32:
                         try:
                             win32clipboard.OpenClipboard()
-                            win32clipboard.EmptyClipboard()
-                            win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, text)
-                            win32clipboard.CloseClipboard()
-                            self.last_text = text
-                            return True
+                            try:
+                                win32clipboard.EmptyClipboard()
+                                win32clipboard.SetClipboardData(win32clipboard.CF_UNICODETEXT, text)
+                                self.last_text = text
+                                return True
+                            finally:
+                                win32clipboard.CloseClipboard()
                         except Exception:
-                            try: win32clipboard.CloseClipboard()
-                            except Exception: pass
-
-                    # Native Windows ctypes fallback (64-bit safe)
-                    try:
-                        data = text.encode('utf-16le') + b'\x00\x00'
-                        h_mem = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
-                        if h_mem:
-                            p_mem = kernel32.GlobalLock(h_mem)
-                            if p_mem:
-                                ctypes.memmove(p_mem, data, len(data))
-                                kernel32.GlobalUnlock(h_mem)
-                                if user32.OpenClipboard(None):
-                                    try:
-                                        user32.EmptyClipboard()
-                                        res = user32.SetClipboardData(CF_UNICODETEXT, h_mem)
-                                        if res:
-                                            self.last_text = text
-                                            return True
-                                    finally:
-                                        user32.CloseClipboard()
+                            pass
+                    else:
+                        # Native Windows ctypes fallback (64-bit safe)
+                        try:
+                            data = text.encode('utf-16le') + b'\x00\x00'
+                            h_mem = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+                            if h_mem:
+                                p_mem = kernel32.GlobalLock(h_mem)
+                                if p_mem:
+                                    ctypes.memmove(p_mem, data, len(data))
+                                    kernel32.GlobalUnlock(h_mem)
+                                    if user32.OpenClipboard(None):
+                                        try:
+                                            user32.EmptyClipboard()
+                                            res = user32.SetClipboardData(CF_UNICODETEXT, h_mem)
+                                            if res:
+                                                self.last_text = text
+                                                return True
+                                        finally:
+                                            user32.CloseClipboard()
+                                    else:
+                                        kernel32.GlobalFree(h_mem)
                                 else:
                                     kernel32.GlobalFree(h_mem)
-                            else:
-                                kernel32.GlobalFree(h_mem)
-                    except Exception:
-                        pass
+                        except Exception:
+                            pass
                     time.sleep(0.02)
                 return False
             elif sys.platform == "darwin":

@@ -3,7 +3,7 @@
   'use strict';
   // PWA Cache Storage Purge on Version Bump
   try {
-    const PWA_VER = '1.0.70';
+    const PWA_VER = '1.4.0';
     const lastPwaVer = localStorage.getItem('meikova_pwa_ver');
     if (lastPwaVer && lastPwaVer !== PWA_VER && 'caches' in window) {
       localStorage.setItem('meikova_pwa_ver', PWA_VER);
@@ -296,8 +296,8 @@
         if (iconAlert) iconAlert.classList.remove('hidden');
       } else {
         if (iconWrap) {
-          iconWrap.style.background = 'rgba(131, 232, 172, 0.12)';
-          iconWrap.style.color = '#83E8AC';
+          iconWrap.style.background = 'rgba(34, 197, 94, 0.12)';
+          iconWrap.style.color = '#22C55E';
         }
         if (iconCheck) iconCheck.classList.remove('hidden');
         if (iconAlert) iconAlert.classList.add('hidden');
@@ -559,8 +559,8 @@
 
     // Soft area fill under sparkline
     const grad = sparkCtx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, 'rgba(131, 232, 172, 0.35)');
-    grad.addColorStop(1, 'rgba(131, 232, 172, 0.0)');
+    grad.addColorStop(0, 'rgba(34, 197, 94, 0.35)');
+    grad.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
     sparkCtx.fillStyle = grad;
     sparkCtx.beginPath();
     sparkCtx.moveTo(pts[0].x, h);
@@ -570,7 +570,7 @@
     sparkCtx.fill();
 
     // Crisp signal line
-    sparkCtx.strokeStyle = '#83e8ac';
+    sparkCtx.strokeStyle = '#22c55e';
     sparkCtx.lineWidth = 1.5;
     sparkCtx.lineJoin = 'round';
     sparkCtx.beginPath();
@@ -1034,6 +1034,16 @@
     updateRoStatus();
     syncRemoteStageOverlays();
     updateTerminalStatusBadge();
+    syncFpsLimitUI(currentFpsLimit);
+    if (hostMonitors && hostMonitors.length > 0) {
+      populateMonitors(hostMonitors, currentActiveMonitorId || 0);
+    } else {
+      updateMonitorMenuUI(0);
+    }
+    if (typeof updateStreamModeUI === 'function') updateStreamModeUI(currentStreamMode || 'adaptive_vfr');
+    if (typeof updateColorFilterUI === 'function') updateColorFilterUI(currentColorFilter || 'normal');
+    if (typeof updateRelayModalData === 'function') updateRelayModalData();
+    if (typeof updateQualityMenuUI === 'function' && qualitySelector) updateQualityMenuUI(qualitySelector.value || 'balanced');
     requestAnimationFrame(placeAllIndicators);
     if (currentView === 'dashboard') {
       renderDeviceGrid(currentDeviceList);
@@ -1633,13 +1643,13 @@
     const chordPairs = [
       // Left Loop (Host Workstation cluster - Amber / Copper / Emerald / Mint)
       { t1: Math.PI * 0.62, t2: Math.PI * 1.38, cpOffset: -0.15, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.72, t2: Math.PI * 1.28, cpOffset: -0.25, color: 'rgba(131, 232, 172, ' },
+      { t1: Math.PI * 0.72, t2: Math.PI * 1.28, cpOffset: -0.25, color: 'rgba(34, 197, 94, ' },
       { t1: Math.PI * 0.55, t2: Math.PI * 1.45, cpOffset: -0.08, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.85, t2: Math.PI * 1.15, cpOffset: -0.35, color: 'rgba(131, 232, 172, ' },
+      { t1: Math.PI * 0.85, t2: Math.PI * 1.15, cpOffset: -0.35, color: 'rgba(34, 197, 94, ' },
       { t1: Math.PI * 0.92, t2: Math.PI * 1.08, cpOffset: -0.42, color: 'rgba(234, 88, 12, ' },
       { t1: Math.PI * 0.68, t2: Math.PI * 1.32, cpOffset: -0.20, color: 'rgba(16, 185, 129, ' },
       { t1: Math.PI * 0.78, t2: Math.PI * 1.22, cpOffset: -0.30, color: 'rgba(245, 158, 11, ' },
-      { t1: Math.PI * 0.58, t2: Math.PI * 1.42, cpOffset: -0.10, color: 'rgba(131, 232, 172, ' },
+      { t1: Math.PI * 0.58, t2: Math.PI * 1.42, cpOffset: -0.10, color: 'rgba(34, 197, 94, ' },
       { t1: Math.PI * 0.88, t2: Math.PI * 1.12, cpOffset: -0.38, color: 'rgba(234, 88, 12, ' },
       { t1: Math.PI * 0.95, t2: Math.PI * 1.05, cpOffset: -0.45, color: 'rgba(245, 158, 11, ' },
 
@@ -1663,7 +1673,7 @@
       { t1: Math.PI * 0.46, t2: Math.PI * 1.54, cpOffset: 0, color: 'rgba(226, 232, 240, ' },
       { t1: Math.PI * 0.54, t2: Math.PI * 1.46, cpOffset: 0, color: 'rgba(131, 232, 172, ' },
       { t1: Math.PI * 0.38, t2: Math.PI * 1.30, cpOffset: 0, color: 'rgba(96, 165, 250, ' },
-      { t1: Math.PI * 0.62, t2: Math.PI * 1.70, cpOffset: 0, color: 'rgba(131, 232, 172, ' }
+      { t1: Math.PI * 0.62, t2: Math.PI * 1.70, cpOffset: 0, color: 'rgba(34, 197, 94, ' }
     ];
 
     let lastTime = performance.now();
@@ -1757,7 +1767,7 @@
       // Left Lobe Nebula (Host Station: Emerald-Amber glow)
       const gLeft = ctx.createRadialGradient(cx - scaleX * 0.55, cy, 0, cx - scaleX * 0.55, cy, scaleX * 0.75);
       gLeft.addColorStop(0, `rgba(245, 158, 11, ${0.10 + pulseT})`);
-      gLeft.addColorStop(0.38, `rgba(131, 232, 172, ${0.06 + pulseT})`);
+      gLeft.addColorStop(0.38, `rgba(34, 197, 94, ${0.06 + pulseT})`);
       gLeft.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = gLeft;
       ctx.beginPath();
@@ -1915,7 +1925,7 @@
       // Multi-Speed High-Frequency Micro Data Blips
       const microPulses = [
         { t: (now * 0.00068) % (Math.PI * 2), color: '#83E8AC', size: 1.8 },
-        { t: (now * 0.00062 + Math.PI * 0.5) % (Math.PI * 2), color: '#83E8AC', size: 1.8 },
+        { t: (now * 0.00062 + Math.PI * 0.5) % (Math.PI * 2), color: '#22C55E', size: 1.8 },
         { t: (now * 0.00054 + Math.PI * 1.2) % (Math.PI * 2), color: '#F59E0B', size: 1.6 },
         { t: (now * 0.00078 + Math.PI * 1.7) % (Math.PI * 2), color: '#FFFFFF', size: 2.0 }
       ];
@@ -1946,7 +1956,7 @@
         const spPos = getPoint((comet2T + offset + Math.PI * 4) % (Math.PI * 2));
         ctx.beginPath();
         ctx.arc(spPos.x, spPos.y, 2.2 - idx * 0.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(131, 232, 172, ${0.75 - idx * 0.22})`;
+        ctx.fillStyle = `rgba(34, 197, 94, ${0.75 - idx * 0.22})`;
         ctx.fill();
       });
 
@@ -2005,7 +2015,7 @@
         const normX = (bp.x - cx) / scaleX;
         let colorStr = '';
         if (normX < -0.15) {
-          // Host cluster: Amber (#F59E0B) to Emerald (#83E8AC)
+          // Host cluster: Amber (#F59E0B) to Emerald (#22C55E)
           const mix = (-normX - 0.15) / 0.85;
           const r = Math.round(245 * (1 - mix * 0.5) + 34 * (mix * 0.5));
           const g = Math.round(158 * (1 - mix * 0.5) + 197 * (mix * 0.5));
@@ -2073,7 +2083,7 @@
       // Comet 1: Cyan / Electric Blue (Video Stream 120 FPS)
       drawPhotonHead(comet1Pos, '#FFFFFF', 'rgba(131, 232, 172, 0.85)', 'rgba(131, 232, 172, 0.22)');
       // Comet 2: Amber / Emerald (Input Stream)
-      drawPhotonHead(comet2Pos, '#FFFFFF', 'rgba(245, 158, 11, 0.85)', 'rgba(131, 232, 172, 0.22)');
+      drawPhotonHead(comet2Pos, '#FFFFFF', 'rgba(245, 158, 11, 0.85)', 'rgba(34, 197, 94, 0.22)');
 
       // --- 8. Center Relay Hub Nexus (Rotating Holographic Gimbal Reticle) ---
       const dC1 = Math.hypot(comet1Pos.x - cx, comet1Pos.y - cy);
@@ -2152,7 +2162,7 @@
           if (rs === 0) ctx.moveTo(pt3.x, pt3.y);
           else ctx.lineTo(pt3.x, pt3.y);
         }
-        ctx.strokeStyle = rg === 0 ? 'rgba(131, 232, 172, 0.16)' : (rg === 1 ? 'rgba(131, 232, 172, 0.14)' : 'rgba(245, 158, 11, 0.12)');
+        ctx.strokeStyle = rg === 0 ? 'rgba(131, 232, 172, 0.16)' : (rg === 1 ? 'rgba(34, 197, 94, 0.14)' : 'rgba(245, 158, 11, 0.12)');
         ctx.lineWidth = 0.85;
         ctx.stroke();
       }
@@ -2257,7 +2267,7 @@
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         let col = `rgba(131, 232, 172, ${p.alpha})`;
-        if (p.hue === 150) col = `rgba(131, 232, 172, ${p.alpha})`;
+        if (p.hue === 150) col = `rgba(34, 197, 94, ${p.alpha})`;
         else if (p.hue === 38) col = `rgba(245, 158, 11, ${p.alpha})`;
         ctx.fillStyle = col;
         ctx.fill();
@@ -2306,7 +2316,7 @@
         // Secondary Outer Harmonic Ring (Emerald)
         ctx.beginPath();
         ctx.arc(rp.x, rp.y, Math.max(0, rp.r - 8), 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(131, 232, 172, ${rp.alpha * 0.45})`;
+        ctx.strokeStyle = `rgba(34, 197, 94, ${rp.alpha * 0.45})`;
         ctx.lineWidth = 0.8;
         ctx.stroke();
       }
@@ -2560,6 +2570,10 @@
         setTimeout(() => placeIndicator(authTabs), 30);
       } else if (view === 'dashboard') {
         dashboardSection.classList.remove('hidden');
+        const fInp = document.getElementById('fleetSearchInput');
+        if (fInp && !activeFleetSearchQuery) {
+          fInp.value = '';
+        }
         loadDeviceFleet();
       } else if (view === 'remote') {
         remoteSection.classList.remove('hidden');
@@ -3012,6 +3026,9 @@
     btnCancelSessionCfg?.addEventListener('click', () => {
       sessionConfigModal.classList.add('hidden');
     });
+    document.getElementById('btnCancelSessionCfgIcon')?.addEventListener('click', () => {
+      sessionConfigModal.classList.add('hidden');
+    });
 
     sessionConfigModal.addEventListener('click', (e) => {
       if (e.target === sessionConfigModal) {
@@ -3147,6 +3164,9 @@
     setTimeout(() => placeIndicator(osTabs), 50);
   });
   btnCloseAddModal?.addEventListener('click', () => {
+    addDeviceModal?.classList.add('hidden');
+  });
+  document.getElementById('btnCloseAddModalIcon')?.addEventListener('click', () => {
     addDeviceModal?.classList.add('hidden');
   });
   addDeviceModal?.addEventListener('click', (e) => {
@@ -3319,15 +3339,15 @@
       const isSelf = !!sess.isSelf || (sess.id && sess.id === mySessionId) || (sess.machineId && myMachineId && sess.machineId === myMachineId);
       const connTime = formatTimeAgo(sess.connectedAt);
       return `
-        <div class="session-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--ink-1); border:1px solid ${isSelf ? 'rgba(56,189,248,0.3)' : 'var(--line)'}; border-radius:var(--radius); gap:12px;">
+        <div class="session-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--ink-1); border:1px solid ${isSelf ? 'rgba(34,197,94,0.3)' : 'var(--line)'}; border-radius:var(--radius); gap:12px;">
           <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
-            <div style="width:36px; height:36px; border-radius:50%; background:${'rgba(56,189,248,0.1)'}; border:1px solid ${'rgba(56,189,248,0.3)'}; color:${isSelf ? 'var(--accent)' : '#83e8ac'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <div style="width:36px; height:36px; border-radius:50%; background:${isSelf ? 'rgba(34,197,94,0.1)' : 'rgba(131, 232, 172,0.1)'}; border:1px solid ${isSelf ? 'rgba(34,197,94,0.3)' : 'rgba(131, 232, 172,0.3)'}; color:${isSelf ? 'var(--accent)' : '#83e8ac'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <div style="min-width:0; flex:1;">
               <div style="display:flex; align-items:center; gap:6px;">
                 <strong style="font-size:0.85rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(sess.username || 'Khách (Ẩn danh)')}</strong>
-                ${isSelf ? `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.15); color:var(--accent); font-size:0.62rem; padding:1px 6px;">BẠN</span>` : `<span class="spec-chip mono-font" style="background:rgba(56,189,248,0.12); color:#83e8ac; font-size:0.62rem; padding:1px 6px;">KHÁCH</span>`}
+                ${isSelf ? `<span class="spec-chip mono-font" style="background:rgba(34,197,94,0.15); color:var(--accent); font-size:0.62rem; padding:1px 6px;">BẠN</span>` : `<span class="spec-chip mono-font" style="background:rgba(131, 232, 172,0.12); color:#83e8ac; font-size:0.62rem; padding:1px 6px;">KHÁCH</span>`}
               </div>
               <div class="mono-font" style="font-size:0.68rem; color:var(--text-muted); display:flex; gap:8px; margin-top:3px; flex-wrap:wrap;">
                 <span>IP: ${escapeHtml(sess.clientIp || '127.0.0.1')}</span>
@@ -3470,10 +3490,10 @@
             <span class="spec-chip">${getOsSvg(d.os_info)} <span>${escapeHtml(formatFriendlyOsInfo(d.os_info))}</span></span>
             <span class="spec-chip">${resSvg} <span>${escapeHtml(d.resolution || '1920x1080')}</span></span>
             <span class="spec-chip">${roomSvg} <span>${escapeHtml(d.room_id)}</span></span>
-            ${(d.group_name && d.group_name !== 'Default' && d.group_name !== 'Mặc định' && d.group_name.toLowerCase() !== 'default') ? `<span class="spec-chip group-chip" style="border-color: rgba(56,189,248,0.3); color: #83e8ac;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>${escapeHtml(d.group_name)}</span></span>` : ''}
+            ${d.group_name && d.group_name !== 'Default' && d.group_name !== 'Mặc định' && d.group_name.toLowerCase() !== 'default' ? `<span class="spec-chip" style="border-color: var(--accent-lo); color: var(--accent);"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px; vertical-align:middle;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>${escapeHtml(d.group_name)}</span></span>` : ''}
             ${d.is_admin ? '<span class="spec-chip" style="border-color: rgba(245,158,11,0.4); color: #fbbf24;">ADMIN</span>' : ''}
           </div>
-          ${d.tags ? `<div class="device-tags-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${String(d.tags).split(',').map(tg => tg.trim()).filter(Boolean).map(tg => `<span class="mono-font" style="font-size:0.65rem;padding:1px 6px;border-radius:4px;background:rgba(56,189,248,0.1);color:var(--accent);border:1px solid rgba(56,189,248,0.25);">#${escapeHtml(tg)}</span>`).join('')}</div>` : ''}
+          ${d.tags ? `<div class="device-tags-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${String(d.tags).split(',').map(tg => tg.trim()).filter(Boolean).map(tg => `<span class="mono-font" style="font-size:0.65rem;padding:1px 6px;border-radius:4px;background:rgba(34,197,94,0.1);color:var(--accent);border:1px solid rgba(34,197,94,0.25);">#${escapeHtml(tg)}</span>`).join('')}</div>` : ''}
           <div class="device-last-access mono-font" style="font-size:0.68rem;color:var(--text-faint);margin-top:6px;display:flex;justify-content:space-between;align-items:center;">
             <span>${t('dashboard.last_accessed', { time: d.last_accessed ? formatTimeAgo(new Date(d.last_accessed).getTime()) : (d.last_seen ? formatTimeAgo(new Date(d.last_seen).getTime()) : 'Vừa xong') })}</span>
             <button type="button" class="btn-edit-device-meta btn-pill" data-room="${escapeHtml(d.room_id)}" data-name="${escapeHtml(d.device_name)}" data-group="${escapeHtml(d.group_name || 'Default')}" data-tags="${escapeHtml(d.tags || '')}" data-notes="${escapeHtml(d.notes || '')}" style="padding:1px 7px;font-size:0.65rem;height:20px;" data-i18n="dashboard.btn_edit_meta">${t('dashboard.btn_edit_meta') || 'Nhóm & Thẻ'}</button>
@@ -3495,7 +3515,7 @@
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
               <span data-i18n="dashboard.btn_connect">${connectLabel}</span>
             </button>
-            <button type="button" class="btn-popout-device" data-room="${escapeHtml(d.room_id)}" data-pin="${escapeHtml(d.pin || '')}" data-name="${escapeHtml(d.device_name)}" title="Mở trong tab mới / cửa sổ riêng (Popout)" aria-label="Mở trong tab mới" style="height:38px;padding:0 12px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:var(--radius);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s ease;" onmouseenter="this.style.color='var(--accent-cyan)';this.style.borderColor='rgba(56,189,248,0.4)';this.style.background='rgba(56,189,248,0.08)';" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--line)';this.style.background='rgba(255,255,255,0.03)';">
+            <button type="button" class="btn-popout-device" data-room="${escapeHtml(d.room_id)}" data-pin="${escapeHtml(d.pin || '')}" data-name="${escapeHtml(d.device_name)}" title="Mở trong tab mới / cửa sổ riêng (Popout)" aria-label="Mở trong tab mới" style="height:38px;padding:0 12px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:var(--radius);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s ease;" onmouseenter="this.style.color='var(--accent-cyan)';this.style.borderColor='rgba(131, 232, 172,0.4)';this.style.background='rgba(131, 232, 172,0.08)';" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--line)';this.style.background='rgba(255,255,255,0.03)';">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
             </button>
             <button class="btn-delete-device" data-id="${d.id}" data-name="${escapeHtml(d.device_name)}" title="${t('dashboard.btn_delete')}" aria-label="${t('dashboard.btn_delete')}" style="height:38px;padding:0 12px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:var(--radius);color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s ease;" onmouseenter="this.style.color='#EF4444';this.style.borderColor='rgba(239,68,68,0.4)';this.style.background='rgba(239,68,68,0.08)';" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--line)';this.style.background='rgba(255,255,255,0.03)';">
@@ -3594,6 +3614,7 @@
   btnQuickConnect.addEventListener('click', () => quickConnectModal.classList.remove('hidden'));
   btnOpenLinkModal.addEventListener('click', () => quickConnectModal.classList.remove('hidden'));
   btnCancelQC.addEventListener('click', () => quickConnectModal.classList.add('hidden'));
+  document.getElementById('btnCancelQCIcon')?.addEventListener('click', () => quickConnectModal.classList.add('hidden'));
 
   quickConnectForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -3645,6 +3666,9 @@
     roStatus.textContent = `${roomId} // ${t('ro.connecting')}`;
     const connOverlay = document.getElementById('canvasConnectingOverlay');
     if (connOverlay) connOverlay.classList.remove('hidden');
+    const guardOverlay = document.getElementById('unconnectedScreenGuard');
+    if (guardOverlay) guardOverlay.classList.add('hidden');
+    updateRoStatus();
 
     if (ws) {
       ws.close();
@@ -3657,6 +3681,7 @@
       ws.onerror = (err) => {
         console.warn('[Client WS Error]:', err);
       };
+      syncRemoteStageOverlays();
     } catch (err) {
       showToast(t('toast.ws_error', { error: err.message }), 'error');
       return;
@@ -3698,6 +3723,49 @@
         if (msg.type === 'protocol_matrix') {
           currentProtocolMatrix = msg.matrix;
           updateProtocolUI(msg.matrix);
+          return;
+        }
+
+        if (msg.type === 'tunnel_opened') {
+          window.activeProtocolTunnels = window.activeProtocolTunnels || {};
+          window.activeProtocolTunnels[msg.tunnel_id] = {
+            protocol: msg.protocol || 'tcp',
+            port: msg.port,
+            status: 'ready',
+            openedAt: Date.now()
+          };
+          showToast(t('toast.proto_tunnel_opened', {
+            proto: String(msg.protocol || 'TCP').toUpperCase(),
+            port: msg.port || ''
+          }), 'success');
+          if (currentProtocolMatrix) updateProtocolUI(currentProtocolMatrix);
+          return;
+        }
+
+        if (msg.type === 'tunnel_data') {
+          window.activeProtocolTunnels = window.activeProtocolTunnels || {};
+          const tun = window.activeProtocolTunnels[msg.tunnel_id];
+          if (tun && msg.data) {
+            try {
+              const raw = atob(msg.data);
+              const cleanBanner = raw.replace(/[^\x20-\x7E]/g, '').trim().slice(0, 48);
+              if (cleanBanner) {
+                tun.lastBanner = cleanBanner;
+                if (tun.protocol === 'ssh' && protoDescSsh) {
+                  protoDescSsh.textContent = `${cleanBanner} (Tunnel Active)`;
+                } else if (tun.protocol === 'rdp' && protoDescRdp) {
+                  protoDescRdp.textContent = `X.224 Handshake OK (${cleanBanner.slice(0, 20) || 'Port 3389'})`;
+                }
+              }
+            } catch (_) {}
+          }
+          return;
+        }
+
+        if (msg.type === 'tunnel_closed' || msg.type === 'tunnel_error') {
+          if (window.activeProtocolTunnels && msg.tunnel_id) {
+            delete window.activeProtocolTunnels[msg.tunnel_id];
+          }
           return;
         }
 
@@ -3793,8 +3861,34 @@
           if (!hasUserManuallySelectedQuality) {
             syncDisplayProfileWithHost(true);
           }
+        } else if (msg.type === 'fps_limit_applied') {
+          const appliedLim = msg.uncapped ? 0 : (parseInt(msg.fps_limit, 10) || 0);
+          syncFpsLimitUI(appliedLim);
+          if (msg.stream_mode) {
+            updateStreamModeUI(msg.stream_mode);
+          }
+        } else if (msg.type === 'stream_mode_applied') {
+          if (msg.stream_mode) {
+            updateStreamModeUI(msg.stream_mode);
+          }
+        } else if (msg.type === 'color_filter_applied') {
+          if (msg.color_filter) {
+            updateColorFilterUI(msg.color_filter);
+          }
+        } else if (msg.type === 'auto_lock_disconnect_response') {
+          isAutoLockDisconnectEnabled = Boolean(msg.enabled);
+          document.getElementById('badgeAutoLockActive')?.classList.toggle('hidden', !isAutoLockDisconnectEnabled);
+          const chkAl = document.getElementById('chkHostAutoLock');
+          if (chkAl) chkAl.checked = isAutoLockDisconnectEnabled;
+        } else if (msg.type === 'open_remote_url_response') {
+          if (msg.success && msg.url) {
+            showToast(t('toast.open_url_sent', { url: msg.url }), 'success');
+          }
         } else if (msg.type === 'quality_preset_applied') {
           if (!msg.req_id || msg.req_id >= qualityPresetReqId) {
+            if (typeof msg.uncapped === 'boolean' || msg.fps_limit !== undefined) {
+              syncFpsLimitUI(msg.uncapped ? 0 : (parseInt(msg.fps_limit, 10) || 0));
+            }
             if (qualitySelector && qualitySelector.value !== msg.preset) {
               qualitySelector.value = msg.preset;
             }
@@ -3827,8 +3921,8 @@
               btnInstallVDisplay?.classList.remove('hidden');
             } else {
               vdDisplayBadge.textContent = (typeof t === 'function') ? t('virtual.display_active') : 'SẴN SÀNG';
-              vdDisplayBadge.style.background = 'rgba(131, 232, 172, 0.15)';
-              vdDisplayBadge.style.color = '#83e8ac';
+              vdDisplayBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+              vdDisplayBadge.style.color = '#22c55e';
               btnInstallVDisplay?.classList.add('hidden');
             }
           }
@@ -4004,9 +4098,20 @@
         } else if (msg.type === 'screen_resolution_result') {
           if (msg.success) {
             showToast(t('toast.resolution_changed', { res: `${msg.width}x${msg.height}` }), 'success');
-            updateResolutionUi(msg.width, msg.height);
+            if (isNativeResolutionSelected) {
+              updateHostResolution(msg.width, msg.height, true);
+              updateResolutionUi(0, 0, 'GỐC');
+            } else {
+              updateHostResolution(msg.width, msg.height, true);
+              updateResolutionUi(msg.width, msg.height, userSelectedResolutionLabel || undefined);
+            }
           } else {
             showToast(t('toast.resolution_failed'), 'error');
+          }
+        } else if (msg.type === 'stream_mode_updated') {
+          if (msg.stream_mode) {
+            currentStreamMode = msg.stream_mode;
+            updateStreamModeUI(currentStreamMode);
           }
         } else if (msg.type === 'virtual_display_result') {
           if (msg.success) {
@@ -4026,8 +4131,8 @@
               btnInstallVAudio?.classList.remove('hidden');
             } else {
               vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_active') : 'SẴN SÀNG';
-              vdAudioBadge.style.background = 'rgba(131, 232, 172, 0.15)';
-              vdAudioBadge.style.color = '#83e8ac';
+              vdAudioBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+              vdAudioBadge.style.color = '#22c55e';
               btnInstallVAudio?.classList.add('hidden');
             }
           }
@@ -4345,8 +4450,9 @@
       }
       return;
     }
+    const topReserved = (typeof currentDeckMode !== 'undefined' && currentDeckMode === 'top-pinned') ? 48 : 0;
     const containerW = remoteSection.clientWidth;
-    const containerH = remoteSection.clientHeight;
+    const containerH = Math.max(100, remoteSection.clientHeight - topReserved);
     if (!containerW || !containerH || !hostResolution.width || !hostResolution.height) return;
 
     const scaleFactor = Math.min(containerW / hostResolution.width, containerH / hostResolution.height);
@@ -4366,6 +4472,7 @@
   }
 
   let userSelectedResolutionLabel = null;
+  let isNativeResolutionSelected = false;
 
   function updateHostResolution(w, h, fromStreamFrame = false) {
     hostResolution.width = w;
@@ -4384,8 +4491,12 @@
       if (typeof redrawWhiteboard === 'function') redrawWhiteboard();
     }
     metricRes.textContent = `${w}x${h}`;
-    if (typeof updateResolutionUi === 'function' && (!fromStreamFrame || !userSelectedResolutionLabel)) {
-      updateResolutionUi(w, h, userSelectedResolutionLabel || undefined);
+    if (typeof updateResolutionUi === 'function') {
+      if (isNativeResolutionSelected) {
+        updateResolutionUi(0, 0, 'GỐC');
+      } else if (!fromStreamFrame || !userSelectedResolutionLabel) {
+        updateResolutionUi(w, h, userSelectedResolutionLabel || undefined);
+      }
     }
     updatePixelIndicator();
     fitCanvasToViewport();
@@ -4447,6 +4558,7 @@
     if (!silent) {
       showToast(t('toast.screen_analyzing', { info: `${cap.screenW}x${cap.screenH} @ ${cap.estHz}Hz` }), 'info');
     }
+    const isUncapped = !currentFpsLimit || currentFpsLimit <= 0;
     ws.send(JSON.stringify({
       type: 'sync_display_profile',
       client_w: cap.screenW,
@@ -4455,7 +4567,9 @@
       client_fps: cap.estHz,
       viewport_w: cap.viewW,
       viewport_h: cap.viewH,
-      is_mobile: cap.isMobileDevice
+      is_mobile: cap.isMobileDevice,
+      fps_limit: isUncapped ? 0 : currentFpsLimit,
+      uncapped: isUncapped
     }));
   }
 
@@ -4483,7 +4597,7 @@
       'native_1to1': '1:1 Chuẩn gốc (Pixel-Perfect)',
       'ultra_120': '120 FPS Siêu mượt',
       'crisp_2k_4k': '2K/4K Cực nét',
-      'speed_60': '60 FPS Mượt mà',
+      'speed_60': currentFpsLimit > 0 ? `${currentFpsLimit} FPS Mượt mà` : 'MAX FPS (Uncapped)',
       'crisp_hd': 'HD Nét',
       'balanced': '30 FPS Cân bằng',
       'grayscale': 'Tiết kiệm băng thông'
@@ -4497,6 +4611,49 @@
   let lastDecodedBitmap = null;
   let lastDecodedBlobSize = -1;
   let lastDecodedSig = '';
+  let lastRealFrameRxTime = performance.now();
+  let lastUserInputTime = 0;
+  let lastKeyframeRequestTime = 0;
+  let isNetworkSyncOverlayVisible = false;
+
+  function setNetworkSyncOverlay(visible) {
+    if (isNetworkSyncOverlayVisible === visible) return;
+    isNetworkSyncOverlayVisible = visible;
+    const syncEl = document.getElementById('networkSyncOverlay');
+    if (syncEl) {
+      syncEl.classList.toggle('hidden', !visible);
+    }
+  }
+
+  function markInteractiveInputSent() {
+    lastUserInputTime = performance.now();
+  }
+
+  // Zero-Replay Network Sync Watchdog: detects when user input is awaiting a delayed WAN frame,
+  // displays a sleek translucent sync indicator instead of replaying stale queued frames, and requests an instant fresh keyframe.
+  setInterval(() => {
+    if (!isConnected || currentView !== 'remote' || !ws || ws.readyState !== WebSocket.OPEN) {
+      if (isNetworkSyncOverlayVisible) setNetworkSyncOverlay(false);
+      return;
+    }
+    const now = performance.now();
+    const currentRttMs = parseInt(metricPing?.textContent || '40', 10) || 40;
+    const inputAge = now - lastUserInputTime;
+    const frameAgeSinceInput = lastUserInputTime - lastRealFrameRxTime;
+    const stallThreshold = Math.max(420, Math.min(1100, currentRttMs * 2.8));
+
+    if (inputAge > 0 && inputAge < 1800 && frameAgeSinceInput > stallThreshold) {
+      setNetworkSyncOverlay(true);
+      if (now - lastKeyframeRequestTime > 320) {
+        lastKeyframeRequestTime = now;
+        try {
+          ws.send(JSON.stringify({ type: 'request_keyframe', flush: true, ts: Date.now() }));
+        } catch (_) {}
+      }
+    } else if (isNetworkSyncOverlayVisible && (now - lastRealFrameRxTime < 220 || inputAge >= 1800)) {
+      setNetworkSyncOverlay(false);
+    }
+  }, 90);
 
   async function computeFastBlobSig(blob) {
     if (!blob || !blob.size || typeof blob.slice !== 'function') return '';
@@ -4514,12 +4671,33 @@
     }
   }
 
+  let lastAcceptedFrameTickTime = 0;
+  let scheduledLimitRenderTimer = null;
+  let fpsTokenBucket = 30;
+  let lastTokenRefillTime = performance.now();
+
+  function consumeFpsLimitToken(now) {
+    if (!currentFpsLimit || currentFpsLimit <= 0) return true;
+    const maxBurst = Math.max(6, Math.ceil(currentFpsLimit * 0.15));
+    const elapsedSec = Math.max(0, (now - lastTokenRefillTime) / 1000.0);
+    lastTokenRefillTime = now;
+    fpsTokenBucket = Math.min(maxBurst, fpsTokenBucket + elapsedSec * currentFpsLimit * 1.04);
+    if (fpsTokenBucket >= 1.0) {
+      fpsTokenBucket -= 1.0;
+      return true;
+    }
+    return false;
+  }
+
   function recordRenderedFrameTick() {
     frameCount++;
     const now = performance.now();
     const elapsed = (now - lastFpsUpdate) / 1000;
-    if (elapsed >= 0.5) {
-      const actualFps = Math.max(0, Math.round(frameCount / elapsed));
+    if (elapsed >= 0.45) {
+      let actualFps = Math.max(0, Math.round(frameCount / elapsed));
+      if (currentFpsLimit > 0 && actualFps > currentFpsLimit) {
+        actualFps = currentFpsLimit;
+      }
       if (metricFps) {
         metricFps.textContent = actualFps;
       }
@@ -4529,21 +4707,32 @@
   }
 
   function handleIncomingFrame(blob) {
+    const now = performance.now();
+
     // Fast-Path for 4-byte MKR0 cached static frame tick: zero network congestion & zero decode CPU!
-    if (blob && blob.size === 4 && lastDecodedBitmap !== null) {
+    if (blob && blob.size === 4) {
+      lastAcceptedFrameTickTime = now;
       recordRenderedFrameTick();
       return;
     }
 
-    // If an unrendered frame is superseded, immediately ACK it so host frames_in_flight never stalls
-    if (pendingFrameBlob !== null && ws && ws.readyState === WebSocket.OPEN) {
-      try { ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now(), host_ts: Date.now() })); } catch (_) {}
+    lastRealFrameRxTime = now;
+    if (isNetworkSyncOverlayVisible) {
+      setNetworkSyncOverlay(false);
+    }
+
+    // Zero-Replay Client Queue: overwrite any unrendered frame immediately with the newest frame
+    if (pendingFrameBlob !== null) {
+      recordRenderedFrameTick();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try { ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() })); } catch (_) {}
+      }
     }
     pendingFrameBlob = blob;
 
     if (!isFrameRendering) {
       isFrameRendering = true;
-      // Start JPEG decode immediately on background worker thread without waiting for next VSync tick
+      // Start JPEG decode immediately on background worker thread without artificial setTimeout delay
       renderQueuedFrame();
     }
   }
@@ -4621,16 +4810,17 @@
       lastDecodedBitmap = imgObj;
       lastDecodedBlobSize = blobToRender.size;
 
+      lastAcceptedFrameTickTime = performance.now();
       recordRenderedFrameTick();
 
       // Flow Control: notify host that frame has rendered (Guacamole / WebRTC ACK model)
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now(), host_ts: Date.now() }));
+        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() }));
       }
     } catch (err) {
       console.warn('[MeikovaRelay] Frame render fallback error:', err);
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now(), host_ts: Date.now() }));
+        ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() }));
       }
     }
 
@@ -4648,10 +4838,17 @@
 
     if (monitorCurrentLabel) {
       if (idNum === 0) {
+        monitorCurrentLabel.setAttribute('data-i18n', 'deck.monitor_all');
         monitorCurrentLabel.textContent = (typeof t === 'function' && t('deck.monitor_all')) ? t('deck.monitor_all') : 'Tất cả';
       } else {
         const mon = hostMonitors.find(m => m.id === idNum);
-        monitorCurrentLabel.textContent = mon ? (mon.name || `Màn ${idNum}`) : `Màn ${idNum}`;
+        if (mon && mon.id === 1 && (!mon.name || mon.name === 'Màn hình chính' || mon.name === 'Primary Display')) {
+          monitorCurrentLabel.setAttribute('data-i18n', 'deck.monitor_primary_short');
+          monitorCurrentLabel.textContent = (typeof t === 'function' && t('deck.monitor_primary_short')) ? t('deck.monitor_primary_short') : (typeof t === 'function' && t('deck.monitor_primary')) ? t('deck.monitor_primary') : 'Màn chính';
+        } else {
+          monitorCurrentLabel.removeAttribute('data-i18n');
+          monitorCurrentLabel.textContent = (typeof t === 'function' && t('deck.monitor_single_short', { num: idNum })) ? t('deck.monitor_single_short', { num: idNum }) : `Màn ${idNum}`;
+        }
       }
     }
 
@@ -4672,7 +4869,7 @@
     const currentActiveId = parseInt(activeId, 10) || 0;
     if (monitorSelector) monitorSelector.value = String(currentActiveId);
 
-    const countStr = monitors.length > 1 ? ` (${monitors.length} màn)` : '';
+    const countStr = monitors.length > 1 ? ` (${monitors.length})` : '';
     const allTitle = (typeof t === 'function' && t('deck.monitor_all_title'))
       ? t('deck.monitor_all_title', { count: monitors.length })
       : `Tất cả màn hình${countStr}`;
@@ -4695,8 +4892,13 @@
 
     monitors.forEach(m => {
       const isAct = (m.id === currentActiveId);
-      const monName = m.name || `Màn hình ${m.id}`;
-      const monDesc = `${m.width} x ${m.height} // Màn hình #${m.id}`;
+      let monName = m.name;
+      if (m.id === 1 && (!m.name || m.name === 'Màn hình chính' || m.name === 'Primary Display')) {
+        monName = (typeof t === 'function' && t('deck.monitor_primary')) ? t('deck.monitor_primary') : (m.name || 'Màn hình chính');
+      } else if (!m.name || m.name.startsWith('Màn hình') || m.name.startsWith('Display') || m.name.startsWith('Màn ')) {
+        monName = (typeof t === 'function' && t('deck.monitor_single', { num: m.id })) ? t('deck.monitor_single', { num: m.id }) : `Màn hình #${m.id}`;
+      }
+      const monDesc = `${m.width} x ${m.height} // ${monName}`;
       html += `
         <button type="button" class="quality-menu-item ${isAct ? 'active' : ''}" data-mon-id="${m.id}">
           <span class="quality-item-badge">M${m.id}</span>
@@ -5002,7 +5204,7 @@
     }));
   });
 
-  let currentFpsLimit = 0;
+  let currentFpsLimit = Math.max(0, Math.min(1000, parseInt(localStorage.getItem('meikova_fps_limit') || '0', 10) || 0));
   let currentEncoderMode = 'auto';
   let isStaticCacheEnabled = true;
 
@@ -5065,23 +5267,26 @@
   // Helper to dynamically position deck popovers directly aligned with their trigger button
   function positionDeckDropdown(triggerBtn, dropdownEl) {
     if (!triggerBtn || !dropdownEl) return;
-    const isDeckAtTop = document.body.classList.contains('deck-at-top') ||
+    const isDeckAtTop = (remoteSection && remoteSection.classList.contains('deck-at-top')) ||
+                         document.body.classList.contains('deck-at-top') ||
                          (floatingDeck && (floatingDeck.classList.contains('deck--top-pinned') || floatingDeck.classList.contains('deck--top-unpinned')));
     const isMobile = window.innerWidth <= 640 || window.innerHeight <= 520;
     const btnRect = triggerBtn.getBoundingClientRect();
+    const stageEl = dropdownEl.offsetParent || remoteSection || document.body;
+    const stageRect = stageEl.getBoundingClientRect();
 
-    // Dynamically calculate maximum safe vertical space so popover never overflows viewport
+    // Calculate offset relative to dropdownEl's containing block (#remoteSection starts below .topbar)
     let maxAvailHeight = 380;
     if (isDeckAtTop) {
-      const topOffset = Math.max(8, Math.round(btnRect.bottom + 6));
-      dropdownEl.style.top = `${topOffset}px`;
+      const relTop = Math.max(6, Math.round(btnRect.bottom - stageRect.top + 6));
+      dropdownEl.style.top = `${relTop}px`;
       dropdownEl.style.bottom = 'auto';
-      maxAvailHeight = Math.max(140, Math.floor(window.innerHeight - topOffset - 12));
+      maxAvailHeight = Math.max(140, Math.floor(window.innerHeight - btnRect.bottom - 14));
     } else {
-      const bottomOffset = Math.max(8, Math.round(window.innerHeight - btnRect.top + 6));
-      dropdownEl.style.bottom = `${bottomOffset}px`;
+      const relBottom = Math.max(8, Math.round(stageRect.bottom - btnRect.top + 6));
+      dropdownEl.style.bottom = `${relBottom}px`;
       dropdownEl.style.top = 'auto';
-      maxAvailHeight = Math.max(140, Math.floor(btnRect.top - 12));
+      maxAvailHeight = Math.max(140, Math.floor(btnRect.top - stageRect.top - 12));
     }
     dropdownEl.style.maxHeight = `${maxAvailHeight}px`;
 
@@ -5090,8 +5295,8 @@
       dropdownEl.style.left = '50%';
       dropdownEl.style.right = 'auto';
       dropdownEl.style.transform = 'translateX(-50%)';
-      dropdownEl.style.width = 'min(calc(100vw - 16px), 520px)';
-      dropdownEl.style.maxWidth = 'min(calc(100vw - 16px), 520px)';
+      dropdownEl.style.width = 'min(calc(100vw - 16px), 420px)';
+      dropdownEl.style.maxWidth = 'min(calc(100vw - 16px), 420px)';
       return;
     }
 
@@ -5106,8 +5311,9 @@
       dropdownEl.style.visibility = '';
     }
 
-    let left = btnRect.left + (btnRect.width / 2) - (menuWidth / 2);
-    const maxLeft = window.innerWidth - menuWidth - 12;
+    const stageWidth = stageRect.width || window.innerWidth;
+    let left = (btnRect.left - stageRect.left) + (btnRect.width / 2) - (menuWidth / 2);
+    const maxLeft = stageWidth - menuWidth - 12;
     left = Math.max(12, Math.min(left, maxLeft));
 
     dropdownEl.style.left = `${Math.round(left)}px`;
@@ -5212,18 +5418,238 @@
     });
   }
 
-  function sendFpsAndEncoderConfig() {
-    const badge = document.getElementById('fpsLimitCurrentBadge');
-    const isUncapped = !currentFpsLimit || currentFpsLimit <= 0;
+  let currentStreamMode = localStorage.getItem('meikova_stream_mode') || 'adaptive_vfr';
+  if (currentStreamMode === 'adaptive_hybrid') currentStreamMode = 'adaptive_vfr';
+  if (currentStreamMode === 'youtube_smooth') currentStreamMode = 'continuous_cfr';
+  if (currentStreamMode === 'zero_replay') currentStreamMode = 'low_latency_drop';
+
+  function updateStreamModeUI(mode) {
+    if (!['adaptive_vfr', 'continuous_cfr', 'low_latency_drop', 'adaptive_hybrid', 'youtube_smooth', 'zero_replay'].includes(mode)) {
+      mode = 'adaptive_vfr';
+    }
+    const _smAliases = { 'adaptive_hybrid': 'adaptive_vfr', 'youtube_smooth': 'continuous_cfr', 'zero_replay': 'low_latency_drop' };
+    mode = _smAliases[mode] || mode;
+    currentStreamMode = mode;
+    localStorage.setItem('meikova_stream_mode', mode);
+    const badge = document.getElementById('streamModeCurrentBadge');
     if (badge) {
-      badge.textContent = isUncapped ? 'UNCAPPED (KHÔNG GIỚI HẠN)' : `LIMIT: ${currentFpsLimit} FPS`;
+      const keyMap = {
+        adaptive_vfr: 'deck.stream_mode_vfr',
+        continuous_cfr: 'deck.stream_mode_cfr',
+        low_latency_drop: 'deck.stream_mode_drop',
+        adaptive_hybrid: 'deck.stream_mode_vfr',
+        youtube_smooth: 'deck.stream_mode_cfr',
+        zero_replay: 'deck.stream_mode_drop'
+      };
+      const i18nKey = keyMap[mode] || 'deck.stream_mode_vfr';
+      badge.setAttribute('data-i18n', i18nKey);
+      badge.textContent = (typeof t === 'function' && t(i18nKey)) ? t(i18nKey).toUpperCase() : 'ADAPTIVE VFR';
+    }
+    document.querySelectorAll('#streamModePills .stream-mode-pill').forEach(pill => {
+      pill.classList.toggle('active', pill.getAttribute('data-stream-mode') === mode);
+    });
+    const selHostMode = document.getElementById('selHostStreamMode');
+    if (selHostMode) selHostMode.value = mode;
+  }
+
+  document.querySelectorAll('#streamModePills .stream-mode-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const mode = pill.getAttribute('data-stream-mode') || 'adaptive_vfr';
+      updateStreamModeUI(mode);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'set_stream_mode',
+          stream_mode: mode
+        }));
+      }
+      const modeNameMap = {
+        adaptive_vfr: 'Adaptive VFR',
+        continuous_cfr: 'Continuous CFR',
+        low_latency_drop: 'Zero-Queue Drop',
+        adaptive_hybrid: 'Adaptive VFR',
+        youtube_smooth: 'Continuous CFR',
+        zero_replay: 'Zero-Queue Drop'
+      };
+      showToast(t('toast.stream_mode_applied', { mode: modeNameMap[mode] || mode }), 'success');
+    });
+  });
+
+  // --- SMART VISUAL FILTER & SHARPENING MODE (Normal, Crisp Text, Night Shield, High Contrast) ---
+  const urlInitParams = new URLSearchParams(window.location.search);
+  let currentColorFilter = urlInitParams.get('colorFilter') || urlInitParams.get('color_filter') || localStorage.getItem('meikova_color_filter') || 'normal';
+  let isAutoLockDisconnectEnabled = urlInitParams.get('autoLockDisconnect') === '1' || localStorage.getItem('meikova_auto_lock_disconnect') === '1';
+  let isIdleFpsSaverEnabled = urlInitParams.get('idleFpsSaver') === '1' || localStorage.getItem('meikova_idle_fps_saver') === '1';
+
+  function updateColorFilterUI(filterMode) {
+    if (!['normal', 'crisp_text', 'night_shield', 'high_contrast'].includes(filterMode)) {
+      filterMode = 'normal';
+    }
+    currentColorFilter = filterMode;
+    try { localStorage.setItem('meikova_color_filter', filterMode); } catch (_) {}
+    const targets = [remoteCanvas, ...document.querySelectorAll('.monitor-tile canvas')].filter(Boolean);
+    targets.forEach(c => {
+      c.classList.remove('visual-filter--crisp_text', 'visual-filter--night_shield', 'visual-filter--high_contrast');
+      if (filterMode !== 'normal') {
+        c.classList.add(`visual-filter--${filterMode}`);
+      }
+    });
+    const badge = document.getElementById('colorFilterCurrentBadge');
+    if (badge) {
+      const keyMap = {
+        normal: 'deck.color_filter_normal',
+        crisp_text: 'deck.color_filter_crisp',
+        night_shield: 'deck.color_filter_night',
+        high_contrast: 'deck.color_filter_contrast'
+      };
+      const i18nKey = keyMap[filterMode] || 'deck.color_filter_normal';
+      badge.setAttribute('data-i18n', i18nKey);
+      badge.textContent = (typeof t === 'function' && t(i18nKey)) ? t(i18nKey).toUpperCase() : (filterMode || 'STANDARD').toUpperCase();
+    }
+    document.querySelectorAll('#colorFilterPills .color-filter-pill').forEach(pill => {
+      pill.classList.toggle('active', pill.getAttribute('data-color-filter') === filterMode);
+    });
+    const selCf = document.getElementById('selHostColorFilter');
+    if (selCf) selCf.value = filterMode;
+  }
+
+  updateColorFilterUI(currentColorFilter);
+
+  document.querySelectorAll('#colorFilterPills .color-filter-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cf = pill.getAttribute('data-color-filter') || 'normal';
+      updateColorFilterUI(cf);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'set_color_filter', color_filter: cf }));
+      }
+      showToast(t('toast.color_filter_applied', { filter: pill.textContent.trim() || cf }), 'info');
+    });
+  });
+
+  // --- FLOATING PICTURE-IN-PICTURE (PiP) MINI-MONITOR ---
+  let pipVideoEl = null;
+  document.getElementById('btnDropdownPip')?.addEventListener('click', async () => {
+    moreToolsMenuDropdown?.classList.add('hidden');
+    btnMoreToolsMenu?.classList.remove('btn-active');
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+        document.getElementById('badgePipActive')?.classList.add('hidden');
+        showToast(t('toast.pip_disabled'), 'info');
+        return;
+      }
+      if (!remoteCanvas || typeof remoteCanvas.captureStream !== 'function' || !document.pictureInPictureEnabled) {
+        showToast(t('toast.pip_unsupported'), 'warning');
+        return;
+      }
+      if (!pipVideoEl) {
+        pipVideoEl = document.createElement('video');
+        pipVideoEl.muted = true;
+        pipVideoEl.playsInline = true;
+        pipVideoEl.style.position = 'fixed';
+        pipVideoEl.style.width = '1px';
+        pipVideoEl.style.height = '1px';
+        pipVideoEl.style.opacity = '0';
+        pipVideoEl.style.pointerEvents = 'none';
+        document.body.appendChild(pipVideoEl);
+        pipVideoEl.addEventListener('leavepictureinpicture', () => {
+          document.getElementById('badgePipActive')?.classList.add('hidden');
+        });
+      }
+      pipVideoEl.srcObject = remoteCanvas.captureStream(60);
+      await pipVideoEl.play();
+      await pipVideoEl.requestPictureInPicture();
+      document.getElementById('badgePipActive')?.classList.remove('hidden');
+      showToast(t('toast.pip_enabled'), 'success');
+    } catch (err) {
+      console.warn('[MeikovaRelay] PiP error:', err);
+      showToast(t('toast.pip_unsupported'), 'warning');
+    }
+  });
+
+  // --- QUICK-LAUNCH URL ON REMOTE HOST ---
+  document.getElementById('btnDropdownOpenUrl')?.addEventListener('click', async () => {
+    moreToolsMenuDropdown?.classList.add('hidden');
+    btnMoreToolsMenu?.classList.remove('btn-active');
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    const rawUrl = await showPromptModal({
+      title: t('deck.tool_open_url'),
+      message: t('toast.open_url_prompt'),
+      defaultValue: 'https://',
+      placeholder: 'https://example.com'
+    });
+    if (rawUrl && rawUrl.trim() && rawUrl.trim() !== 'https://') {
+      ws.send(JSON.stringify({ type: 'open_remote_url', url: rawUrl.trim() }));
+    }
+  });
+
+  // --- AUTO-LOCK WORKSTATION ON DISCONNECT ---
+  document.getElementById('btnDropdownAutoLock')?.addEventListener('click', () => {
+    moreToolsMenuDropdown?.classList.add('hidden');
+    btnMoreToolsMenu?.classList.remove('btn-active');
+    isAutoLockDisconnectEnabled = !isAutoLockDisconnectEnabled;
+    try { localStorage.setItem('meikova_auto_lock_disconnect', isAutoLockDisconnectEnabled ? '1' : '0'); } catch (_) {}
+    document.getElementById('badgeAutoLockActive')?.classList.toggle('hidden', !isAutoLockDisconnectEnabled);
+    const chkAl = document.getElementById('chkHostAutoLock');
+    if (chkAl) chkAl.checked = isAutoLockDisconnectEnabled;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'set_auto_lock_disconnect', enabled: isAutoLockDisconnectEnabled }));
+    }
+    showToast(isAutoLockDisconnectEnabled ? t('toast.auto_lock_enabled') : t('toast.auto_lock_disabled'), 'info');
+  });
+
+  function syncFpsLimitUI(limitVal) {
+    const parsed = parseInt(limitVal, 10);
+    currentFpsLimit = (!isNaN(parsed) && parsed > 0) ? Math.min(1000, Math.max(1, parsed)) : 0;
+    try {
+      localStorage.setItem('meikova_fps_limit', String(currentFpsLimit));
+    } catch (_) {}
+    const isUncapped = currentFpsLimit <= 0;
+    const badge = document.getElementById('fpsLimitCurrentBadge');
+    if (badge) {
+      if (isUncapped) {
+        badge.setAttribute('data-i18n', 'deck.fps_badge_uncapped');
+        badge.removeAttribute('data-i18n-params');
+        badge.textContent = (typeof t === 'function' && t('deck.fps_badge_uncapped')) ? t('deck.fps_badge_uncapped') : 'UNCAPPED (KHÔNG GIỚI HẠN)';
+      } else {
+        badge.setAttribute('data-i18n', 'deck.fps_badge_limit');
+        badge.setAttribute('data-i18n-params', JSON.stringify({ fps: currentFpsLimit }));
+        badge.textContent = (typeof t === 'function' && t('deck.fps_badge_limit', { fps: currentFpsLimit })) ? t('deck.fps_badge_limit', { fps: currentFpsLimit }) : `LIMIT: ${currentFpsLimit} FPS`;
+      }
     }
     const customInput = document.getElementById('customFpsLimitInput');
     if (customInput && document.activeElement !== customInput) {
       customInput.value = isUncapped ? '' : String(currentFpsLimit);
     }
+    const inpHostFps = document.getElementById('inpHostFpsLimit');
+    if (inpHostFps && document.activeElement !== inpHostFps) {
+      inpHostFps.value = String(currentFpsLimit);
+    }
+    document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(p => {
+      const pVal = parseInt(p.getAttribute('data-fps-limit') || '-1', 10);
+      p.classList.toggle('active', pVal === currentFpsLimit);
+    });
     if (qualitySelector) {
       updateQualityMenuUI(qualitySelector.value || 'balanced');
+    }
+  }
+
+  function sendFpsAndEncoderConfig() {
+    syncFpsLimitUI(currentFpsLimit);
+    const isUncapped = !currentFpsLimit || currentFpsLimit <= 0;
+    // Immediately reset client FPS measurement window & scheduled render timer so new limit takes effect in 0ms
+    frameCount = 0;
+    lastFpsUpdate = performance.now();
+    lastAcceptedFrameTickTime = 0;
+    fpsTokenBucket = Math.max(6, Math.ceil((currentFpsLimit || 60) * 0.15));
+    lastTokenRefillTime = performance.now();
+    if (scheduledLimitRenderTimer) {
+      clearTimeout(scheduledLimitRenderTimer);
+      scheduledLimitRenderTimer = null;
     }
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
@@ -5231,18 +5657,21 @@
         fps_limit: isUncapped ? 0 : currentFpsLimit,
         uncapped: isUncapped,
         encoder_mode: currentEncoderMode,
-        static_cache: isStaticCacheEnabled
+        static_cache: isStaticCacheEnabled,
+        stream_mode: currentStreamMode
       }));
     }
   }
+
+  // Initialize FPS Limit UI state from persisted session setting
+  syncFpsLimitUI(currentFpsLimit);
 
   document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(pill => {
     pill.addEventListener('click', (e) => {
       e.stopPropagation();
       currentFpsLimit = parseInt(pill.getAttribute('data-fps-limit') || '0', 10) || 0;
-      document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(p => p.classList.toggle('active', p === pill));
       sendFpsAndEncoderConfig();
-      showToast(currentFpsLimit > 0 ? `Đã đặt giới hạn tốc độ: ${currentFpsLimit} FPS` : 'Đã mở khóa tốc độ tối đa: Không giới hạn FPS (Uncapped)', 'info');
+      showToast(currentFpsLimit > 0 ? t('toast.fps_limit_set', { fps: currentFpsLimit }) : t('toast.fps_uncapped_set'), 'info');
     });
   });
 
@@ -5256,12 +5685,8 @@
     } else {
       currentFpsLimit = Math.min(1000, Math.max(1, parsed));
     }
-    document.querySelectorAll('#fpsLimitPills .fps-pill').forEach(p => {
-      const pVal = parseInt(p.getAttribute('data-fps-limit') || '-1', 10);
-      p.classList.toggle('active', pVal === currentFpsLimit);
-    });
     sendFpsAndEncoderConfig();
-    showToast(currentFpsLimit > 0 ? `Đã áp dụng giới hạn FPS tùy chỉnh: ${currentFpsLimit} FPS` : 'Không nhập giới hạn -> Đã mở khóa FPS tối đa (Uncapped)', 'success');
+    showToast(currentFpsLimit > 0 ? t('toast.fps_custom_applied', { fps: currentFpsLimit }) : t('toast.fps_uncapped_set'), 'success');
   }
   btnSetLimitFps?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -5335,9 +5760,11 @@
     ws.send(JSON.stringify({
       type: 'set_quality_preset',
       preset: preset,
-      fps_limit: currentFpsLimit,
+      fps_limit: currentFpsLimit > 0 ? currentFpsLimit : 0,
+      uncapped: currentFpsLimit <= 0,
       encoder_mode: currentEncoderMode,
       static_cache: isStaticCacheEnabled,
+      stream_mode: currentStreamMode,
       req_id: ++qualityPresetReqId
     }));
 
@@ -5763,6 +6190,7 @@
     }
     e.preventDefault();
     remoteCanvas.focus();
+    markInteractiveInputSent();
     ws.send(JSON.stringify({
       type: 'mouse_down',
       button: e.button
@@ -6483,6 +6911,7 @@
       const isUnicodeDiacritic = charCode > 127;
       const isSyntheticIME = (!e.code || e.code === 'Unidentified' || e.code === 'Process');
       if (isUnicodeDiacritic || isSyntheticIME) {
+        markInteractiveInputSent();
         ws.send(JSON.stringify({
           type: 'text_input',
           text: e.key
@@ -6496,6 +6925,7 @@
       if (['Tab', 'AltLeft', 'AltRight', 'Backspace', 'F5', 'F11'].includes(e.code)) {
         e.preventDefault();
       }
+      markInteractiveInputSent();
       ws.send(JSON.stringify({
         type: 'key_down',
         code: e.code,
@@ -6805,7 +7235,7 @@
 
     // Reset modifier classes
     floatingDeck.classList.remove('deck--bottom', 'deck--top-pinned', 'deck--top-unpinned', 'deck--peek');
-    remoteSection.classList.remove('deck-at-top');
+    remoteSection.classList.remove('deck-at-top', 'deck-pinned-top');
 
     // Update menu items
     if (checkModeBottom) checkModeBottom.classList.toggle('hidden', mode !== 'bottom-float');
@@ -6816,25 +7246,23 @@
       el.classList.toggle('active', el.dataset.deckMode === mode);
     });
 
+    // Keep #btnDeckPinQuick permanently hidden since Deck Position menu already provides Pin & Auto-Hide
+    if (btnDeckPinQuick) {
+      btnDeckPinQuick.classList.add('hidden');
+    }
+
     if (mode === 'bottom-float') {
       floatingDeck.classList.add('deck--bottom');
       if (deckIconBottom) deckIconBottom.classList.remove('hidden');
       if (deckIconTopPinned) deckIconTopPinned.classList.add('hidden');
       if (deckIconTopUnpinned) deckIconTopUnpinned.classList.add('hidden');
-      if (btnDeckPinQuick) btnDeckPinQuick.classList.add('hidden');
       if (deckTopTrigger) deckTopTrigger.classList.add('hidden');
     } else if (mode === 'top-pinned') {
       floatingDeck.classList.add('deck--top-pinned');
-      remoteSection.classList.add('deck-at-top');
+      remoteSection.classList.add('deck-at-top', 'deck-pinned-top');
       if (deckIconBottom) deckIconBottom.classList.add('hidden');
       if (deckIconTopPinned) deckIconTopPinned.classList.remove('hidden');
       if (deckIconTopUnpinned) deckIconTopUnpinned.classList.add('hidden');
-      if (btnDeckPinQuick) {
-        btnDeckPinQuick.classList.remove('hidden');
-        deckSvgPinActive.classList.remove('hidden');
-        deckSvgPinInactive.classList.add('hidden');
-        btnDeckPinQuick.title = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('deck.pin_tooltip_unpin') : 'Đang ghim mép trên. Bấm để Tự động ẩn';
-      }
       if (deckTopTrigger) deckTopTrigger.classList.add('hidden');
     } else if (mode === 'top-unpinned') {
       floatingDeck.classList.add('deck--top-unpinned');
@@ -6842,13 +7270,16 @@
       if (deckIconBottom) deckIconBottom.classList.add('hidden');
       if (deckIconTopPinned) deckIconTopPinned.classList.add('hidden');
       if (deckIconTopUnpinned) deckIconTopUnpinned.classList.remove('hidden');
-      if (btnDeckPinQuick) {
-        btnDeckPinQuick.classList.remove('hidden');
-        deckSvgPinActive.classList.add('hidden');
-        deckSvgPinInactive.classList.remove('hidden');
-        btnDeckPinQuick.title = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('deck.pin_tooltip_pin') : 'Đang tự động ẩn. Bấm để Ghim cố định';
-      }
       if (deckTopTrigger) deckTopTrigger.classList.remove('hidden');
+    }
+
+    fitCanvasToViewport();
+    for (const item of DECK_DROPDOWNS) {
+      const d = item.getDropdown();
+      const b = item.getBtn();
+      if (d && !d.classList.contains('hidden') && b) {
+        positionDeckDropdown(b, d);
+      }
     }
   }
 
@@ -6931,12 +7362,25 @@
     }, { passive: true });
   }
 
-  // Reveal deck when cursor hovers near top 14px of viewport
+  // Reveal deck only when cursor touches the center top notch (never block top window bars!)
+  // Also gently fade corner HUD pills when cursor approaches top-left or top-right corners
   remoteSection.addEventListener('mousemove', (e) => {
-    if (currentDeckMode === 'top-unpinned' && isConnected && currentView === 'remote') {
-      if (e.clientY <= 14) {
+    if (currentView !== 'remote') return;
+    const stageRect = remoteSection.getBoundingClientRect();
+    const relY = e.clientY - stageRect.top;
+    if (currentDeckMode === 'top-unpinned' && isConnected) {
+      const centerDist = Math.abs(e.clientX - (stageRect.left + stageRect.width * 0.5));
+      if (relY >= 0 && relY <= 8 && centerDist <= 64) {
         triggerDeckPeek();
       }
+    }
+    const roTlEl = document.getElementById('ro-tl');
+    const roTrEl = document.getElementById('ro-tr');
+    if (roTlEl) {
+      roTlEl.classList.toggle('readout--corner-fade', relY < 54 && (e.clientX - stageRect.left) < 280);
+    }
+    if (roTrEl) {
+      roTrEl.classList.toggle('readout--corner-fade', relY < 54 && (stageRect.right - e.clientX) < 340);
     }
   });
 
@@ -6957,57 +7401,56 @@
   // --- PROTOCOL MATRIX & NEGOTIATION LOGIC ---
   function updateProtocolUI(matrix) {
     if (!matrix) return;
-    const isVi = !window.MeikovaI18n || window.MeikovaI18n.currentLang === 'vi';
 
-    // 1. Remote Desktop (RDP 3389 / VNC 5900)
+    // 1. Remote Desktop (RDP 3389 / In-Browser Direct Stream)
     if (matrix.remote && matrix.remote.rdp) {
       const rdp = matrix.remote.rdp;
       if (rdp.available) {
         if (protoBadgeRdp) {
           protoBadgeRdp.className = 'proto-status-pill ready';
-          protoBadgeRdp.textContent = isVi ? 'RDP: SẴN SÀNG' : 'RDP: READY';
+          protoBadgeRdp.textContent = t('proto.status_rdp_ready');
         }
         if (protoDescRdp) {
-          protoDescRdp.textContent = rdp.details || (isVi ? 'Port 3389 mở (X.224 xác nhận)' : 'Port 3389 active (X.224)');
+          protoDescRdp.textContent = rdp.details || t('proto.desc_rdp_ready');
         }
         if (btnDownloadRdp) btnDownloadRdp.style.display = 'inline-flex';
       } else {
         if (protoBadgeRdp) {
-          protoBadgeRdp.className = 'proto-status-pill closed';
-          protoBadgeRdp.textContent = isVi ? 'RDP: ĐÃ ĐÓNG' : 'RDP: CLOSED';
+          protoBadgeRdp.className = 'proto-status-pill ready';
+          protoBadgeRdp.textContent = t('proto.status_rdp_web');
         }
         if (protoDescRdp) {
-          protoDescRdp.textContent = isVi ? 'Port 3389 đóng → Dùng Meikova Stream' : 'Port 3389 closed → Fallback to Meikova Stream';
+          protoDescRdp.textContent = t('proto.desc_rdp_web');
         }
-        if (btnDownloadRdp) btnDownloadRdp.style.display = 'none';
+        if (btnDownloadRdp) btnDownloadRdp.style.display = 'inline-flex';
       }
     }
 
-    // 2. Terminal (SSH 22)
+    // 2. Terminal (SSH 22 / In-Browser PTY Shell)
     if (matrix.terminal && matrix.terminal.ssh) {
       const ssh = matrix.terminal.ssh;
       if (ssh.available) {
         if (protoBadgeSsh) {
           protoBadgeSsh.className = 'proto-status-pill ready';
-          protoBadgeSsh.textContent = isVi ? 'SSH: SẴN SÀNG' : 'SSH: READY';
+          protoBadgeSsh.textContent = t('proto.status_ssh_ready');
         }
         if (protoDescSsh) {
-          protoDescSsh.textContent = ssh.details || (isVi ? 'OpenSSH Server khả dụng' : 'OpenSSH Server ready');
+          protoDescSsh.textContent = ssh.details || t('proto.desc_ssh_ready');
         }
         if (btnCopySshCmd) btnCopySshCmd.style.display = 'inline-flex';
       } else {
         if (protoBadgeSsh) {
-          protoBadgeSsh.className = 'proto-status-pill closed';
-          protoBadgeSsh.textContent = isVi ? 'SSH: ĐÃ ĐÓNG' : 'SSH: CLOSED';
+          protoBadgeSsh.className = 'proto-status-pill ready';
+          protoBadgeSsh.textContent = t('proto.status_ssh_web');
         }
         if (protoDescSsh) {
-          protoDescSsh.textContent = isVi ? 'Port 22 đóng → Dùng Meikova Shell Subprocess' : 'Port 22 closed → Fallback to Meikova Shell';
+          protoDescSsh.textContent = t('proto.desc_ssh_web');
         }
         if (btnCopySshCmd) btnCopySshCmd.style.display = 'none';
       }
     }
 
-    // 3. File Transfer (SFTP 22 / FTP 21)
+    // 3. File Transfer (SFTP 22 / FTP 21 / In-Browser File Explorer)
     if (matrix.file) {
       const sftp = matrix.file.sftp;
       const ftp = matrix.file.ftp;
@@ -7015,18 +7458,18 @@
       if (fileAvail) {
         if (protoBadgeFile) {
           protoBadgeFile.className = 'proto-status-pill ready';
-          protoBadgeFile.textContent = sftp && sftp.available ? 'SFTP: SẴN SÀNG' : 'FTP: SẴN SÀNG';
+          protoBadgeFile.textContent = sftp && sftp.available ? t('proto.status_sftp_ready') : t('proto.status_ftp_ready');
         }
         if (protoDescFile) {
-          protoDescFile.textContent = sftp && sftp.available ? (isVi ? 'SFTP Subsystem qua SSH' : 'SFTP Subsystem via SSH') : (isVi ? 'FTP Server mở' : 'FTP Server ready');
+          protoDescFile.textContent = sftp && sftp.available ? t('proto.desc_sftp_ready') : t('proto.desc_ftp_ready');
         }
       } else {
         if (protoBadgeFile) {
-          protoBadgeFile.className = 'proto-status-pill closed';
-          protoBadgeFile.textContent = isVi ? 'SFTP: ĐÃ ĐÓNG' : 'SFTP: CLOSED';
+          protoBadgeFile.className = 'proto-status-pill ready';
+          protoBadgeFile.textContent = t('proto.status_sftp_web');
         }
         if (protoDescFile) {
-          protoDescFile.textContent = isVi ? 'Cổng đóng → Dùng Meikova File Transfer' : 'Port closed → Fallback to Meikova Shelf';
+          protoDescFile.textContent = t('proto.desc_sftp_web');
         }
       }
     }
@@ -7040,8 +7483,8 @@
         protocolCurrentLabel.textContent = 'RDP';
         btnProtocolMenu.className = 'deck__btn deck__btn--protocol native-active';
       } else {
-        protocolCurrentLabel.textContent = 'BYPASS';
-        btnProtocolMenu.className = 'deck__btn deck__btn--protocol bypass-active';
+        protocolCurrentLabel.textContent = 'RDP';
+        btnProtocolMenu.className = 'deck__btn deck__btn--protocol native-active';
       }
     }
   }
@@ -7075,7 +7518,7 @@
     });
   }
 
-  // Direct In-Browser Protocol Execution Buttons (Requirement 20)
+  // Direct In-Browser Protocol Execution Buttons (Zero External Software Required)
   const btnDirectProtoRdp = document.getElementById('btnDirectProtoRdp');
   const btnDirectProtoSsh = document.getElementById('btnDirectProtoSsh');
   const btnDirectProtoSftp = document.getElementById('btnDirectProtoSftp');
@@ -7090,8 +7533,19 @@
     }
     setRoutingMode('native');
     switchView('remote', true);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'request_keyframe' }));
+      if (currentProtocolMatrix?.remote?.rdp?.available) {
+        ws.send(JSON.stringify({
+          type: 'tunnel_open',
+          tunnel_id: 'proto_rdp_3389',
+          protocol: 'rdp',
+          port: currentProtocolMatrix.remote.rdp.port || 3389
+        }));
+      }
+    }
     recordClientAudit('PROTOCOL_DIRECT_LAUNCH', { protocol: 'RDP_STREAM', mode: 'in_browser' });
-    showToast('Đang sử dụng trực tiếp luồng Remote Desktop tốc độ cao trên trình duyệt!', 'success');
+    showToast(t('toast.proto_direct_rdp_active'), 'success');
   });
 
   btnDirectProtoSsh?.addEventListener('click', (e) => {
@@ -7103,8 +7557,20 @@
       return;
     }
     switchView('terminal', true);
+    if (ws && ws.readyState === WebSocket.OPEN && currentProtocolMatrix?.terminal?.ssh?.available) {
+      ws.send(JSON.stringify({
+        type: 'tunnel_open',
+        tunnel_id: 'proto_ssh_22',
+        protocol: 'ssh',
+        port: currentProtocolMatrix.terminal.ssh.port || 22
+      }));
+    }
+    setTimeout(() => {
+      const termInp = document.getElementById('terminalInput');
+      if (termInp) termInp.focus();
+    }, 60);
     recordClientAudit('PROTOCOL_DIRECT_LAUNCH', { protocol: 'SSH_PTY_TERMINAL', mode: 'in_browser' });
-    showToast('Đã chuyển trực tiếp sang giao thức Terminal (SSH / Host PTY) trên trình duyệt!', 'success');
+    showToast(t('toast.proto_direct_ssh_active'), 'success');
   });
 
   btnDirectProtoSftp?.addEventListener('click', (e) => {
@@ -7116,8 +7582,19 @@
       return;
     }
     switchView('files', true);
+    if (typeof requestBrowsePath === 'function') {
+      requestBrowsePath(remoteCurrentPath || '');
+    }
+    if (ws && ws.readyState === WebSocket.OPEN && currentProtocolMatrix?.file?.sftp?.available) {
+      ws.send(JSON.stringify({
+        type: 'tunnel_open',
+        tunnel_id: 'proto_sftp_22',
+        protocol: 'sftp',
+        port: currentProtocolMatrix.file.sftp.port || 22
+      }));
+    }
     recordClientAudit('PROTOCOL_DIRECT_LAUNCH', { protocol: 'SFTP_FILE_EXPLORER', mode: 'in_browser' });
-    showToast('Đã mở trực tiếp giao thức truyền tệp SFTP / WebSocket trên trình duyệt!', 'success');
+    showToast(t('toast.proto_direct_sftp_active'), 'success');
   });
 
   // Download .RDP Button
@@ -7181,9 +7658,9 @@
       updateProtocolUI(currentProtocolMatrix);
     }
     const modeLabels = {
-      auto: 'Tự động (Ưu tiên Native First)',
-      bypass: 'Ép buộc Meikova Bypass Stream',
-      native: 'Ép buộc kết nối Native (RDP/SSH)'
+      auto: t('proto.mode_auto_label'),
+      bypass: t('proto.mode_bypass_label'),
+      native: t('proto.mode_native_label')
     };
     showToast(t('toast.mode_switched', { mode: modeLabels[mode] || mode }), 'info');
   };
@@ -7231,13 +7708,14 @@
   }
 
   function updateResolutionUi(w, h, label) {
+    const isNative = isNativeResolutionSelected || (w === 0 && h === 0) || label === 'GỐC';
     if (resolutionCurrentLabel) {
-      resolutionCurrentLabel.textContent = mapResolutionToTierTag(w, h, label);
+      resolutionCurrentLabel.textContent = isNative ? 'GỐC' : mapResolutionToTierTag(w, h, label);
     }
     document.querySelectorAll('#resolutionMenuList .quality-menu-item').forEach(btn => {
       const bw = parseInt(btn.dataset.resW, 10);
       const bh = parseInt(btn.dataset.resH, 10);
-      const isMatch = (bw === w && bh === h);
+      const isMatch = isNative ? (bw === 0 && bh === 0) : (bw === w && bh === h);
       btn.classList.toggle('active', isMatch);
       const check = btn.querySelector('.quality-check');
       if (check) {
@@ -7252,7 +7730,7 @@
       if (monitorMenuDropdown) {
         if (monitorMenuList && monitorMenuList.children.length === 0) {
           populateMonitors([
-            { id: 1, name: 'Màn hình chính', width: 1920, height: 1080 }
+            { id: 1, name: (typeof t === 'function' && t('deck.monitor_primary')) ? t('deck.monitor_primary') : 'Màn hình chính', width: 1920, height: 1080 }
           ], 0);
         }
         const isOpening = monitorMenuDropdown.classList.contains('hidden');
@@ -7288,7 +7766,8 @@
       const badgeEl = btn.querySelector('.quality-item-badge');
       const rawLabel = (badgeEl && badgeEl.textContent ? badgeEl.textContent.trim() : '') || btn.dataset.resLabel || '';
       const label = mapResolutionToTierTag(w, h, rawLabel);
-      userSelectedResolutionLabel = (w === 0 && h === 0) ? 'GỐC' : label;
+      isNativeResolutionSelected = (w === 0 && h === 0);
+      userSelectedResolutionLabel = isNativeResolutionSelected ? 'GỐC' : label;
       if (!isConnected || !ws) {
         showToast(t('toast.not_connected'), 'info');
         return;
@@ -7619,7 +8098,7 @@
       for (let i = 0; i < lines.length; i++) {
         const part = lines[i];
         const trimmed = part.trim();
-        const psMatch = /^PS\s+[^>]+>\s*(.*)$/i.exec(trimmed);
+        const psMatch = /^(?:PS(?:\s+[^>]*)?>|[A-Za-z]:\\[^>]*>)\s*(.*)$/i.exec(trimmed);
         if (psMatch) {
           const promptPrefix = trimmed.slice(0, trimmed.indexOf('>') + 1) + ' ';
           currentTerminalPrompt = promptPrefix;
@@ -9633,7 +10112,7 @@
 
     switch (action) {
       case 'SESSION_CONNECTED':
-        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = 'KẾT NỐI PHIÊN'; break;
+        color = '#22C55E'; bg = 'rgba(34, 197, 94, 0.15)'; text = 'KẾT NỐI PHIÊN'; break;
       case 'SESSION_DISCONNECTED':
         color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'NGẮT KẾT NỐI'; break;
       case 'CONNECT_PIN_FAILED':
@@ -9881,6 +10360,7 @@
       const fps = document.getElementById('dlAdvFpsLimit')?.value.trim() || '0';
       const quality = document.getElementById('dlAdvQuality')?.value || 'auto_sync';
       const wakeTime = document.getElementById('dlAdvWakeTime')?.value || '07:00';
+      const streamMode = document.getElementById('dlAdvStreamMode')?.value || 'adaptive_vfr';
 
       if (room) params.set('roomId', room);
       if (pin) params.set('pin', pin);
@@ -9888,6 +10368,7 @@
       params.set('fpsLimit', fps);
       params.set('uncappedFps', (parseInt(fps, 10) || 0) <= 0 ? '1' : '0');
       params.set('quality', quality);
+      params.set('streamMode', streamMode);
       params.set('requireAdmin', document.getElementById('dlAdvAdmin')?.checked ? '1' : '0');
       params.set('service', document.getElementById('dlAdvService')?.checked ? '1' : '0');
       params.set('autostart', document.getElementById('dlAdvAutostart')?.checked ? '1' : '0');
@@ -9950,15 +10431,26 @@
 
     const relayHostServerTag = document.getElementById('relayHostServerTag');
     const relayClientGatewayTag = document.getElementById('relayClientGatewayTag');
-    let tagText = 'Máy chủ Web';
-    if (displayUrl.includes('trycloudflare.com')) tagText = 'Cloudflare Tunnel (WAN)';
-    else if (isHfSpace) tagText = 'Hugging Face Space';
-    else if (displayUrl.includes('100.') || isTailscale) tagText = 'Tailscale Mesh';
-    else if (displayUrl.includes('192.168.') || displayUrl.includes('10.') || displayUrl.includes('172.')) tagText = 'Mạng Wi-Fi (LAN)';
-    else if (isLocal) tagText = 'Local Host';
+    let tagKey = 'dl_modal.tag_web';
+    if (displayUrl.includes('trycloudflare.com')) tagKey = 'dl_modal.tag_wan';
+    else if (isHfSpace) tagKey = null;
+    else if (displayUrl.includes('100.') || isTailscale) tagKey = 'dl_modal.tag_tailscale';
+    else if (displayUrl.includes('192.168.') || displayUrl.includes('10.') || displayUrl.includes('172.')) tagKey = 'dl_modal.tag_lan';
+    else if (isLocal) tagKey = 'dl_modal.tag_local';
 
-    if (relayHostServerTag) relayHostServerTag.textContent = tagText;
-    if (relayClientGatewayTag) relayClientGatewayTag.textContent = tagText;
+    let tagText = tagKey ? (typeof t === 'function' ? t(tagKey) : '') : 'Hugging Face Space';
+    if (!tagText) tagText = tagKey ? tagKey : 'Hugging Face Space';
+
+    if (relayHostServerTag) {
+      if (tagKey) relayHostServerTag.setAttribute('data-i18n', tagKey);
+      else relayHostServerTag.removeAttribute('data-i18n');
+      relayHostServerTag.textContent = tagText;
+    }
+    if (relayClientGatewayTag) {
+      if (tagKey) relayClientGatewayTag.setAttribute('data-i18n', tagKey);
+      else relayClientGatewayTag.removeAttribute('data-i18n');
+      relayClientGatewayTag.textContent = tagText;
+    }
 
     if (relayClientLink) {
       relayClientLink.href = displayUrl;
@@ -9967,15 +10459,20 @@
 
     const scanDesc = document.getElementById('relay-client-scan-desc');
     if (scanDesc) {
+      let descKey = 'dl_modal.qr_scan_desc_direct';
+      let fallbackText = ' để mở bảng điều khiển từ xa trực tiếp trên điện thoại.';
       if (isHfSpace) {
-        scanDesc.textContent = ' để mở trực tiếp qua Hugging Face Space.';
+        descKey = 'dl_modal.qr_scan_desc_hf';
+        fallbackText = ' để mở trực tiếp qua Hugging Face Space.';
       } else if (displayUrl.includes('100.') || isTailscale) {
-        scanDesc.textContent = ' (qua Tailscale) để mở bảng điều khiển từ xa trên điện thoại.';
+        descKey = 'dl_modal.qr_scan_desc_tailscale';
+        fallbackText = ' (qua Tailscale) để mở bảng điều khiển từ xa trên điện thoại.';
       } else if (displayUrl.includes('192.168.') || displayUrl.includes('10.') || displayUrl.includes('172.')) {
-        scanDesc.textContent = ' (cùng mạng Wi-Fi) để mở bảng điều khiển từ xa trên điện thoại.';
-      } else {
-        scanDesc.textContent = ' để mở bảng điều khiển từ xa trực tiếp trên điện thoại.';
+        descKey = 'dl_modal.qr_scan_desc_lan';
+        fallbackText = ' (cùng mạng Wi-Fi) để mở bảng điều khiển từ xa trên điện thoại.';
       }
+      scanDesc.setAttribute('data-i18n', descKey);
+      scanDesc.textContent = (typeof t === 'function' && t(descKey)) ? (' ' + t(descKey)) : fallbackText;
     }
 
     if (relayClientQr) {
@@ -10428,6 +10925,27 @@
       if (chkSleep && currentHostConfigState.anti_sleep !== undefined) chkSleep.checked = Boolean(currentHostConfigState.anti_sleep);
       if (chkStealth && currentHostConfigState.stealth_mode !== undefined) chkStealth.checked = Boolean(currentHostConfigState.stealth_mode);
       if (inpFps && currentHostConfigState.fps_limit !== undefined) inpFps.value = currentHostConfigState.uncapped_fps ? 0 : (currentHostConfigState.fps_limit || 0);
+      const selStream = document.getElementById('selHostStreamMode');
+      if (selStream && currentHostConfigState.stream_mode) {
+        selStream.value = currentHostConfigState.stream_mode;
+        updateStreamModeUI(currentHostConfigState.stream_mode);
+      }
+      const chkAl = document.getElementById('chkHostAutoLock');
+      if (chkAl && currentHostConfigState.auto_lock_on_disconnect !== undefined) {
+        isAutoLockDisconnectEnabled = Boolean(currentHostConfigState.auto_lock_on_disconnect);
+        chkAl.checked = isAutoLockDisconnectEnabled;
+        document.getElementById('badgeAutoLockActive')?.classList.toggle('hidden', !isAutoLockDisconnectEnabled);
+      }
+      const chkIdle = document.getElementById('chkHostIdleSaver');
+      if (chkIdle && currentHostConfigState.idle_fps_saver !== undefined) {
+        isIdleFpsSaverEnabled = Boolean(currentHostConfigState.idle_fps_saver);
+        chkIdle.checked = isIdleFpsSaverEnabled;
+      }
+      const selCf = document.getElementById('selHostColorFilter');
+      if (selCf && currentHostConfigState.color_filter) {
+        selCf.value = currentHostConfigState.color_filter;
+        updateColorFilterUI(currentHostConfigState.color_filter);
+      }
       if (chkSvc && currentHostConfigState.run_as_service !== undefined) chkSvc.checked = Boolean(currentHostConfigState.run_as_service);
       if (chkBlk && currentHostConfigState.block_input !== undefined) chkBlk.checked = Boolean(currentHostConfigState.block_input);
       if (chkCur && currentHostConfigState.privacy_curtain !== undefined) chkCur.checked = Boolean(currentHostConfigState.privacy_curtain);
@@ -10501,12 +11019,31 @@
       return;
     }
     const fpsVal = parseInt(document.getElementById('inpHostFpsLimit')?.value || '0', 10) || 0;
+    const streamModeVal = document.getElementById('selHostStreamMode')?.value || currentStreamMode || 'adaptive_vfr';
+    syncFpsLimitUI(fpsVal);
+    frameCount = 0;
+    lastFpsUpdate = performance.now();
+    lastAcceptedFrameTickTime = 0;
+    fpsTokenBucket = Math.max(6, Math.ceil((currentFpsLimit || 60) * 0.15));
+    lastTokenRefillTime = performance.now();
+    updateStreamModeUI(streamModeVal);
+    const colorFilterVal = document.getElementById('selHostColorFilter')?.value || currentColorFilter || 'normal';
+    const autoLockVal = Boolean(document.getElementById('chkHostAutoLock')?.checked);
+    const idleSaverVal = Boolean(document.getElementById('chkHostIdleSaver')?.checked);
+    updateColorFilterUI(colorFilterVal);
+    isAutoLockDisconnectEnabled = autoLockVal;
+    isIdleFpsSaverEnabled = idleSaverVal;
+    document.getElementById('badgeAutoLockActive')?.classList.toggle('hidden', !autoLockVal);
     const cfgPayload = {
       autostart: Boolean(document.getElementById('chkHostAutostart')?.checked),
       anti_sleep: Boolean(document.getElementById('chkHostAntiSleep')?.checked),
       stealth_mode: Boolean(document.getElementById('chkHostStealth')?.checked),
+      auto_lock_on_disconnect: autoLockVal,
+      idle_fps_saver: idleSaverVal,
       fps_limit: fpsVal,
-      uncapped_fps: fpsVal <= 0
+      uncapped_fps: fpsVal <= 0,
+      stream_mode: streamModeVal,
+      color_filter: colorFilterVal
     };
     if (hostIsAdmin) {
       cfgPayload.run_as_service = Boolean(document.getElementById('chkHostService247')?.checked);
@@ -10533,10 +11070,22 @@
     });
   });
 
-  document.getElementById('fleetSearchInput')?.addEventListener('input', (e) => {
-    activeFleetSearchQuery = e.target.value.trim();
-    renderDeviceGrid(currentDeviceList);
-  });
+  const fleetSearchEl = document.getElementById('fleetSearchInput');
+  if (fleetSearchEl) {
+    fleetSearchEl.value = '';
+    fleetSearchEl.addEventListener('input', (e) => {
+      activeFleetSearchQuery = e.target.value.trim();
+      renderDeviceGrid(currentDeviceList);
+    });
+    // Defeat browser password manager / form autofill if injected asynchronously
+    setTimeout(() => {
+      if (fleetSearchEl && !activeFleetSearchQuery && fleetSearchEl.value) {
+        fleetSearchEl.value = '';
+        activeFleetSearchQuery = '';
+        renderDeviceGrid(currentDeviceList);
+      }
+    }, 250);
+  }
 
   const getDeviceMetaModal = () => document.getElementById('modalDeviceMeta');
   document.addEventListener('click', (e) => {
