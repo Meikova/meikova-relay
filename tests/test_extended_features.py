@@ -188,5 +188,29 @@ class TestExtendedFeatures(unittest.TestCase):
         ap.stop()
         self.assertFalse(ap.running)
 
+    def test_power_manager_prevent_sleep_and_wakeup(self):
+        self.assertTrue(PowerManager.prevent_sleep(True))
+        self.assertTrue(PowerManager.prevent_sleep(False))
+        wake_res = PowerManager.configure_auto_wakeup(True, "07:30")
+        self.assertIsInstance(wake_res, dict)
+        self.assertTrue(wake_res.get("success", False))
+        wol_res = PowerManager.send_wake_on_lan("11:22:33:44:55:66")
+        self.assertIsInstance(wol_res, dict)
+        self.assertTrue(wol_res.get("success", False))
+
+    def test_input_injector_unstick_all_inputs(self):
+        from host_agent.input_injector import InputInjector
+        released = InputInjector.unstick_all_inputs()
+        if sys.platform == "win32":
+            self.assertGreaterEqual(released, 258)
+        else:
+            self.assertGreaterEqual(released, 0)
+
+    def test_input_injector_unlock_workstation_logic(self):
+        from host_agent.input_injector import InputInjector
+        res = InputInjector.unlock_workstation("")
+        if sys.platform == "win32":
+            self.assertTrue(res)
+
 if __name__ == "__main__":
     unittest.main()

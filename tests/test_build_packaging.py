@@ -100,5 +100,12 @@ class TestBuildAndPackaging(unittest.TestCase):
         # Verify checksums
         self.assertTrue((self.dist_dir / "SHA256SUMS.txt").exists())
 
+    def test_windows_manifest_configuration(self):
+        manifest_path = REPO_ROOT / "host_agent" / "MeikovaRelayHost.manifest"
+        self.assertTrue(manifest_path.exists())
+        content = manifest_path.read_text(encoding="utf-8")
+        self.assertIn('uiAccess="true"', content)
+        self.assertIn("PerMonitorV2", content)
+
 if __name__ == "__main__":
     unittest.main()

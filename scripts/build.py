@@ -17,7 +17,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-VERSION = "1.4.2"
+VERSION = "1.5.0"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = REPO_ROOT / "dist"
 
@@ -402,7 +402,10 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         "--hidden-import", "webview",
         "--hidden-import", "host_agent.engines",
         "--hidden-import", "host_agent.tray_menu",
-        "--hidden-import", "host_agent.chat_window",
+                "--hidden-import", "host_agent.chat_window",
+        "--hidden-import", "host_agent.auto_updater",
+        "--hidden-import", "host_agent.telemetry",
+        "--hidden-import", "host_agent.deployment_manager",
     ]
     if target_os == "windows":
         tj_dll = REPO_ROOT / "host_agent" / "turbojpeg.dll"
@@ -440,11 +443,14 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
 
     if target_os == "windows":
         name = "MeikovaRelayHost"
+        manifest_file = REPO_ROOT / "host_agent" / "MeikovaRelayHost.manifest"
+        manifest_args = ["--manifest", str(manifest_file)] if manifest_file.is_file() else []
         cmd = [
             sys.executable, "-m", "PyInstaller",
             "--noconfirm", "--onefile", "--windowed",
             "--name", name,
             "--icon", str(REPO_ROOT / "host_agent" / "icon.ico"),
+            *manifest_args,
             "--distpath", str(dist_dir),
             "--workpath", str(REPO_ROOT / "build"),
             "--clean",

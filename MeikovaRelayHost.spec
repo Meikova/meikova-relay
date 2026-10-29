@@ -3,7 +3,7 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_view.html', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_view.html', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.png', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icon.png', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icons', 'host_agent/tray_icons'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icons', 'tray_icons')]
 binaries = [('D:/JOB/DEV/meikova/meikova-relay/host_agent/turbojpeg.dll', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/turbojpeg.dll', '.')]
-hiddenimports = ['mss', 'websockets', 'numpy', 'cv2', 'turbojpeg', 'PIL', 'PIL.Image', 'PIL.ImageDraw', 'PIL.ImageGrab', 'pystray', 'pyperclip', 'psutil', 'webview', 'host_agent.engines', 'host_agent.tray_menu', 'host_agent.chat_window', 'mss.windows', 'dxcam', 'bettercam', 'comtypes', 'webview', 'webview.platforms.winforms', 'webview.platforms.edgechromium', 'clr', 'clr_loader', 'pythonnet']
+hiddenimports = ['mss', 'websockets', 'numpy', 'cv2', 'turbojpeg', 'PIL', 'PIL.Image', 'PIL.ImageDraw', 'PIL.ImageGrab', 'pystray', 'pyperclip', 'psutil', 'webview', 'host_agent.engines', 'host_agent.tray_menu', 'host_agent.chat_window', 'host_agent.auto_updater', 'host_agent.telemetry', 'host_agent.deployment_manager', 'mss.windows', 'dxcam', 'bettercam', 'comtypes', 'webview', 'webview.platforms.winforms', 'webview.platforms.edgechromium', 'clr', 'clr_loader', 'pythonnet']
 tmp_ret = collect_all('webview')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
@@ -43,4 +43,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=['D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico'],
+    manifest='D:/JOB/DEV/meikova/meikova-relay/host_agent/MeikovaRelayHost.manifest',
 )

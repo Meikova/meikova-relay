@@ -134,11 +134,12 @@ def copy_exe_to_dir(target_dir: Path, source_config_path: Optional[Path] = None)
             except Exception:
                 pass
     else:
-        current_script = Path(__file__).resolve().parent / "gui_agent.py"
-        target_script = target_dir / "gui_agent.py"
-        if current_script.exists() and current_script != target_script:
+        # If running from source, prefer deploying built binary from dist/ if available
+        repo_dist_exe = Path(__file__).resolve().parent.parent / "dist" / get_permanent_exe_path().name
+        if repo_dist_exe.exists():
             try:
-                shutil.copy2(str(current_script), str(target_script))
+                if not target_exe.exists() or repo_dist_exe.stat().st_mtime > target_exe.stat().st_mtime:
+                    shutil.copy2(str(repo_dist_exe), str(target_exe))
             except Exception:
                 pass
 
@@ -157,6 +158,246 @@ def copy_exe_to_dir(target_dir: Path, source_config_path: Optional[Path] = None)
             pass
 
     return target_exe if target_exe.exists() else Path(sys.executable)
+
+
+def cleanup_legacy_source_files(target_dir: Optional[Path] = None) -> int:
+    """Removes leftover source files (.py, .pyc, __pycache__, .bat, .sh, .plist, .service, requirements.txt, gui_view.html)
+    from legacy zip extractions in %LOCALAPPDATA%\\MeikovaRelayHost.
+    When running as standalone .exe, raw Python/script files are never needed and should be wiped.
+    Preserves config.json, executable (.exe), logs (*.log), icons (*.ico, *.png, tray_icons/), and databases (*.db)."""
+    base_dir = (target_dir or get_user_install_dir()).resolve()
+    if not base_dir.exists():
+        return 0
+
+    # Safety guard: Never clean repository source tree
+    try:
+        current_script_dir = Path(__file__).resolve().parent
+        if base_dir == current_script_dir or base_dir == current_script_dir.parent:
+            return 0
+        repo_marker = current_script_dir.parent / "PROJECT.md"
+        if repo_marker.exists() and base_dir == repo_marker.parent:
+            return 0
+    except Exception:
+        pass
+
+    cleaned = 0
+    # Files/directories that must be strictly preserved
+    preserved_exact_files = {
+        "config.json",
+        "custom-config.json",
+        "meikovarelayhost.exe",
+        "icon.ico",
+        "icon.png",
+        "tray_icon.png"
+    }
+    preserved_suffixes = {".exe", ".json", ".log", ".db", ".sqlite", ".sqlite3", ".ico"}
+    preserved_dirs = {"tray_icons", "logs", "data"}
+
+    # Junk file extensions and exact filenames to purge
+    purge_suffixes = {".py", ".pyc", ".pyw", ".pyd", ".bat", ".cmd", ".sh", ".plist", ".service", ".old", ".update"}
+    purge_exact_files = {
+        "requirements.txt",
+        "gui_view.html",
+        "meikovarelayagent.bat",
+        "install-meikovarelayhost.bat",
+        "run_agent.bat",
+        "run_agent_linux.sh",
+        "run_agent_macos.sh",
+        "com.meikova.relay.plist",
+        "meikova-relay.service"
+    }
+    purge_dirs = {"__pycache__", "host_agent", "engines", "build", "dist"}
+
+    try:
+        for item in list(base_dir.iterdir()):
+            item_name_lower = item.name.lower()
+            item_suffix_lower = item.suffix.lower()
+
+            # Skip preserved files and directories
+            if item_name_lower in preserved_exact_files:
+                continue
+
+            if item.is_file():
+                if (
+                    item_suffix_lower in purge_suffixes
+                    or item_name_lower in purge_exact_files
+                    or (item_suffix_lower not in preserved_suffixes and item_suffix_lower in (".txt", ".html"))
+                ):
+                    try:
+                        item.unlink(missing_ok=True)
+                        cleaned += 1
+                    except Exception:
+                        pass
+            elif item.is_dir():
+                if item_name_lower in preserved_dirs:
+                    continue
+                if item_name_lower in purge_dirs:
+                    try:
+                        shutil.rmtree(str(item), ignore_errors=True)
+                        cleaned += 1
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    return cleaned
+
+
+def clean_legacy_registry_keys() -> bool:
+    """Cleans obsolete registry autostart keys from legacy versions (TitanRemoteHost, TitanHost).
+    Also purges any legacy scheduled tasks and services."""
+    if sys.platform != "win32" or not winreg:
+        return False
+    success = False
+    legacy_keys = ("TitanRemoteHost", "TitanHost", "TitanRemoteAgent", "TitanAgent")
+
+    # Check HKCU and HKLM (if admin)
+    hkeys = [winreg.HKEY_CURRENT_USER]
+    if is_current_user_admin():
+        hkeys.append(winreg.HKEY_LOCAL_MACHINE)
+
+    for root_hkey in hkeys:
+        try:
+            key = winreg.OpenKey(root_hkey, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE | winreg.KEY_READ)
+            for legacy_name in legacy_keys:
+                try:
+                    winreg.DeleteValue(key, legacy_name)
+                    success = True
+                except FileNotFoundError:
+                    pass
+                except Exception:
+                    pass
+            winreg.CloseKey(key)
+        except Exception:
+            pass
+
+    # Clean legacy scheduled tasks if any
+    for legacy_task in ("TitanRemoteHost", "TitanHost"):
+        try:
+            subprocess.run(
+                ["schtasks", "/delete", "/tn", legacy_task, "/f"],
+                capture_output=True,
+                check=False,
+                creationflags=WIN_NO_WINDOW
+            )
+        except Exception:
+            pass
+
+    # Clean legacy services if any (when elevated)
+    if is_current_user_admin():
+        for legacy_svc in ("TitanRemoteService", "TitanService"):
+            try:
+                subprocess.run(
+                    ["sc", "delete", legacy_svc],
+                    capture_output=True,
+                    check=False,
+                    creationflags=WIN_NO_WINDOW
+                )
+            except Exception:
+                pass
+
+    return success
+
+
+def register_protocol_handler(exe_path: Optional[Path] = None) -> bool:
+    """Registers meikova-relay:// custom protocol in Windows Registry."""
+    if sys.platform != "win32" or not winreg:
+        return False
+    try:
+        exe = str(exe_path or get_permanent_exe_path())
+        base_key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Classes\meikova-relay")
+        winreg.SetValueEx(base_key, "", 0, winreg.REG_SZ, "URL:Meikova Relay Protocol")
+        winreg.SetValueEx(base_key, "URL Protocol", 0, winreg.REG_SZ, "")
+
+        icon_key = winreg.CreateKey(base_key, "DefaultIcon")
+        winreg.SetValueEx(icon_key, "", 0, winreg.REG_SZ, f'"{exe}",0')
+        winreg.CloseKey(icon_key)
+
+        cmd_key = winreg.CreateKey(base_key, r"shell\open\command")
+        winreg.SetValueEx(cmd_key, "", 0, winreg.REG_SZ, f'"{exe}" "%1"')
+        winreg.CloseKey(cmd_key)
+        winreg.CloseKey(base_key)
+        return True
+    except Exception:
+        return False
+
+
+def register_firewall_rule(exe_path: Optional[Path] = None) -> bool:
+    """Registers Windows Firewall rule to avoid silent connection blocking."""
+    if sys.platform != "win32":
+        return False
+    try:
+        exe = str(exe_path or get_permanent_exe_path())
+        # Delete old rule first if exists to prevent duplicates
+        subprocess.run(
+            ["netsh", "advfirewall", "firewall", "delete", "rule", 'name=MeikovaRelayHost'],
+            capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW
+        )
+        cmd = [
+            "netsh", "advfirewall", "firewall", "add", "rule",
+            'name=MeikovaRelayHost',
+            "dir=in",
+            "action=allow",
+            f'program={exe}',
+            "enable=yes",
+            "profile=any"
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False, creationflags=WIN_NO_WINDOW)
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
+def self_deploy_if_needed(relaunch: bool = True) -> bool:
+    """Ensures MeikovaRelayHost runs out of %LOCALAPPDATA%\\MeikovaRelayHost.
+    If run elsewhere (e.g. dist/ or Downloads/), copies itself and relaunches.
+    Always cleans junk legacy source files and registry keys."""
+    if sys.platform != "win32":
+        return False
+
+    is_frozen = getattr(sys, "frozen", False)
+    target_exe = get_permanent_exe_path().resolve()
+    target_dir = target_exe.parent
+
+    # Always ensure target directory exists and is cleaned
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+        cleanup_legacy_source_files(target_dir)
+        clean_legacy_registry_keys()
+        register_protocol_handler(target_exe)
+        register_firewall_rule(target_exe)
+    except Exception:
+        pass
+
+    if not is_frozen:
+        return False
+
+    current_exe = Path(sys.executable).resolve()
+    if current_exe == target_exe:
+        return False
+
+    try:
+        if target_exe.exists():
+            try:
+                target_exe.unlink()
+            except Exception:
+                old_backup = target_exe.with_suffix(".exe.old")
+                try:
+                    target_exe.rename(old_backup)
+                except Exception:
+                    pass
+
+        shutil.copy2(str(current_exe), str(target_exe))
+        install_user_tier()
+        register_protocol_handler(target_exe)
+        register_firewall_rule(target_exe)
+
+        if relaunch:
+            args = [str(target_exe)] + sys.argv[1:]
+            subprocess.Popen(args, cwd=str(target_dir), close_fds=True)
+            sys.exit(0)
+        return True
+    except Exception:
+        return False
 
 
 def ensure_permanent_deployment(source_config_path: Optional[Path] = None) -> Path:

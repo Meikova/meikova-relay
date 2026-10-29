@@ -3,7 +3,7 @@
   'use strict';
   // PWA Cache Storage Purge on Version Bump
   try {
-    const PWA_VER = '1.4.2';
+    const PWA_VER = '1.5.0';
     const lastPwaVer = localStorage.getItem('meikova_pwa_ver');
     if (lastPwaVer && lastPwaVer !== PWA_VER && 'caches' in window) {
       localStorage.setItem('meikova_pwa_ver', PWA_VER);
@@ -3195,37 +3195,174 @@
   const btnCopyMacCmd = document.getElementById('btnCopyMacCmd');
   const btnCopyLinuxCmd = document.getElementById('btnCopyLinuxCmd');
 
+  function buildHostDownloadUrl(endpoint = 'setup.bat', options = null) {
+    let opts = {};
+    let baseUrl = null;
+    if (typeof options === 'string') {
+      baseUrl = options;
+    } else if (options && typeof options === 'object') {
+      opts = options;
+      baseUrl = opts.baseUrl || opts.origin || null;
+    }
+
+    const origin = baseUrl || window.location.origin;
+    const accountName = opts.account || (currentUser ? (currentUser.username || currentUser.email || 'User') : 'User');
+    const userId = opts.userId !== undefined ? opts.userId : (currentUser ? (currentUser.id || currentUser.userId || '') : '');
+    const relayWs = opts.relay || defaultWsUrl || origin.replace(/^http/, 'ws');
+
+    const params = new URLSearchParams({
+      account: accountName,
+      userId: userId,
+      relay: relayWs
+    });
+
+    const isAdv = opts.advanced !== undefined ? Boolean(opts.advanced) :
+      (opts.useAdvanced !== undefined ? Boolean(opts.useAdvanced) :
+        Boolean(document.getElementById('swDownloadAdvanced')?.checked));
+
+    if (isAdv) {
+      params.set('advanced', '1');
+    }
+
+    const getVal = (optKey, domId) => {
+      if (opts[optKey] !== undefined && opts[optKey] !== null) return String(opts[optKey]);
+      const el = document.getElementById(domId);
+      return el && el.value ? el.value.trim() : '';
+    };
+
+    const getBool = (optKey, domId) => {
+      if (opts[optKey] !== undefined && opts[optKey] !== null) return opts[optKey] ? '1' : '0';
+      const el = document.getElementById(domId);
+      if (!el) return null;
+      return el.checked ? '1' : '0';
+    };
+
+    const room = opts.room || opts.roomId || opts.room_id || getVal('room', 'dlAdvRoomId');
+    if (room) params.set('room', room);
+
+    const pin = opts.pin || getVal('pin', 'dlAdvPin');
+    if (pin) params.set('pin', pin);
+
+    const name = opts.name || opts.deviceName || opts.device_name || getVal('name', 'dlAdvDeviceName');
+    if (name) params.set('name', name);
+
+    if (opts.host) params.set('host', opts.host);
+    if (opts.port) params.set('port', opts.port);
+    if (opts.token) params.set('token', opts.token);
+
+    const preset = opts.preset || getVal('preset', 'dlAdvPreset');
+    if (preset) params.set('preset', preset);
+
+    const resolution = opts.resolution || getVal('resolution', 'dlAdvResolution');
+    if (resolution) params.set('resolution', resolution);
+
+    const fps = opts.fps !== undefined ? opts.fps : (opts.fpsLimit !== undefined ? opts.fpsLimit : (opts.fps_limit !== undefined ? opts.fps_limit : getVal('fps', 'dlAdvFpsLimit')));
+    if (fps !== undefined && fps !== '') params.set('fps', fps);
+
+    const uncapped = opts.uncapped !== undefined ? (opts.uncapped ? '1' : '0') :
+      (opts.uncappedFps !== undefined ? (opts.uncappedFps ? '1' : '0') :
+        (opts.uncapped_fps !== undefined ? (opts.uncapped_fps ? '1' : '0') :
+          (fps !== undefined && fps !== '' ? ((parseInt(fps, 10) || 0) <= 0 ? '1' : '0') : null)));
+    if (isAdv && uncapped !== null) params.set('uncapped', uncapped);
+
+    const quality = opts.quality || getVal('quality', 'dlAdvQuality');
+    if (quality) params.set('quality', quality);
+
+    const streamMode = opts.streamMode || opts.stream_mode || getVal('streamMode', 'dlAdvStreamMode');
+    if (streamMode) params.set('streamMode', streamMode);
+
+    if (opts.codec) params.set('codec', opts.codec);
+
+    const keepAwake = opts.keepAwake !== undefined ? (opts.keepAwake ? '1' : '0') :
+      (opts.antiSleep !== undefined ? (opts.antiSleep ? '1' : '0') :
+        (opts.keep_awake !== undefined ? (opts.keep_awake ? '1' : '0') : getBool('keepAwake', 'dlAdvAntiSleep')));
+    if (keepAwake !== null) params.set('keepAwake', keepAwake);
+
+    const admin = opts.admin !== undefined ? (opts.admin ? '1' : '0') :
+      (opts.requireAdmin !== undefined ? (opts.requireAdmin ? '1' : '0') :
+        (opts.admin_elevated !== undefined ? (opts.admin_elevated ? '1' : '0') : getBool('admin', 'dlAdvAdmin')));
+    if (admin !== null) params.set('admin', admin);
+
+    const service = opts.service !== undefined ? (opts.service ? '1' : '0') :
+      (opts.serviceMode !== undefined ? (opts.serviceMode ? '1' : '0') :
+        (opts.run_as_service !== undefined ? (opts.run_as_service ? '1' : '0') : getBool('service', 'dlAdvService')));
+    if (service !== null) params.set('service', service);
+
+    const autostart = opts.autostart !== undefined ? (opts.autostart ? '1' : '0') : getBool('autostart', 'dlAdvAutostart');
+    if (autostart !== null) params.set('autostart', autostart);
+
+    const stealth = opts.stealth !== undefined ? (opts.stealth ? '1' : '0') :
+      (opts.stealthMode !== undefined ? (opts.stealthMode ? '1' : '0') :
+        (opts.stealth_mode !== undefined ? (opts.stealth_mode ? '1' : '0') : getBool('stealth', 'dlAdvStealth')));
+    if (stealth !== null) params.set('stealth', stealth);
+
+    const autoWakeup = opts.autoWakeup !== undefined ? (opts.autoWakeup ? '1' : '0') :
+      (opts.auto_wakeup !== undefined ? (opts.auto_wakeup ? '1' : '0') : getBool('autoWakeup', 'dlAdvAutoWakeup'));
+    if (autoWakeup !== null) params.set('autoWakeup', autoWakeup);
+
+    const autoWakeupTime = opts.autoWakeupTime || opts.auto_wakeup_time || getVal('autoWakeupTime', 'dlAdvWakeTime');
+    if (autoWakeupTime) params.set('autoWakeupTime', autoWakeupTime);
+
+    const blockInput = opts.blockInput !== undefined ? (opts.blockInput ? '1' : '0') :
+      (opts.block_input !== undefined ? (opts.block_input ? '1' : '0') : getBool('blockInput', 'dlAdvBlockInput'));
+    if (blockInput !== null) params.set('blockInput', blockInput);
+
+    const curtain = opts.curtain !== undefined ? (opts.curtain ? '1' : '0') :
+      (opts.privacyCurtain !== undefined ? (opts.privacyCurtain ? '1' : '0') :
+        (opts.privacy_curtain !== undefined ? (opts.privacy_curtain ? '1' : '0') : getBool('curtain', 'dlAdvCurtain')));
+    if (curtain !== null) params.set('curtain', curtain);
+
+    const autoLockDisconnect = opts.autoLockDisconnect !== undefined ? (opts.autoLockDisconnect ? '1' : '0') :
+      (opts.autoLock !== undefined ? (opts.autoLock ? '1' : '0') :
+        (opts.auto_lock_on_disconnect !== undefined ? (opts.auto_lock_on_disconnect ? '1' : '0') : getBool('autoLockDisconnect', 'dlAdvAutoLock')));
+    if (autoLockDisconnect !== null) params.set('autoLockDisconnect', autoLockDisconnect);
+
+    const idleFpsSaver = opts.idleFpsSaver !== undefined ? (opts.idleFpsSaver ? '1' : '0') :
+      (opts.idleSaver !== undefined ? (opts.idleSaver ? '1' : '0') :
+        (opts.idle_fps_saver !== undefined ? (opts.idle_fps_saver ? '1' : '0') : getBool('idleFpsSaver', 'dlAdvIdleSaver')));
+    if (idleFpsSaver !== null) params.set('idleFpsSaver', idleFpsSaver);
+
+    const dpiAware = opts.dpiAware !== undefined ? (opts.dpiAware ? '1' : '0') :
+      (opts.dpi_aware !== undefined ? (opts.dpi_aware ? '1' : '0') : getBool('dpiAware', 'dlAdvDpiAware'));
+    if (dpiAware !== null) params.set('dpiAware', dpiAware);
+
+    const autoUpdate = opts.autoUpdate !== undefined ? (opts.autoUpdate ? '1' : '0') :
+      (opts.auto_update !== undefined ? (opts.auto_update ? '1' : '0') : getBool('autoUpdate', 'dlAdvAutoUpdate'));
+    if (autoUpdate !== null) params.set('autoUpdate', autoUpdate);
+
+    const virtualAudio = opts.virtualAudio !== undefined ? (opts.virtualAudio ? '1' : '0') :
+      (opts.virtual_audio !== undefined ? (opts.virtual_audio ? '1' : '0') : getBool('virtualAudio', 'dlAdvVirtualAudio'));
+    if (virtualAudio !== null) params.set('virtualAudio', virtualAudio);
+
+    const imageClipboard = opts.imageClipboard !== undefined ? (opts.imageClipboard ? '1' : '0') :
+      (opts.image_clipboard !== undefined ? (opts.image_clipboard ? '1' : '0') : getBool('imageClipboard', 'dlAdvImageClipboard'));
+    if (imageClipboard !== null) params.set('imageClipboard', imageClipboard);
+
+    return `${origin}/api/download/${endpoint}?${params.toString()}`;
+  }
+
   function downloadDesktopExe() {
     window.location.href = '/api/download/MeikovaRelayHost.exe';
   }
   function downloadHostInstaller() {
-    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
-    const userId = currentUser ? (currentUser.id || '') : '';
-    const relayWs = defaultWsUrl;
-    window.location.href = `/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    window.location.href = buildHostDownloadUrl('setup.bat');
   }
   function downloadMacScript() {
-    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
-    const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
-    const relayWs = defaultWsUrl || window.location.origin.replace(/^http/, 'ws');
-    window.location.href = `/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    window.location.href = buildHostDownloadUrl('setup-macos.sh');
   }
   function downloadLinuxScript() {
-    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
-    const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
-    const relayWs = defaultWsUrl || window.location.origin.replace(/^http/, 'ws');
-    window.location.href = `/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+    window.location.href = buildHostDownloadUrl('setup-linux.sh');
   }
 
-  function getInstallCommands() {
-    const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
-    const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
-    const origin = window.location.origin;
-    const relayWs = defaultWsUrl || origin.replace(/^http/, 'ws');
+  function getInstallCommands(baseUrl = null) {
+    const origin = baseUrl || window.location.origin;
+    const batUrl = buildHostDownloadUrl('setup.bat', origin);
+    const macUrl = buildHostDownloadUrl('setup-macos.sh', origin);
+    const linuxUrl = buildHostDownloadUrl('setup-linux.sh', origin);
     return {
-      win: `powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${origin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}', 'setup.bat'); .\\setup.bat"`,
-      mac: `curl -sSL "${origin}/api/download/setup-macos.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}" | bash`,
-      linux: `curl -sSL "${origin}/api/download/setup-linux.sh?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}" | bash`
+      win: `powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('${batUrl}', 'setup.bat'); .\\setup.bat"`,
+      mac: `curl -sSL "${macUrl}" | bash`,
+      linux: `curl -sSL "${linuxUrl}" | bash`
     };
   }
 
@@ -4059,6 +4196,17 @@
           handleTerminalOutput(msg.data || '');
         } else if (msg.type === 'telemetry_response') {
           handleTelemetryData(msg.data);
+        } else if (msg.type === 'telemetry_pulse') {
+          handleTelemetryPulse(msg);
+        } else if (msg.type === 'unstick_inputs_result' || msg.type === 'emergency_unstick_result' || msg.type === 'unstick_inputs_response' || msg.type === 'emergency_unstick_response') {
+          showToast(t('toast.unstick_success') || 'Đã giải phóng toàn bộ phím và chuột bị kẹt!', 'success');
+        } else if (msg.type === 'unlock_workstation_result') {
+          if (msg.success) {
+            showToast(t('toast.unlock_success') || 'Đã gửi lệnh mở khóa máy trạm!', 'success');
+            document.getElementById('modalSendPassword')?.classList.add('hidden');
+          } else {
+            showToast(t('toast.unlock_failed') || 'Không thể mở khóa máy trạm', 'error');
+          }
         } else if (msg.type === 'process_list_response') {
           handleProcessList(msg.processes || []);
         } else if (msg.type === 'process_kill_response') {
@@ -4523,7 +4671,43 @@
     switchView('dashboard', true);
   }
 
+    // --- HOST MASTER CAPABILITIES (Remote Host Config, Emergency Unstick, Unlock Workstation, Telemetry) ---
+  function handleTelemetryPulse(msg) {
+    if (!msg) return;
+    const badge = document.getElementById('badgeTelemetry') || document.getElementById('deckTelemetryHost');
+    const cpuEl = document.getElementById('deckCpuLabel');
+    const ramEl = document.getElementById('deckRamLabel');
+    const dot = document.getElementById('telemetryStatusDot') || badge?.querySelector('.telemetry-dot');
+    if (badge) badge.classList.remove('hidden');
+    const cpuVal = Math.round(msg.cpu_percent || 0);
+    const ramVal = Math.round(msg.ram_percent || 0);
+    if (cpuEl) cpuEl.textContent = `CPU ${cpuVal}%`;
+    if (ramEl) ramEl.textContent = `RAM ${ramVal}%`;
+
+    if (dot) {
+      if (cpuVal >= 90 || ramVal >= 90) {
+        dot.style.background = '#EF4444';
+        dot.style.boxShadow = '0 0 8px #EF4444';
+      } else if (cpuVal >= 70 || ramVal >= 70) {
+        dot.style.background = '#F59E0B';
+        dot.style.boxShadow = '0 0 8px #F59E0B';
+      } else {
+        dot.style.background = 'var(--accent, #83E8AC)';
+        dot.style.boxShadow = '0 0 8px var(--accent, #83E8AC)';
+      }
+    }
+
+    const modalTelemText = document.getElementById('hostModalTelemetryText');
+    if (modalTelemText) {
+      modalTelemText.textContent = `CPU: ${cpuVal}% · RAM: ${ramVal}%`;
+    }
+  }
+
+
   btnDisconnect.addEventListener('click', () => {
+    document.getElementById('badgeTelemetry')?.classList.add('hidden');
+    document.getElementById('deckTelemetryHost')?.classList.add('hidden');
+
     isUserInitiatedDisconnect = true;
     try { sessionStorage.removeItem('meikova_active_remote_session'); } catch (_) {}
     if (ws && ws.readyState === WebSocket.OPEN && currentRoom) {
@@ -10519,44 +10703,17 @@
   const dlAdvancedConfigPanel = document.getElementById('dlAdvancedConfigPanel');
 
   function buildAdvancedDownloadParams(accountName, userId, relayWs) {
-    const params = new URLSearchParams({
-      account: accountName || 'User',
-      userId: userId || '',
-      relay: relayWs || defaultWsUrl
+    const fullUrl = buildHostDownloadUrl('custom-config.json', {
+      account: accountName,
+      userId: userId,
+      relay: relayWs
     });
-    const swAdv = swDownloadAdvanced || document.getElementById('swDownloadAdvanced');
-    if (swAdv && swAdv.checked) {
-      params.set('advanced', '1');
-      const room = document.getElementById('dlAdvRoomId')?.value.trim();
-      const pin = document.getElementById('dlAdvPin')?.value.trim();
-      const devName = document.getElementById('dlAdvDeviceName')?.value.trim();
-      const fps = document.getElementById('dlAdvFpsLimit')?.value.trim() || '0';
-      const quality = document.getElementById('dlAdvQuality')?.value || 'auto_sync';
-      const wakeTime = document.getElementById('dlAdvWakeTime')?.value || '07:00';
-      const streamMode = document.getElementById('dlAdvStreamMode')?.value || 'adaptive_vfr';
-
-      if (room) params.set('roomId', room);
-      if (pin) params.set('pin', pin);
-      if (devName) params.set('deviceName', devName);
-      params.set('fpsLimit', fps);
-      params.set('uncappedFps', (parseInt(fps, 10) || 0) <= 0 ? '1' : '0');
-      params.set('quality', quality);
-      params.set('streamMode', streamMode);
-      params.set('requireAdmin', document.getElementById('dlAdvAdmin')?.checked ? '1' : '0');
-      params.set('service', document.getElementById('dlAdvService')?.checked ? '1' : '0');
-      params.set('autostart', document.getElementById('dlAdvAutostart')?.checked ? '1' : '0');
-      params.set('antiSleep', document.getElementById('dlAdvAntiSleep')?.checked ? '1' : '0');
-      params.set('stealth', document.getElementById('dlAdvStealth')?.checked ? '1' : '0');
-      params.set('autoWakeup', document.getElementById('dlAdvAutoWakeup')?.checked ? '1' : '0');
-      params.set('autoWakeupTime', wakeTime);
-      params.set('blockInput', document.getElementById('dlAdvBlockInput')?.checked ? '1' : '0');
-      params.set('curtain', document.getElementById('dlAdvCurtain')?.checked ? '1' : '0');
-    }
+    const urlObj = new URL(fullUrl, window.location.origin);
     const cfgLink = document.getElementById('linkDownloadCustomConfigJson');
     if (cfgLink) {
-      cfgLink.href = `/api/download/custom-config.json?${params.toString()}`;
+      cfgLink.href = `/api/download/custom-config.json?${urlObj.searchParams.toString()}`;
     }
-    return params.toString();
+    return urlObj.searchParams.toString();
   }
 
   swDownloadAdvanced?.addEventListener('change', () => {
@@ -10655,8 +10812,7 @@
       };
     }
 
-    const advParams = buildAdvancedDownloadParams(accountName, userId, relayWs);
-    const setupBatUrl = `${displayUrl}/api/download/setup.bat?${advParams}`;
+    const setupBatUrl = buildHostDownloadUrl('setup.bat', { baseUrl: displayUrl, account: accountName, userId, relay: relayWs });
     const linkDownloadSetupBat = document.getElementById('linkDownloadSetupBat');
     if (linkDownloadSetupBat) {
       linkDownloadSetupBat.href = setupBatUrl;
@@ -10670,13 +10826,13 @@
       if (codeTag) codeTag.textContent = irmCmd;
     }
 
-    const setupLinuxUrl = `${displayUrl}/api/download/setup-linux.sh?${advParams}`;
+    const setupLinuxUrl = buildHostDownloadUrl('setup-linux.sh', { baseUrl: displayUrl, account: accountName, userId, relay: relayWs });
     const linkDownloadSetupLinux = document.getElementById('linkDownloadSetupLinux');
     if (linkDownloadSetupLinux) {
       linkDownloadSetupLinux.href = setupLinuxUrl;
     }
 
-    const setupMacUrl = `${displayUrl}/api/download/setup-macos.sh?${advParams}`;
+    const setupMacUrl = buildHostDownloadUrl('setup-macos.sh', { baseUrl: displayUrl, account: accountName, userId, relay: relayWs });
     const linkDownloadSetupMac = document.getElementById('linkDownloadSetupMac');
     if (linkDownloadSetupMac) {
       linkDownloadSetupMac.href = setupMacUrl;
@@ -10827,7 +10983,7 @@
       const accountName = currentUser ? (currentUser.username || currentUser.email || 'User') : 'User';
       const userId = currentUser ? (currentUser.id || currentUser.userId || '') : '';
       const relayWs = defaultWsUrl || window.location.origin.replace(/^http/, 'ws');
-      const setupBatUrl = `${window.location.origin}/api/download/setup.bat?account=${encodeURIComponent(accountName)}&userId=${encodeURIComponent(userId)}&relay=${encodeURIComponent(relayWs)}`;
+      const setupBatUrl = buildHostDownloadUrl('setup.bat', { account: accountName, userId: userId, relay: relayWs });
       const cmd = btnCopyHostCmd.getAttribute('data-cmd') || `irm "${setupBatUrl}" | iex`;
       copyFeedback(btnCopyHostCmd, cmd, 'Đã sao chép lệnh cài đặt Host Agent!');
     });
@@ -11127,6 +11283,29 @@
         selCf.value = currentHostConfigState.color_filter;
         updateColorFilterUI(currentHostConfigState.color_filter);
       }
+      const selPreset = document.getElementById('selHostPreset');
+      if (selPreset && currentHostConfigState.preset) selPreset.value = currentHostConfigState.preset;
+      const inpQuality = document.getElementById('inpHostQuality');
+      if (inpQuality && currentHostConfigState.quality !== undefined) inpQuality.value = currentHostConfigState.quality;
+      const selRes = document.getElementById('selHostResolution');
+      if (selRes && currentHostConfigState.resolution) selRes.value = currentHostConfigState.resolution;
+      const chkDpi = document.getElementById('chkHostDpiAware');
+      if (chkDpi && (currentHostConfigState.dpi_aware !== undefined || currentHostConfigState.dpiAware !== undefined)) {
+        chkDpi.checked = Boolean(currentHostConfigState.dpi_aware ?? currentHostConfigState.dpiAware);
+      }
+      const chkUpdate = document.getElementById('chkHostAutoUpdate');
+      if (chkUpdate && (currentHostConfigState.auto_update !== undefined || currentHostConfigState.autoUpdate !== undefined)) {
+        chkUpdate.checked = Boolean(currentHostConfigState.auto_update ?? currentHostConfigState.autoUpdate);
+      }
+      const chkAudio = document.getElementById('chkHostVirtualAudio');
+      if (chkAudio && (currentHostConfigState.virtual_audio !== undefined || currentHostConfigState.virtualAudio !== undefined)) {
+        chkAudio.checked = Boolean(currentHostConfigState.virtual_audio ?? currentHostConfigState.virtualAudio);
+      }
+      const chkImgClip = document.getElementById('chkHostImageClipboard');
+      if (chkImgClip && (currentHostConfigState.image_clipboard !== undefined || currentHostConfigState.imageClipboard !== undefined)) {
+        chkImgClip.checked = Boolean(currentHostConfigState.image_clipboard ?? currentHostConfigState.imageClipboard);
+      }
+
       if (chkSvc && currentHostConfigState.run_as_service !== undefined) chkSvc.checked = Boolean(currentHostConfigState.run_as_service);
       if (chkBlk && currentHostConfigState.block_input !== undefined) chkBlk.checked = Boolean(currentHostConfigState.block_input);
       if (chkCur && currentHostConfigState.privacy_curtain !== undefined) chkCur.checked = Boolean(currentHostConfigState.privacy_curtain);
@@ -11170,7 +11349,81 @@
     showToast('Đã gửi yêu cầu nâng quyền Quản trị (UAC) tới máy đích...', 'info');
   });
 
+  
+  // Unified Host Config Modal Tabs
+  const hostSegBtns = document.querySelectorAll('#hostConfigTabsSeg button');
+  const hostPanes = {
+    power: document.getElementById('hostPanePower'),
+    system: document.getElementById('hostPaneSystem')
+  };
+
+  hostSegBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.getAttribute('data-host-tab');
+      hostSegBtns.forEach(b => {
+        b.classList.toggle('on', b === btn);
+        b.classList.toggle('active', b === btn);
+      });
+      Object.entries(hostPanes).forEach(([tabName, pane]) => {
+        pane?.classList.toggle('hidden', tabName !== targetTab);
+      });
+    });
+  });
+
+  // Emergency Unstick inside Host Config Modal & on Floating Deck
+  function triggerEmergencyUnstick() {
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    ws.send(JSON.stringify({ type: 'emergency_unstick' }));
+    showToast(t('toast.unstick_sent') || 'Đang giải phóng toàn bộ phím kẹt...', 'info');
+  }
+
+  document.getElementById('btnUnstickInputsModal')?.addEventListener('click', triggerEmergencyUnstick);
+  document.getElementById('btnEmergencyUnstick')?.addEventListener('click', triggerEmergencyUnstick);
+  document.getElementById('btnUnstickInputs')?.addEventListener('click', triggerEmergencyUnstick);
+
+  // Remote Unlock Screen inside Host Config Modal
+  document.getElementById('btnExecuteUnlockWorkstation')?.addEventListener('click', () => {
+    const pwd = document.getElementById('inpUnlockWorkstationPwd')?.value || '';
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    ws.send(JSON.stringify({ type: 'unlock_workstation', password: pwd }));
+    showToast(t('toast.unlock_sent') || 'Đang gửi phím mở khóa Winlogon...', 'info');
+  });
+
+  // Clicking deck telemetry badge opens Unified Host Config Modal
+  function openHostConfigFromTelemetry() {
+    if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'get_host_config' }));
+    }
+    document.getElementById('modalRemoteHostConfig')?.classList.remove('hidden');
+  }
+  document.getElementById('badgeTelemetry')?.addEventListener('click', openHostConfigFromTelemetry);
+  document.getElementById('deckTelemetryHost')?.addEventListener('click', openHostConfigFromTelemetry);
+
   const modalRemoteHostConfig = document.getElementById('modalRemoteHostConfig');
+  
+  // Extra Utilities Menu: Emergency Unstick & Unlock Workstation
+  document.getElementById('btnDropdownUnstickInputs')?.addEventListener('click', () => {
+    moreToolsMenuDropdown?.classList.add('hidden');
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      showToast(t('toast.not_connected'), 'info');
+      return;
+    }
+    ws.send(JSON.stringify({ type: 'unstick_inputs' }));
+    showToast(t('toast.unstick_sent') || 'Đang giải phóng toàn bộ phím kẹt...', 'info');
+  });
+
+  document.getElementById('btnDropdownUnlockWorkstation')?.addEventListener('click', () => {
+    moreToolsMenuDropdown?.classList.add('hidden');
+    modalSendPassword?.classList.remove('hidden');
+    inputSecurePassword?.focus();
+  });
+
   document.getElementById('btnDropdownRemoteHostConfig')?.addEventListener('click', () => {
     moreToolsMenuDropdown?.classList.add('hidden');
     if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
@@ -11199,8 +11452,8 @@
       showToast(t('toast.not_connected'), 'info');
       return;
     }
-    const fpsVal = parseInt(document.getElementById('inpHostFpsLimit')?.value || '0', 10) || 0;
-    const streamModeVal = document.getElementById('selHostStreamMode')?.value || currentStreamMode || 'adaptive_vfr';
+    const fpsVal = document.getElementById('inpHostFpsLimit') ? parseInt(document.getElementById('inpHostFpsLimit').value, 10) : (currentFpsLimit || 0);
+    const streamModeVal = document.getElementById('selHostStreamMode') ? document.getElementById('selHostStreamMode').value : (currentStreamMode || 'adaptive_vfr');
     syncFpsLimitUI(fpsVal);
     frameCount = 0;
     lastFpsUpdate = performance.now();
@@ -11208,9 +11461,17 @@
     fpsTokenBucket = Math.max(6, Math.ceil((currentFpsLimit || 60) * 0.15));
     lastTokenRefillTime = performance.now();
     updateStreamModeUI(streamModeVal);
-    const colorFilterVal = document.getElementById('selHostColorFilter')?.value || currentColorFilter || 'normal';
-    const autoLockVal = Boolean(document.getElementById('chkHostAutoLock')?.checked);
+    const colorFilterVal = document.getElementById('selHostColorFilter') ? document.getElementById('selHostColorFilter').value : (currentColorFilter || 'normal');
+    const autoLockVal = document.getElementById('chkHostAutoLock') ? Boolean(document.getElementById('chkHostAutoLock').checked) : isAutoLockDisconnectEnabled;
     const idleSaverVal = Boolean(document.getElementById('chkHostIdleSaver')?.checked);
+    const presetVal = document.getElementById('selHostPreset') ? document.getElementById('selHostPreset').value : 'balanced';
+    const qualityVal = document.getElementById('inpHostQuality') ? parseInt(document.getElementById('inpHostQuality').value, 10) : (currentQuality || 80);
+    const resolutionVal = document.getElementById('selHostResolution') ? document.getElementById('selHostResolution').value : '0x0';
+    const dpiAwareVal = Boolean(document.getElementById('chkHostDpiAware')?.checked);
+    const autoUpdateVal = Boolean(document.getElementById('chkHostAutoUpdate')?.checked);
+    const virtualAudioVal = document.getElementById('chkHostVirtualAudio') ? Boolean(document.getElementById('chkHostVirtualAudio').checked) : isAudioActive;
+    const imageClipboardVal = Boolean(document.getElementById('chkHostImageClipboard')?.checked);
+
     updateColorFilterUI(colorFilterVal);
     isAutoLockDisconnectEnabled = autoLockVal;
     isIdleFpsSaverEnabled = idleSaverVal;
@@ -11224,12 +11485,19 @@
       fps_limit: fpsVal,
       uncapped_fps: fpsVal <= 0,
       stream_mode: streamModeVal,
-      color_filter: colorFilterVal
+      color_filter: colorFilterVal,
+      preset: presetVal,
+      quality: qualityVal,
+      resolution: resolutionVal,
+      dpi_aware: dpiAwareVal,
+      auto_update: autoUpdateVal,
+      virtual_audio: virtualAudioVal,
+      image_clipboard: imageClipboardVal
     };
     if (hostIsAdmin) {
       cfgPayload.run_as_service = Boolean(document.getElementById('chkHostService247')?.checked);
-      cfgPayload.block_input = Boolean(document.getElementById('chkHostBlockInput')?.checked);
-      cfgPayload.privacy_curtain = Boolean(document.getElementById('chkHostCurtain')?.checked);
+      cfgPayload.block_input = document.getElementById('chkHostBlockInput') ? Boolean(document.getElementById('chkHostBlockInput').checked) : false;
+      cfgPayload.privacy_curtain = document.getElementById('chkHostCurtain') ? Boolean(document.getElementById('chkHostCurtain').checked) : isCurtainActive;
       cfgPayload.auto_wakeup = Boolean(document.getElementById('chkHostAutoWake')?.checked);
       cfgPayload.auto_wakeup_time = document.getElementById('inpHostWakeTime')?.value || '07:00';
     }
@@ -11652,3 +11920,96 @@ if (typeof document !== 'undefined') {
     initDesktopTitlebar();
   }
 }
+
+  // --- SUB-LISTS & SEARCH FOR SHORTCUTS MENU ---
+  const inpSearchShortcuts = document.getElementById('inpSearchShortcuts');
+  const shortcutsItems = document.querySelectorAll('#shortcutsMenuList .quality-menu-item');
+  const shortcutsSections = document.querySelectorAll('#shortcutsMenuList [data-shortcut-section]');
+
+  function filterShortcutsMenu() {
+    const q = (inpSearchShortcuts?.value || '').toLowerCase().trim();
+    let visibleCount = 0;
+    const visibleSections = new Set();
+
+    shortcutsItems.forEach(item => {
+      const itemGroup = item.getAttribute('data-shortcut-item-group');
+      const text = item.textContent.toLowerCase();
+      const combo = (item.getAttribute('data-system-combo') || '').toLowerCase();
+      const matchesQuery = !q || text.includes(q) || combo.includes(q);
+
+      item.classList.toggle('hidden', !matchesQuery);
+      if (matchesQuery) {
+        visibleCount++;
+        if (itemGroup) visibleSections.add(itemGroup);
+      }
+    });
+
+    shortcutsSections.forEach(sec => {
+      const secGroup = sec.getAttribute('data-shortcut-section');
+      sec.classList.toggle('hidden', !visibleSections.has(secGroup) && !!q);
+    });
+
+    let emptyNotice = document.getElementById('shortcutsEmptyNotice');
+    if (visibleCount === 0) {
+      if (!emptyNotice) {
+        emptyNotice = document.createElement('div');
+        emptyNotice.id = 'shortcutsEmptyNotice';
+        emptyNotice.className = 'menu-empty-notice mono-font';
+        emptyNotice.textContent = t('deck.no_shortcuts_found') || 'Không tìm thấy phím tắt phù hợp';
+        document.getElementById('shortcutsMenuList')?.appendChild(emptyNotice);
+      }
+      emptyNotice.classList.remove('hidden');
+    } else {
+      emptyNotice?.classList.add('hidden');
+    }
+  }
+
+  inpSearchShortcuts?.addEventListener('input', filterShortcutsMenu);
+  inpSearchShortcuts?.addEventListener('click', (e) => e.stopPropagation());
+  inpSearchShortcuts?.addEventListener('keydown', (e) => e.stopPropagation());
+
+  // --- SUB-LISTS & SEARCH FOR MORE TOOLS MENU ---
+  const inpSearchTools = document.getElementById('inpSearchTools');
+  const toolsItems = document.querySelectorAll('#toolsMenuList .quality-menu-item');
+  const toolsSections = document.querySelectorAll('#toolsMenuList [data-tools-section]');
+
+  function filterToolsMenu() {
+    const q = (inpSearchTools?.value || '').toLowerCase().trim();
+    let visibleCount = 0;
+    const visibleSections = new Set();
+
+    toolsItems.forEach(item => {
+      const itemGroup = item.getAttribute('data-tools-item-group');
+      const text = item.textContent.toLowerCase();
+      const matchesQuery = !q || text.includes(q);
+
+      item.classList.toggle('hidden', !matchesQuery);
+      if (matchesQuery) {
+        visibleCount++;
+        if (itemGroup) visibleSections.add(itemGroup);
+      }
+    });
+
+    toolsSections.forEach(sec => {
+      const secGroup = sec.getAttribute('data-tools-section');
+      sec.classList.toggle('hidden', !visibleSections.has(secGroup) && !!q);
+    });
+
+    let emptyNotice = document.getElementById('toolsEmptyNotice');
+    if (visibleCount === 0) {
+      if (!emptyNotice) {
+        emptyNotice = document.createElement('div');
+        emptyNotice.id = 'toolsEmptyNotice';
+        emptyNotice.className = 'menu-empty-notice mono-font';
+        emptyNotice.textContent = t('deck.no_tools_found') || 'Không tìm thấy tiện ích phù hợp';
+        document.getElementById('toolsMenuList')?.appendChild(emptyNotice);
+      }
+      emptyNotice.classList.remove('hidden');
+    } else {
+      emptyNotice?.classList.add('hidden');
+    }
+  }
+
+  inpSearchTools?.addEventListener('input', filterToolsMenu);
+  inpSearchTools?.addEventListener('click', (e) => e.stopPropagation());
+  inpSearchTools?.addEventListener('keydown', (e) => e.stopPropagation());

@@ -79,5 +79,12 @@ class TestVirtualDisplay(unittest.TestCase):
         self.assertTrue(IDDCX_DRIVER_URL.startswith("https://"))
         self.assertTrue(IDDCX_DRIVER_URL.endswith(".zip"))
 
+    def test_auto_activate_virtual_display_when_headless_or_empty_monitors(self):
+        """Tests that auto_activate_virtual_display executes properly for empty monitors list."""
+        from host_agent.virtual_display import auto_activate_virtual_display
+        res = auto_activate_virtual_display(monitors=[])
+        self.assertIsInstance(res, dict)
+        self.assertIn("activated", res)
+
 if __name__ == "__main__":
     unittest.main()

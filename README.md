@@ -51,6 +51,17 @@ Meikova Relay là giải pháp Remote Desktop toàn diện, độc lập, đư�
 
 ## 2. Tính năng nổi bật
 
+### Quản trị máy trạm toàn diện v1.5.0 (Host Master Architecture)
+
+- **Mở khóa màn hình Winlogon & Xử lý UAC Desktop**: Triệt tiêu hoàn toàn hiện tượng màn hình đen khi máy trạm bị khóa (`Win + L`) hoặc khi xuất hiện cửa sổ xác nhận quyền quản trị UAC (Secure Desktop). Hỗ trợ lệnh và modal mở khóa từ xa 1 chạm an toàn.
+- **Quản trị nguồn thông minh (Smart Keep-Awake & RTC Wakeup)**: Tự động kích hoạt cờ Win32 `SetThreadExecutionState` ngăn máy trạm tắt màn hình/ngủ khi có client kết nối và hoàn trả chế độ tiết kiệm điện khi ngắt kết nối. Hỗ trợ đặt lịch hẹn giờ thức dậy BIOS RTC Wake Timer và phát gói Wake-on-LAN UDP.
+- **Xung nhịp phần cứng thời gian thực (Hardware Pulse Telemetry 2s)**: Thu thập thông số CPU %, RAM %, Pin/Nguồn qua Win32 API thuần, gửi định kỳ 2 giây hiển thị badge trực quan trên thanh điều khiển Client Dock.
+- **Live Auto-Update nền (NTFS Rename Atomic Swap)**: Máy trạm tự động thăm dò phiên bản mới từ Relay Server, tải bản vá và hoán đổi tệp thực thi nguyên tử không gián đoạn dịch vụ.
+- **Giải phóng phím kẹt khẩn cấp (Emergency Input Unstick)**: Quét và nhả toàn bộ 256 phím ảo (`Ctrl`, `Alt`, `Shift`, `Win`) cùng các nút chuột khi ngắt kết nối hoặc qua nút bấm trong danh mục công cụ.
+- **Đồng bộ ảnh Clipboard hai chiều**: Hỗ trợ copy-paste hình ảnh chụp màn hình trực tiếp giữa máy trạm và trình duyệt qua định dạng `CF_DIB` / Base64 PNG.
+- **Ma trận 25+ tham số SSOT**: Hỗ trợ đầy đủ trên 10 kênh cài đặt (Windows EXE, `.bat`, PowerShell, Linux Bash, `.deb`, `.tar.gz`, macOS Bash, `.dmg`, `Portable ZIP`, `config.json`), đồng bộ 2 chiều thời gian thực trong phiên remote qua modal cấu hình chuyên dụng.
+- **Menu công cụ & phím tắt gộp nhóm sub-list**: Phân tách danh mục rõ ràng theo nhóm chức năng, tối ưu không gian hiển thị và thao tác.
+
 ### Sao chép màn hình 1:1 Pixel-Perfect và tự động đàm phán ma trận
 
 - **1:1 Native Replica**: Hiển thị chính xác từng điểm ảnh gốc không nén vỡ hình (`image-rendering: pixelated; crisp-edges`). Hỗ trợ kéo di chuyển khung hình (Pan) bằng chuột giữa hoặc `Alt + Chuột trái` khi máy trạm có độ phân giải lớn hơn thiết bị điều khiển.

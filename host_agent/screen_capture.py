@@ -109,13 +109,14 @@ except ImportError:
         def create_platform_engine(plat=None): return None
 
 try:
-    from host_agent.virtual_display import is_headless_display, generate_headless_placeholder
+    from host_agent.virtual_display import is_headless_display, generate_headless_placeholder, auto_activate_virtual_display
 except ImportError:
     try:
-        from virtual_display import is_headless_display, generate_headless_placeholder
+        from virtual_display import is_headless_display, generate_headless_placeholder, auto_activate_virtual_display
     except ImportError:
         def is_headless_display(): return False
         def generate_headless_placeholder(w=1920, h=1080): return b''
+        def auto_activate_virtual_display(monitors=None): return {"activated": False}
 
 # Win32 user32, gdi32, shcore, and winmm guards for cross-platform support
 user32 = getattr(ctypes, 'windll', None).user32 if hasattr(ctypes, 'windll') else None
@@ -335,6 +336,7 @@ class NativeWin32Capture:
         self.pBits = ctypes.c_void_p()
         self.raw_array = None
         self.last_cursor_state = None
+        self.hdesk = None
 
         if user32:
             from ctypes import wintypes
@@ -352,11 +354,68 @@ class NativeWin32Capture:
         else:
             self.ci = None
 
+    def _attach_desktop(self) -> bool:
+        """Attaches current thread to the active input desktop (handles Winlogon & UAC desktops)."""
+        if not user32:
+            return False
+        try:
+            hwinsta = user32.OpenWindowStationW('winsta0', False, 0x000F037F)
+            if hwinsta:
+                user32.SetProcessWindowStation(hwinsta)
+                user32.CloseWindowStation(hwinsta)
+            hdesk = user32.OpenInputDesktop(0, False, 0x01FF)
+            if not hdesk:
+                for desk_name in ('Winlogon', 'default', 'Screen-saver'):
+                    hdesk = user32.OpenDesktopW(desk_name, 0, False, 0x01FF)
+                    if hdesk:
+                        break
+            if hdesk:
+                user32.SetThreadDesktop(hdesk)
+                if getattr(self, "hdesk", None) and self.hdesk != hdesk:
+                    try:
+                        user32.CloseDesktop(self.hdesk)
+                    except Exception:
+                        pass
+                self.hdesk = hdesk
+                return True
+        except Exception:
+            pass
+        return False
+
+    def refresh_dc(self) -> bool:
+        """Releases stale DCs, re-attaches to active input desktop, and acquires fresh user32.GetDC(0)."""
+        if not (user32 and gdi32):
+            return False
+        self._attach_desktop()
+        if self.hBmp:
+            if self.old_hBmp and self.mem_dc:
+                gdi32.SelectObject(self.mem_dc, self.old_hBmp)
+                self.old_hBmp = None
+            gdi32.DeleteObject(self.hBmp)
+            self.hBmp = None
+        if self.mem_dc:
+            gdi32.DeleteDC(self.mem_dc)
+            self.mem_dc = None
+        if self.src_dc:
+            user32.ReleaseDC(0, self.src_dc)
+            self.src_dc = None
+        self.w = 0
+        self.h = 0
+        self.pBits = ctypes.c_void_p()
+        self.raw_array = None
+
+        self.src_dc = user32.GetDC(0)
+        if not self.src_dc:
+            return False
+        self.mem_dc = gdi32.CreateCompatibleDC(self.src_dc)
+        return bool(self.mem_dc)
+
     def _ensure_bitmap(self, w: int, h: int) -> bool:
         if self.w == w and self.h == h and self.hBmp is not None:
             return True
-        if not gdi32 or not self.mem_dc:
-            return False
+        if not gdi32 or not self.mem_dc or not self.src_dc:
+            if not self.refresh_dc():
+                return False
         if self.hBmp:
             if self.old_hBmp and self.mem_dc:
                 gdi32.SelectObject(self.mem_dc, self.old_hBmp)
@@ -403,7 +462,12 @@ class NativeWin32Capture:
         SRCCOPY = 0x00CC0020
         res = gdi32.BitBlt(self.mem_dc, 0, 0, w, h, self.src_dc, left, top, SRCCOPY)
         if not res:
-            return None, None, False
+            # Winlogon / UAC Secure Desktop switch causes BitBlt to fail on stale DC.
+            # Refresh desktop attachment, release stale DC, and re-acquire GetDC(0).
+            if self.refresh_dc() and self._ensure_bitmap(w, h):
+                res = gdi32.BitBlt(self.mem_dc, 0, 0, w, h, self.src_dc, left, top, SRCCOPY)
+            if not res:
+                return None, None, False
         c_changed = False
         if user32 and self.ci and user32.GetCursorInfo(ctypes.byref(self.ci)) and (self.ci.flags & 1):
             cur_state = (self.ci.ptScreenPos.x, self.ci.ptScreenPos.y, self.ci.hCursor)
@@ -429,6 +493,12 @@ class NativeWin32Capture:
         if user32 and self.src_dc:
             user32.ReleaseDC(0, self.src_dc)
             self.src_dc = None
+        if getattr(self, "hdesk", None) and user32:
+            try:
+                user32.CloseDesktop(self.hdesk)
+            except Exception:
+                pass
+            self.hdesk = None
 
 
 class ScreenCapture:
@@ -470,6 +540,11 @@ class ScreenCapture:
             except Exception:
                 self._sct = None
         self.monitors = self.detect_monitors()
+        if len(self.monitors) == 0 or self.is_headless:
+            try:
+                threading.Thread(target=auto_activate_virtual_display, args=(self.monitors,), daemon=True).start()
+            except Exception:
+                pass
         self._last_frame_hash: Optional[int] = None
         self._last_frame_sent_time: float = 0.0
         self._last_encoded_frame: Optional[bytes] = None
@@ -565,7 +640,10 @@ class ScreenCapture:
                 user32.CloseWindowStation(hwinsta)
             hdesk = user32.OpenInputDesktop(0, False, 0x01FF)
             if not hdesk:
-                hdesk = user32.OpenDesktopW('default', 0, False, 0x01FF)
+                for desk_name in ('Winlogon', 'default', 'Screen-saver'):
+                    hdesk = user32.OpenDesktopW(desk_name, 0, False, 0x01FF)
+                    if hdesk:
+                        break
             if hdesk:
                 user32.SetThreadDesktop(hdesk)
                 old_hdesk = getattr(self._tls, "hdesk", None)
@@ -1132,6 +1210,8 @@ class ScreenCapture:
                             self._last_encoded_seq += 1
                             self._last_encode_params = current_params
                             return encoded
+                    else:
+                        self._attach_window_station(force=True)
                 except Exception:
                     self._attach_window_station(force=True)
 

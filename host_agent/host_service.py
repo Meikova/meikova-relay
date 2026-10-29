@@ -51,7 +51,7 @@ except ImportError:
             raise RuntimeError("websockets package is required for live relay connections")
     websockets = _WebsocketsStub()
 
-APP_VERSION = "1.4.2"
+APP_VERSION = "1.5.0"
 
 # --- Resilient Network Infrastructure: DNS Bypass, Corporate Proxy, and Resilient SSL ---
 _ORIGINAL_GETADDRINFO = socket.getaddrinfo
@@ -541,6 +541,56 @@ class HostService:
                 })),
                 self.loop
             )
+
+    async def _send_telemetry_loop(self, ws):
+        """Broadcasts hardware telemetry pulse (CPU %, RAM %, Battery) every 2 seconds to active clients."""
+        try:
+            from host_agent.telemetry import get_system_telemetry
+        except ImportError:
+            try:
+                from telemetry import get_system_telemetry
+            except ImportError:
+                return
+
+        while self.is_running and not ws.closed:
+            try:
+                if self.has_active_client:
+                    telemetry_data = get_system_telemetry()
+                    await ws.send(json.dumps(telemetry_data))
+                await asyncio.sleep(2.0)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug(f"[Telemetry] Loop error: {e}")
+                await asyncio.sleep(2.0)
+
+    def save_host_config(self, updates: Dict[str, Any]):
+        """Persists updated host configuration to active config.json on disk."""
+        try:
+            cfg_path = getattr(self, "config_path", None) or find_config_file()
+            if not cfg_path:
+                if sys.platform == "win32":
+                    local_app_data = os.environ.get("LOCALAPPDATA")
+                    cfg_dir = Path(local_app_data) / "MeikovaRelayHost" if local_app_data else Path.cwd()
+                else:
+                    cfg_dir = Path.home() / ".meikova-relay"
+                cfg_dir.mkdir(parents=True, exist_ok=True)
+                cfg_path = cfg_dir / "config.json"
+
+            existing = {}
+            if cfg_path.exists():
+                try:
+                    with open(cfg_path, "r", encoding="utf-8") as f:
+                        existing = json.load(f)
+                except Exception:
+                    existing = {}
+            existing.update(updates)
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                json.dump(existing, f, indent=2, ensure_ascii=False)
+            if hasattr(self, "host_config") and isinstance(self.host_config, dict):
+                self.host_config.update(updates)
+        except Exception as e:
+            logger.error(f"[HostService] Failed to persist config to disk: {e}")
 
     def send_chat_message(self, text: str) -> bool:
         """Sends a chat message from host to remote client."""
@@ -1151,6 +1201,10 @@ class HostService:
                     self.apply_quality_preset(getattr(self, "active_preset", "balanced"))
                     logger.info(f"[+] Client connected (ip={client_ip}, lan={self.is_local_or_lan()}, target_fps={'UNCAPPED' if self.uncapped_fps else int(round(1.0 / self.frame_interval))})! Streaming live.")
                     self.has_active_client = True
+                    try:
+                        PowerManager.prevent_sleep(True)
+                    except Exception:
+                        pass
                     if self.on_client_connect:
                         try:
                             self.on_client_connect(event)
@@ -1246,6 +1300,15 @@ class HostService:
 
                     if client_count <= 0:
                         self.has_active_client = False
+                        try:
+                            InputInjector.unstick_all_inputs()
+                        except Exception:
+                            pass
+                        if not getattr(self, "keep_awake_permanent", False):
+                            try:
+                                PowerManager.prevent_sleep(False)
+                            except Exception:
+                                pass
                         self.frames_in_flight = 0
                         if self.ack_event is not None and not self.ack_event.is_set():
                             self.ack_event.set()
@@ -1980,6 +2043,63 @@ class HostService:
                     }))
                     continue
 
+                elif ev_type == "unlock_workstation":
+                    password = str(event.get("password") or event.get("pin") or "")
+                    success = InputInjector.unlock_workstation(password)
+                    await ws.send(json.dumps({
+                        "type": "unlock_workstation_response",
+                        "success": success
+                    }))
+                    continue
+
+                elif ev_type in ("unstick_inputs", "emergency_unstick"):
+                    released = InputInjector.unstick_all_inputs()
+                    await ws.send(json.dumps({
+                        "type": "unstick_inputs_response",
+                        "released": released,
+                        "success": True
+                    }))
+                    continue
+
+                elif ev_type == "host_config_update":
+                    cfg = event.get("config") or event.get("settings") or {}
+                    if "quality" in cfg:
+                        try:
+                            self.quality = max(10, min(100, int(cfg["quality"])))
+                        except Exception:
+                            pass
+                    if "fps" in cfg or "fps_limit" in cfg:
+                        try:
+                            fps_val = int(cfg.get("fps", cfg.get("fps_limit", 60)))
+                            self.set_target_fps(fps_val)
+                        except Exception:
+                            pass
+                    if "preset" in cfg:
+                        self.apply_quality_preset(cfg["preset"])
+                    if "stream_mode" in cfg:
+                        self.stream_mode = cfg["stream_mode"]
+                    if "keep_awake" in cfg:
+                        PowerManager.prevent_sleep(bool(cfg["keep_awake"]))
+                    if "block_input" in cfg:
+                        InputInjector.set_block_input(bool(cfg["block_input"]))
+                    if "privacy_curtain" in cfg:
+                        if cfg["privacy_curtain"]:
+                            privacy_curtain.enable()
+                        else:
+                            privacy_curtain.disable()
+                    if "color_filter" in cfg:
+                        self.color_filter = cfg["color_filter"]
+                    try:
+                        self.save_host_config(cfg)
+                    except Exception:
+                        pass
+                    await ws.send(json.dumps({
+                        "type": "host_config_response",
+                        "success": True,
+                        "config": self.get_host_config_snapshot()
+                    }))
+                    continue
+
                 # File Browser & Rich File Operations
                 elif ev_type == "file_browse_request":
                     path = event.get("path", "")
@@ -2516,9 +2636,10 @@ class HostService:
                         send_task = asyncio.create_task(self._send_frames_worker(ws))
                         audio_task = asyncio.create_task(self._send_audio_loop(ws))
                         recv_task = asyncio.create_task(self._receive_events_loop(ws))
+                        telemetry_task = asyncio.create_task(self._send_telemetry_loop(ws))
 
                         done, pending = await asyncio.wait(
-                            [capture_task, send_task, audio_task, recv_task],
+                            [capture_task, send_task, audio_task, recv_task, telemetry_task],
                             return_when=asyncio.FIRST_COMPLETED
                         )
                         for t in pending:

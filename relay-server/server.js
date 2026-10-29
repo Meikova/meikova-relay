@@ -32,6 +32,12 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const FALLBACK_DIR = path.join(__dirname, '..', 'web-client');
 const WEB_CLIENT_DIR = fs.existsSync(path.join(PUBLIC_DIR, 'index.html')) ? PUBLIC_DIR : FALLBACK_DIR;
 
+let APP_VERSION = '1.5.0';
+try {
+  const pkgData = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'));
+  if (pkgData && pkgData.version) APP_VERSION = pkgData.version;
+} catch (_) {}
+
 
 
 const MIME_TYPES = {
@@ -227,6 +233,19 @@ const server = http.createServer(async (req, res) => {
     }
 
 
+
+    // 0.0 System & Agent Version API (For Live Auto-Updater)
+    if ((pathname === '/api/version' || pathname === '/api/system/version') && (req.method === 'GET' || req.method === 'HEAD')) {
+      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      return jsonResponse(res, 200, {
+        name: 'Meikova Relay',
+        version: APP_VERSION,
+        min_host_version: '1.0.0',
+        download_url: `${origin}/api/download/MeikovaRelayHost.exe`,
+        setup_bat_url: `${origin}/api/download/setup.bat`,
+        timestamp: Date.now()
+      }, req.method === 'HEAD');
+    }
 
     // 0.1 Host Network Info (Tailscale, LAN IP, Active Origin)
 
@@ -1357,360 +1376,325 @@ const server = http.createServer(async (req, res) => {
 
 
 
-    // 5.9 Download: Custom Host JSON Configuration (Advanced Mode)
-    if (pathname === '/api/download/custom-config.json' && req.method === 'GET') {
-      const account = url.searchParams.get('account') || (session ? session.username : 'User');
-      const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
-      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
-      const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
-      const cfgObj = {
+    // 5.9 Download: Host Configuration (Dynamic SSOT with full 28-parameter support)
+    function extractHostConfigFromUrl(targetUrl, currentSession, request) {
+      const origin = `${request.headers['x-forwarded-proto'] || 'http'}://${request.headers.host}`;
+      const account = targetUrl.searchParams.get('account') || (currentSession ? currentSession.username : 'User');
+      const userIdParam = targetUrl.searchParams.get('userId') || targetUrl.searchParams.get('user_id') || (currentSession ? currentSession.id : '');
+      const relayWs = targetUrl.searchParams.get('relay') || origin.replace(/^http/, 'ws');
+      const deviceName = targetUrl.searchParams.get('name') || targetUrl.searchParams.get('deviceName') || targetUrl.searchParams.get('device_name') || '';
+      const roomId = targetUrl.searchParams.get('room') || targetUrl.searchParams.get('roomId') || targetUrl.searchParams.get('room_id') || '';
+      const pin = targetUrl.searchParams.get('pin') || '';
+
+      let fps = 0;
+      if (targetUrl.searchParams.has('fps')) {
+        fps = parseInt(targetUrl.searchParams.get('fps'), 10) || 0;
+      } else if (targetUrl.searchParams.has('fpsLimit')) {
+        fps = parseInt(targetUrl.searchParams.get('fpsLimit'), 10) || 0;
+      } else if (targetUrl.searchParams.has('fps_limit')) {
+        fps = parseInt(targetUrl.searchParams.get('fps_limit'), 10) || 0;
+      }
+
+      let quality = 75;
+      const rawQuality = targetUrl.searchParams.get('quality');
+      if (rawQuality) {
+        if (rawQuality === 'auto_sync' || rawQuality === 'balanced') quality = 75;
+        else if (rawQuality === 'native_1to1' || rawQuality === 'crisp_2k_4k') quality = 95;
+        else if (rawQuality === 'ultra_120') quality = 80;
+        else {
+          const qNum = parseInt(rawQuality, 10);
+          if (!isNaN(qNum) && qNum >= 10 && qNum <= 100) quality = qNum;
+        }
+      }
+
+      const preset = targetUrl.searchParams.get('preset') || 'balanced';
+      const streamMode = targetUrl.searchParams.get('streamMode') || targetUrl.searchParams.get('stream_mode') || 'adaptive_vfr';
+      const resolution = targetUrl.searchParams.get('resolution') || '0x0';
+      const colorFilter = targetUrl.searchParams.get('colorFilter') || targetUrl.searchParams.get('color_filter') || 'normal';
+      const uncapped = targetUrl.searchParams.get('uncapped') === '1' || targetUrl.searchParams.get('uncappedFps') === '1' || targetUrl.searchParams.get('uncapped_fps') === '1' || fps === 0;
+      const dpiAware = targetUrl.searchParams.get('dpiAware') !== '0' && targetUrl.searchParams.get('dpi_aware') !== '0';
+      const keepAwake = targetUrl.searchParams.get('keepAwake') !== '0' && targetUrl.searchParams.get('antiSleep') !== '0' && targetUrl.searchParams.get('keep_awake') !== '0';
+      const autoWakeup = targetUrl.searchParams.get('autoWakeup') === '1' || targetUrl.searchParams.get('auto_wakeup') === '1' || (Boolean(targetUrl.searchParams.get('autoWakeup')) && targetUrl.searchParams.get('autoWakeup') !== '0');
+      const autoWakeupTime = targetUrl.searchParams.get('autoWakeupTime') || targetUrl.searchParams.get('auto_wakeup_time') || (targetUrl.searchParams.get('autoWakeup') && targetUrl.searchParams.get('autoWakeup').includes(':') ? targetUrl.searchParams.get('autoWakeup') : '08:00');
+      const autoLock = targetUrl.searchParams.get('autoLockDisconnect') === '1' || targetUrl.searchParams.get('autoLock') === '1' || targetUrl.searchParams.get('auto_lock_on_disconnect') === '1';
+      const idleSaver = targetUrl.searchParams.get('idleFpsSaver') === '1' || targetUrl.searchParams.get('idleSaver') === '1' || targetUrl.searchParams.get('idle_fps_saver') === '1';
+      const blockInput = targetUrl.searchParams.get('blockInput') === '1' || targetUrl.searchParams.get('block_input') === '1';
+      const curtain = targetUrl.searchParams.get('curtain') === '1' || targetUrl.searchParams.get('privacyCurtain') === '1' || targetUrl.searchParams.get('privacy_curtain') === '1';
+      const stealth = targetUrl.searchParams.get('stealth') === '1' || targetUrl.searchParams.get('stealthMode') === '1' || targetUrl.searchParams.get('stealth_mode') === '1';
+      const service = targetUrl.searchParams.get('service') === '1' || targetUrl.searchParams.get('serviceMode') === '1' || targetUrl.searchParams.get('service_mode') === '1';
+      const admin = targetUrl.searchParams.get('admin') === '1' || targetUrl.searchParams.get('requireAdmin') === '1' || targetUrl.searchParams.get('admin_elevated') === '1';
+      const autostart = targetUrl.searchParams.get('autostart') !== '0';
+      const autoUpdate = targetUrl.searchParams.get('autoUpdate') !== '0' && targetUrl.searchParams.get('auto_update') !== '0';
+      const virtualAudio = targetUrl.searchParams.get('virtualAudio') !== '0' && targetUrl.searchParams.get('virtual_audio') !== '0';
+      const imageClipboard = targetUrl.searchParams.get('imageClipboard') !== '0' && targetUrl.searchParams.get('image_clipboard') !== '0';
+      const closeToTray = targetUrl.searchParams.get('closeToTray') !== '0';
+      const audioEnabled = targetUrl.searchParams.get('audio') !== '0';
+      const headless = targetUrl.searchParams.get('headless') === '1' || targetUrl.searchParams.get('silent') === '1' || targetUrl.searchParams.get('mode') === 'headless' || targetUrl.searchParams.get('tray') === '0' || stealth || service;
+
+      return {
+        origin,
         relay: relayWs,
         account,
         user_id: userIdParam,
-        device_name: url.searchParams.get('name') || 'Workstation',
-        room_id: url.searchParams.get('room') || `RD-${Math.floor(1000 + Math.random() * 9000)}`,
-        pin: url.searchParams.get('pin') || String(Math.floor(100000 + Math.random() * 900000)),
-        fps: parseInt(url.searchParams.get('fps') ?? '0', 10),
-        quality: parseInt(url.searchParams.get('quality') || '75', 10),
-        preset: url.searchParams.get('preset') || 'balanced',
-        stream_mode: url.searchParams.get('streamMode') || url.searchParams.get('stream_mode') || 'adaptive_vfr',
-        color_filter: url.searchParams.get('colorFilter') || url.searchParams.get('color_filter') || 'normal',
-        auto_lock_on_disconnect: url.searchParams.get('autoLockDisconnect') === '1' || url.searchParams.get('auto_lock_on_disconnect') === '1',
-        idle_fps_saver: url.searchParams.get('idleFpsSaver') === '1' || url.searchParams.get('idle_fps_saver') === '1',
-        resolution: url.searchParams.get('resolution') || '0x0',
-        stealth_mode: url.searchParams.get('stealth') === '1',
-        service_mode: url.searchParams.get('service') === '1',
-        admin_elevated: url.searchParams.get('admin') === '1',
-        keep_awake: url.searchParams.get('keepAwake') !== '0',
-        auto_wakeup: Boolean(url.searchParams.get('autoWakeup')),
-        auto_wakeup_time: url.searchParams.get('autoWakeup') || '08:00',
-        block_input: url.searchParams.get('blockInput') === '1',
-        privacy_curtain: url.searchParams.get('curtain') === '1',
-        autostart: url.searchParams.get('autostart') !== '0',
-        close_to_tray: url.searchParams.get('closeToTray') !== '0'
+        device_name: deviceName,
+        room_id: roomId,
+        pin: pin,
+        fps: fps,
+        quality: quality,
+        preset: preset,
+        stream_mode: streamMode,
+        resolution: resolution,
+        color_filter: colorFilter,
+        uncapped: uncapped,
+        dpi_aware: dpiAware,
+        keep_awake: keepAwake,
+        auto_wakeup: autoWakeup,
+        auto_wakeup_time: autoWakeupTime,
+        auto_lock_on_disconnect: autoLock,
+        idle_fps_saver: idleSaver,
+        block_input: blockInput,
+        privacy_curtain: curtain,
+        stealth_mode: stealth,
+        service_mode: service,
+        admin_elevated: admin,
+        autostart: autostart,
+        auto_update: autoUpdate,
+        virtual_audio: virtualAudio,
+        image_clipboard: imageClipboard,
+        close_to_tray: closeToTray,
+        audio_enabled: audioEnabled,
+        headless: headless
+      };
+    }
+
+    if ((pathname === '/api/download/custom-config.json' || pathname === '/api/download/config.json') && req.method === 'GET') {
+      const cfg = extractHostConfigFromUrl(url, session, req);
+      const outputCfg = {
+        relay: cfg.relay,
+        account: cfg.account,
+        user_id: cfg.user_id,
+        device_name: cfg.device_name || 'Workstation',
+        room_id: cfg.room_id || `RD-${Math.floor(1000 + Math.random() * 9000)}`,
+        pin: cfg.pin || String(Math.floor(100000 + Math.random() * 900000)),
+        fps: cfg.fps,
+        quality: cfg.quality,
+        preset: cfg.preset,
+        stream_mode: cfg.stream_mode,
+        resolution: cfg.resolution,
+        color_filter: cfg.color_filter,
+        uncapped: cfg.uncapped,
+        dpi_aware: cfg.dpi_aware,
+        keep_awake: cfg.keep_awake,
+        auto_wakeup: cfg.auto_wakeup,
+        auto_wakeup_time: cfg.auto_wakeup_time,
+        auto_lock_on_disconnect: cfg.auto_lock_on_disconnect,
+        idle_fps_saver: cfg.idle_fps_saver,
+        block_input: cfg.block_input,
+        privacy_curtain: cfg.privacy_curtain,
+        stealth_mode: cfg.stealth_mode,
+        service_mode: cfg.service_mode,
+        admin_elevated: cfg.admin_elevated,
+        autostart: cfg.autostart,
+        auto_update: cfg.auto_update,
+        virtual_audio: cfg.virtual_audio,
+        image_clipboard: cfg.image_clipboard,
+        close_to_tray: cfg.close_to_tray,
+        audio_enabled: cfg.audio_enabled,
+        headless: cfg.headless
       };
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Disposition': 'attachment; filename="config.json"',
         'Cache-Control': 'no-cache'
       });
-      return res.end(JSON.stringify(cfgObj, null, 2));
+      return res.end(JSON.stringify(outputCfg, null, 2));
     }
 
-    // 6. Download: Pre-configured Setup Batch Script (Supports both Standard & Advanced Custom Parameters)
-
+    // 6. Download: Pre-configured Setup Batch Script (SSOT 28-param with CLI parser %*)
     if (pathname === '/api/download/setup.bat' && req.method === 'GET') {
-      const account = url.searchParams.get('account') || (session ? session.username : 'User');
-      const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
-      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
-      const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
-      const isHeadless = url.searchParams.get('headless') === '1' || url.searchParams.get('silent') === '1' || url.searchParams.get('mode') === 'headless' || url.searchParams.get('stealth') === '1' || url.searchParams.get('service') === '1';
-      const isAdvanced = url.searchParams.get('advanced') === '1';
-      const customRoom = url.searchParams.get('room') || '%RAND_ROOM%';
-      const customPin = url.searchParams.get('pin') || '%RAND_PIN%';
-      const customName = url.searchParams.get('name') || '%COMPUTERNAME%';
-      const customFps = url.searchParams.get('fps') !== null ? parseInt(url.searchParams.get('fps'), 10) : 120;
-      const customQuality = parseInt(url.searchParams.get('quality') || '70', 10);
-      const customPreset = url.searchParams.get('preset') || 'balanced';
-      const advStealth = url.searchParams.get('stealth') === '1';
-      const advService = url.searchParams.get('service') === '1';
-      const advAdmin = url.searchParams.get('admin') === '1';
-      const advKeepAwake = url.searchParams.get('keepAwake') !== '0';
-      const advAutoWakeup = url.searchParams.get('autoWakeup') || '';
-      const advBlockInput = url.searchParams.get('blockInput') === '1';
-      const advCurtain = url.searchParams.get('curtain') === '1';
-      const advStreamMode = url.searchParams.get('streamMode') || url.searchParams.get('stream_mode') || '';
-      const advColorFilter = url.searchParams.get('colorFilter') || url.searchParams.get('color_filter') || '';
-      const advAutoLock = url.searchParams.get('autoLockDisconnect') === '1' || url.searchParams.get('auto_lock_on_disconnect') === '1';
-      const advIdleSaver = url.searchParams.get('idleFpsSaver') === '1' || url.searchParams.get('idle_fps_saver') === '1';
-      const advResolution = url.searchParams.get('resolution') || '';
-      const extraCliFlags = isAdvanced ? [
-        advAdmin ? '--admin' : '',
-        advStealth ? '--stealth' : '',
-        advService ? '--service' : '',
-        customFps === 0 ? '--uncapped' : `--fps ${customFps}`,
-        advStreamMode ? `--stream-mode ${advStreamMode}` : '',
-        advColorFilter ? `--color-filter ${advColorFilter}` : '',
-        advAutoLock ? '--auto-lock-disconnect' : '',
-        advIdleSaver ? '--idle-fps-saver' : '',
-        advResolution ? `--resolution ${advResolution}` : '',
-        advKeepAwake ? '--keep-awake' : '--no-keep-awake',
-        advAutoWakeup ? `--auto-wakeup ${advAutoWakeup}` : '',
-        advBlockInput ? '--block-input' : '',
-        advCurtain ? '--curtain' : ''
-      ].filter(Boolean).join(' ') : '';
-
-
-
+      const cfg = extractHostConfigFromUrl(url, session, req);
       const batContent = `@echo off
-
 setlocal DisableDelayedExpansion
-
 title Meikova Relay Host - Cai dat may tram tu dong
-
 chcp 65001 >nul 2>&1
 
-
-
-set "HEADLESS_MODE=${isHeadless ? '1' : '0'}"
-
+set "HEADLESS_MODE=${cfg.headless ? '1' : '0'}"
 for %%A in (%*) do (
     if /i "%%~A"=="/gui" set "HEADLESS_MODE=0"
-
     if /i "%%~A"=="--gui" set "HEADLESS_MODE=0"
-
     if /i "%%~A"=="/tray" set "HEADLESS_MODE=0"
-
     if /i "%%~A"=="--tray" set "HEADLESS_MODE=0"
-
     if /i "%%~A"=="/silent" set "HEADLESS_MODE=1"
-
     if /i "%%~A"=="-s" set "HEADLESS_MODE=1"
-
     if /i "%%~A"=="/s" set "HEADLESS_MODE=1"
-
     if /i "%%~A"=="--headless" set "HEADLESS_MODE=1"
-
     if /i "%%~A"=="/headless" set "HEADLESS_MODE=1"
-
     if /i "%%~A"=="--service" set "HEADLESS_MODE=1"
-
     if /i "%%~A"=="/service" set "HEADLESS_MODE=1"
-
     if /i "%%~A"=="--no-tray" set "HEADLESS_MODE=1"
-
     if /i "%%~A"=="/no-tray" set "HEADLESS_MODE=1"
 )
 
-
-
 set "APP_FLAGS="
-
 set "HEADLESS_BOOL=false"
-
 if "%HEADLESS_MODE%"=="1" (
-    set "APP_FLAGS=--headless"
-
+    set "APP_FLAGS=--service"
     set "HEADLESS_BOOL=true"
 ) else (
     set "APP_FLAGS=--gui"
-
     set "HEADLESS_BOOL=false"
 )
 
-echo ==============================================================
-
-echo        MEIKOVA RELAY ENTERPRISE - TU DONG LIEN KET MAY TRAM
-
-echo ==============================================================
-
-echo Tai khoan lien ket: ${account}
-
-echo Relay Server:       ${relayWs}
-
-echo.
-
-
-
 set "TARGET_DIR=%LOCALAPPDATA%\\MeikovaRelayHost"
-
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
-
 cd /d "%TARGET_DIR%"
 
+echo ==============================================================
+echo        MEIKOVA RELAY ENTERPRISE - TU DONG LIEN KET MAY TRAM
+echo ==============================================================
+echo Tai khoan lien ket: ${cfg.account}
+echo Relay Server:       ${cfg.relay}
+echo.
 
+echo [1/4] Don dep ma nguon legacy (neu co)...
+powershell -ExecutionPolicy Bypass -Command "Get-ChildItem -Path '%TARGET_DIR%' -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.py','.pyc','.pyw' } | Remove-Item -Force -ErrorAction SilentlyContinue; if (Test-Path '%TARGET_DIR%\\__pycache__') { Remove-Item -Path '%TARGET_DIR%\\__pycache__' -Recurse -Force -ErrorAction SilentlyContinue }"
 
-echo [1/3] Kiem tra va cap nhat ban Standalone Desktop (.exe)...
-
+echo [2/4] Kiem tra va cap nhat ban Standalone Desktop (.exe)...
 powershell -ExecutionPolicy Bypass -Command "Stop-Process -Name MeikovaRelayHost -Force -ErrorAction SilentlyContinue; Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match 'gui_agent\\.py' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 600"
 
-
-
-powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', '%TARGET_DIR%\\MeikovaRelayHost.exe.new'); if ((Get-Item '%TARGET_DIR%\\MeikovaRelayHost.exe.new').Length -gt 5000000) { Move-Item -Path '%TARGET_DIR%\\MeikovaRelayHost.exe.new' -Destination '%TARGET_DIR%\\MeikovaRelayHost.exe' -Force } } catch {}"
-
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${cfg.origin}/api/download/MeikovaRelayHost.exe', '%TARGET_DIR%\\MeikovaRelayHost.exe.new'); if ((Get-Item '%TARGET_DIR%\\MeikovaRelayHost.exe.new').Length -gt 5000000) { Move-Item -Path '%TARGET_DIR%\\MeikovaRelayHost.exe.new' -Destination '%TARGET_DIR%\\MeikovaRelayHost.exe' -Force } } catch {}"
 if exist "%TARGET_DIR%\\MeikovaRelayHost.exe.new" del /f /q "%TARGET_DIR%\\MeikovaRelayHost.exe.new" >nul 2>&1
-
-
 
 if not exist "%TARGET_DIR%\\MeikovaRelayHost.exe" (
     echo Dang tai MeikovaRelayHost.exe tu Relay Server...
-
-    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/MeikovaRelayHost.exe', '%TARGET_DIR%\\MeikovaRelayHost.exe') } catch {}"
+    powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${cfg.origin}/api/download/MeikovaRelayHost.exe', '%TARGET_DIR%\\MeikovaRelayHost.exe') } catch {}"
 )
 
-
-
-:CHECK_STANDALONE
-
 set "USE_STANDALONE=0"
-
 if exist "%TARGET_DIR%\\MeikovaRelayHost.exe" (
     for %%I in ("%TARGET_DIR%\\MeikovaRelayHost.exe") do if %%~zI GTR 5000000 set "USE_STANDALONE=1"
 )
 
-
-
 if "%USE_STANDALONE%"=="1" (
     echo [OK] Ban Standalone Desktop san sang hoat dong - Khong can Python
-
     goto :WRITE_CONFIG
 )
 
-
-
 echo [*] Khong the tai ban Standalone. Chuyen sang che do chay qua Python...
-
 where python >nul 2>&1
-
 if %ERRORLEVEL% NEQ 0 (
     echo [*] Python chua duoc cai dat tren may nay.
-
     echo Dang cai dat Python qua winget...
-
     winget install Python.Python.3.13 --silent --accept-source-agreements --accept-package-agreements >nul 2>&1
 )
 
-
-
-echo [2/3] Dang tai goi ma nguon Host Agent tu Relay Server...
-
-powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${origin}/api/download/agent-package.zip', '%TARGET_DIR%\\agent-package.zip') } catch {}"
-
+echo Dang tai goi ma nguon Host Agent tu Relay Server...
+powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('${cfg.origin}/api/download/agent-package.zip', '%TARGET_DIR%\\agent-package.zip') } catch {}"
 if not exist "%TARGET_DIR%\\agent-package.zip" goto :DOWNLOAD_FAIL
-
 powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path '%TARGET_DIR%\\agent-package.zip' -DestinationPath '%TARGET_DIR%' -Force"
-
 del /f /q "%TARGET_DIR%\\agent-package.zip" >nul 2>&1
-
 if exist "%TARGET_DIR%\\host_agent\\gui_agent.py" copy /y "%TARGET_DIR%\\host_agent\\*.*" "%TARGET_DIR%" >nul 2>&1
 
-goto :INSTALL_DEPS
-
-
+python -m pip install websockets Pillow pystray pywebview --quiet >nul 2>&1
+goto :WRITE_CONFIG
 
 :DOWNLOAD_FAIL
-
-echo [LOI] Khong the tai goi agent tu ${origin}. Vui long kiem tra ket noi mang.
-
+echo [LOI] Khong the tai goi agent tu ${cfg.origin}. Vui long kiem tra ket noi mang.
 pause
-
 exit /b 1
 
-
-
-:INSTALL_DEPS
-
-echo [3/3] Cai dat thu vien can thiet...
-
-python -m pip install websockets Pillow pystray pywebview --quiet >nul 2>&1
-
-
-
 :WRITE_CONFIG
-
-echo Ghi cau hinh lien ket voi tai khoan ${account}...
-
-set "RAND_ROOM=RD-%RANDOM%"
-
-set "RAND_PIN=%RANDOM%%RANDOM%"
+echo [3/4] Ghi cau hinh lien ket (28 tham so chuan)...
+set "CONF_ROOM=${cfg.room_id}"
+if "%CONF_ROOM%"=="" set "CONF_ROOM=RD-%RANDOM%"
+set "CONF_PIN=${cfg.pin}"
+if "%CONF_PIN%"=="" set "CONF_PIN=%RANDOM%%RANDOM%"
+set "CONF_NAME=${cfg.device_name}"
+if "%CONF_NAME%"=="" set "CONF_NAME=%COMPUTERNAME%"
 
 (
 echo {
-echo   "relay": "${relayWs}",
-echo   "account": "${account}",
-echo   "user_id": "${userIdParam}",
-echo   "device_name": "${customName}",
-echo   "room_id": "${customRoom}",
-echo   "pin": "${customPin}",
-echo   "fps": ${customFps},
-echo   "quality": ${customQuality},
-echo   "preset": "${customPreset}",
-echo   "stealth_mode": ${advStealth ? 'true' : 'false'},
-echo   "service_mode": ${advService ? 'true' : 'false'},
-echo   "admin_elevated": ${advAdmin ? 'true' : 'false'},
-echo   "keep_awake": ${advKeepAwake ? 'true' : 'false'},
-echo   "auto_wakeup": ${advAutoWakeup ? 'true' : 'false'},
-echo   "auto_wakeup_time": "${advAutoWakeup || '08:00'}",
-echo   "block_input": ${advBlockInput ? 'true' : 'false'},
-echo   "privacy_curtain": ${advCurtain ? 'true' : 'false'},
+echo   "relay": "${cfg.relay}",
+echo   "account": "${cfg.account}",
+echo   "user_id": "${cfg.user_id}",
+echo   "device_name": "%CONF_NAME%",
+echo   "room_id": "%CONF_ROOM%",
+echo   "pin": "%CONF_PIN%",
+echo   "fps": ${cfg.fps},
+echo   "quality": ${cfg.quality},
+echo   "preset": "${cfg.preset}",
+echo   "stream_mode": "${cfg.stream_mode}",
+echo   "resolution": "${cfg.resolution}",
+echo   "color_filter": "${cfg.color_filter}",
+echo   "uncapped": ${cfg.uncapped},
+echo   "dpi_aware": ${cfg.dpi_aware},
+echo   "keep_awake": ${cfg.keep_awake},
+echo   "auto_wakeup": ${cfg.auto_wakeup},
+echo   "auto_wakeup_time": "${cfg.auto_wakeup_time}",
+echo   "auto_lock_on_disconnect": ${cfg.auto_lock_on_disconnect},
+echo   "idle_fps_saver": ${cfg.idle_fps_saver},
+echo   "block_input": ${cfg.block_input},
+echo   "privacy_curtain": ${cfg.privacy_curtain},
+echo   "stealth_mode": ${cfg.stealth_mode},
+echo   "service_mode": ${cfg.service_mode},
+echo   "admin_elevated": ${cfg.admin_elevated},
+echo   "autostart": ${cfg.autostart},
+echo   "auto_update": ${cfg.auto_update},
+echo   "virtual_audio": ${cfg.virtual_audio},
+echo   "image_clipboard": ${cfg.image_clipboard},
+echo   "close_to_tray": ${cfg.close_to_tray},
+echo   "audio_enabled": ${cfg.audio_enabled},
 echo   "headless": %HEADLESS_BOOL%
-
 echo }
 ) > config.json
 
+if not "%~1"=="" (
+    echo [*] Ghi de tham so tu dong lenh CLI: %*
+    powershell -ExecutionPolicy Bypass -Command "$c = Get-Content 'config.json' -Raw | ConvertFrom-Json; $a = @($args); for ($i=0; $i -lt $a.Count; $i++) { $k = $a[$i]; if (($k -eq '--fps' -or $k -eq '--fps-limit') -and ($i+1) -lt $a.Count) { $c.fps = [int]$a[++$i] } elseif ($k -eq '--quality' -and ($i+1) -lt $a.Count) { $c.quality = [int]$a[++$i] } elseif (($k -eq '--room' -or $k -eq '--room-id') -and ($i+1) -lt $a.Count) { $c.room_id = $a[++$i] } elseif ($k -eq '--pin' -and ($i+1) -lt $a.Count) { $c.pin = $a[++$i] } elseif (($k -eq '--name' -or $k -eq '--device-name') -and ($i+1) -lt $a.Count) { $c.device_name = $a[++$i] } elseif ($k -eq '--preset' -and ($i+1) -lt $a.Count) { $c.preset = $a[++$i] } elseif ($k -eq '--stream-mode' -and ($i+1) -lt $a.Count) { $c.stream_mode = $a[++$i] } elseif ($k -eq '--resolution' -and ($i+1) -lt $a.Count) { $c.resolution = $a[++$i] } elseif ($k -eq '--color-filter' -and ($i+1) -lt $a.Count) { $c.color_filter = $a[++$i] } elseif ($k -eq '--uncapped') { $c.uncapped = $true } elseif ($k -eq '--no-uncapped') { $c.uncapped = $false } elseif ($k -eq '--dpi-aware') { $c.dpi_aware = $true } elseif ($k -eq '--no-dpi-aware') { $c.dpi_aware = $false } elseif ($k -eq '--keep-awake' -or $k -eq '--anti-sleep') { $c.keep_awake = $true } elseif ($k -eq '--no-keep-awake' -or $k -eq '--no-anti-sleep') { $c.keep_awake = $false } elseif ($k -eq '--auto-wakeup') { $c.auto_wakeup = $true } elseif ($k -eq '--no-auto-wakeup') { $c.auto_wakeup = $false } elseif ($k -eq '--auto-wakeup-time' -and ($i+1) -lt $a.Count) { $c.auto_wakeup_time = $a[++$i] } elseif ($k -eq '--auto-lock-disconnect' -or $k -eq '--auto-lock') { $c.auto_lock_on_disconnect = $true } elseif ($k -eq '--idle-fps-saver') { $c.idle_fps_saver = $true } elseif ($k -eq '--block-input') { $c.block_input = $true } elseif ($k -eq '--no-block-input') { $c.block_input = $false } elseif ($k -eq '--curtain' -or $k -eq '--privacy-curtain') { $c.privacy_curtain = $true } elseif ($k -eq '--stealth') { $c.stealth_mode = $true } elseif ($k -eq '--service') { $c.service_mode = $true } elseif ($k -eq '--admin' -or $k -eq '--require-admin') { $c.admin_elevated = $true } elseif ($k -eq '--autostart') { $c.autostart = $true } elseif ($k -eq '--no-autostart') { $c.autostart = $false } elseif ($k -eq '--auto-update') { $c.auto_update = $true } elseif ($k -eq '--no-auto-update') { $c.auto_update = $false } elseif ($k -eq '--virtual-audio') { $c.virtual_audio = $true } elseif ($k -eq '--no-virtual-audio') { $c.virtual_audio = $false } elseif ($k -eq '--image-clipboard') { $c.image_clipboard = $true } elseif ($k -eq '--no-image-clipboard') { $c.image_clipboard = $false } elseif ($k -eq '--headless') { $c.headless = $true } elseif ($k -eq '--gui') { $c.headless = $false } }; $c | ConvertTo-Json -Depth 5 | Set-Content 'config.json' -Encoding UTF8" %*
+)
 
+echo [4/4] Khoi chay tien trinh Meikova Relay Host...
+if "%USE_STANDALONE%"=="1" (
+    powershell -ExecutionPolicy Bypass -Command "Stop-Process -Name MeikovaRelayHost -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 300"
+    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\"%TARGET_DIR%\\MeikovaRelayHost.exe\" --autostart" /f >nul 2>&1
+    start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\MeikovaRelayHost.exe" %APP_FLAGS% %*
+) else (
+    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \"%TARGET_DIR%\\gui_agent.py\" --autostart" /f >nul 2>&1
+    start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py" %APP_FLAGS% %*
+)
 
+if "%HEADLESS_MODE%"=="1" (
+    echo.
+    echo ==============================================================
+    echo   [THANH CONG] MAY TRAM DA KHOI CHAY NGAM (HEADLESS SERVICE)
+    echo   Tai khoan:  ${cfg.account}
+    echo   Room ID:    %CONF_ROOM%   ^|   PIN: %CONF_PIN%
+    echo   Che do:     Dich vu chay ngam (Headless Service)
+    echo ==============================================================
+    exit /b 0
+)
 
-
-if "%USE_STANDALONE%"=="1" goto :RUN_STANDALONE
-
-
-
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \\"%TARGET_DIR%\\gui_agent.py\\" --autostart" /f >nul 2>&1
-
-start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py" %APP_FLAGS%
-
-goto :FINISH_SETUP
-
-
-
-:RUN_STANDALONE
-powershell -ExecutionPolicy Bypass -Command "Stop-Process -Name MeikovaRelayHost -Force -ErrorAction SilentlyContinue; Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match 'gui_agent\\.py' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 300"
-
-
-reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\\"%TARGET_DIR%\\MeikovaRelayHost.exe\\" --autostart" /f >nul 2>&1
-
-start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\MeikovaRelayHost.exe" %APP_FLAGS%
-
-
-
-:FINISH_SETUP
-
-if "%HEADLESS_MODE%"=="1" goto :FINISH_HEADLESS
-
-:FINISH_GUI
 echo.
 echo ==============================================================
 echo   [THANH CONG] MAY TRAM DA KHOI CHAY VA LIEN KET
-echo   Tai khoan:  ${account}
-echo   Room ID:    %RAND_ROOM%   ^|   PIN: %RAND_PIN%
+echo   Tai khoan:  ${cfg.account}
+echo   Room ID:    %CONF_ROOM%   ^|   PIN: %CONF_PIN%
 echo   Che do:     Desktop Tray Agent (Khay he thong + Cua so Chat truc quan)
-echo.
-echo   Kiem tra bieu tuong Meikova Relay o khay he thong (System Tray).
-echo   Thiet bi se tu dong xuat hien tren trinh duyet trong giay lat.
 echo ==============================================================
 echo.
-echo Nhan phim bat ky de hoan tat va dong cua so nay...
-pause >nul
+pause
 exit /b 0
-
-:FINISH_HEADLESS
-echo.
-echo ==============================================================
-echo   [THANH CONG] MAY TRAM DA KHOI CHAY NGAM (HEADLESS SERVICE)
-echo   Tai khoan:  ${account}
-echo   Room ID:    %RAND_ROOM%   ^|   PIN: %RAND_PIN%
-echo   Che do:     Dich vu chay ngam (Headless Service)
-echo ==============================================================
-exit /b 0
-
 `;
-
-
 
       res.writeHead(200, {
         'Content-Type': 'application/x-bat; charset=utf-8',
         'Content-Disposition': 'attachment; filename="Setup-MeikovaHost.bat"',
         'Cache-Control': 'no-cache'
       });
-      res.end(batContent);
-      return;
+      return res.end(batContent);
     }
 
-
-
     // 7. Download: Agent Package Zip
-
     if (pathname === '/api/download/agent-package.zip' && (req.method === 'GET' || req.method === 'HEAD')) {
       const zipPath = path.join(__dirname, 'agent-package.zip');
       if (fs.existsSync(zipPath)) {
@@ -1721,21 +1705,14 @@ exit /b 0
           'Content-Disposition': 'attachment; filename="agent-package.zip"',
           'Cache-Control': 'no-cache'
         });
-        if (req.method === 'HEAD') {
-          return res.end();
-        }
-
+        if (req.method === 'HEAD') return res.end();
         fs.createReadStream(zipPath).pipe(res);
         return;
       }
-
       return jsonResponse(res, 404, { error: 'Agent package zip not found' });
     }
 
-
-
-    // 7.5 Download: Multi-Platform Workstation Artifacts (Windows, Linux, macOS)
-
+    // 7.5 Download: Multi-Platform Workstation Artifacts (Windows, Linux, macOS, Portable ZIP)
     const artifactMap = {
       '/api/download/MeikovaRelayHost-Setup.exe': { name: 'MeikovaRelayHost-Setup.exe', type: 'application/vnd.microsoft.portable-executable' },
       '/api/download/meikova-relay-host-setup.exe': { name: 'MeikovaRelayHost-Setup.exe', type: 'application/vnd.microsoft.portable-executable' },
@@ -1743,6 +1720,9 @@ exit /b 0
       '/api/download/meikova-relay-host.exe': { name: 'MeikovaRelayHost.exe', type: 'application/vnd.microsoft.portable-executable' },
       '/api/download/MeikovaRelayHost-windows-x64.zip': { name: 'MeikovaRelayHost-windows-x64.zip', type: 'application/zip' },
       '/api/download/meikova-relay-windows.zip': { name: 'MeikovaRelayHost-windows-x64.zip', type: 'application/zip' },
+      '/api/download/portable.zip': { name: 'MeikovaRelayHost-windows-x64.zip', type: 'application/zip' },
+      '/api/download/meikova-relay-portable.zip': { name: 'MeikovaRelayHost-windows-x64.zip', type: 'application/zip' },
+      '/api/download/MeikovaRelayHost-portable.zip': { name: 'MeikovaRelayHost-windows-x64.zip', type: 'application/zip' },
       '/api/download/meikova-relay-host_amd64.deb': { name: 'meikova-relay-host_amd64.deb', type: 'application/vnd.debian.binary-package' },
       '/api/download/meikova-relay.deb': { name: 'meikova-relay-host_amd64.deb', type: 'application/vnd.debian.binary-package' },
       '/api/download/meikova-relay-host-linux-x64.tar.gz': { name: 'meikova-relay-host-linux-x64.tar.gz', type: 'application/gzip' },
@@ -1760,8 +1740,6 @@ exit /b 0
       '/api/download/meikova-relay-client-linux-x64.tar.gz': { name: 'meikova-relay-client-linux-x64.tar.gz', type: 'application/gzip' },
       '/api/download/meikova-relay-client.tar.gz': { name: 'meikova-relay-client-linux-x64.tar.gz', type: 'application/gzip' }
     };
-
-
 
     if (artifactMap[pathname] && (req.method === 'GET' || req.method === 'HEAD')) {
       const art = artifactMap[pathname];
@@ -1791,275 +1769,346 @@ exit /b 0
       return res.end();
     }
 
-
-
-    // 7.6 Download: Linux Auto-Installer (.sh)
-
+    // 7.6 Download: Linux Auto-Installer (.sh) (SSOT 26-param with CLI parser $@)
     if ((pathname === '/api/download/install-linux.sh' || pathname === '/api/download/setup-linux.sh') && req.method === 'GET') {
-      const account = url.searchParams.get('account') || (session ? session.username : 'User');
-      const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
-      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
-      const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
+      const cfg = extractHostConfigFromUrl(url, session, req);
       const shContent = `#!/usr/bin/env bash
-
 # Meikova Relay Host Agent - Linux Auto-Installer
-
 set -e
-
-ORIGIN="${origin}"
-
-RELAY_WS="${relayWs}"
-
-ACCOUNT="${account}"
-
+ORIGIN="${cfg.origin}"
+RELAY_WS="${cfg.relay}"
+ACCOUNT="${cfg.account}"
 TARGET_DIR="$HOME/.meikova-relay"
-
-
 
 echo "=== MEIKOVA RELAY HOST AGENT - LINUX INSTALLER ==="
-
 mkdir -p "$TARGET_DIR"
-
 cd "$TARGET_DIR"
 
-
-
 echo "[1/3] Downloading agent package..."
-
 curl -sSL "$ORIGIN/api/download/agent-package.zip" -o agent-package.zip
-
 if command -v unzip &> /dev/null; then
-
     unzip -q -o agent-package.zip
-
 else
-
     python3 -c "import zipfile; zipfile.ZipFile('agent-package.zip').extractall('.')"
-
 fi
-
 rm -f agent-package.zip
 
-
-
 echo "[2/3] Setting up Python virtual environment..."
-
 if ! command -v python3 &> /dev/null; then
-
     echo "[!] python3 is required. Please install: sudo apt install -y python3 python3-pip python3-venv"
-
     exit 1
-
 fi
-
 python3 -m venv --system-site-packages .venv || python3 -m venv .venv
-
 source .venv/bin/activate
-
 pip install -q --upgrade pip
-
 if [ -f "requirements.txt" ]; then
-
     pip install -q -r requirements.txt
-
 elif [ -f "host_agent/requirements.txt" ]; then
-
     pip install -q -r host_agent/requirements.txt
-
 fi
-
-
 
 echo "[3/3] Configuring agent for account: $ACCOUNT..."
-
-RAND_ROOM="RD-$((1000 + RANDOM % 9000))"
-
-RAND_PIN="$((100000 + RANDOM % 900000))"
+CONF_ROOM="${cfg.room_id}"
+[ -z "$CONF_ROOM" ] && CONF_ROOM="RD-$((1000 + RANDOM % 9000))"
+CONF_PIN="${cfg.pin}"
+[ -z "$CONF_PIN" ] && CONF_PIN="$((100000 + RANDOM % 900000))"
+CONF_NAME="${cfg.device_name}"
+[ -z "$CONF_NAME" ] && CONF_NAME="$(hostname)"
 
 cat << EOF > config.json
-
 {
   "relay": "$RELAY_WS",
   "account": "$ACCOUNT",
-  "user_id": "${userIdParam}",
-  "device_name": "$(hostname)",
-  "room_id": "$RAND_ROOM",
-  "pin": "$RAND_PIN"
+  "user_id": "${cfg.user_id}",
+  "device_name": "$CONF_NAME",
+  "room_id": "$CONF_ROOM",
+  "pin": "$CONF_PIN",
+  "fps": ${cfg.fps},
+  "quality": ${cfg.quality},
+  "preset": "${cfg.preset}",
+  "stream_mode": "${cfg.stream_mode}",
+  "resolution": "${cfg.resolution}",
+  "color_filter": "${cfg.color_filter}",
+  "uncapped": ${cfg.uncapped},
+  "dpi_aware": ${cfg.dpi_aware},
+  "keep_awake": ${cfg.keep_awake},
+  "auto_wakeup": ${cfg.auto_wakeup},
+  "auto_wakeup_time": "${cfg.auto_wakeup_time}",
+  "auto_lock_on_disconnect": ${cfg.auto_lock_on_disconnect},
+  "idle_fps_saver": ${cfg.idle_fps_saver},
+  "block_input": ${cfg.block_input},
+  "privacy_curtain": ${cfg.privacy_curtain},
+  "stealth_mode": ${cfg.stealth_mode},
+  "service_mode": ${cfg.service_mode},
+  "admin_elevated": ${cfg.admin_elevated},
+  "autostart": ${cfg.autostart},
+  "auto_update": ${cfg.auto_update},
+  "virtual_audio": ${cfg.virtual_audio},
+  "image_clipboard": ${cfg.image_clipboard},
+  "close_to_tray": ${cfg.close_to_tray},
+  "audio_enabled": ${cfg.audio_enabled},
+  "headless": ${cfg.headless}
 }
-
 EOF
 
-
-
-echo "=============================================================="
-
-echo "  MEIKOVA RELAY HOST (LINUX) READY!"
-
-echo "  Account: $ACCOUNT | Room ID: $RAND_ROOM | PIN: $RAND_PIN"
-
-echo "=============================================================="
-
-if [ -f "gui_agent.py" ] && [ -n "\$DISPLAY" ]; then
-
-    nohup python3 gui_agent.py --gui > meikova-agent.log 2>&1 &
-
-else
-
-    nohup python3 host_service.py --relay "$RELAY_WS" --account "$ACCOUNT" --user-id "${userIdParam}" --room "$RAND_ROOM" --pin "$RAND_PIN" --name "\$(hostname)" > meikova-agent.log 2>&1 &
-
+# CLI override if flags passed
+if [ "$#" -gt 0 ]; then
+    python3 -c "
+import sys, json
+try:
+    with open('config.json', 'r') as f:
+        c = json.load(f)
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a.startswith('--fps='): c['fps'] = int(a.split('=')[1])
+        elif a in ('--fps', '--fps-limit') and i+1 < len(args): i += 1; c['fps'] = int(args[i])
+        elif a.startswith('--quality='): c['quality'] = int(a.split('=')[1])
+        elif a == '--quality' and i+1 < len(args): i += 1; c['quality'] = int(args[i])
+        elif a.startswith('--room='): c['room_id'] = a.split('=')[1]
+        elif a in ('--room', '--room-id') and i+1 < len(args): i += 1; c['room_id'] = args[i]
+        elif a.startswith('--pin='): c['pin'] = a.split('=')[1]
+        elif a == '--pin' and i+1 < len(args): i += 1; c['pin'] = args[i]
+        elif a.startswith('--name='): c['device_name'] = a.split('=')[1]
+        elif a in ('--name', '--device-name') and i+1 < len(args): i += 1; c['device_name'] = args[i]
+        elif a.startswith('--preset='): c['preset'] = a.split('=')[1]
+        elif a == '--preset' and i+1 < len(args): i += 1; c['preset'] = args[i]
+        elif a.startswith('--stream-mode='): c['stream_mode'] = a.split('=')[1]
+        elif a == '--stream-mode' and i+1 < len(args): i += 1; c['stream_mode'] = args[i]
+        elif a.startswith('--resolution='): c['resolution'] = a.split('=')[1]
+        elif a == '--resolution' and i+1 < len(args): i += 1; c['resolution'] = args[i]
+        elif a.startswith('--color-filter='): c['color_filter'] = a.split('=')[1]
+        elif a == '--color-filter' and i+1 < len(args): i += 1; c['color_filter'] = args[i]
+        elif a == '--uncapped': c['uncapped'] = True
+        elif a == '--no-uncapped': c['uncapped'] = False
+        elif a == '--dpi-aware': c['dpi_aware'] = True
+        elif a == '--no-dpi-aware': c['dpi_aware'] = False
+        elif a in ('--keep-awake', '--anti-sleep'): c['keep_awake'] = True
+        elif a in ('--no-keep-awake', '--no-anti-sleep'): c['keep_awake'] = False
+        elif a == '--auto-wakeup': c['auto_wakeup'] = True
+        elif a == '--no-auto-wakeup': c['auto_wakeup'] = False
+        elif a.startswith('--auto-wakeup-time='): c['auto_wakeup_time'] = a.split('=')[1]
+        elif a == '--auto-wakeup-time' and i+1 < len(args): i += 1; c['auto_wakeup_time'] = args[i]
+        elif a in ('--auto-lock-disconnect', '--auto-lock'): c['auto_lock_on_disconnect'] = True
+        elif a == '--idle-fps-saver': c['idle_fps_saver'] = True
+        elif a == '--block-input': c['block_input'] = True
+        elif a == '--no-block-input': c['block_input'] = False
+        elif a in ('--curtain', '--privacy-curtain'): c['privacy_curtain'] = True
+        elif a == '--stealth': c['stealth_mode'] = True
+        elif a == '--service': c['service_mode'] = True
+        elif a in ('--admin', '--require-admin'): c['admin_elevated'] = True
+        elif a == '--autostart': c['autostart'] = True
+        elif a == '--no-autostart': c['autostart'] = False
+        elif a == '--auto-update': c['auto_update'] = True
+        elif a == '--no-auto-update': c['auto_update'] = False
+        elif a == '--virtual-audio': c['virtual_audio'] = True
+        elif a == '--no-virtual-audio': c['virtual_audio'] = False
+        elif a == '--image-clipboard': c['image_clipboard'] = True
+        elif a == '--no-image-clipboard': c['image_clipboard'] = False
+        elif a == '--headless': c['headless'] = True
+        elif a == '--gui': c['headless'] = False
+        i += 1
+    with open('config.json', 'w') as f:
+        json.dump(c, f, indent=2)
+except Exception:
+    pass
+" "$@"
 fi
 
-echo "Meikova Relay Host running in background (PID: \$!)."
+echo "=============================================================="
+echo "  MEIKOVA RELAY HOST (LINUX) READY!"
+echo "  Account: $ACCOUNT | Room ID: $CONF_ROOM | PIN: $CONF_PIN"
+echo "=============================================================="
 
+if [ -f "gui_agent.py" ] && [ -n "$DISPLAY" ] && [ "${cfg.headless}" != "true" ]; then
+    nohup python3 gui_agent.py --gui "$@" > meikova-agent.log 2>&1 &
+else
+    nohup python3 host_service.py --config config.json "$@" > meikova-agent.log 2>&1 &
+fi
+echo "Meikova Relay Host running in background (PID: $!)."
 `;
 
       res.writeHead(200, {
         'Content-Type': 'application/x-sh; charset=utf-8',
-        'Content-Disposition': 'attachment; filename="install-linux.sh"',
+        'Content-Disposition': 'attachment; filename="setup-linux.sh"',
         'Cache-Control': 'no-cache'
       });
       return res.end(shContent);
     }
 
-
-
-    // 7.7 Download: macOS Auto-Installer (.sh)
-
+    // 7.7 Download: macOS Auto-Installer (.sh) (SSOT 26-param with CLI parser $@)
     if ((pathname === '/api/download/install-macos.sh' || pathname === '/api/download/setup-macos.sh') && req.method === 'GET') {
-      const account = url.searchParams.get('account') || (session ? session.username : 'User');
-      const userIdParam = url.searchParams.get('userId') || (session ? session.id : '');
-      const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
-      const relayWs = (url.searchParams.get('relay') || origin.replace(/^http/, 'ws'));
+      const cfg = extractHostConfigFromUrl(url, session, req);
       const shContent = `#!/usr/bin/env bash
-
 # Meikova Relay Host Agent - macOS Auto-Installer
-
 set -e
-
-ORIGIN="${origin}"
-
-RELAY_WS="${relayWs}"
-
-ACCOUNT="${account}"
-
+ORIGIN="${cfg.origin}"
+RELAY_WS="${cfg.relay}"
+ACCOUNT="${cfg.account}"
 TARGET_DIR="$HOME/.meikova-relay"
 
-
-
 echo "=== MEIKOVA RELAY HOST AGENT - macOS INSTALLER ==="
-
 echo "[NOTE] macOS requires Screen Recording & Accessibility permissions:"
-
 echo "  System Settings -> Privacy & Security -> Screen Recording / Accessibility"
 
-
-
 mkdir -p "$TARGET_DIR"
-
 cd "$TARGET_DIR"
 
-
-
 echo "[1/3] Downloading agent package..."
-
 curl -sSL "$ORIGIN/api/download/agent-package.zip" -o agent-package.zip
-
 if command -v unzip &> /dev/null; then
-
     unzip -q -o agent-package.zip
-
 else
-
     python3 -c "import zipfile; zipfile.ZipFile('agent-package.zip').extractall('.')"
-
 fi
-
 rm -f agent-package.zip
 
-
-
 echo "[2/3] Setting up Python virtual environment..."
-
 if ! command -v python3 &> /dev/null; then
-
-    echo "[!] python3 is required. Please install via brew: brew install python3"
-
+    echo "[!] python3 is required. Please install Python 3.11+ or run: brew install python"
     exit 1
-
 fi
-
 python3 -m venv --system-site-packages .venv || python3 -m venv .venv
-
 source .venv/bin/activate
-
 pip install -q --upgrade pip
-
 if [ -f "requirements.txt" ]; then
-
     pip install -q -r requirements.txt
-
 elif [ -f "host_agent/requirements.txt" ]; then
-
     pip install -q -r host_agent/requirements.txt
-
 fi
-
-
 
 echo "[3/3] Configuring agent for account: $ACCOUNT..."
-
-RAND_ROOM="RD-$((1000 + RANDOM % 9000))"
-
-RAND_PIN="$((100000 + RANDOM % 900000))"
+CONF_ROOM="${cfg.room_id}"
+[ -z "$CONF_ROOM" ] && CONF_ROOM="RD-$((1000 + RANDOM % 9000))"
+CONF_PIN="${cfg.pin}"
+[ -z "$CONF_PIN" ] && CONF_PIN="$((100000 + RANDOM % 900000))"
+CONF_NAME="${cfg.device_name}"
+[ -z "$CONF_NAME" ] && CONF_NAME="$(scutil --get ComputerName 2>/dev/null || hostname)"
 
 cat << EOF > config.json
-
 {
   "relay": "$RELAY_WS",
   "account": "$ACCOUNT",
-  "user_id": "${userIdParam}",
-  "device_name": "$(hostname -s)",
-  "room_id": "$RAND_ROOM",
-  "pin": "$RAND_PIN"
+  "user_id": "${cfg.user_id}",
+  "device_name": "$CONF_NAME",
+  "room_id": "$CONF_ROOM",
+  "pin": "$CONF_PIN",
+  "fps": ${cfg.fps},
+  "quality": ${cfg.quality},
+  "preset": "${cfg.preset}",
+  "stream_mode": "${cfg.stream_mode}",
+  "resolution": "${cfg.resolution}",
+  "color_filter": "${cfg.color_filter}",
+  "uncapped": ${cfg.uncapped},
+  "dpi_aware": ${cfg.dpi_aware},
+  "keep_awake": ${cfg.keep_awake},
+  "auto_wakeup": ${cfg.auto_wakeup},
+  "auto_wakeup_time": "${cfg.auto_wakeup_time}",
+  "auto_lock_on_disconnect": ${cfg.auto_lock_on_disconnect},
+  "idle_fps_saver": ${cfg.idle_fps_saver},
+  "block_input": ${cfg.block_input},
+  "privacy_curtain": ${cfg.privacy_curtain},
+  "stealth_mode": ${cfg.stealth_mode},
+  "service_mode": ${cfg.service_mode},
+  "admin_elevated": ${cfg.admin_elevated},
+  "autostart": ${cfg.autostart},
+  "auto_update": ${cfg.auto_update},
+  "virtual_audio": ${cfg.virtual_audio},
+  "image_clipboard": ${cfg.image_clipboard},
+  "close_to_tray": ${cfg.close_to_tray},
+  "audio_enabled": ${cfg.audio_enabled},
+  "headless": ${cfg.headless}
 }
-
 EOF
 
-
-
-echo "=============================================================="
-
-echo "  MEIKOVA RELAY HOST (macOS) READY!"
-
-echo "  Account: $ACCOUNT | Room ID: $RAND_ROOM | PIN: $RAND_PIN"
-
-echo "=============================================================="
-
-if [ -f "gui_agent.py" ]; then
-
-    nohup python3 gui_agent.py --gui > meikova-agent.log 2>&1 &
-
-else
-
-    nohup python3 host_service.py --relay "$RELAY_WS" --account "$ACCOUNT" --user-id "${userIdParam}" --room "$RAND_ROOM" --pin "$RAND_PIN" --name "\$(hostname -s)" > meikova-agent.log 2>&1 &
-
+# CLI override if flags passed
+if [ "$#" -gt 0 ]; then
+    python3 -c "
+import sys, json
+try:
+    with open('config.json', 'r') as f:
+        c = json.load(f)
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a.startswith('--fps='): c['fps'] = int(a.split('=')[1])
+        elif a in ('--fps', '--fps-limit') and i+1 < len(args): i += 1; c['fps'] = int(args[i])
+        elif a.startswith('--quality='): c['quality'] = int(a.split('=')[1])
+        elif a == '--quality' and i+1 < len(args): i += 1; c['quality'] = int(args[i])
+        elif a.startswith('--room='): c['room_id'] = a.split('=')[1]
+        elif a in ('--room', '--room-id') and i+1 < len(args): i += 1; c['room_id'] = args[i]
+        elif a.startswith('--pin='): c['pin'] = a.split('=')[1]
+        elif a == '--pin' and i+1 < len(args): i += 1; c['pin'] = args[i]
+        elif a.startswith('--name='): c['device_name'] = a.split('=')[1]
+        elif a in ('--name', '--device-name') and i+1 < len(args): i += 1; c['device_name'] = args[i]
+        elif a.startswith('--preset='): c['preset'] = a.split('=')[1]
+        elif a == '--preset' and i+1 < len(args): i += 1; c['preset'] = args[i]
+        elif a.startswith('--stream-mode='): c['stream_mode'] = a.split('=')[1]
+        elif a == '--stream-mode' and i+1 < len(args): i += 1; c['stream_mode'] = args[i]
+        elif a.startswith('--resolution='): c['resolution'] = a.split('=')[1]
+        elif a == '--resolution' and i+1 < len(args): i += 1; c['resolution'] = args[i]
+        elif a.startswith('--color-filter='): c['color_filter'] = a.split('=')[1]
+        elif a == '--color-filter' and i+1 < len(args): i += 1; c['color_filter'] = args[i]
+        elif a == '--uncapped': c['uncapped'] = True
+        elif a == '--no-uncapped': c['uncapped'] = False
+        elif a == '--dpi-aware': c['dpi_aware'] = True
+        elif a == '--no-dpi-aware': c['dpi_aware'] = False
+        elif a in ('--keep-awake', '--anti-sleep'): c['keep_awake'] = True
+        elif a in ('--no-keep-awake', '--no-anti-sleep'): c['keep_awake'] = False
+        elif a == '--auto-wakeup': c['auto_wakeup'] = True
+        elif a == '--no-auto-wakeup': c['auto_wakeup'] = False
+        elif a.startswith('--auto-wakeup-time='): c['auto_wakeup_time'] = a.split('=')[1]
+        elif a == '--auto-wakeup-time' and i+1 < len(args): i += 1; c['auto_wakeup_time'] = args[i]
+        elif a in ('--auto-lock-disconnect', '--auto-lock'): c['auto_lock_on_disconnect'] = True
+        elif a == '--idle-fps-saver': c['idle_fps_saver'] = True
+        elif a == '--block-input': c['block_input'] = True
+        elif a == '--no-block-input': c['block_input'] = False
+        elif a in ('--curtain', '--privacy-curtain'): c['privacy_curtain'] = True
+        elif a == '--stealth': c['stealth_mode'] = True
+        elif a == '--service': c['service_mode'] = True
+        elif a in ('--admin', '--require-admin'): c['admin_elevated'] = True
+        elif a == '--autostart': c['autostart'] = True
+        elif a == '--no-autostart': c['autostart'] = False
+        elif a == '--auto-update': c['auto_update'] = True
+        elif a == '--no-auto-update': c['auto_update'] = False
+        elif a == '--virtual-audio': c['virtual_audio'] = True
+        elif a == '--no-virtual-audio': c['virtual_audio'] = False
+        elif a == '--image-clipboard': c['image_clipboard'] = True
+        elif a == '--no-image-clipboard': c['image_clipboard'] = False
+        elif a == '--headless': c['headless'] = True
+        elif a == '--gui': c['headless'] = False
+        i += 1
+    with open('config.json', 'w') as f:
+        json.dump(c, f, indent=2)
+except Exception:
+    pass
+" "$@"
 fi
 
-echo "Meikova Relay Host running in background (PID: \$!)."
+echo "=============================================================="
+echo "  MEIKOVA RELAY HOST (macOS) READY!"
+echo "  Account: $ACCOUNT | Room ID: $CONF_ROOM | PIN: $CONF_PIN"
+echo "=============================================================="
 
+if [ -f "gui_agent.py" ] && [ "${cfg.headless}" != "true" ]; then
+    nohup python3 gui_agent.py --gui "$@" > meikova-agent.log 2>&1 &
+else
+    nohup python3 host_service.py --config config.json "$@" > meikova-agent.log 2>&1 &
+fi
+echo "Meikova Relay Host running in background (PID: $!)."
 `;
 
       res.writeHead(200, {
         'Content-Type': 'application/x-sh; charset=utf-8',
-        'Content-Disposition': 'attachment; filename="install-macos.sh"',
+        'Content-Disposition': 'attachment; filename="setup-macos.sh"',
         'Cache-Control': 'no-cache'
       });
       return res.end(shContent);
     }
 
-
-
-    // 7.8 Download: Linux Systemd Unit
+        // 7.8 Download: Linux Systemd Unit
 
     if (pathname === '/api/download/meikova-relay.service' && (req.method === 'GET' || req.method === 'HEAD')) {
       const unitPath = path.join(__dirname, '..', 'host_agent', 'meikova-relay.service');

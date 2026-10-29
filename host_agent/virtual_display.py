@@ -251,6 +251,29 @@ def download_and_install_virtual_display() -> Dict[str, Any]:
 
     return {"success": False, "message": f"Nền tảng {sys.platform} chưa được hỗ trợ."}
 
+def auto_activate_virtual_display(monitors: Optional[List[Any]] = None) -> Dict[str, Any]:
+    """
+    Automatically activates / installs IDDCX virtual display driver when headless or len(monitors) == 0.
+    """
+    is_headless = False
+    if monitors is not None and len(monitors) == 0:
+        is_headless = True
+    if not is_headless:
+        is_headless = is_headless_display()
+
+    if not is_headless:
+        return {"activated": False, "reason": "Not headless"}
+
+    # Check if virtual display driver is already installed
+    status = get_virtual_display_driver_status()
+    if status.get("installed", False):
+        logger.info("[VirtualDisplay] Virtual display driver is already installed.")
+        return {"activated": True, "already_installed": True, "driver_name": status.get("driver_name")}
+
+    logger.info("[VirtualDisplay] Headless detected (len(monitors) == 0). Auto-activating IDDCX virtual display driver...")
+    res = download_and_install_virtual_display()
+    return {"activated": res.get("success", False), "result": res}
+
 def set_display_resolution(width: int, height: int, refresh_rate: int = 60) -> Dict[str, Any]:
     """
     Sets display resolution across Windows, Linux, and macOS.

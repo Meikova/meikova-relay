@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.4.2">
-  <link rel="stylesheet" href="/css/style.css?v=1.4.2">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.5.0">
+  <link rel="stylesheet" href="/css/style.css?v=1.5.0">
 </head>
 <body>
 
@@ -175,7 +175,7 @@
           <div class="landing-hero-left">
             <div class="landing-telemetry-badge mono-font">
               <span class="status-dot online"></span>
-              <span data-i18n="landing.badge">v1.4.2 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
+              <span data-i18n="landing.badge">v1.5.0 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
             </div>
 
             <h1 class="landing-hero-title brand-font" data-i18n="landing.hero_title">ĐIỀU KHIỂN TỪ XA ĐA NỀN TẢNG CHÍNH XÁC CAO</h1>
@@ -539,6 +539,24 @@
             <h4 class="brand-font" data-i18n="landing.feat_files_title">Quản lý tệp 2 chiều &amp; Sửa trực tiếp</h4>
             <p data-i18n="landing.feat_files_desc">Duyệt toàn bộ ổ đĩa, kéo thả upload/download và mở sửa trực tiếp file text/code ngay trên trình duyệt mà không cần tải file về.</p>
           </div>
+          <!-- Feat 7: Winlogon & Secure UAC Desktop Unlock -->
+          <div class="instrument-card landing-feat-item">
+            <div class="feat-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h4 class="brand-font" data-i18n="landing.feat_winlogon_title">Mở khóa Winlogon &amp; Xử lý UAC Từ xa</h4>
+            <p data-i18n="landing.feat_winlogon_desc">Triệt tiêu hoàn toàn màn hình đen khi máy trạm khóa (Win + L) hoặc hiện xác nhận quyền quản trị UAC, hỗ trợ mở khóa từ xa 1 chạm an toàn.</p>
+          </div>
+
+          <!-- Feat 8: Smart Keep-Awake & 2s Hardware Telemetry -->
+          <div class="instrument-card landing-feat-item">
+            <div class="feat-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+            </div>
+            <h4 class="brand-font" data-i18n="landing.feat_power_telemetry_title">Quản trị Nguồn &amp; Xung nhịp Phần cứng</h4>
+            <p data-i18n="landing.feat_power_telemetry_desc">Smart Keep-Awake chống ngủ khi có kết nối, đánh thức RTC Wakeup, theo dõi CPU, RAM, Pin định kỳ 2 giây trực tiếp trên thanh điều khiển.</p>
+          </div>
+
         </div>
       </div>
 
@@ -1153,7 +1171,7 @@
           </div>
           <div class="guard-telemetry guard-telemetry--br mono-font" aria-hidden="true">
             <span class="telemetry-label" data-i18n="deck.telemetry_engine">ENGINE</span>
-            <span class="telemetry-val" data-i18n="deck.telemetry_engine_val">MEIKOVA RELAY v1.4.2</span>
+            <span class="telemetry-val" data-i18n="deck.telemetry_engine_val">MEIKOVA RELAY v1.5.0</span>
           </div>
 
           <!-- Central Ambient Glass Instrument Card -->
@@ -1402,6 +1420,8 @@
           <button id="btnSnippetsMenu"></button>
           <button id="btnToggleBlockInput"></button>
           <button id="btnToggleCurtain"><svg id="curtainSvgOff"></svg><svg id="curtainSvgOn" class="hidden"></svg></button>
+          <button id="btnUnstickInputs"></button>
+          <div id="deckTelemetryHost"></div>
         </div>
 
         <div style="width: 1px; height: 16px; background: var(--line);"></div>
@@ -1416,6 +1436,28 @@
         <button id="btnOpenShelf" class="deck__btn" title="Truyền tệp & Clipboard" data-i18n-title="deck.shelf_title">
           <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </button>
+                <div style="width: 1px; height: 16px; background: var(--line);"></div>
+
+        <!-- Live Host Pulse Telemetry Badge -->
+        <div id="badgeTelemetry" class="deck__telemetry-badge hidden" title="Xung nhịp phần cứng máy trạm (CPU / RAM)" data-i18n-title="deck.telemetry_host_title">
+          <span class="telemetry-dot pulse-neon" id="telemetryStatusDot"></span>
+          <span id="deckCpuLabel" class="mono-font" style="font-size: 10px; font-weight: 700;">CPU --%</span>
+          <span class="telemetry-sep">·</span>
+          <span id="deckRamLabel" class="mono-font" style="font-size: 10px; font-weight: 700;">RAM --%</span>
+        </div>
+
+        <!-- Emergency Input Unstick Button (Pure SVG Icon) -->
+        <button type="button" id="btnEmergencyUnstick" class="deck__btn hidden" style="display:none !important;" title="Giải phóng phím kẹt" data-i18n-title="deck.emergency_unstick" aria-label="Giải phóng phím kẹt" data-i18n-aria="deck.emergency_unstick">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <polyline points="23 20 23 14 17 14"></polyline>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+          </svg>
+          <span class="sr-only hidden" style="display:none !important;" data-i18n="deck_emergency_unstick"></span>
+        </button>
+
+
+
         <button id="btnDisconnect" class="deck__btn danger" title="Ngắt kết nối" data-i18n-title="deck.disconnect_title">
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
@@ -1517,28 +1559,36 @@
             <!-- Extra Tools & Utilities Floating Menu -->
       <div id="moreToolsMenuDropdown" class="quality-menu tools-menu hidden">
         <div class="quality-menu-header" data-i18n="deck.tools_menu_header">CÔNG CỤ &amp; TIỆN ÍCH MỞ RỘNG</div>
-        <div class="quality-menu-list">
-          <div class="quality-group-header" data-i18n="deck.tools_group_annotation">TRÌNH CHIẾU &amp; GHI HÌNH</div>
+        
+        <!-- Search & Sub-list Filter Bar -->
+        <div class="menu-search-wrap">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="inpSearchTools" class="menu-search-input mono-font" placeholder="Tìm kiếm công cụ..." data-i18n-placeholder="deck.search_tools_ph" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="quality-menu-list" id="toolsMenuList">
+          <!-- Sub-list: Trình chiếu & Ghi hình -->
+          <div class="quality-group-header" data-tools-section="present" data-i18n="deck.tools_group_annotation">TRÌNH CHIẾU &amp; GHI HÌNH</div>
           
-          <button type="button" class="quality-menu-item" id="btnDropdownWhiteboard">
+          <button type="button" class="quality-menu-item" id="btnDropdownWhiteboard" data-tools-item-group="present">
             <span class="quality-item-icon" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.3);"><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.tools_whiteboard">Bút vẽ bảng Whiteboard</div>
+              <div class="quality-item-title" data-i18n="deck.tools_whiteboard">Bút vẽ bảng</div>
               <div class="quality-item-desc" data-i18n="deck.tools_whiteboard_desc">Vẽ nét, đánh dấu, mũi tên trực tiếp trên màn hình</div>
             </div>
             <span id="badgeWhiteboardActive" class="quality-check hidden" style="color: var(--accent);"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
 
-          <button type="button" class="quality-menu-item" id="btnDropdownLaser">
+          <button type="button" class="quality-menu-item" id="btnDropdownLaser" data-tools-item-group="present">
             <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.tools_laser">Bút chỉ Laser Pointer</div>
+              <div class="quality-item-title" data-i18n="deck.tools_laser">Bút chỉ Laser</div>
               <div class="quality-item-desc" data-i18n="deck.tools_laser_desc">Chấm đỏ laser thu hút sự chú ý của người xem</div>
             </div>
             <span id="badgeLaserActive" class="quality-check hidden" style="color: #ef4444;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
 
-          <button type="button" class="quality-menu-item" id="btnDropdownScreenshot">
+          <button type="button" class="quality-menu-item" id="btnDropdownScreenshot" data-tools-item-group="present">
             <span class="quality-item-icon" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.3);"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_screenshot">Chụp ảnh màn hình</div>
@@ -1546,7 +1596,7 @@
             </div>
           </button>
 
-          <button type="button" class="quality-menu-item" id="btnDropdownRecord">
+          <button type="button" class="quality-menu-item" id="btnDropdownRecord" data-tools-item-group="present">
             <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/><circle cx="8.5" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" id="txtDropdownRecordTitle" data-i18n="deck.tools_record">Ghi hình phiên làm việc</div>
@@ -1555,7 +1605,7 @@
             <span id="badgeRecordActive" class="quality-check hidden" style="color: #ef4444;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
 
-          <button type="button" class="quality-menu-item" id="btnDropdownCam">
+          <button type="button" class="quality-menu-item" id="btnDropdownCam" data-tools-item-group="present">
             <span class="quality-item-icon" style="color: #83e8ac; background: rgba(131, 232, 172, 0.12); border-color: rgba(131, 232, 172, 0.3);"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/><circle cx="8.5" cy="10" r="2"/><path d="M4 16c0-1.5 2-2.5 4.5-2.5s4.5 1 4.5 2.5"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_cam">Webcam Facecam PiP</div>
@@ -1564,76 +1614,94 @@
             <span id="badgeCamActive" class="quality-check hidden" style="color: #83e8ac;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
 
-          <button type="button" class="quality-menu-item" id="btnDropdownPip">
-            <span class="quality-item-icon" style="color: #a855f7; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.35);"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1" fill="currentColor"/></svg></span>
+          <button type="button" class="quality-menu-item" id="btnDropdownPip" data-tools-item-group="present">
+            <span class="quality-item-icon" style="color: #a855f7; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.3);"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="8" height="7" rx="1"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.tools_pip_monitor">Màn hình nổi PiP (Mini-Monitor)</div>
+              <div class="quality-item-title" data-i18n="deck.tools_pip_monitor">Màn hình nổi PiP</div>
               <div class="quality-item-desc" data-i18n="deck.tools_pip_monitor_desc">Tách luồng màn hình từ xa ra cửa sổ nổi luôn ghim trên cùng</div>
             </div>
             <span id="badgePipActive" class="quality-check hidden" style="color: #a855f7;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
           </button>
 
-          <button type="button" class="quality-menu-item" id="btnDropdownOpenUrl">
-            <span class="quality-item-icon" style="color: #10b981; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35);"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>
+          <button type="button" class="quality-menu-item" id="btnDropdownOpenUrl" data-tools-item-group="present">
+            <span class="quality-item-icon" style="color: #06b6d4; background: rgba(6, 182, 212, 0.12); border-color: rgba(6, 182, 212, 0.3);"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.tools_open_url">Mở nhanh URL trên máy đích...</div>
               <div class="quality-item-desc" data-i18n="deck.tools_open_url_desc">Gửi đường dẫn web để tự động mở ngay trên trình duyệt máy trạm</div>
             </div>
           </button>
 
-          <div style="height: 1px; background: var(--line-soft); margin: 4px 0;"></div>
+          <!-- Sub-list: Bảo mật & Kiểm soát (deckAdminGroup) -->
+          <div id="deckAdminGroup" data-tools-section="security">
+            <div class="deck-admin-banner hidden" id="deckAdminDisabledBanner" style="font-size: 0.72rem; padding: 6px 10px; margin-bottom: 6px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; color: #fbbf24; display: flex; align-items: center; justify-content: space-between;">
+              <span data-i18n="deck.admin_disabled_hint">Yêu cầu quyền Administrator</span>
+              <button type="button" id="btnRequestHostAdmin" class="btn-pill" style="height: 22px; padding: 0 8px; font-size: 0.68rem; background: #fbbf24; color: #000; font-weight: 600;" data-i18n="deck.btn_request_uac">Nâng quyền</button>
+            </div>
 
-          <div id="deckAdminGroup" class="deck-admin-group">
-            <div class="quality-group-header" style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-              <span data-i18n="deck.tools_group_security">BẢO MẬT &amp; QUẢN TRỊ MÁY ĐÍCH (ADMIN)</span>
+            <div class="quality-group-header" data-tools-section="security" style="display: flex; justify-content: space-between; align-items: center;">
+              <span data-i18n="deck.tools_group_security">BẢO MẬT &amp; KIỂM SOÁT</span>
               <span id="badgeHostAdminStatus" class="proto-status-pill checking" style="font-size: 9px; padding: 1px 6px;">ADMIN: --</span>
             </div>
 
-            <div id="deckAdminDisabledBanner" class="deck-admin-disabled-banner hidden">
-              <div class="deck-admin-banner-text" data-i18n="deck.admin_disabled_hint">Máy đích đang chạy quyền User thường. Nhóm chức năng quản trị đã bị khóa.</div>
-              <button type="button" id="btnRequestHostAdmin" class="btn-pill deck-admin-uac-btn" data-i18n="deck.btn_request_uac">Bật quyền Quản trị (UAC)</button>
-            </div>
-
-            <button type="button" class="quality-menu-item admin-gated-btn" id="btnDropdownBlockInput" data-requires-admin="true">
-              <span class="quality-item-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35);"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg></span>
+            <button type="button" class="quality-menu-item admin-gated-btn" id="btnDropdownBlockInput" data-requires-admin="true" data-tools-item-group="security">
+              <span class="quality-item-icon" style="color: #fbbf24; background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.35);"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
               <div class="quality-item-text">
                 <div class="quality-item-title" data-i18n="deck.tools_block_input">Khóa chuột &amp; bàn phím máy đích</div>
                 <div class="quality-item-desc" data-i18n="deck.tools_block_input_desc">Ngăn người tại máy trạm can thiệp khi bạn đang thao tác</div>
               </div>
-              <span id="badgeBlockInputActive" class="quality-check hidden" style="color: #f59e0b;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span id="badgeBlockInputActive" class="quality-check hidden" style="color: #fbbf24;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
             </button>
 
-            <button type="button" class="quality-menu-item admin-gated-btn" id="btnDropdownCurtain" data-requires-admin="true">
-              <span class="quality-item-icon" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.3);"><svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>
+            <button type="button" class="quality-menu-item admin-gated-btn" id="btnDropdownCurtain" data-requires-admin="true" data-tools-item-group="security">
+              <span class="quality-item-icon" style="color: #34d399; background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.35);"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="2.5"/></svg></span>
               <div class="quality-item-text">
-                <div class="quality-item-title" data-i18n="deck.tools_curtain">Màn hình riêng tư (Curtain Mode)</div>
+                <div class="quality-item-title" data-i18n="deck.tools_curtain">Màn hình riêng tư</div>
                 <div class="quality-item-desc" data-i18n="deck.tools_curtain_desc">Tối đen màn hình máy trạm chống nhìn trộm khi truy cập</div>
               </div>
-              <span id="badgeCurtainActive" class="quality-check hidden" style="color: var(--accent);"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span id="badgeCurtainActive" class="quality-check hidden" style="color: #34d399;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
             </button>
 
-            <button type="button" class="quality-menu-item" id="btnDropdownAutoLock">
+            <button type="button" class="quality-menu-item" id="btnDropdownAutoLock" data-tools-item-group="security">
               <span class="quality-item-icon" style="color: #f43f5e; background: rgba(244, 63, 94, 0.12); border-color: rgba(244, 63, 94, 0.35);"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span>
               <div class="quality-item-text">
-                <div class="quality-item-title" data-i18n="deck.tools_auto_lock">Tự khóa máy khi ngắt kết nối (Auto-Lock)</div>
+                <div class="quality-item-title" data-i18n="deck.tools_auto_lock">Tự khóa khi ngắt kết nối</div>
                 <div class="quality-item-desc" data-i18n="deck.tools_auto_lock_desc">Tự động khóa màn hình OS ngay khi phiên điều khiển kết thúc</div>
               </div>
               <span id="badgeAutoLockActive" class="quality-check hidden" style="color: #f43f5e;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
             </button>
 
-            <button type="button" class="quality-menu-item" id="btnDropdownRemoteHostConfig">
-              <span class="quality-item-icon" style="color: #83e8ac; background: rgba(131, 232, 172, 0.12); border-color: rgba(131, 232, 172, 0.35);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+            <button type="button" class="quality-menu-item" id="btnDropdownUnstickInputs" data-tools-item-group="security">
+              <span class="quality-item-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35);"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg></span>
               <div class="quality-item-text">
-                <div class="quality-item-title" data-i18n="deck.tools_remote_host_cfg">Cấu hình Máy trạm (Host Config)...</div>
-                <div class="quality-item-desc" data-i18n="deck.tools_remote_host_cfg_desc">Tùy chỉnh Anti-Sleep, Auto-Wakeup, Stealth, Service 24/7 &amp; UAC</div>
+                <div class="quality-item-title" data-i18n="deck.tools_unstick">Giải phóng phím kẹt</div>
+                <div class="quality-item-desc" data-i18n="deck.tools_unstick_desc">Nhả toàn bộ 256 phím và chuột bị treo tức thì</div>
+              </div>
+            </button>
+
+            <button type="button" class="quality-menu-item" id="btnDropdownUnlockWorkstation" data-tools-item-group="security">
+              <span class="quality-item-icon" style="color: #22c55e; background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.35);"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg></span>
+              <div class="quality-item-text">
+                <div class="quality-item-title" data-i18n="deck.tools_unlock_screen">Mở khóa màn hình máy trạm...</div>
+                <div class="quality-item-desc" data-i18n="deck.tools_unlock_screen_desc">Bơm phím ảo SAS và gửi mật khẩu Winlogon</div>
               </div>
             </button>
           </div>
 
-          <button type="button" class="quality-menu-item" id="btnDropdownSnippets">
+          <!-- Sub-list: Hệ thống & Cấu hình -->
+          <div class="quality-group-header" data-tools-section="system" data-i18n="deck.group_system_cfg">HỆ THỐNG &amp; CẤU HÌNH</div>
+
+          <button type="button" class="quality-menu-item" id="btnDropdownRemoteHostConfig" data-tools-item-group="system">
+            <span class="quality-item-icon" style="color: #83e8ac; background: rgba(131, 232, 172, 0.12); border-color: rgba(131, 232, 172, 0.35);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.tools_remote_host_cfg">Cấu hình máy trạm...</div>
+              <div class="quality-item-desc" data-i18n="deck.tools_remote_host_cfg_desc">Tùy chỉnh tiết kiệm điện, ẩn khay, dịch vụ 24/7 và UAC</div>
+            </div>
+          </button>
+
+          <button type="button" class="quality-menu-item" id="btnDropdownSnippets" data-tools-item-group="system">
             <span class="quality-item-icon" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.3);"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.tools_snippets">Lệnh nhanh &amp; Macro hệ thống...</div>
+              <div class="quality-item-title" data-i18n="deck.tools_snippets">Lệnh nhanh &amp; Macro...</div>
               <div class="quality-item-desc" data-i18n="deck.tools_snippets_desc">Chạy ipconfig, systeminfo, dxdiag, gửi mật khẩu an toàn</div>
             </div>
           </button>
@@ -1642,146 +1710,181 @@
 
       <!-- Keyboard Shortcuts & System Combos Floating Menu -->
       <div id="shortcutsMenuDropdown" class="quality-menu shortcuts-menu hidden">
-        <div class="quality-menu-header" data-i18n="deck.shortcuts_menu_title">TỔ HỢP PHÍM HỆ THỐNG (HOTKEYS)</div>
-        <div class="quality-menu-list">
-          <button type="button" class="quality-menu-item" data-system-combo="cad">
+        <div class="quality-menu-header" data-i18n="deck.shortcuts_menu_title">TỔ HỢP PHÍM HỆ THỐNG</div>
+
+        <!-- Search & Sub-list Filter Bar -->
+        <div class="menu-search-wrap">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="inpSearchShortcuts" class="menu-search-input mono-font" placeholder="Tìm kiếm phím tắt..." data-i18n-placeholder="deck.search_shortcuts_ph" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="quality-menu-list" id="shortcutsMenuList">
+          <!-- Sub-list: Bảo mật & Quản trị -->
+          <div class="quality-group-header" data-shortcut-section="security" data-i18n="deck.group_sec_admin">BẢO MẬT &amp; QUẢN TRỊ</div>
+
+          <button type="button" class="quality-menu-item" data-system-combo="cad" data-shortcut-item-group="security">
             <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="2.5"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_cad">Ctrl + Alt + Del (Bảo mật Windows)</div>
+              <div class="quality-item-title" data-i18n="deck.combo_cad">Ctrl + Alt + Del</div>
               <div class="quality-item-desc" data-i18n="deck.combo_cad_desc">Màn hình đăng nhập / bảo mật Windows hoặc mở khóa máy</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="ctrl_win_del">
+
+          <button type="button" class="quality-menu-item" data-system-combo="ctrl_win_del" data-shortcut-item-group="security">
             <span class="quality-item-icon" style="color: #a855f7; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.3);"><svg viewBox="0 0 24 24"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_ctrl_win_del">Ctrl + Win + Del (Tổ hợp phím)</div>
+              <div class="quality-item-title" data-i18n="deck.combo_ctrl_win_del">Ctrl + Win + Del</div>
               <div class="quality-item-desc" data-i18n="deck.combo_ctrl_win_del_desc">Tổ hợp phím Ctrl + Windows + Delete gửi tới máy trạm</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="lock">
+
+          <button type="button" class="quality-menu-item" data-system-combo="lock" data-shortcut-item-group="security">
             <span class="quality-item-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_lock">Win + L (Khóa máy trạm)</div>
+              <div class="quality-item-title" data-i18n="deck.combo_lock">Win + L</div>
               <div class="quality-item-desc" data-i18n="deck.combo_lock_desc">Đưa máy trạm về màn hình khóa Lock Screen ngay lập tức</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="taskmgr">
+
+          <button type="button" class="quality-menu-item" data-system-combo="taskmgr" data-shortcut-item-group="security">
             <span class="quality-item-icon" style="color: #83e8ac; background: rgba(131, 232, 172, 0.12); border-color: rgba(131, 232, 172, 0.3);"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_taskmgr">Ctrl + Shift + Esc (Task Manager)</div>
+              <div class="quality-item-title" data-i18n="deck.combo_taskmgr">Ctrl + Shift + Esc</div>
               <div class="quality-item-desc" data-i18n="deck.combo_taskmgr_desc">Bật ngay trình quản lý tác vụ &amp; tài nguyên Windows</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_x">
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_x" data-shortcut-item-group="security">
             <span class="quality-item-icon" style="color: #83e8ac; background: rgba(131, 232, 172, 0.12); border-color: rgba(131, 232, 172, 0.3);"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_x">Win + X (Menu Quản trị / Power User)</div>
+              <div class="quality-item-title" data-i18n="deck.combo_win_x">Win + X</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_x_desc">Mở menu phím tắt quản trị hệ thống, Device Manager, Terminal</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_v">
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_v" data-shortcut-item-group="security">
             <span class="quality-item-icon"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_v">Win + V (Lịch sử Clipboard)</div>
+              <div class="quality-item-title" data-i18n="deck.combo_win_v">Win + V</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_v_desc">Mở lịch sử sao chép bảng tạm máy trạm</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_shift_s">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg></span>
+
+          <!-- Sub-list: Điều hướng & Cửa sổ -->
+          <div class="quality-group-header" data-shortcut-section="windows" data-i18n="deck.group_win_nav">ĐIỀU HƯỚNG WINDOWS</div>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_shift_s" data-shortcut-item-group="windows">
+            <span class="quality-item-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3);"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_shift_s">Win + Shift + S (Chụp ảnh màn hình)</div>
+              <div class="quality-item-title" data-i18n="deck.combo_win_shift_s">Win + Shift + S</div>
               <div class="quality-item-desc" data-i18n="deck.combo_win_shift_s_desc">Kích hoạt công cụ cắt ảnh màn hình Windows Snipping Tool</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_i">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_d" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_i">Win + I (Cài đặt hệ thống)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_win_i_desc">Mở bảng điều khiển cài đặt Windows Settings</div>
+              <div class="quality-item-title" data-i18n="deck.combo_win_d">Win + D</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_win_d_desc">Thu nhỏ toàn bộ cửa sổ để hiện Desktop</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_a">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_a">Win + A (Trung tâm tác vụ)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_win_a_desc">Mở bảng thông báo và nút cài đặt nhanh Action Center</div>
-            </div>
-          </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_tab">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_tab">Win + Tab (Task View / Màn hình ảo)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_win_tab_desc">Xem tổng quan tất cả cửa sổ và desktop ảo</div>
-            </div>
-          </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_ctrl_d">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_ctrl_d">Win + Ctrl + D (Tạo màn hình ảo mới)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_win_ctrl_d_desc">Thêm màn hình Desktop ảo mới ngay lập tức</div>
-            </div>
-          </button>
-          <button type="button" class="quality-menu-item" data-system-combo="ctrl_w">
-            <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_ctrl_w">Ctrl + W (Đóng tab hiện tại)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_ctrl_w_desc">Đóng tab trình duyệt hoặc tệp tài liệu đang mở</div>
-            </div>
-          </button>
-          <button type="button" class="quality-menu-item" data-system-combo="ctrl_shift_t">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_ctrl_shift_t">Ctrl + Shift + T (Mở lại tab vừa đóng)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_ctrl_shift_t_desc">Khôi phục lại tab trình duyệt vừa bị đóng nhầm</div>
-            </div>
-          </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_d">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_d">Win + D (Hiện Desktop)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_win_d_desc">Thu nhỏ tất cả cửa sổ để xem màn hình chính</div>
-            </div>
-          </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_e">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_e">Win + E (File Explorer)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_win_e_desc">Mở trình duyệt quản lý tệp Windows Explorer</div>
-            </div>
-          </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win_r">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
-            <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win_r">Win + R (Hộp thoại Run)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_win_r_desc">Mở cửa sổ thực thi lệnh nhanh Windows</div>
-            </div>
-          </button>
-          <button type="button" class="quality-menu-item" data-system-combo="alttab">
+
+          <button type="button" class="quality-menu-item" data-system-combo="alttab" data-shortcut-item-group="windows">
             <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_alttab">Alt + Tab (Chuyển cửa sổ)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_alttab_desc">Chuyển qua lại giữa các ứng dụng đang mở</div>
+              <div class="quality-item-title" data-i18n="deck.combo_alttab">Alt + Tab</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_alttab_desc">Chuyển đổi qua lại giữa các ứng dụng đang mở</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="altf4">
-            <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></span>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_tab" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_altf4">Alt + F4 (Đóng cửa sổ)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_altf4_desc">Đóng ứng dụng hoặc cửa sổ hiện tại</div>
+              <div class="quality-item-title" data-i18n="deck.combo_win_tab">Win + Tab</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_win_tab_desc">Mở chế độ xem đa nhiệm Task View &amp; các màn hình ảo</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="win">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg></span>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_ctrl_d" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_win">Phím Windows (Start Menu)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_win_desc">Mở / Đóng menu Start máy trạm</div>
+              <div class="quality-item-title" data-i18n="deck.combo_win_ctrl_d">Win + Ctrl + D</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_win_ctrl_d_desc">Tạo một không gian màn hình ảo mới (Virtual Desktop)</div>
             </div>
           </button>
-          <button type="button" class="quality-menu-item" data-system-combo="esc">
-            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></span>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_e" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.combo_esc">Phím Escape (Esc)</div>
-              <div class="quality-item-desc" data-i18n="deck.combo_esc_desc">Hủy bỏ thao tác hoặc đóng menu context</div>
+              <div class="quality-item-title" data-i18n="deck.combo_win_e">Win + E</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_win_e_desc">Khởi động trình quản lý tệp tin File Explorer</div>
+            </div>
+          </button>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_r" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.combo_win_r">Win + R</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_win_r_desc">Mở cửa sổ thực thi lệnh nhanh Run dialog</div>
+            </div>
+          </button>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_i" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.combo_win_i">Win + I</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_win_i_desc">Khởi động bảng cài đặt cấu hình Windows Settings</div>
+            </div>
+          </button>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win_a" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.combo_win_a">Win + A</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_win_a_desc">Mở bảng điều khiển nhanh Quick Settings &amp; Action Center</div>
+            </div>
+          </button>
+
+          <button type="button" class="quality-menu-item" data-system-combo="altf4" data-shortcut-item-group="windows">
+            <span class="quality-item-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.combo_altf4">Alt + F4</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_altf4_desc">Đóng cửa sổ hoặc chương trình đang kích hoạt</div>
+            </div>
+          </button>
+
+          <button type="button" class="quality-menu-item" data-system-combo="ctrl_w" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.combo_ctrl_w">Ctrl + W</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_ctrl_w_desc">Đóng tab hoặc tài liệu hiện thời trên trình duyệt / app</div>
+            </div>
+          </button>
+
+          <button type="button" class="quality-menu-item" data-system-combo="ctrl_shift_t" data-shortcut-item-group="windows">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.combo_ctrl_shift_t">Ctrl + Shift + T</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_ctrl_shift_t_desc">Khôi phục lại tab vừa đóng gần nhất trên trình duyệt</div>
+            </div>
+          </button>
+
+          <!-- Sub-list: Phím chức năng -->
+          <div class="quality-group-header" data-shortcut-section="keys" data-i18n="deck.group_func_keys">PHÍM CHỨC NĂNG</div>
+
+          <button type="button" class="quality-menu-item" data-system-combo="win" data-shortcut-item-group="keys">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.combo_win">Phím Windows</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_win_desc">Bật / Tắt menu Start để tìm kiếm ứng dụng</div>
+            </div>
+          </button>
+
+          <button type="button" class="quality-menu-item" data-system-combo="esc" data-shortcut-item-group="keys">
+            <span class="quality-item-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>
+            <div class="quality-item-text">
+              <div class="quality-item-title" data-i18n="deck.combo_esc">Phím Escape</div>
+              <div class="quality-item-desc" data-i18n="deck.combo_esc_desc">Hủy thao tác hoặc đóng menu ngữ cảnh đang mở</div>
             </div>
           </button>
         </div>
@@ -3648,73 +3751,180 @@
 
   <!-- Remote Host Configurator Modal (Manage Host Basic & Admin Settings from Client) -->
   <div id="modalRemoteHostConfig" class="auth-container modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="remoteHostCfgTitle" style="z-index: 10003;">
-    <div class="instrument-card" style="max-width: 580px; width: 94vw; padding: 20px; text-align: left;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <div>
-          <h3 id="remoteHostCfgTitle" class="card-title brand-font" data-i18n="host_cfg.title">Cấu hình &amp; Quản trị Máy trạm từ xa</h3>
-          <p class="mono-font" style="margin: 2px 0 0 0; font-size: 0.7rem; color: var(--text-faint);" id="remoteHostCfgSub" data-i18n="host_cfg.subtitle">ĐỒNG BỘ TRỰC TIẾP VỚI MEIKOVA HOST AGENT</p>
+    <div class="instrument-card mobile-modal host-config-modal-card" style="max-width: 600px; width: 100%; max-height: calc(100dvh - 32px); overflow-y: auto; display: flex; flex-direction: column;">
+      
+      <!-- Modal Header -->
+      <div class="mobile-modal__head" style="margin-bottom: 12px; padding-bottom: 10px;">
+        <div class="mobile-modal__title-wrap">
+          <div class="dl-apps-icon-badge" aria-hidden="true" style="color: var(--accent); background: oklch(var(--acc) / 0.12); border-color: oklch(var(--acc) / 0.35);">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </div>
+          <div class="mobile-modal__headings">
+            <h2 id="remoteHostCfgTitle" class="card-title brand-font" data-i18n="host_cfg.title" style="margin: 0; font-size: 1.05rem;">Cấu hình &amp; Quản trị Máy trạm</h2>
+            <span id="remoteHostCfgSub" class="mobile-modal__subtitle mono-font">MEIKOVA RELAY // REMOTE HOST CONFIGURATION HUB</span>
+          </div>
         </div>
-        <button type="button" id="btnCloseRemoteHostConfig" class="btn-pill" style="padding: 6px 10px;">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="hostModalTelemetryChip" class="proto-status-pill checking mono-font" style="font-size: 10px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 5px;">
+            <span class="telemetry-dot pulse-neon" style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow);"></span>
+            <span id="hostModalTelemetryText">PULSE: --</span>
+          </span>
+          <button type="button" id="btnCloseRemoteHostConfig" class="mobile-modal__close" aria-label="Đóng" data-i18n-aria="modal.aria_close" title="Đóng" data-i18n-title="common.close">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
       </div>
 
-      <!-- Master Admin Privilege Lever Banner -->
-      <div class="host-cfg-admin-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 10px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); margin-bottom: 14px; gap: 10px;">
-        <div>
-          <div style="font-size: 0.85rem; font-weight: 700; color: #fbbf24;" data-i18n="host_cfg.admin_lever_title">Cần gạt Quyền Quản trị (Administrator / UAC)</div>
-          <div style="font-size: 0.72rem; color: var(--text-muted);" id="remoteHostAdminDesc" data-i18n="host_cfg.admin_lever_desc">Kích hoạt quyền Quản trị trên máy đích để mở khóa các chức năng can thiệp sâu.</div>
+      <!-- Master Admin Privilege Lever Card -->
+      <div class="host-admin-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 10px; background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.28); margin-bottom: 12px; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+          <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(245, 158, 11, 0.15); display: flex; align-items: center; justify-content: center; color: #fbbf24; flex-shrink: 0;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div style="min-width: 0;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: #fbbf24;" data-i18n="host_cfg.admin_lever_title">Quyền quản trị hệ thống</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.3;" id="remoteHostAdminDesc" data-i18n="host_cfg.admin_lever_desc">Kích hoạt quyền Quản trị trên máy đích để mở khóa nhóm chức năng can thiệp sâu.</div>
+          </div>
         </div>
-        <label class="ambient-toggle">
+        <label class="ambient-toggle" title="Bật/Tắt quyền Quản trị">
           <input type="checkbox" id="swRemoteHostAdmin">
           <span class="ambient-toggle__slider"></span>
         </label>
       </div>
 
-      <div class="host-cfg-sections" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        <!-- Group 1: Standard Host Settings -->
-        <div class="host-cfg-box" style="padding: 12px; border-radius: 10px; background: var(--ink-2); border: 1px solid var(--line);">
-          <div class="mono-font" style="font-size: 0.7rem; font-weight: 700; color: var(--accent); margin-bottom: 10px;" data-i18n="host_cfg.group_standard">NHÓM CẤU HÌNH CƠ BẢN</div>
-          <label class="dl-adv-check" style="margin-bottom: 8px;"><input type="checkbox" id="chkHostAutostart"> <span data-i18n="host_cfg.autostart">Tự khởi động cùng OS</span></label>
-          <label class="dl-adv-check" style="margin-bottom: 8px;"><input type="checkbox" id="chkHostAntiSleep" checked> <span data-i18n="host_cfg.anti_sleep">Chống Sleep (Anti-Sleep)</span></label>
-          <label class="dl-adv-check" style="margin-bottom: 8px;"><input type="checkbox" id="chkHostStealth"> <span data-i18n="host_cfg.stealth">Chế độ Tàng hình (Stealth)</span></label>
-          <label class="dl-adv-check" style="margin-bottom: 8px;"><input type="checkbox" id="chkHostAutoLock"> <span data-i18n="host_cfg.auto_lock">Tự khóa OS khi ngắt kết nối (Auto-Lock)</span></label>
-          <label class="dl-adv-check" style="margin-bottom: 8px;"><input type="checkbox" id="chkHostIdleSaver"> <span data-i18n="host_cfg.idle_saver">Tiết kiệm FPS khi nhàn rỗi &gt;15s (Idle Eco)</span></label>
-          <div style="margin-top: 8px;">
-            <label for="inpHostFpsLimit" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 4px;" data-i18n="host_cfg.fps_limit">Giới hạn FPS (0 = Không giới hạn)</label>
-            <input type="number" id="inpHostFpsLimit" class="instrument-input mono-font" min="0" max="1000" value="0" style="width: 100%; padding: 6px 8px; font-size: 0.78rem;">
-          </div>
-          <div style="margin-top: 8px;">
-            <label for="selHostStreamMode" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 4px;" data-i18n="host_cfg.stream_mode">Phương thức truyền hình (Stream Mode)</label>
-            <select id="selHostStreamMode" class="instrument-input mono-font" style="width: 100%; padding: 5px 8px; font-size: 0.75rem;">
-              <option value="adaptive_vfr" data-i18n="deck.stream_mode_vfr">Adaptive VFR</option>
-              <option value="continuous_cfr" data-i18n="deck.stream_mode_cfr">Continuous CFR</option>
-              <option value="low_latency_drop" data-i18n="deck.stream_mode_drop">Zero-Queue Drop</option>
-            </select>
-          </div>
-          <div style="margin-top: 8px;">
-            <label for="selHostColorFilter" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 4px;" data-i18n="host_cfg.color_filter">Bộ lọc hiển thị (Visual Filter)</label>
-            <select id="selHostColorFilter" class="instrument-input mono-font" style="width: 100%; padding: 5px 8px; font-size: 0.75rem;">
-              <option value="normal" data-i18n="deck.color_filter_normal">Standard</option>
-              <option value="crisp_text" data-i18n="deck.color_filter_crisp">Crisp Text</option>
-              <option value="night_shield" data-i18n="deck.color_filter_night">Night Shield</option>
-              <option value="high_contrast" data-i18n="deck.color_filter_contrast">High Contrast</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Group 2: Admin-Required Host Settings -->
-        <div class="host-cfg-box" id="remoteHostAdminSettingsGroup" style="padding: 12px; border-radius: 10px; background: var(--ink-2); border: 1px solid var(--line);">
-          <div class="mono-font" style="font-size: 0.7rem; font-weight: 700; color: #f59e0b; margin-bottom: 10px;" data-i18n="host_cfg.group_admin">NHÓM YÊU CẦU QUẢN TRỊ (ADMIN)</div>
-          <label class="dl-adv-check" style="margin-bottom: 8px;"><input type="checkbox" id="chkHostService247"> <span data-i18n="host_cfg.service_247">Dịch vụ chạy ngầm 24/7</span></label>
-          <label class="dl-adv-check" style="margin-bottom: 8px;"><input type="checkbox" id="chkHostBlockInput"> <span data-i18n="host_cfg.block_input">Chặn chuột &amp; bàn phím vật lý</span></label>
-          <label class="dl-adv-check" style="margin-bottom: 8px;"><input type="checkbox" id="chkHostCurtain"> <span data-i18n="host_cfg.curtain">Màn hình riêng tư (Curtain)</span></label>
-          <label class="dl-adv-check" style="margin-bottom: 6px;"><input type="checkbox" id="chkHostAutoWake"> <span data-i18n="host_cfg.auto_wakeup">Tự động thức dậy (BIOS RTC)</span></label>
-          <input type="time" id="inpHostWakeTime" class="instrument-input mono-font" value="07:00" style="width: 100%; padding: 5px 8px; font-size: 0.76rem;">
-        </div>
+      <!-- Segmented Navigation Pills (.seg) -->
+      <div class="seg host-cfg-seg" id="hostConfigTabsSeg" style="width: 100%; margin-bottom: 12px; height: 38px;">
+        <button type="button" class="on active" data-host-tab="power">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+          <span data-i18n="host_cfg.tab_power">Nguồn &amp; Tự động hóa</span>
+        </button>
+        <button type="button" data-host-tab="system">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span data-i18n="host_cfg.tab_system">Hệ thống &amp; Dịch vụ</span>
+        </button>
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
+      <!-- Tab Content Area (Scrollable Pane) -->
+      <div style="flex: 1; min-height: 0; overflow-y: auto; padding-right: 2px;">
+        
+        <!-- Tab 1: Nguồn & Tự động hóa (Power & Automation) -->
+        <div id="hostPanePower" class="host-pane">
+          <div class="host-cfg-row">
+            <div class="host-cfg-row__text">
+              <div class="host-cfg-row__title" data-i18n="host_cfg.anti_sleep">Chống tự động ngủ</div>
+              <div class="host-cfg-row__desc" data-i18n="host_cfg.anti_sleep_desc">Ngăn máy trạm rơi vào trạng thái ngủ khi đang kết nối từ xa.</div>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="chkHostAntiSleep">
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
+
+          <div class="host-cfg-row">
+            <div class="host-cfg-row__text">
+              <div class="host-cfg-row__title" data-i18n="host_cfg.idle_saver">Tiết kiệm năng lượng khi nhàn rỗi</div>
+              <div class="host-cfg-row__desc" data-i18n="host_cfg.idle_saver_desc">Tự động giảm tốc độ chụp hình xuống 5 FPS khi không có thao tác chuột hoặc phím.</div>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="chkHostIdleSaver">
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
+
+          <div class="host-cfg-row">
+            <div class="host-cfg-row__text">
+              <div class="host-cfg-row__title" data-i18n="host_cfg.image_clipboard">Đồng bộ hình ảnh khay nhớ tạm</div>
+              <div class="host-cfg-row__desc" data-i18n="host_cfg.image_clipboard_desc">Tự động truyền hình ảnh chụp màn hình và ảnh sao chép hai chiều giữa máy khách và máy trạm.</div>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="chkHostImageClipboard">
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
+
+          <div class="host-cfg-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.auto_wakeup">Đánh thức theo lịch hẹn BIOS</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.auto_wakeup_desc">Đặt lịch BIOS RTC tự động đánh thức máy tính theo giờ cài đặt (Yêu cầu quyền Quản trị).</div>
+              </div>
+              <label class="ambient-toggle">
+                <input type="checkbox" id="chkHostAutoWake">
+                <span class="ambient-toggle__slider"></span>
+              </label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.72rem; color: var(--text-muted);" data-i18n="host_cfg.wake_time_label">Giờ đánh thức:</span>
+              <input type="text" id="inpHostWakeTime" class="instrument-input mono-font" value="07:00" placeholder="HH:MM" style="width: 90px; padding: 4px 8px; font-size: 0.78rem; text-align: center;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Hệ thống & Dịch vụ (System & Services) -->
+        <div id="hostPaneSystem" class="host-pane hidden">
+          <div class="host-cfg-row">
+            <div class="host-cfg-row__text">
+              <div class="host-cfg-row__title" data-i18n="host_cfg.service_247">Dịch vụ hệ thống 24/7</div>
+              <div class="host-cfg-row__desc" data-i18n="host_cfg.service_247_desc">Cài đặt Host Agent dưới dạng Windows Service / Systemd daemon chạy nền 24/7 (Yêu cầu quyền Quản trị).</div>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="chkHostService247">
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
+
+          <div class="host-cfg-row">
+            <div class="host-cfg-row__text">
+              <div class="host-cfg-row__title" data-i18n="host_cfg.autostart">Tự khởi động cùng hệ thống</div>
+              <div class="host-cfg-row__desc" data-i18n="host_cfg.autostart_desc">Tự động khởi động máy trạm khi máy tính bật nguồn hoặc đăng nhập.</div>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="chkHostAutostart">
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
+
+          <div class="host-cfg-row">
+            <div class="host-cfg-row__text">
+              <div class="host-cfg-row__title" data-i18n="host_cfg.stealth">Chế độ chạy ẩn</div>
+              <div class="host-cfg-row__desc" data-i18n="host_cfg.stealth_desc">Ẩn biểu tượng khay hệ thống và thông báo để đảm bảo hoạt động kín đáo.</div>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="chkHostStealth">
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
+
+          <div class="host-cfg-row">
+            <div class="host-cfg-row__text">
+              <div class="host-cfg-row__title" data-i18n="host_cfg.dpi_aware">Tương thích màn hình High DPI</div>
+              <div class="host-cfg-row__desc" data-i18n="host_cfg.dpi_aware_desc">Tự động tối ưu độ phân giải và tỉ lệ thu phóng màn hình theo tỉ lệ DPI thực của máy trạm.</div>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="chkHostDpiAware">
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
+
+          <div class="host-cfg-row">
+            <div class="host-cfg-row__text">
+              <div class="host-cfg-row__title" data-i18n="host_cfg.auto_update">Tự động cập nhật không gián đoạn</div>
+              <div class="host-cfg-row__desc" data-i18n="host_cfg.auto_update_desc">Tự động kiểm tra và nâng cấp phiên bản Host Agent mới nhất trong nền.</div>
+            </div>
+            <label class="ambient-toggle">
+              <input type="checkbox" id="chkHostAutoUpdate">
+              <span class="ambient-toggle__slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="host-cfg-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);">
         <button type="button" id="btnCancelRemoteHostConfig" class="dialog-btn dialog-btn--secondary" data-i18n="common.cancel">Hủy</button>
         <button type="button" id="btnSaveRemoteHostConfig" class="dialog-btn dialog-btn--primary" data-i18n="host_cfg.btn_apply">Áp dụng cho Host</button>
       </div>
@@ -3752,13 +3962,13 @@
     </div>
   </div>
 
-  <script src="/js/i18n.js?v=1.4.2"></script>
-  <script src="/js/sync_engine.js?v=1.4.2"></script>
-  <script src="/js/app.js?v=1.4.2"></script>
+  <script src="/js/i18n.js?v=1.5.0"></script>
+  <script src="/js/sync_engine.js?v=1.5.0"></script>
+  <script src="/js/app.js?v=1.5.0"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=1.4.2').then((reg) => {
+        navigator.serviceWorker.register('/sw.js?v=1.5.0').then((reg) => {
           document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
               reg.update().catch(() => {});

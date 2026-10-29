@@ -571,3 +571,90 @@ class InputInjector:
         except Exception:
             return False
 
+    @classmethod
+    def is_admin(cls) -> bool:
+        """Checks if current process has Administrator privileges."""
+        if sys.platform != "win32":
+            return False
+        try:
+            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+        except Exception:
+            return False
+
+    @classmethod
+    def unstick_all_inputs(cls) -> int:
+        """Emergency Input Unstick: releases mouse buttons and all 256 virtual keycodes."""
+        released = 0
+        if user32:
+            try:
+                cls.mouse_up("left")
+                cls.mouse_up("right")
+                cls.mouse_up("middle")
+                released += 3
+                # Release all 256 virtual keycodes (range(1, 256))
+                for vk in range(1, 256):
+                    try:
+                        cls.key_up(vk)
+                        released += 1
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.error(f"Error during unstick_all_inputs: {e}")
+        return released
+
+    @classmethod
+    def unlock_workstation(cls, password: str) -> bool:
+        """Sends SAS / wakes lock screen, types password, and sends Enter to unlock Windows."""
+        if not user32:
+            return False
+        try:
+            # Auto-configure SoftwareSASGeneration = 3 in registry when Administrator
+            if cls.is_admin():
+                cls.configure_software_sas()
+
+            sas_sent = False
+            try:
+                sas_dll = ctypes.windll.LoadLibrary("sas.dll")
+                if hasattr(sas_dll, "SendSAS"):
+                    sas_dll.SendSAS(False)
+                    sas_sent = True
+            except Exception:
+                pass
+
+            if not sas_sent:
+                # Fallback: Press Space / Enter to dismiss lock clock screen
+                cls.key_down(0x20)
+                time.sleep(0.05)
+                cls.key_up(0x20)
+                time.sleep(0.2)
+                cls.key_down(0x0D)
+                time.sleep(0.05)
+                cls.key_up(0x0D)
+                time.sleep(0.2)
+
+            if password:
+                cls.type_text(password)
+                time.sleep(0.1)
+                cls.key_down(0x0D)
+                time.sleep(0.05)
+                cls.key_up(0x0D)
+            return True
+        except Exception as e:
+            logger.error(f"Error during unlock_workstation: {e}")
+            return False
+
+    @classmethod
+    def configure_software_sas(cls) -> bool:
+        """Sets SoftwareSASGeneration = 3 in HKLM if running with Administrator rights."""
+        if sys.platform != "win32":
+            return False
+        try:
+            import winreg
+            key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_SET_VALUE)
+            winreg.SetValueEx(key, "SoftwareSASGeneration", 0, winreg.REG_DWORD, 3)
+            winreg.CloseKey(key)
+            return True
+        except Exception:
+            return False
+

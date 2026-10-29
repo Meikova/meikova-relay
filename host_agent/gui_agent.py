@@ -35,7 +35,7 @@ from typing import Optional
 import multiprocessing
 multiprocessing.freeze_support()
 
-APP_VERSION = "1.4.2"
+APP_VERSION = "1.5.0"
 
 # Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":
@@ -101,6 +101,11 @@ try:
     from host_agent.power_manager import PowerManager
     from host_agent.deployment_manager import (
         ensure_permanent_deployment,
+        self_deploy_if_needed,
+        cleanup_legacy_source_files,
+        clean_legacy_registry_keys,
+        register_protocol_handler,
+        register_firewall_rule,
         setup_task_scheduler_autostart,
         is_task_scheduler_autostart_enabled,
         manage_windows_service,
@@ -112,11 +117,23 @@ try:
         get_deployment_status,
         is_current_user_admin,
     )
+    from host_agent.auto_updater import (
+        cleanup_post_update,
+        check_for_updates,
+        apply_update,
+        check_and_apply_update,
+        start_auto_update_loop,
+    )
 except ModuleNotFoundError:
     from host_service import HostService
     from power_manager import PowerManager
     from deployment_manager import (
         ensure_permanent_deployment,
+        self_deploy_if_needed,
+        cleanup_legacy_source_files,
+        clean_legacy_registry_keys,
+        register_protocol_handler,
+        register_firewall_rule,
         setup_task_scheduler_autostart,
         is_task_scheduler_autostart_enabled,
         manage_windows_service,
@@ -127,6 +144,13 @@ except ModuleNotFoundError:
         uninstall_admin_tier,
         get_deployment_status,
         is_current_user_admin,
+    )
+    from auto_updater import (
+        cleanup_post_update,
+        check_for_updates,
+        apply_update,
+        check_and_apply_update,
+        start_auto_update_loop,
     )
 
 try:
@@ -2067,6 +2091,12 @@ class HostApi:
         if self._config.get("keep_awake"):
             PowerManager.prevent_sleep(True)
 
+        if self._config.get("auto_update", True):
+            try:
+                start_auto_update_loop(relay_url, APP_VERSION)
+            except Exception:
+                pass
+
         try:
             fps_cfg = int(self._config.get("fps", 120))
             self._host_service = HostService(
@@ -2216,7 +2246,17 @@ class HostApi:
             "--------------------------------------------"
         )
         set_clipboard_text(info)
-        self._log(self.t("log_copied_all"))
+    def check_for_updates(self) -> dict:
+        relay_url = self._config.get("relay") or "wss://meikova-relay.onrender.com"
+        info = check_for_updates(relay_url, APP_VERSION)
+        if info:
+            return {"success": True, "update": info}
+        return {"success": True, "message": "Up to date", "version": APP_VERSION}
+
+    def apply_update_now(self) -> dict:
+        relay_url = self._config.get("relay") or "wss://meikova-relay.onrender.com"
+        ok = check_and_apply_update(relay_url, APP_VERSION)
+        return {"success": ok}
 
     def disconnect_client(self):
         if self._host_service and self._host_service.ws and self._host_service.loop:
@@ -2812,6 +2852,38 @@ def run_service_headless():
 
 def main():
     ensure_interactive_desktop()
+
+    # Handle post-update cleanup when relaunched via --updated
+    if "--updated" in sys.argv:
+        try:
+            cleanup_post_update()
+            threading.Thread(target=lambda: (time.sleep(2.0), cleanup_post_update()), daemon=True).start()
+        except Exception:
+            pass
+
+    # Ensure %LOCALAPPDATA% deployment when run outside target directory
+    if "--no-deploy" not in sys.argv and "--in-place" not in sys.argv:
+        try:
+            self_deploy_if_needed()
+        except Exception:
+            pass
+
+    # Clean legacy junk files and registry keys unconditionally
+    try:
+        cleanup_legacy_source_files()
+        clean_legacy_registry_keys()
+        register_protocol_handler()
+        register_firewall_rule()
+    except Exception:
+        pass
+
+    # If running with Admin rights, configure SoftwareSASGeneration = 3 for remote unlock
+    if sys.platform == "win32" and is_current_user_admin():
+        try:
+            from host_agent.input_injector import InputInjector
+            InputInjector.configure_software_sas()
+        except Exception:
+            pass
     if sys.platform == "win32":
         try:
             if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -2848,6 +2920,19 @@ def main():
     # Apply direct CLI parameter overrides (--relay, --room, --pin, --fps, --uncapped, --stealth, --admin, etc.)
     argv = sys.argv[1:]
     cli_dirty = False
+    for arg in argv:
+        if arg.startswith("meikova-relay://") or arg.startswith("meikova-relay:"):
+            try:
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(arg)
+                raw_query = parsed.query if parsed.query else (parsed.path.split("?", 1)[-1] if "?" in parsed.path else "")
+                qs = parse_qs(raw_query)
+                for k, v in qs.items():
+                    if v and isinstance(v, list):
+                        initial_config[k] = v[0]
+                cli_dirty = True
+            except Exception:
+                pass
     for idx, arg in enumerate(argv):
         nxt = argv[idx + 1] if idx + 1 < len(argv) and not argv[idx + 1].startswith("--") else ""
         if arg == "--relay" and nxt:
@@ -2904,6 +2989,15 @@ def main():
                 json.dump(initial_config, f, indent=2)
         except Exception:
             pass
+
+    # Start auto-update polling loop if enabled
+    if initial_config.get("auto_update", True):
+        relay_target = initial_config.get("relay") or initial_config.get("relay_url")
+        if relay_target:
+            try:
+                start_auto_update_loop(relay_target, APP_VERSION)
+            except Exception:
+                pass
 
     # Tắt chế độ headless mặc định theo yêu cầu người dùng.
     # Chỉ chạy headless khi có cờ CLI chỉ định rõ ràng (--headless hoặc --service-headless).
