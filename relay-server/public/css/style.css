@@ -5238,6 +5238,7 @@ input:-webkit-autofill:active {
 }
 
 .cockpit-seg {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
   background: var(--ink-0);
@@ -5245,27 +5246,50 @@ input:-webkit-autofill:active {
   border-radius: var(--round);
   padding: 3px;
   gap: 4px;
+  box-sizing: border-box;
 }
 
 .cockpit-seg button {
+  position: relative;
+  z-index: 2;
   border: none;
-  background: none;
+  background: transparent;
   color: var(--text-muted);
   padding: 7px 10px;
   font-size: 0.78rem;
   font-weight: 600;
   border-radius: var(--round);
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out);
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
 }
 
 .cockpit-seg button.on {
-  background: var(--accent);
   color: var(--on-accent);
+}
+
+.cockpit-seg:not(:has(.seg__ind)) button.on {
+  background: var(--accent);
   box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.cockpit-seg:has(.seg__ind) button.on {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.cockpit-seg .seg__ind {
+  position: absolute;
+  z-index: 1;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  border-radius: var(--round);
+  background: var(--accent);
+  box-shadow: 0 0 16px -2px var(--accent-glow);
+  pointer-events: none;
 }
 
 .cockpit-body {
@@ -6060,6 +6084,7 @@ input:-webkit-autofill:active {
 }
 
 .dl-tab-seg {
+  position: relative;
   display: flex;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--line);
@@ -6067,9 +6092,12 @@ input:-webkit-autofill:active {
   padding: 3px;
   width: 100%;
   max-width: 440px;
+  box-sizing: border-box;
 }
 
 .dl-tab-seg button {
+  position: relative;
+  z-index: 2;
   flex: 1;
   display: inline-flex;
   align-items: center;
@@ -6084,13 +6112,33 @@ input:-webkit-autofill:active {
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .dl-tab-seg button.on {
-  background: var(--accent);
   color: #070D17;
+}
+
+.dl-tab-seg:not(:has(.seg__ind)) button.on {
+  background: var(--accent);
   box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.dl-tab-seg:has(.seg__ind) button.on {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.dl-tab-seg .seg__ind {
+  position: absolute;
+  z-index: 1;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 16px -2px var(--accent-glow);
+  pointer-events: none;
 }
 
 .dl-role-hint {
@@ -8451,65 +8499,201 @@ body.is-desktop-app .desktop-titlebar {
   flex-shrink: 0;
   border: 1px solid oklch(var(--acc) / 0.25);
 }
+/* Cloudflare Quick Tunnel Ambient Modal (SSOT Law 1, 2, 21) */
+#modalTunnel .modal-card,
+#tunnelCard {
+  width: min(calc(100vw - 32px), 640px) !important;
+  max-width: min(calc(100vw - 32px), 640px) !important;
+  padding: 26px 30px !important;
+  border-radius: 16px !important;
+  background: var(--ink-1, #080C14) !important;
+  border: 1px solid oklch(var(--acc) / 0.28) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85), 0 0 32px -8px oklch(var(--acc) / 0.22) !important;
+}
+
+#modalTunnelTitle {
+  font-size: 1.18rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.tunnel-header-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: oklch(var(--acc) / 0.12);
+  border: 1px solid oklch(var(--acc) / 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 .tunnel-switch-card {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 14px 18px;
   margin-bottom: 16px;
 }
-.btn-tunnel-action {
-  padding: 8px 18px;
+
+.tunnel-status-text {
+  font-size: 0.92rem;
   font-weight: 600;
+  color: var(--text-normal, #fff);
+}
+
+.btn-tunnel-action {
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 0.88rem;
   border-radius: 9999px;
   border-color: var(--accent) !important;
   color: var(--accent) !important;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
+
 .btn-tunnel-action.is-running {
   border-color: rgba(239, 68, 68, 0.5) !important;
   color: #f87171 !important;
 }
+
 .tunnel-active-box {
-  background: rgba(34, 197, 94, 0.04);
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
+  background: oklch(var(--acc) / 0.05);
+  border: 1px solid oklch(var(--acc) / 0.28);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 0;
 }
+
 .tunnel-field-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  font-weight: 600;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
   color: var(--accent);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
 }
+
 .tunnel-url-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
+
 .tunnel-url-input {
   flex: 1;
   min-width: 0;
-  background: #090e16;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: #22c55e;
-  font-size: 0.82rem;
+  background: #060910;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 11px 16px;
+  color: var(--accent);
+  font-size: 0.92rem;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.02em;
   appearance: none;
   outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
+
 .tunnel-url-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), 0 0 12px -2px var(--accent-glow);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow);
 }
+
+.btn-copy-pill {
+  padding: 11px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tunnel-qr-row {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-top: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.tunnel-qr-box {
+  width: 136px;
+  height: 136px;
+  min-width: 136px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.tunnel-qr-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tunnel-qr-info {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.tunnel-qr-title {
+  color: var(--text-normal, #fff);
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.tunnel-qr-desc {
+  color: var(--text-muted, rgba(255, 255, 255, 0.65));
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 .tunnel-missing-box {
   background: rgba(245, 158, 11, 0.06);
   border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 14px 18px;
+}
+
+@media (max-width: 640px) {
+  #modalTunnel .modal-card,
+  #tunnelCard {
+    width: min(calc(100vw - 20px), 480px) !important;
+    max-width: min(calc(100vw - 20px), 480px) !important;
+    padding: 18px 16px !important;
+  }
+  .tunnel-qr-row {
+    flex-direction: column;
+    text-align: center;
+    gap: 14px;
+    padding: 14px;
+  }
+  .tunnel-qr-info {
+    text-align: center;
+  }
+  .tunnel-qr-box {
+    width: 110px;
+    height: 110px;
+    min-width: 110px;
+  }
 }
 
 @media (max-width: 1320px) {
@@ -9134,7 +9318,7 @@ main.hidden {
 }
 
 .remote-stage.deck-pinned-top.fit-mode .viewport-box {
-  padding-top: 48px;
+  padding-top: 0;
   box-sizing: border-box;
 }
 
@@ -10583,12 +10767,15 @@ main.hidden {
   }
 
   /* Compact Modals in Landscape (Keep proportional, 520px-560px wide) */
-  #modalTunnel > .instrument-card,
   #modalConfirmDialog > .instrument-card,
   #modalSendPassword > .instrument-card,
   #modalDeviceMeta > .instrument-card {
     width: min(calc(100vw - 24px), 540px) !important;
     max-width: min(calc(100vw - 24px), 540px) !important;
+  }
+  #modalTunnel > .instrument-card {
+    width: min(calc(100vw - 24px), 640px) !important;
+    max-width: min(calc(100vw - 24px), 640px) !important;
   }
 
   #quickConnectModal > .instrument-card,

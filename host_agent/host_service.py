@@ -51,7 +51,7 @@ except ImportError:
             raise RuntimeError("websockets package is required for live relay connections")
     websockets = _WebsocketsStub()
 
-APP_VERSION = "1.4.1"
+APP_VERSION = "1.4.2"
 
 # --- Resilient Network Infrastructure: DNS Bypass, Corporate Proxy, and Resilient SSL ---
 _ORIGINAL_GETADDRINFO = socket.getaddrinfo
@@ -237,6 +237,7 @@ class HostService:
         self.fps_limit: int = self.custom_fps_limit
         self.uncapped_fps: bool = bool(uncapped_fps or fps == 0)
         self.custom_resolution_lock: Optional[Tuple[int, int]] = None
+        self._resolution_lock = asyncio.Lock()
         self.fps = fps if fps != 25 else (120 if self._detect_url_is_lan(relay_url) else 60)
         if self.uncapped_fps:
             self.fps = max(self.fps, 240)
@@ -894,6 +895,11 @@ class HostService:
                 await asyncio.sleep(0)
                 continue
 
+            # Hybrid Sleep: Sleep OS thread for bulk duration, then spin asyncio.sleep(0) for <1ms precision
+            rem = next_deadline - time.perf_counter()
+            if rem > 0.002:
+                await asyncio.sleep(rem - 0.001)
+
             while self.running and self.has_active_client and not getattr(self, "uncapped_fps", False):
                 if self._fps_wake_event is not None and self._fps_wake_event.is_set():
                     self._fps_wake_event.clear()
@@ -948,9 +954,9 @@ class HostService:
                 transport = getattr(ws, "transport", None)
                 if transport and hasattr(transport, "get_write_buffer_size"):
                     # 1.5MB WAN buffer comfortably accommodates 2K (250-400KB) and 4K (450-850KB) frames without false stalls
-                    max_buf = (8 * 1024 * 1024) if is_lan else (1536 * 1024)
+                    max_buf = (384 * 1024) if is_lan else (384 * 1024)  # ponytail: 384KB cap — prevents 40-50 stale frames in TCP buffer
                     if transport.get_write_buffer_size() > max_buf:
-                        await asyncio.sleep(0)
+                        await asyncio.sleep(0.005)
                         continue
 
                 try:
@@ -994,7 +1000,7 @@ class HostService:
                     else:
                         is_input_burst = now_pc < getattr(self.capture, "_input_dirty_until", 0.0)
                         if is_lan:
-                            max_in_flight = 16
+                            max_in_flight = 2  # ponytail: was 16, reduced to prevent bufferbloat on LAN
                         elif s_mode in ("low_latency_drop", "zero_replay") or (s_mode in ("adaptive_vfr", "adaptive_hybrid") and is_input_burst):
                             max_in_flight = 2
                         elif s_mode in ("continuous_cfr", "youtube_smooth"):
@@ -1008,9 +1014,11 @@ class HostService:
                         if is_real_jpeg and self.frames_in_flight >= max_in_flight:
                             if (now_pc - getattr(self, "_last_ack_rx_time", 0.0)) < ack_expiry and self.ack_event is not None:
                                 self.ack_event.clear()
-                                wait_until = time.perf_counter() + min(0.004, rtt_sec * 0.10)
-                                while not self.ack_event.is_set() and time.perf_counter() < wait_until:
-                                    await asyncio.sleep(0)
+                                timeout = min(0.060, rtt_sec * 0.5)  # ponytail: non-blocking ACK wait, 0% idle CPU
+                                try:
+                                    await asyncio.wait_for(self.ack_event.wait(), timeout=timeout)
+                                except asyncio.TimeoutError:
+                                    pass
                                 self.frames_in_flight = max(0, max_in_flight - 1)
                                 while not self.frame_queue.empty():
                                     try:
@@ -1034,14 +1042,11 @@ class HostService:
                     else:
                         next_send_qpc += self.frame_interval
                         now_after = time.perf_counter()
-                        catchup = 0
-                        while now_after >= next_send_qpc and catchup < 32 and not getattr(self, "uncapped_fps", False):
-                            next_send_qpc += self.frame_interval
-                            catchup += 1
-                            await ws.send(MICRO_FRAME_REPEAT)
-                            now_after = time.perf_counter()
+                        # ponytail: removed MKR0 catch-up loop (was sending up to 32 stale micro-frames)
                         if now_after - next_send_qpc > max(0.08, self.frame_interval * 8.0):
                             next_send_qpc = now_after
+                        else:
+                            next_send_qpc = max(next_send_qpc, now_after)
 
                 if time.time() - last_heartbeat > 10:
                     try:
@@ -1241,10 +1246,23 @@ class HostService:
 
                     if client_count <= 0:
                         self.has_active_client = False
+                        self.frames_in_flight = 0
+                        if self.ack_event is not None and not self.ack_event.is_set():
+                            self.ack_event.set()
+                        if self.frame_queue is not None:
+                            while not self.frame_queue.empty():
+                                try:
+                                    self.frame_queue.get_nowait()
+                                except Exception:
+                                    break
                         self.audio_enabled = False
                         self.curtain_active_sessions.clear()
                         privacy_curtain.disable()
                         InputInjector.set_block_input(False)
+                        self.has_active_client = False
+                        self.frames_in_flight = 0
+                        if self.ack_event is not None and not self.ack_event.is_set():
+                            self.ack_event.set()
                         self.audio_capture.stop()
                         self.audio_playback.stop()
                         await self.tunnel_manager.close_all()
@@ -1582,6 +1600,7 @@ class HostService:
                     logger.info("[HostService] Received client request to install Virtual Audio Device (VB-CABLE).")
                     loop = asyncio.get_running_loop()
                     res = await loop.run_in_executor(None, download_and_install_vbcable)
+                    has_output = is_audio_output_available()
                     if res.get("success") and self.audio_enabled:
                         self.audio_capture.stop()
                         await asyncio.sleep(1)
@@ -1589,8 +1608,15 @@ class HostService:
                     await ws.send(json.dumps({
                         "type": "virtual_audio_install_result",
                         "success": res.get("success", False),
-                        "has_device": res.get("has_device", False),
+                        "has_device": has_output,
                         "message": res.get("message", "")
+                    }))
+                    await ws.send(json.dumps({
+                        "type": "audio_capabilities",
+                        "available": self.audio_capture.is_wasapi_available,
+                        "has_output_device": has_output,
+                        "sample_rate": self.audio_capture.sample_rate,
+                        "channels": self.audio_capture.channels
                     }))
                     continue
 
@@ -1620,44 +1646,46 @@ class HostService:
 
                 # Dynamic Screen Resolution Control (Headless Virtual Display & Multi-size switcher)
                 elif ev_type in ("set_screen_resolution", "set_virtual_resolution"):
-                    w = int(event.get("width", 0))
-                    h = int(event.get("height", 0))
-                    fps = int(event.get("fps", 120 if self.is_local_or_lan() else 60))
-                    if w <= 0 or h <= 0:
-                        self.capture.custom_virtual_resolution = None
-                        self.capture.monitors = self.capture.detect_monitors()
-                        self.capture.max_width = None
-                        nw, nh = self.capture.resolution
-                        # Lock to true physical native resolution so Quality Presets never downscale it to 1280x720
-                        self.custom_resolution_lock = (nw, nh)
-                        res = {"success": True, "message": f"Đã khôi phục độ phân giải gốc {nw}x{nh}"}
-                        w, h = nw, nh
-                    else:
-                        loop = asyncio.get_running_loop()
-                        res = await loop.run_in_executor(None, set_display_resolution, w, h, fps)
-                        self.custom_resolution_lock = (w, h)
-                        self.capture.set_custom_resolution(w, h, native_applied=bool(res.get("native", False)))
-                        self.capture.max_width = w
-                    self._force_full_frame = True
-                    self._last_sent_frame_obj_id = None
-                    await ws.send(json.dumps({
-                        "type": "screen_resolution_result",
-                        "success": res.get("success", True),
-                        "width": w,
-                        "height": h,
-                        "is_native": int(event.get("width", 0)) <= 0,
-                        "message": res.get("message", f"Đã áp dụng độ phân giải {w}x{h}")
-                    }))
-                    await ws.send(json.dumps({
-                        "type": "monitors_list",
-                        "monitors": self.capture.monitors,
-                        "active_id": self.capture.active_monitor_id,
-                        "is_headless": getattr(self.capture, "is_headless", False)
-                    }))
-                    initial_frame = await asyncio.to_thread(self.capture.capture_frame, True)
-                    if initial_frame:
-                        self._last_sent_frame_obj_id = id(initial_frame)
-                        await ws.send(initial_frame)
+                    async with self._resolution_lock:
+                        w = int(event.get("width", 0))
+                        h = int(event.get("height", 0))
+                        fps = int(event.get("fps", 120 if self.is_local_or_lan() else 60))
+                        if w <= 0 or h <= 0:
+                            self.capture.custom_virtual_resolution = None
+                            self.capture.monitors = self.capture.detect_monitors()
+                            self.capture.max_width = None
+                            nw, nh = self.capture.resolution
+                            # Lock to true physical native resolution so Quality Presets never downscale it to 1280x720
+                            self.custom_resolution_lock = (nw, nh)
+                            res = {"success": True, "message": f"Đã khôi phục độ phân giải gốc {nw}x{nh}"}
+                            w, h = nw, nh
+                        else:
+                            loop = asyncio.get_running_loop()
+                            res = await loop.run_in_executor(None, set_display_resolution, w, h, fps)
+                            self.custom_resolution_lock = (w, h)
+                            self.capture.set_custom_resolution(w, h, native_applied=bool(res.get("native", False)))
+                            self.capture.reset_capture_surface()  # ponytail: safely destroy stale DXGI/GDI surfaces
+                            self.capture.max_width = w
+                        self._force_full_frame = True
+                        self._last_sent_frame_obj_id = None
+                        await ws.send(json.dumps({
+                            "type": "screen_resolution_result",
+                            "success": res.get("success", True),
+                            "width": w,
+                            "height": h,
+                            "is_native": int(event.get("width", 0)) <= 0,
+                            "message": res.get("message", f"Đã áp dụng độ phân giải {w}x{h}")
+                        }))
+                        await ws.send(json.dumps({
+                            "type": "monitors_list",
+                            "monitors": self.capture.monitors,
+                            "active_id": self.capture.active_monitor_id,
+                            "is_headless": getattr(self.capture, "is_headless", False)
+                        }))
+                        initial_frame = await asyncio.to_thread(self.capture.capture_frame, True)
+                        if initial_frame:
+                            self._last_sent_frame_obj_id = id(initial_frame)
+                            await ws.send(initial_frame)
                     continue
 
                 # Query Virtual Devices Status (Cross-platform Display & Audio)
@@ -2280,14 +2308,17 @@ class HostService:
                         self.capture.notify_input_activity(0.35)
                 elif ev_type == "key_down":
                     InputInjector.key_down(event["vk"])
+                    self.frames_in_flight = 0  # ponytail: interactive fast-track unblocks frame queue on keypress
                     if hasattr(self.capture, "notify_input_activity"):
                         self.capture.notify_input_activity(0.50)
                 elif ev_type == "key_up":
                     InputInjector.key_up(event["vk"])
+                    self.frames_in_flight = 0
                     if hasattr(self.capture, "notify_input_activity"):
                         self.capture.notify_input_activity(0.50)
                 elif ev_type == "text_input":
                     InputInjector.type_unicode(event["text"])
+                    self.frames_in_flight = 0
                     if hasattr(self.capture, "notify_input_activity"):
                         self.capture.notify_input_activity(0.50)
                 elif ev_type == "block_input":
@@ -2497,6 +2528,10 @@ class HostService:
                         self.curtain_active_sessions.clear()
                         privacy_curtain.disable()
                         InputInjector.set_block_input(False)
+                        self.has_active_client = False
+                        self.frames_in_flight = 0
+                        if self.ack_event is not None and not self.ack_event.is_set():
+                            self.ack_event.set()
                     await self.tunnel_manager.close_all()
 
                 except (websockets.ConnectionClosed, ConnectionRefusedError, OSError, ssl.SSLError) as e:

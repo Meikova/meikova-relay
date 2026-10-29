@@ -870,6 +870,32 @@ class ScreenCapture:
                 pass
             self._tls.sct = None
 
+    def reset_capture_surface(self):
+        """Safely destroys stale capture contexts after resolution change.
+        Windows: destroy DXGI Desktop Duplication + GDI DIBSection.
+        Linux/macOS: mss is stateless, just clear geometry cache."""
+        # Windows: destroy thread-local DXGI instances
+        cam_map = getattr(self._tls, "dxcam_map", None)
+        if cam_map:
+            for cam in cam_map.values():
+                try:
+                    cam.close()
+                except Exception:
+                    pass
+            cam_map.clear()
+        # Clear GDI DIBSection cache (Windows)
+        if getattr(self, "_native_cap", None) is not None:
+            try:
+                self._native_cap.close()
+            except Exception:
+                pass
+            self._native_cap = None
+        # All platforms: invalidate geometry + frame cache
+        self._cached_geom = None
+        self._last_frame_hash = None
+        self._last_encoded_frame = None
+        self._last_encoded_seq = 0
+
     def _encode_bgra_fast(self, raw_bgra, width: int, height: int, effective_max_w: Optional[int]) -> Optional[bytes]:
         """
         Compresses raw BGRA/BGRX buffer to JPEG using fastest available backend:

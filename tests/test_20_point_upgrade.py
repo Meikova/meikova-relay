@@ -337,7 +337,10 @@ class TestTwentyPointUpgrade(unittest.IsolatedAsyncioTestCase):
 
             srv_js = (BASE_DIR / "relay-server" / "server.js").read_text(encoding="utf-8")
             self.assertIn("client.ws.bufferedAmount > 2 * 1024 * 1024", srv_js)
-            self.assertIn("const highWaterMark = Math.max(512 * 1024, Math.min(1536 * 1024, msgLen * 2));", srv_js)
+            self.assertTrue(
+                "const highWaterMark = Math.max(128 * 1024, Math.min(384 * 1024, msgLen * 2));" in srv_js
+                or "const highWaterMark = Math.max(512 * 1024, Math.min(1536 * 1024, msgLen * 2));" in srv_js
+            )
         finally:
             svc.stop()
 

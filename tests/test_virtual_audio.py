@@ -13,6 +13,15 @@ class TestVirtualAudio(unittest.TestCase):
         has_output = is_audio_output_available()
         self.assertIsInstance(has_output, bool)
 
+    def test_audio_output_returns_false_on_exception(self):
+        """Verify that any COM or driver exception in is_audio_output_available safely defaults to False (no ghost speakers)."""
+        from unittest.mock import patch
+        if sys.platform == "win32":
+            with patch("ctypes.windll.ole32.CoCreateInstance", side_effect=RuntimeError("Simulated COM fault")):
+                # Should return False when COM throws, NOT True
+                res = is_audio_output_available()
+                self.assertFalse(res)
+
     def test_audio_status_structure(self):
         """Tests cross-platform virtual audio status query."""
         st = get_virtual_audio_status()

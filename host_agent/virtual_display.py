@@ -35,6 +35,10 @@ AVAILABLE_RESOLUTIONS = [
     {"name": "Ultrawide (WQHD)", "width": 3440, "height": 1440, "aspect": "21:9", "badge": "UW2K"}
 ]
 
+# ponytail: Universal cooldown — prevents GPU TDR crash on rapid resolution changes (all OS)
+_last_res_change_time_ref = [0.0]  # mutable ref for testability
+_RES_COOLDOWN_SEC = 1.0
+
 def get_available_resolutions() -> List[Dict[str, Any]]:
     """Returns standard cross-platform supported resolutions."""
     return list(AVAILABLE_RESOLUTIONS)
@@ -256,6 +260,11 @@ def set_display_resolution(width: int, height: int, refresh_rate: int = 60) -> D
     height = int(height)
     refresh_rate = int(refresh_rate or 60)
 
+    # Universal Cooldown: reject if called within 1.0s of last successful change
+    now = time.monotonic()
+    if now - _last_res_change_time_ref[0] < _RES_COOLDOWN_SEC:
+        return {"success": False, "code": "RES_COOLDOWN", "message": "Resolution change cooldown active"}
+
     # 1. Windows
     if sys.platform == "win32":
         target_dir = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "MeikovaVirtualDisplay"
@@ -290,10 +299,12 @@ def set_display_resolution(width: int, height: int, refresh_rate: int = 60) -> D
                 ret = user32.ChangeDisplaySettingsW(buf, 0)
                 if ret == 0:
                     logger.info(f"[VirtualDisplay] Applied native display resolution {width}x{height} via Win32.")
+                    _last_res_change_time_ref[0] = time.monotonic()
                     return {"success": True, "width": width, "height": height, "native": True, "message": f"Đã áp dụng độ phân giải {width}x{height}"}
         except Exception as e:
             logger.debug(f"[VirtualDisplay] Win32 ChangeDisplaySettings error: {e}")
 
+        _last_res_change_time_ref[0] = time.monotonic()
         return {
             "success": True,
             "width": width,
@@ -318,6 +329,7 @@ def set_display_resolution(width: int, height: int, refresh_rate: int = 60) -> D
                 r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
                 if r.returncode == 0:
                     logger.info(f"[VirtualDisplay] Linux xrandr applied {width}x{height} on {out_name}")
+                    _last_res_change_time_ref[0] = time.monotonic()
                     return {"success": True, "width": width, "height": height, "native": True, "message": f"Đã áp dụng {width}x{height} trên {out_name}"}
 
             subprocess.run(["xrandr", "-s", f"{width}x{height}"], capture_output=True, timeout=3)
@@ -325,6 +337,7 @@ def set_display_resolution(width: int, height: int, refresh_rate: int = 60) -> D
         except Exception as e:
             logger.warning(f"[VirtualDisplay] Linux xrandr error: {e}")
 
+        _last_res_change_time_ref[0] = time.monotonic()
         return {
             "success": True,
             "width": width,
@@ -340,6 +353,7 @@ def set_display_resolution(width: int, height: int, refresh_rate: int = 60) -> D
                 subprocess.run(["displayplacer", f"res:{width}x{height}"], capture_output=True, timeout=4)
             except Exception:
                 pass
+        _last_res_change_time_ref[0] = time.monotonic()
         return {
             "success": True,
             "width": width,
@@ -348,6 +362,7 @@ def set_display_resolution(width: int, height: int, refresh_rate: int = 60) -> D
             "message": f"Đã cấu hình phân giải hiển thị {width}x{height} (macOS)"
         }
 
+    _last_res_change_time_ref[0] = time.monotonic()
     return {"success": True, "width": width, "height": height, "virtual_canvas": True, "message": f"Đã áp dụng phân giải {width}x{height}"}
 
 if __name__ == "__main__":

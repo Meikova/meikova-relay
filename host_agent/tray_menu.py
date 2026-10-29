@@ -21,7 +21,7 @@ from typing import Optional, Dict, Any, Callable
 
 current_dir = Path(__file__).resolve().parent
 
-APP_VERSION = "1.4.1"
+APP_VERSION = "1.4.2"
 
 try:
     from PIL import Image, ImageDraw
@@ -527,7 +527,7 @@ def show_custom_tk_tray_popup(api: Any, on_restore: Callable, on_exit: Callable,
 def build_tray_menu(api, on_restore, on_exit):
     """
     Builds dynamic Meikova Harvest-style tray menu:
-    - Header: Meikova Relay // v1.4.1 (Logo icon)
+    - Header: Meikova Relay // v1.4.2 (Logo icon)
     - Status: Room ID & Online/Offline (Status beacon)
     - Separator
     - Mở Meikova Relay (Window icon)
@@ -624,10 +624,12 @@ def build_tray_menu(api, on_restore, on_exit):
                     chat_win.show()
             _dispatch_to_ui(api, _act)
 
-        def _t(k):
+        def _t(k, default_val=""):
             if hasattr(api, "t"):
-                return api.t(k)
-            return k
+                val = api.t(k)
+                if val and val != k:
+                    return val
+            return default_val or k
 
         header_ver = getattr(api, "app_version", None) or getattr(api, "APP_VERSION", None) or APP_VERSION
         return (

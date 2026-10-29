@@ -2433,8 +2433,8 @@ wss.on('connection', (ws, req) => {
 
               // Dynamic buffer ceiling supporting FHD (100KB), 2K (300KB), and 4K (600-850KB) frames:
               // allow at least 2 full frames of the current frame size (min 512KB, up to 1.5MB) in transit before slotting latestPendingFrame!
-              const highWaterMark = Math.max(512 * 1024, Math.min(1536 * 1024, msgLen * 2));
-              const lowWaterMark = Math.max(256 * 1024, Math.floor(highWaterMark * 0.5));
+              const highWaterMark = Math.max(128 * 1024, Math.min(384 * 1024, msgLen * 2));  // ponytail: was 1.5MB, reduced to 384KB max to prevent bufferbloat
+              const lowWaterMark = Math.max(64 * 1024, Math.floor(highWaterMark * 0.5));  // ponytail: reduced proportionally
               if (client.ws.bufferedAmount > highWaterMark) {
                 client.latestPendingFrame = message;
                 if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {

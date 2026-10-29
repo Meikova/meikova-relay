@@ -30,6 +30,13 @@ def is_audio_output_available() -> bool:
             from ctypes import wintypes
             import uuid
 
+            # 1. Fast check via WinMM: returns 0 if no waveform audio output device exists
+            try:
+                if ctypes.windll.winmm.waveOutGetNumDevs() == 0:
+                    return False
+            except Exception:
+                pass
+
             ole32 = ctypes.windll.ole32
             ole32.CoInitialize(None)
 
@@ -56,7 +63,7 @@ def is_audio_output_available() -> bool:
 
             p_enum = ctypes.c_void_p()
             hr = ole32.CoCreateInstance(ctypes.byref(clsid_enum), None, 1, ctypes.byref(iid_enum), ctypes.byref(p_enum))
-            if hr != 0:
+            if hr != 0 or not p_enum.value:
                 ole32.CoUninitialize()
                 return False
 
@@ -65,27 +72,32 @@ def is_audio_output_available() -> bool:
                 fn = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, *argtypes)(vt[0][idx])
                 return fn(ptr, *args)
 
-            # 1. Try GetDefaultAudioEndpoint (eRender=0, eConsole=0)
+            # 2. Try GetDefaultAudioEndpoint (eRender=0, eConsole=0)
             p_dev = ctypes.c_void_p()
             hr_def = v_call(p_enum, 4, [ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p)], 0, 0, ctypes.byref(p_dev))
             if hr_def == 0 and p_dev.value:
+                v_call(p_dev, 2, [])
+                v_call(p_enum, 2, [])
                 ole32.CoUninitialize()
                 return True
 
-            # 2. Try EnumAudioEndpoints (eRender=0, DEVICE_STATE_ACTIVE=1)
+            # 3. Try EnumAudioEndpoints (eRender=0, DEVICE_STATE_ACTIVE=1)
             p_col = ctypes.c_void_p()
             hr_enum = v_call(p_enum, 3, [ctypes.c_int, ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p)], 0, 1, ctypes.byref(p_col))
             if hr_enum == 0 and p_col.value:
                 count = wintypes.UINT()
                 v_call(p_col, 3, [ctypes.POINTER(wintypes.UINT)], ctypes.byref(count))
+                v_call(p_col, 2, [])
+                v_call(p_enum, 2, [])
                 ole32.CoUninitialize()
                 return count.value > 0
 
+            v_call(p_enum, 2, [])
             ole32.CoUninitialize()
             return False
         except Exception as e:
             logger.warning(f"[VirtualAudio] Audio check exception on Windows: {e}")
-            return True
+            return False
 
     elif sys.platform.startswith("linux"):
         try:
@@ -98,7 +110,7 @@ def is_audio_output_available() -> bool:
         if cards_file.exists():
             content = cards_file.read_text(encoding="utf-8", errors="ignore").strip()
             return "--- no soundcards ---" not in content and bool(content)
-        return True
+        return False
 
     elif sys.platform == "darwin":
         try:
@@ -107,9 +119,9 @@ def is_audio_output_available() -> bool:
                 return True
         except Exception:
             pass
-        return True
+        return False
 
-    return True
+    return False
 
 def set_default_audio_playback_device(device_keyword: str = "CABLE") -> bool:
     """Activates audio device matching keyword as Windows Default Playback Device."""
@@ -259,7 +271,7 @@ def get_virtual_audio_status() -> Dict[str, Any]:
                         with winreg.OpenKey(root, guid + r"\Properties") as prop_key:
                             for j in range(winreg.QueryInfoKey(prop_key)[1]):
                                 _, val, _ = winreg.EnumValue(prop_key, j)
-                                if isinstance(val, str) and ("cable" in val.lower() or "vb-audio" in val.lower()):
+                                if isinstance(val, str) and any(k in val.lower() for k in ("cable", "vb-audio", "virtual audio", "voicemeeter", "virtual speaker")):
                                     is_virtual_installed = True
                                     driver_name = val
                                     break
@@ -269,6 +281,16 @@ def get_virtual_audio_status() -> Dict[str, Any]:
                         break
         except Exception:
             pass
+
+        # Fallback check driver service registration
+        if not is_virtual_installed:
+            try:
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\vbaudio_cable64_win7"):
+                    is_virtual_installed = True
+                    driver_name = "VB-Audio Virtual Cable (vbaudio_cable64)"
+            except Exception:
+                pass
     elif sys.platform.startswith("linux"):
         try:
             res = subprocess.run(["pactl", "list", "sinks", "short"], capture_output=True, text=True, timeout=2)
@@ -323,12 +345,42 @@ def download_and_install_vbcable() -> Dict[str, Any]:
                 return {"success": False, "message": f"Không tìm thấy tệp cài đặt: {installer_exe.name}"}
 
             logger.info(f"[VirtualAudio] Running silent driver install: {installer_exe} -i -h...")
-            cmd = f'Start-Process -FilePath "{installer_exe}" -ArgumentList "-i -h" -Wait -Verb RunAs'
-            proc = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd],
-                                  capture_output=True, text=True, timeout=60)
+            def _is_admin():
+                try:
+                    import ctypes
+                    return bool(ctypes.windll.shell32.IsUserAnAdmin())
+                except Exception:
+                    return False
 
-            time.sleep(3)
-            active = is_audio_output_available()
+            if _is_admin():
+                logger.info("[VirtualAudio] Running installer directly with current Administrator privileges...")
+                subprocess.run([str(installer_exe), "-i", "-h"], capture_output=True, text=True, timeout=60)
+            else:
+                logger.info("[VirtualAudio] Spawning elevated installer via PowerShell RunAs...")
+                cmd = f'Start-Process -FilePath "{installer_exe}" -ArgumentList "-i -h" -Wait -Verb RunAs'
+                subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd],
+                               capture_output=True, text=True, timeout=60)
+
+            # Wait and poll for Windows MMDevice registration
+            active = False
+            for attempt in range(6):
+                time.sleep(1.0)
+                active = is_audio_output_available()
+                if active:
+                    break
+
+            # If still not detected and admin, kick Windows Audio Service to force endpoint rescan
+            if not active and _is_admin():
+                try:
+                    logger.info("[VirtualAudio] Restarting Windows Audio Service (audiosrv) to rescan endpoints...")
+                    subprocess.run(["net", "stop", "audiosrv", "/y"], capture_output=True, timeout=10)
+                    time.sleep(1)
+                    subprocess.run(["net", "start", "audiosrv"], capture_output=True, timeout=10)
+                    time.sleep(2)
+                    active = is_audio_output_available()
+                except Exception as e:
+                    logger.warning(f"[VirtualAudio] audiosrv restart failed: {e}")
+
             logger.info(f"[VirtualAudio] Driver installation finished. Audio output active: {active}")
 
             # Auto-activate VB-CABLE as Default Playback Device in Windows if not already selected
@@ -337,11 +389,18 @@ def download_and_install_vbcable() -> Dict[str, Any]:
                 logger.info("[VirtualAudio] Successfully ensured VB-CABLE is default playback device.")
             active = is_audio_output_available()
 
-            return {
-                "success": True,
-                "has_device": active,
-                "message": "Đã cài đặt thành công Loa ảo (VB-Audio Virtual Cable). Windows đã sẵn sàng truyền âm thanh."
-            }
+            if active:
+                return {
+                    "success": True,
+                    "has_device": True,
+                    "message": "Đã cài đặt thành công Loa ảo (VB-Audio Virtual Cable). Windows đã sẵn sàng truyền âm thanh."
+                }
+            else:
+                return {
+                    "success": False,
+                    "has_device": False,
+                    "message": "Đã cài đặt driver nhưng Windows chưa kích hoạt thiết bị âm thanh. Vui lòng kiểm tra quyền Administrator hoặc khởi động lại máy."
+                }
         except Exception as e:
             logger.error(f"[VirtualAudio] Windows installation failed: {e}")
             return {"success": False, "message": f"Lỗi cài đặt Loa ảo Windows: {str(e)}"}

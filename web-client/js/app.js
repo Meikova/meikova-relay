@@ -3,7 +3,7 @@
   'use strict';
   // PWA Cache Storage Purge on Version Bump
   try {
-    const PWA_VER = '1.4.1';
+    const PWA_VER = '1.4.2';
     const lastPwaVer = localStorage.getItem('meikova_pwa_ver');
     if (lastPwaVer && lastPwaVer !== PWA_VER && 'caches' in window) {
       localStorage.setItem('meikova_pwa_ver', PWA_VER);
@@ -2364,12 +2364,14 @@
 
     // 1. Mode Tab Switching
     if (tabInstant && tabUnattended && formInstant && paneUnattended) {
+      const cockpitSeg = tabInstant.closest('.seg');
       tabInstant.onclick = () => {
         tabInstant.classList.add('on');
         tabUnattended.classList.remove('on');
         formInstant.classList.remove('hidden');
         paneUnattended.classList.add('hidden');
         inputRoom?.focus();
+        if (cockpitSeg) placeIndicator(cockpitSeg);
       };
 
       tabUnattended.onclick = () => {
@@ -2377,7 +2379,13 @@
         tabInstant.classList.remove('on');
         paneUnattended.classList.remove('hidden');
         formInstant.classList.add('hidden');
+        if (cockpitSeg) placeIndicator(cockpitSeg);
       };
+
+      if (cockpitSeg) {
+        requestAnimationFrame(() => placeIndicator(cockpitSeg));
+        setTimeout(() => placeIndicator(cockpitSeg), 80);
+      }
     }
 
     // 2. Demo Room ID Auto-fill
@@ -3774,7 +3782,7 @@
 
     try {
       ws = new WebSocket(relayUrl);
-      ws.binaryType = 'blob';
+      ws.binaryType = 'arraybuffer';
       ws.onerror = (err) => {
         console.warn('[Client WS Error]:', err);
       };
@@ -3808,7 +3816,7 @@
 
     ws.onmessage = async (event) => {
       // 1. Binary = Video frame
-      if (event.data instanceof Blob) {
+      if (event.data instanceof Blob || event.data instanceof ArrayBuffer) {
         handleIncomingFrame(event.data);
         return;
       }
@@ -4187,12 +4195,22 @@
             showToast(msg.enabled ? 'Đã bật truyền âm thanh từ máy trạm' : 'Đã tắt truyền âm thanh', msg.enabled ? 'success' : 'info');
           }
         } else if (msg.type === 'virtual_audio_install_result') {
-          if (msg.success) {
+          if (msg.success || msg.has_device) {
+            hostHasAudioOutput = true;
+            if (vdAudioBadge) {
+              vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_active') : 'SẴN SÀNG';
+              vdAudioBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+              vdAudioBadge.style.color = '#22c55e';
+              btnInstallVAudio?.classList.add('hidden');
+            }
             showToast(msg.message || 'Đã cài đặt Loa Ảo thành công! Đang truyền âm thanh.', 'success');
+            toggleAudioStream(true);
           } else {
             showToast(msg.message || 'Cài đặt Loa Ảo thất bại.', 'error');
           }
         } else if (msg.type === 'screen_resolution_result') {
+          isResolutionSwitching = false;
+          if (resolutionSwitchTimeout) { clearTimeout(resolutionSwitchTimeout); resolutionSwitchTimeout = null; }
           if (msg.success) {
             showToast(t('toast.resolution_changed', { res: `${msg.width}x${msg.height}` }), 'success');
             if (isNativeResolutionSelected) {
@@ -4220,17 +4238,28 @@
           updateMicUi(msg.enabled);
         } else if (msg.type === 'audio_capabilities') {
           console.log('[MeikovaRelay] Host audio capabilities:', msg);
+          hostHasAudioOutput = (msg.has_output_device !== false);
           if (vdAudioBadge) {
             if (msg.has_output_device === false) {
               vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_missing') : 'CHƯA CÓ LOA';
               vdAudioBadge.style.background = 'rgba(239, 68, 68, 0.15)';
               vdAudioBadge.style.color = '#ef4444';
               btnInstallVAudio?.classList.remove('hidden');
+              if (btnToggleAudio) {
+                btnToggleAudio.title = ((typeof t === 'function') ? t('virtual.audio_missing') : 'Máy trạm chưa có loa ngoài') + ' (Click để cài đặt Loa Ảo)';
+              }
             } else {
               vdAudioBadge.textContent = (typeof t === 'function') ? t('virtual.audio_active') : 'SẴN SÀNG';
               vdAudioBadge.style.background = 'rgba(34, 197, 94, 0.15)';
               vdAudioBadge.style.color = '#22c55e';
               btnInstallVAudio?.classList.add('hidden');
+              if (btnToggleAudio) {
+                btnToggleAudio.title = isAudioStreaming ? t('deck.audio_mute_title') : t('deck.audio_unmute_title');
+              }
+              if (!isAudioStreaming && !hasAutoEnabledAudio) {
+                hasAutoEnabledAudio = true;
+                toggleAudioStream(true);
+              }
             }
           }
         } else if (msg.type === 'block_input_response') {
@@ -4456,6 +4485,8 @@
     if (typeof updateRemoteSessionTabs === 'function') {
       updateRemoteSessionTabs();
     }
+    hasAutoEnabledAudio = false;
+    hostHasAudioOutput = true;
     updateAudioStreamUi(false);
     stopMicStream();
     if (audioContext && audioContext.state !== 'closed') {
@@ -4547,9 +4578,9 @@
       }
       return;
     }
-    const topReserved = (typeof currentDeckMode !== 'undefined' && currentDeckMode === 'top-pinned') ? 48 : 0;
+    const topReserved = 0; // Overlay deck directly on top of screen without shrinking viewport
     const containerW = remoteSection.clientWidth;
-    const containerH = Math.max(100, remoteSection.clientHeight - topReserved);
+    const containerH = Math.max(100, remoteSection.clientHeight);
     if (!containerW || !containerH || !hostResolution.width || !hostResolution.height) return;
 
     const scaleFactor = Math.min(containerW / hostResolution.width, containerH / hostResolution.height);
@@ -4570,6 +4601,8 @@
 
   let userSelectedResolutionLabel = null;
   let isNativeResolutionSelected = false;
+  let isResolutionSwitching = false;
+  let resolutionSwitchTimeout = null;
 
   function updateHostResolution(w, h, fromStreamFrame = false) {
     hostResolution.width = w;
@@ -4803,11 +4836,12 @@
     }
   }
 
-  function handleIncomingFrame(blob) {
+  function handleIncomingFrame(data) {
     const now = performance.now();
+    const frameSize = data instanceof ArrayBuffer ? data.byteLength : (data && data.size ? data.size : 0);
 
     // Fast-Path for 4-byte MKR0 cached static frame tick: zero network congestion & zero decode CPU!
-    if (blob && blob.size === 4) {
+    if (frameSize === 4) {
       lastAcceptedFrameTickTime = now;
       recordRenderedFrameTick();
       return;
@@ -4825,7 +4859,7 @@
         try { ws.send(JSON.stringify({ type: 'frame_ack', ts: Date.now() })); } catch (_) {}
       }
     }
-    pendingFrameBlob = blob;
+    pendingFrameBlob = data instanceof ArrayBuffer ? new Blob([data], { type: 'image/jpeg' }) : data;
 
     if (!isFrameRendering) {
       isFrameRendering = true;
@@ -6268,7 +6302,7 @@
     }
 
     const now = performance.now();
-    if (now - lastMove < 25) return;
+    if (now - lastMove < 12) return; // ponytail: 83Hz mouse sampling for smooth tracking
     lastMove = now;
 
     ws.send(JSON.stringify({
@@ -6595,6 +6629,8 @@
 
   // --- LIVE AUDIO STREAMING ENGINE (WASAPI LOOPBACK -> WEB AUDIO) ---
   let isAudioStreaming = false;
+  let hostHasAudioOutput = true;
+  let hasAutoEnabledAudio = false;
   let audioContext = null;
   let nextAudioScheduledTime = 0;
 
@@ -6603,16 +6639,23 @@
       audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
     }
     if (audioContext.state === 'suspended') {
-      audioContext.resume();
+      audioContext.resume().catch(() => {});
     }
     return audioContext;
   }
 
   function playPcmAudioChunk(pcm16Bytes, sampleRate = 48000, channels = 2) {
     const ctx = initAudioContext();
-    if (!ctx || ctx.state !== 'running') return;
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
 
-    const int16Array = new Int16Array(pcm16Bytes);
+    const byteLen = pcm16Bytes.byteLength || (pcm16Bytes.buffer ? pcm16Bytes.buffer.byteLength : 0);
+    const safeLen = byteLen - (byteLen % 2);
+    if (safeLen <= 0) return;
+    const buffer = (pcm16Bytes instanceof ArrayBuffer) ? pcm16Bytes : pcm16Bytes.buffer;
+    const int16Array = new Int16Array(buffer, 0, safeLen / 2);
     const numFrames = Math.floor(int16Array.length / channels);
     if (numFrames <= 0) return;
 
@@ -6630,10 +6673,8 @@
     source.connect(ctx.destination);
 
     const now = ctx.currentTime;
-    if (nextAudioScheduledTime < now) {
+    if (nextAudioScheduledTime < now || nextAudioScheduledTime > now + 0.3) {
       nextAudioScheduledTime = now + 0.025; // 25ms jitter buffer
-    } else if (nextAudioScheduledTime > now + 0.25) {
-      nextAudioScheduledTime = now + 0.05;
     }
 
     source.start(nextAudioScheduledTime);
@@ -6646,6 +6687,23 @@
       return;
     }
     const targetState = (enable !== undefined) ? enable : !isAudioStreaming;
+
+    // Headless / No physical speaker check
+    if (targetState && !hostHasAudioOutput) {
+      showConfirmModal({
+        title: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.no_speaker_title') : 'Máy Trạm Chưa Có Loa Ngoài',
+        message: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.no_speaker_desc') : 'Máy trạm hiện không cắm loa ngoài hoặc tai nghe. Bạn có muốn máy trạm tự động cài đặt Loa Ảo (Virtual Audio Cable) để truyền âm thanh về máy này không?',
+        confirmText: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.install_btn') : 'Cài Đặt Loa Ảo',
+        cancelText: (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('audio.dismiss_btn') : 'Để sau'
+      }).then(confirmed => {
+        if (confirmed) {
+          showToast(t('toast.installing_vb_audio') || 'Đang cài đặt Loa Ảo trên máy trạm...', 'info');
+          ws.send(JSON.stringify({ type: 'install_virtual_audio' }));
+        }
+      });
+      return;
+    }
+
     if (targetState) {
       initAudioContext();
     }
@@ -6656,12 +6714,16 @@
   }
 
   function updateAudioStreamUi(enabled) {
+    const prev = isAudioStreaming;
     isAudioStreaming = enabled;
     if (btnToggleAudio) {
       btnToggleAudio.classList.toggle('btn-active', isAudioStreaming);
       audioSvgMuted?.classList.toggle('hidden', isAudioStreaming);
       audioSvgPlaying?.classList.toggle('hidden', !isAudioStreaming);
       btnToggleAudio.title = isAudioStreaming ? t('deck.audio_mute_title') : t('deck.audio_unmute_title');
+    }
+    if (prev !== enabled) {
+      showToast(enabled ? t('toast.audio_started') : t('toast.audio_stopped'), 'info');
     }
   }
 
@@ -7794,6 +7856,7 @@
   function mapResolutionToTierTag(w, h, explicitLabel) {
     if (explicitLabel) {
       const norm = String(explicitLabel).trim().toUpperCase();
+      if (norm === 'GỐC' || norm === 'NATIVE' || norm.includes('GỐC') || norm.includes('NATIVE')) return (typeof t === 'function' ? t('deck.res_native') : null) || 'GỐC';
       if (norm === '1080P') return 'FHD';
       if (norm === '720P') return 'HD';
       if (norm === '900P') return 'HD+';
@@ -7801,7 +7864,7 @@
       if (norm === '2160P') return '4K';
       return explicitLabel;
     }
-    if (!w && !h) return t('deck.res_native') || 'GỐC';
+    if (!w && !h) return (typeof t === 'function' ? t('deck.res_native') : null) || 'GỐC';
     if (w >= 3840 || h >= 2160) return '4K';
     if (w >= 3440 && h >= 1440) return 'UW2K';
     if (w >= 2560 && h >= 1440) return '2K';
@@ -7814,7 +7877,7 @@
   }
 
   function updateResolutionUi(w, h, label) {
-    const isNative = isNativeResolutionSelected || (w === 0 && h === 0) || label === 'GỐC';
+    const isNative = isNativeResolutionSelected || (w === 0 && h === 0) || label === 'GỐC' || label === 'NATIVE' || String(label).toUpperCase().includes('GỐC') || String(label).toUpperCase().includes('NATIVE');
     if (resolutionCurrentLabel) {
       resolutionCurrentLabel.textContent = isNative ? (t('deck.res_native') || 'GỐC') : mapResolutionToTierTag(w, h, label);
     }
@@ -7867,6 +7930,7 @@
 
   document.querySelectorAll('#resolutionMenuList .quality-menu-item').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (isResolutionSwitching) return; // ponytail: debounce rapid resolution clicks
       const w = parseInt(btn.dataset.resW, 10);
       const h = parseInt(btn.dataset.resH, 10);
       const badgeEl = btn.querySelector('.quality-item-badge');
@@ -7883,6 +7947,9 @@
         width: w,
         height: h
       }));
+      isResolutionSwitching = true;
+      if (resolutionSwitchTimeout) clearTimeout(resolutionSwitchTimeout);
+      resolutionSwitchTimeout = setTimeout(() => { isResolutionSwitching = false; resolutionSwitchTimeout = null; }, 1800);
       resolutionMenuDropdown?.classList.add('hidden');
       btnResolutionMenu?.classList.remove('btn-active');
       updateResolutionUi(w, h, label);
@@ -10702,6 +10769,11 @@
     const openDownloadModal = () => {
       updateRelayModalData();
       modalDownloadApps.classList.remove('hidden');
+      const dlSeg = document.getElementById('dlTabSegment');
+      if (dlSeg) {
+        requestAnimationFrame(() => placeIndicator(dlSeg));
+        setTimeout(() => placeIndicator(dlSeg), 60);
+      }
     };
     const closeDownloadModal = () => {
       modalDownloadApps.classList.add('hidden');
@@ -10727,6 +10799,7 @@
 
   // Switch tabs between Host and Client
   if (tabBtnHost && tabBtnClient && dlTabPaneHost && dlTabPaneClient) {
+    const dlSeg = tabBtnHost.closest('.seg');
     tabBtnHost.addEventListener('click', () => {
       tabBtnHost.classList.add('on');
       tabBtnClient.classList.remove('on');
@@ -10734,6 +10807,7 @@
       tabBtnClient.setAttribute('aria-selected', 'false');
       dlTabPaneHost.classList.remove('hidden');
       dlTabPaneClient.classList.add('hidden');
+      if (dlSeg) placeIndicator(dlSeg);
     });
 
     tabBtnClient.addEventListener('click', () => {
@@ -10743,6 +10817,7 @@
       tabBtnHost.setAttribute('aria-selected', 'false');
       dlTabPaneClient.classList.remove('hidden');
       dlTabPaneHost.classList.add('hidden');
+      if (dlSeg) placeIndicator(dlSeg);
     });
   }
 

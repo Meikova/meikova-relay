@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.4.1">
-  <link rel="stylesheet" href="/css/style.css?v=1.4.1">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.4.2">
+  <link rel="stylesheet" href="/css/style.css?v=1.4.2">
 </head>
 <body>
 
@@ -175,7 +175,7 @@
           <div class="landing-hero-left">
             <div class="landing-telemetry-badge mono-font">
               <span class="status-dot online"></span>
-              <span data-i18n="landing.badge">v1.4.1 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
+              <span data-i18n="landing.badge">v1.4.2 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
             </div>
 
             <h1 class="landing-hero-title brand-font" data-i18n="landing.hero_title">ĐIỀU KHIỂN TỪ XA ĐA NỀN TẢNG CHÍNH XÁC CAO</h1>
@@ -330,7 +330,8 @@
 
               <!-- Segmented Access Mode Switcher -->
               <div class="cockpit-tabs-wrap">
-                <div class="seg cockpit-seg">
+                <div class="seg cockpit-seg" id="cockpitSeg">
+                  <span class="seg__ind" aria-hidden="true"></span>
                   <button type="button" class="on" id="btnCockpitTabInstant" data-i18n="landing.tab_room">Hỗ trợ (Room ID)</button>
                   <button type="button" id="btnCockpitTabUnattended" data-i18n="landing.tab_unattended">Quản trị (24/7)</button>
                 </div>
@@ -1152,7 +1153,7 @@
           </div>
           <div class="guard-telemetry guard-telemetry--br mono-font" aria-hidden="true">
             <span class="telemetry-label" data-i18n="deck.telemetry_engine">ENGINE</span>
-            <span class="telemetry-val" data-i18n="deck.telemetry_engine_val">MEIKOVA RELAY v1.4.1</span>
+            <span class="telemetry-val" data-i18n="deck.telemetry_engine_val">MEIKOVA RELAY v1.4.2</span>
           </div>
 
           <!-- Central Ambient Glass Instrument Card -->
@@ -2020,7 +2021,7 @@
           <button type="button" class="quality-menu-item" data-res-w="0" data-res-h="0" data-res-label="GỐC">
             <span class="quality-item-badge" data-i18n="remote.badge_native">GỐC</span>
             <div class="quality-item-text">
-              <div class="quality-item-title" data-i18n="deck.res_native">Độ phân giải gốc màn hình (Native)</div>
+              <div class="quality-item-title" data-i18n="deck.res_native_title">Độ phân giải gốc màn hình (Native)</div>
               <div class="quality-item-desc" data-i18n="deck.res_native_desc">Khôi phục độ phân giải vật lý mặc định của màn hình máy trạm</div>
             </div>
             <span class="quality-check hidden"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
@@ -3064,6 +3065,7 @@
       <!-- Segmented Tab Switcher (Host Agent vs Remote Viewer) -->
       <div class="dl-seg-wrapper">
         <div class="seg dl-tab-seg" id="dlTabSegment" role="tablist">
+          <span class="seg__ind" aria-hidden="true"></span>
           <button type="button" class="on" id="tabBtnHost" role="tab" aria-selected="true" data-dl-tab="host">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             <span data-i18n="dl_modal.tab_host">Máy trạm (Host)</span>
@@ -3572,13 +3574,13 @@
           </button>
         </div>
 
-        <div class="tunnel-qr-row" style="display: flex; gap: 14px; align-items: center; margin-top: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px 12px;">
-          <div style="width: 84px; height: 84px; background: #fff; border-radius: 6px; padding: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-            <img id="tunnelQrImg" src="" alt="QR" style="width: 100%; height: 100%; object-fit: contain;" />
+        <div class="tunnel-qr-row">
+          <div class="tunnel-qr-box">
+            <img id="tunnelQrImg" src="" alt="QR" />
           </div>
-          <div style="font-size: 0.8rem; line-height: 1.4; color: var(--text-muted); text-align: left;">
-            <div style="color: var(--text-normal); font-weight: 600; margin-bottom: 2px;" data-i18n="tunnel.qr_title">Quét mã di động</div>
-            <span data-i18n="tunnel.qr_desc">Kết nối từ xa qua Internet</span>
+          <div class="tunnel-qr-info">
+            <div class="tunnel-qr-title" data-i18n="tunnel.qr_title">Quét mã di động</div>
+            <div class="tunnel-qr-desc" data-i18n="tunnel.qr_desc">Kết nối từ xa qua Internet</div>
           </div>
         </div>
       </div>
@@ -3750,13 +3752,13 @@
     </div>
   </div>
 
-  <script src="/js/i18n.js?v=1.4.1"></script>
-  <script src="/js/sync_engine.js?v=1.4.1"></script>
-  <script src="/js/app.js?v=1.4.1"></script>
+  <script src="/js/i18n.js?v=1.4.2"></script>
+  <script src="/js/sync_engine.js?v=1.4.2"></script>
+  <script src="/js/app.js?v=1.4.2"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=1.4.1').then((reg) => {
+        navigator.serviceWorker.register('/sw.js?v=1.4.2').then((reg) => {
           document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
               reg.update().catch(() => {});
