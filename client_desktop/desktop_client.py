@@ -707,7 +707,7 @@ class ClientTray:
         item_pad = Padding(4, 5, 4, 5)
 
         # 1. Header (Branding, Disabled)
-        header = ToolStripMenuItem("MEIKOVA RELAY // v1.4.0")
+        header = ToolStripMenuItem("MEIKOVA RELAY // v1.4.1")
         header.Enabled = False
         header.Font = font_bold
         header.Padding = Padding(4, 6, 4, 6)
@@ -849,7 +849,7 @@ class ClientTray:
 
             auto_on = is_autostart_enabled()
             menu = pystray.Menu(
-                pystray.MenuItem("MEIKOVA RELAY // v1.4.0", None, enabled=False),
+                pystray.MenuItem("MEIKOVA RELAY // v1.4.1", None, enabled=False),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Mở Meikova Relay", on_show, default=True),
                 pystray.MenuItem("Mở trên trình duyệt Web", on_web),
@@ -863,6 +863,8 @@ class ClientTray:
             )
 
             self._tray = pystray.Icon("MeikovaRelayClient", icon_img, "Meikova Relay Client", menu)
+            self._tray._thread = threading.current_thread()
+            self._tray._running = False
             threading.Thread(target=self._tray.run, daemon=True).start()
         except Exception as e:
             logger.debug("pystray setup failed: %s", e)

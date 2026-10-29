@@ -2,6 +2,8 @@
 
 :root {
   color-scheme: dark;
+  --bottom-nav-h: 56px;
+  --bottom-nav-total-h: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
 }
 
 /* ------------------------------------------------------------------ reset & base */
@@ -13,6 +15,58 @@
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+html,
+body {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+}
+
+button,
+a,
+select,
+input,
+svg,
+path,
+.btn,
+.btn-pill,
+.btn-cta,
+.deck,
+.deck__btn,
+.seg,
+.seg button,
+.platform-tab,
+.mobile-modal__close,
+.dialog-btn,
+.dl-box-card,
+.landing-dl-card,
+.os-pill {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+}
+
+button,
+a,
+select,
+.btn,
+.btn-pill,
+.btn-cta,
+.deck__btn,
+.seg,
+.seg button,
+.platform-tab,
+.mobile-modal__close {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  outline: none !important;
+}
+
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
 }
 
 html,
@@ -310,7 +364,8 @@ body.is-desktop-app .topbar {
 .lang-switch-seg button {
   position: relative;
   z-index: 2;
-  min-height: 28px;
+  height: 26px;
+  min-height: 0;
   padding: 0 12px;
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -322,6 +377,11 @@ body.is-desktop-app .topbar {
   cursor: pointer;
   transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s ease;
   user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .lang-switch-seg button:active {
@@ -382,23 +442,27 @@ body.is-desktop-app .topbar {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 13px;
-  border-radius: var(--round);
+  height: 30px;
+  min-height: 30px;
+  max-height: 30px;
+  padding: 0 10px;
+  border-radius: 9999px;
   background: var(--ink-2);
   border: 1px solid var(--line);
-  font-size: var(--step--1);
-  font-weight: 500;
+  font-family: var(--font-ui), system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
   line-height: 1;
   color: var(--text);
   box-sizing: border-box;
   cursor: pointer;
+  white-space: nowrap;
   transition: all var(--dur-fast) var(--ease-out);
 }
 
 .btn-pill svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   display: block;
   flex-shrink: 0;
   transform: none;
@@ -530,14 +594,15 @@ body.is-desktop-app .topbar {
 
 @media (max-width: 767px) {
   :root {
-    --topbar-h: 54px;
-    --bottom-nav-h: 48px;
-    --bottom-nav-total-h: var(--bottom-nav-h);
+    --topbar-h: 50px;
+    --bottom-nav-h: 38px;
+    --bottom-nav-safe-b: 0px;
+    --bottom-nav-total-h: 38px;
   }
 
   /* Safe Area Insets & WebKit Containing Block Elimination on Topbar */
   .topbar {
-    padding: env(safe-area-inset-top, 0px) 8px 0 8px !important;
+    padding: env(safe-area-inset-top, 0px) max(10px, env(safe-area-inset-right, 0px)) 0 max(10px, env(safe-area-inset-left, 0px)) !important;
     height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
@@ -559,34 +624,73 @@ body.is-desktop-app .topbar {
     display: none !important; /* Show only infinity icon on phones */
   }
 
+  .user-badge {
+    height: 30px !important;
+    padding: 0 6px 0 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+  }
+
   #userNameDisplay {
-    max-width: 38px !important;
+    max-width: 68px !important;
     font-size: 11px !important;
+    line-height: 1 !important;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   #btnLogout {
-    height: 24px !important;
-    padding: 0 6px !important;
-    font-size: 10px !important;
+    height: 22px !important;
+    padding: 0 8px !important;
+    font-size: 10.5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
     border-radius: var(--round) !important;
+    box-sizing: border-box !important;
   }
 
   #langSwitch {
-    height: 28px !important;
+    height: 30px !important;
+    padding: 2px !important;
+    box-sizing: border-box !important;
+    display: inline-grid !important;
+    align-items: center !important;
   }
 
   #langSwitch button {
-    padding: 0 7px !important;
-    font-size: 10px !important;
+    height: 24px !important;
+    min-height: 0 !important;
+    max-height: 24px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  #langSwitch .seg__ind {
+    top: 2px !important;
+    bottom: 2px !important;
     height: 24px !important;
   }
 
   #btnNavTunnel {
-    height: 28px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
     padding: 0 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
     flex-shrink: 0 !important;
   }
 
@@ -612,9 +716,10 @@ body.is-desktop-app .topbar {
     right: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: var(--bottom-nav-total-h) !important;
+    height: 38px !important;
+    min-height: 38px !important;
     margin: 0 !important;
-    padding: 2px 2px calc(2px + env(safe-area-inset-bottom, 0px)) 2px !important;
+    padding: 1px 4px 0 4px !important;
     background: rgba(7, 13, 23, 0.98) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
@@ -627,6 +732,7 @@ body.is-desktop-app .topbar {
     align-items: center !important;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5) !important;
     overflow-x: auto !important;
+    overflow-y: visible !important;
     -webkit-overflow-scrolling: touch !important;
     scrollbar-width: none !important;
     box-sizing: border-box !important;
@@ -636,32 +742,35 @@ body.is-desktop-app .topbar {
     display: none;
   }
 
-  /* All 7 tabs visible on mobile bottom nav */
+  /* All 7 tabs visible on mobile bottom nav with generous icon headroom */
   #mainNav button {
     flex: 1 1 0 !important;
     min-width: 0 !important;
     max-width: none !important;
-    height: 42px !important;
-    padding: 2px 1px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 1px 1px !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 1px !important;
-    font-size: 8.5px !important;
+    font-size: 8px !important;
     font-weight: 500 !important;
-    border-radius: 6px !important;
+    border-radius: 8px !important;
     background: transparent !important;
     color: var(--text-muted) !important;
     border: none !important;
     outline: none !important;
     cursor: pointer !important;
     box-sizing: border-box !important;
+    overflow: visible !important;
   }
 
   #mainNav button svg {
-    width: 15px !important;
-    height: 15px !important;
+    width: 16px !important;
+    height: 16px !important;
+    margin-top: 1px !important;
     flex-shrink: 0 !important;
     transform: none !important;
   }
@@ -824,11 +933,20 @@ body.is-desktop-app .topbar {
     box-sizing: border-box !important;
   }
 
+  input,
+  textarea,
+  select,
   .instrument-input,
   select.instrument-input {
-    height: 36px !important;
-    font-size: 12.5px !important;
+    height: 32px !important;
+    font-size: 0.78rem !important;
     padding: 0 10px !important;
+  }
+
+  input[type="password"] {
+    font-family: var(--font-ui), system-ui, -apple-system, sans-serif !important;
+    letter-spacing: 2px !important;
+    font-size: 0.85rem !important;
   }
 
   .dialog-btn {
@@ -902,14 +1020,15 @@ body.is-desktop-app .topbar {
   }
 
   .landing-action-deck .btn-hero-cta,
-  .landing-action-deck .btn-pill {
+  .landing-action-deck .btn-pill,
+  .landing-action-deck .landing-hero-pill {
     width: auto !important;
     max-width: 100% !important;
-    min-width: 130px !important;
-    padding: 0 18px !important;
+    min-width: 120px !important;
+    padding: 0 16px !important;
     justify-content: center !important;
-    height: 42px !important;
-    font-size: 0.88rem !important;
+    height: 38px !important;
+    font-size: 0.82rem !important;
     box-sizing: border-box !important;
   }
 
@@ -981,22 +1100,24 @@ body.is-desktop-app .topbar {
     flex: 1 1 auto !important;
   }
 
-  #btnClearTerminal {
-    padding: 4px 10px !important;
+  #btnClearTerminal,
+  #btnExportTerminalLog {
+    height: 30px !important;
+    padding: 0 10px !important;
     font-size: 0.72rem !important;
     white-space: nowrap !important;
   }
 
-  /* Move Toasts to Top on Mobile to prevent covering the Deck */
+  /* Toasts at Bottom-Left corner: clean & never blocks topbar/tabs */
   .toast-container {
-    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
-    bottom: auto !important;
-    left: 50% !important;
+    top: auto !important;
+    bottom: calc(var(--bottom-nav-total-h, 38px) + 12px + env(safe-area-inset-bottom, 0px)) !important;
+    left: calc(12px + env(safe-area-inset-left, 0px)) !important;
     right: auto !important;
-    transform: translateX(-50%) !important;
+    transform: none !important;
     width: max-content !important;
     max-width: calc(100vw - 24px) !important;
-    align-items: center !important;
+    align-items: flex-start !important;
   }
 
   .toast {
@@ -1099,7 +1220,7 @@ body.is-desktop-app .topbar {
   }
 
   .landing-dl-matrix {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
     gap: 14px !important;
     width: 100% !important;
   }
@@ -1205,7 +1326,8 @@ body.is-desktop-app .topbar {
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.seg:has(.seg__ind[style*="width"]) button.on {
+.seg:has(.seg__ind[style*="width"]) button.on,
+.seg:has(.seg__ind[style*="--ind-w"]) button.on {
   background: transparent;
 }
 
@@ -1262,8 +1384,10 @@ body.is-desktop-app .topbar {
   text-align: right;
 }
 
-body.view-landing .readout--tl,
-body.view-landing .readout--tr,
+body:not(.remote-active) .readout--tl,
+body:not(.remote-active) .readout--tr,
+body:not(.remote-active) #ro-tl,
+body:not(.remote-active) #ro-tr,
 .view-landing .readout--tl,
 .view-landing .readout--tr {
   display: none !important;
@@ -1540,6 +1664,132 @@ input:-webkit-autofill:active {
   transform: scale(0.985);
 }
 
+/* ==========================================================================
+   UNIVERSAL TYPOGRAPHY & RESPONSIVE HIERARCHY SSOT (ALL STAGES & MODALS)
+   ========================================================================== */
+
+/* Level 1: Primary Stage Titles across all 5 Stages (Dashboard, Files, Terminal, Tasks, Audit) */
+.section-title,
+.dashboard-header .section-title,
+.tasks-header .section-title,
+.terminal-title,
+.audit-title {
+  font-family: var(--font-display) !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  color: var(--text) !important;
+  margin-bottom: 2px !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Level 2: Stage Subtitles */
+.card-subtitle,
+.dashboard-header .card-subtitle,
+.tasks-header .card-subtitle,
+.terminal-hint,
+.audit-subtitle {
+  font-family: var(--font-ui) !important;
+  font-size: 0.72rem !important;
+  font-weight: 400 !important;
+  line-height: 1.35 !important;
+  color: var(--text-muted) !important;
+  margin-top: 2px !important;
+  margin-bottom: 0 !important;
+}
+
+/* Level 3: Card Titles & Sub-Section Headings */
+.process-table-header h3,
+.explorer-card-title,
+.telemetry-card-title,
+.stat-card-title,
+.telemetry-label {
+  font-family: var(--font-ui) !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  color: var(--text-muted) !important;
+}
+
+/* Level 4: Hero Metrics (Big Values) */
+.telemetry-value,
+.stat-card-value {
+  font-family: var(--font-display) !important;
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  color: var(--text) !important;
+}
+
+/* Level 5: Footnotes & Micro Metadata */
+.telemetry-sub,
+.stat-card-sub,
+.device-last-access {
+  font-family: var(--font-mono) !important;
+  font-size: 0.65rem !important;
+  font-weight: 400 !important;
+  color: var(--text-faint) !important;
+  line-height: 1.3 !important;
+}
+
+/* Level 6: Universal Tables (Th & Td) */
+.process-table th,
+.explorer-table thead th,
+.audit-table th {
+  font-family: var(--font-ui) !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  color: var(--text-muted) !important;
+  white-space: nowrap !important;
+}
+
+.process-table td,
+.explorer-table td,
+.audit-table td {
+  font-family: var(--font-mono) !important;
+  font-size: 0.72rem !important;
+  font-weight: 400 !important;
+  line-height: 1.35 !important;
+  color: var(--text) !important;
+}
+
+/* Mobile & Compact Screen Scaling (< 768px, < 520px height) */
+@media (max-width: 768px), (max-height: 520px) {
+  .section-title,
+  .dashboard-header .section-title,
+  .tasks-header .section-title,
+  .terminal-title,
+  .audit-title {
+    font-size: 0.95rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .card-subtitle,
+  .dashboard-header .card-subtitle,
+  .tasks-header .card-subtitle,
+  .terminal-hint,
+  .audit-subtitle {
+    font-size: 0.65rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .telemetry-card-title,
+  .stat-card-title {
+    font-size: 0.68rem !important;
+  }
+
+  .telemetry-value,
+  .stat-card-value {
+    font-size: 1.15rem !important;
+  }
+
+  .telemetry-sub,
+  .stat-card-sub {
+    font-size: 0.60rem !important;
+  }
+}
+
 /* ------------------------------------------------------------------ VIEW 2: DASHBOARD */
 .dashboard-container {
   padding: 60px 48px 40px;
@@ -1588,37 +1838,78 @@ input:-webkit-autofill:active {
     0 0 20px -8px oklch(var(--acc) / 0.3);
 }
 
-.device-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.device-card-header,
+.device-head {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  width: 100% !important;
+  min-width: 0 !important;
 }
 
 .device-name {
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: var(--text);
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  max-width: calc(100% - 95px) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--step--2);
-  font-family: var(--font-mono);
-  line-height: 1;
-  padding: 3px 10px;
-  border-radius: var(--round);
-  background: var(--ink-0);
-  border: 1px solid var(--line-soft);
-  vertical-align: middle;
+.status-badge,
+.device-card .status-badge,
+.device-card-header .status-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 0.65rem !important;
+  font-family: var(--font-mono) !important;
+  line-height: 1 !important;
+  padding: 3px 8px !important;
+  border-radius: var(--round) !important;
+  background: var(--ink-0) !important;
+  border: 1px solid var(--line-soft) !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
 }
 
+.status-badge span,
 .status-badge span[data-i18n],
 .status-badge > span:not(.status-dot) {
-  display: inline-flex;
-  align-items: center;
-  line-height: 1;
+  display: inline-block !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+.device-last-access {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+.device-last-access > span:first-child {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+.device-last-access .btn-edit-device-meta {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
 }
 
 .status-dot {
@@ -3189,12 +3480,17 @@ input:-webkit-autofill:active {
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform var(--dur-slow) var(--ease-spring);
-  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.7);
+  transition: transform var(--dur-slow) var(--ease-spring), box-shadow var(--dur-slow) var(--ease-spring), visibility var(--dur-slow);
+  box-shadow: none;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .shelf-drawer.open {
   transform: translateX(0);
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.7);
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .shelf-header {
@@ -3731,13 +4027,137 @@ input:-webkit-autofill:active {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 16px env(safe-area-inset-right, 16px) calc(16px + env(safe-area-inset-bottom, 0px)) env(safe-area-inset-left, 16px);
   box-sizing: border-box;
+}
+
+.modal-overlay > .instrument-card,
+.modal-overlay > .auth-card,
+.modal-overlay > .modal-card,
+.modal-overlay > .dl-apps-card,
+.modal-overlay > .mobile-modal,
+.modal-overlay > .host-config-modal-card {
+  margin: auto !important;
+}
+
+/* Universal Base Modal Typography SSOT */
+.modal-overlay .card-hero {
+  margin-bottom: 10px;
+}
+
+.modal-overlay .card-title,
+.modal-overlay h1,
+.modal-overlay h2,
+.modal-overlay h3,
+#modalTunnelTitle,
+#modalSessionManagerTitle,
+#confirmDialogTitle,
+#sendPasswordTitle,
+#remoteHostCfgTitle {
+  font-family: var(--font-brand, inherit) !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  color: var(--text, #fff) !important;
+  margin-bottom: 2px !important;
+}
+
+.modal-overlay .card-subtitle,
+.modal-overlay .mobile-modal__subtitle,
+#sessionManagerSubtitle,
+#remoteHostCfgSub,
+#deviceMetaSubtitle {
+  font-family: var(--font-ui) !important;
+  font-size: 0.68rem !important;
+  line-height: 1.35 !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 8px !important;
+}
+
+/* Field Label: Golden standard based on "Thông báo Toast" */
+.modal-overlay label,
+.modal-overlay .form-group label,
+.modal-overlay .form-label,
+.tunnel-field-label {
+  font-family: var(--font-ui) !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  color: var(--text) !important;
+  display: block !important;
+  margin-bottom: 2px !important;
+}
+
+/* Field Hint & Explanation: Golden standard based on Toast hint */
+.modal-overlay .field-hint,
+.modal-overlay small,
+.modal-overlay .form-hint,
+.modal-overlay .install-card-desc,
+.modal-overlay .dl-role-hint,
+.tunnel-desc,
+.confirm-dialog-msg {
+  font-family: var(--font-ui) !important;
+  font-size: 0.63rem !important;
+  line-height: 1.3 !important;
+  color: var(--text-faint) !important;
+  display: block !important;
+  margin-top: 1px !important;
+  margin-bottom: 4px !important;
+  font-weight: 400 !important;
+}
+
+#tunnelStatusText,
+.tunnel-status-text {
+  font-family: var(--font-ui) !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  color: var(--text, #fff) !important;
+}
+
+.modal-overlay .instrument-input,
+.modal-overlay input:not([type="checkbox"]):not([type="radio"]),
+.modal-overlay select {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 3px 10px !important;
+  font-size: 0.76rem !important;
+  box-sizing: border-box !important;
+}
+
+.modal-overlay .dialog-btn,
+.modal-overlay .btn-tunnel-action {
+  height: 30px !important;
+  min-height: 30px !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  padding: 0 12px !important;
+}
+
+.modal-overlay .session-sliding-badge {
+  font-size: 0.68rem !important;
+  line-height: 1.35 !important;
+}
+
+.modal-overlay .instrument-input,
+.modal-overlay input:not([type="checkbox"]):not([type="radio"]),
+.modal-overlay select {
+  font-size: 0.76rem !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 4px 10px !important;
+  line-height: 1.4 !important;
+  box-sizing: border-box !important;
+}
+
+.modal-overlay input[type="password"] {
+  font-family: var(--font-ui), system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 2.5px !important;
+  font-size: 0.85rem !important;
 }
 
 /* Ambient Dialog Action Buttons */
@@ -3810,16 +4230,22 @@ input:-webkit-autofill:active {
   box-shadow: 0 0 14px -2px rgba(239, 68, 68, 0.45) !important;
 }
 
-/* Ambient Toast Notifications */
+/* Ambient Toast Notifications - Bottom Left SSOT */
 .toast-container {
   position: fixed;
   bottom: 24px;
-  right: 24px;
-  z-index: 999;
+  left: 24px;
+  right: auto;
+  top: auto;
+  transform: none;
+  z-index: 2500;
   display: flex;
   flex-direction: column;
   gap: 8px;
   pointer-events: none;
+  align-items: flex-start;
+  width: max-content;
+  max-width: calc(100vw - 48px);
 }
 
 .toast {
@@ -5328,6 +5754,7 @@ input:-webkit-autofill:active {
 .dl-platform-seg {
   min-width: 320px;
   max-width: 640px;
+  margin-inline: auto;
 }
 
 .landing-dl-matrix {
@@ -5339,9 +5766,10 @@ input:-webkit-autofill:active {
   justify-items: center;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 680px) and (orientation: portrait) {
   .landing-dl-matrix {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
@@ -7163,18 +7591,18 @@ body.is-desktop-app .desktop-titlebar {
     height: 0 !important;
   }
 
-  /* Move Toasts to Top on ALL Mobile/Landscape views to prevent covering Deck */
+  /* Toasts at Bottom-Left corner: clean & never blocks topbar/tabs */
   .toast-container {
     position: fixed !important;
-    top: calc(10px + env(safe-area-inset-top, 0px)) !important;
-    bottom: auto !important;
-    left: 50% !important;
+    top: auto !important;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    left: calc(12px + env(safe-area-inset-left, 0px)) !important;
     right: auto !important;
-    transform: translateX(-50%) !important;
+    transform: none !important;
     width: max-content !important;
-    max-width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 24px) !important;
     z-index: 2500 !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     pointer-events: none !important;
   }
 
@@ -7403,38 +7831,58 @@ body.is-desktop-app .desktop-titlebar {
   }
 
   .explorer-toolbar {
-    flex-direction: column !important;
-    align-items: stretch !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     gap: 6px !important;
-    padding: 6px 10px !important;
+    padding: 4px 8px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
+    box-sizing: border-box !important;
   }
 
   .explorer-toolbar > div {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: auto !important;
+    max-width: none !important;
   }
 
   .explorer-toolbar-left {
-    display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 6px !important;
-    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 4px !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+    grid-template-columns: none !important;
   }
 
   .explorer-toolbar-left button {
-    width: 100% !important;
-    min-width: 0 !important;
-    padding: 7px 2px !important;
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 !important;
     font-size: 0.72rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
     justify-content: center !important;
-    white-space: nowrap !important;
-    gap: 4px !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
   }
 
   .explorer-toolbar-left button span {
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    display: none !important;
+  }
+
+  .explorer-toolbar-left button svg {
+    width: 13px !important;
+    height: 13px !important;
   }
 
   .hide-mobile {
@@ -7527,36 +7975,41 @@ body.is-desktop-app .desktop-titlebar {
 
   .tasks-header {
     display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
     margin-bottom: 12px !important;
     width: 100% !important;
   }
 
+  .tasks-header > div:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
   .tasks-header .section-title {
-    font-size: 1.15rem !important;
+    font-size: 0.95rem !important;
+    line-height: 1.2 !important;
     margin-bottom: 2px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
   }
 
   .tasks-header .card-subtitle {
-    font-size: 0.75rem !important;
-    line-height: 1.35 !important;
-  }
-
-  .tasks-header > div:last-child {
-    display: flex !important;
-    width: 100% !important;
+    font-size: 0.65rem !important;
+    line-height: 1.3 !important;
   }
 
   #btnRefreshTasks {
-    width: auto !important;
-    padding: 6px 14px !important;
-    font-size: 0.78rem !important;
-    align-self: flex-start !important;
+    flex-shrink: 0 !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
   }
 
   .process-table-card {
@@ -7674,12 +8127,14 @@ body.is-desktop-app .desktop-titlebar {
     color: var(--muted) !important;
   }
 
-  #btnClearTerminal {
+  #btnClearTerminal,
+  #btnExportTerminalLog {
     flex-shrink: 0 !important;
-    padding: 4px 10px !important;
-    font-size: 0.7rem !important;
+    height: 30px !important;
+    padding: 0 10px !important;
+    font-size: 0.72rem !important;
     white-space: nowrap !important;
-    border-radius: var(--round) !important;
+    border-radius: 9999px !important;
   }
 
   .terminal-screen {
@@ -7830,7 +8285,7 @@ body.is-desktop-app .desktop-titlebar {
     -webkit-overflow-scrolling: touch !important;
     scrollbar-width: none !important;
     display: flex !important;
-    justify-content: flex-start !important;
+    justify-content: center !important;
     padding: 4px 12px !important;
     box-sizing: border-box !important;
   }
@@ -7842,6 +8297,7 @@ body.is-desktop-app .desktop-titlebar {
   .dl-platform-seg {
     min-width: max-content !important;
     flex-shrink: 0 !important;
+    margin: 0 auto !important;
   }
 
   .os-pills-row {
@@ -7902,9 +8358,23 @@ body.is-desktop-app .desktop-titlebar {
     box-sizing: border-box !important;
   }
 
-  #authSection {
-    padding-bottom: calc(16px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)) !important;
+  #authSection:not(.hidden) {
+    padding: 12px 10px max(14px, env(safe-area-inset-bottom, 0px)) !important;
     overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    box-sizing: border-box !important;
+    height: 100% !important;
+  }
+
+  #authSection > .instrument-card {
+    margin: 8px auto auto auto !important;
+    max-height: none !important;
+    flex-shrink: 0 !important;
+    width: min(440px, 100%) !important;
   }
 }
 
@@ -8753,11 +9223,13 @@ main.hidden {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
-  padding: 10px 14px;
+  padding: 8px 14px;
   background: var(--ink-1);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   flex-wrap: wrap;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .fleet-group-pills {
@@ -8778,6 +9250,10 @@ main.hidden {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .fleet-group-pill.active,
@@ -8791,7 +9267,26 @@ main.hidden {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+#fleetSearchInput {
+  width: 240px;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.78rem;
+  box-sizing: border-box;
+}
+
+#btnOpenWolModal {
+  height: 32px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Terminal Quick Command Bar */
@@ -8922,15 +9417,29 @@ main.hidden {
     gap: 8px !important;
   }
 
-  .explorer-toolbar-left,
-  .explorer-toolbar-right {
+  .explorer-toolbar-left {
     width: 100% !important;
     flex-wrap: wrap !important;
   }
 
+  .explorer-toolbar-right {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
   #explorerSearchInput {
-    flex: 1 !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
     width: auto !important;
+    max-width: none !important;
+  }
+
+  #viewModeSeg {
+    flex-shrink: 0 !important;
   }
 
   .unconnected-guard-card {
@@ -8948,9 +9457,9 @@ main.hidden {
 }
 
 @media (max-width: 390px) {
-  /* Specifically tuned for iPhone Xs / iPhone Mini (375px width) */
+  /* Specifically tuned for iPhone Xs / iPhone Mini / iPhone 12-16 Pro (375px-390px width) */
   .topbar {
-    padding: 0 8px !important;
+    padding: env(safe-area-inset-top, 0px) max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px)) !important;
   }
 
   .brand-logo {
@@ -8997,4 +9506,2538 @@ main.hidden {
 #remoteCanvas.visual-filter--high_contrast,
 .monitor-tile canvas.visual-filter--high_contrast {
   filter: contrast(1.22) brightness(1.04) saturate(1.12);
+}
+
+
+/* ==========================================================================
+   COMPREHENSIVE RESPONSIVE & SAFE-AREA OVERHAUL (NOTCH / DYNAMIC ISLAND / LANDSCAPE)
+   Fixes:
+   1. #btnMobileImmersiveExit ("← Rời") vs #floatingDeck top-left overlap in Portrait & Landscape
+   2. #unconnectedScreenGuard & .guard-telemetry landscape overflow & HUD text bleed
+   3. Safe-area insets (env(safe-area-inset-top/bottom/left/right)) for iPhone Notch & Dynamic Island
+   4. Responsive modals, dropdowns, tables, and containers across 320px..2560px
+   ========================================================================== */
+
+/* 1. Side-by-side layout for "← Rời" (#btnMobileImmersiveExit) and Top-Docked #floatingDeck */
+@media (max-width: 900px), (max-height: 520px) {
+  body.remote-active .mobile-immersive-exit {
+    top: calc(7px + env(safe-area-inset-top, 0px)) !important;
+    left: calc(8px + env(safe-area-inset-left, 0px)) !important;
+    height: 34px !important;
+    padding: 0 10px !important;
+    z-index: 660 !important;
+  }
+
+  /* When deck is at bottom, respect left/right/bottom safe-area cutouts */
+  .deck,
+  .deck.deck--bottom {
+    left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    max-width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+  }
+
+  /* When deck is pinned or unpinned at top in immersive mobile mode, offset left of deck past "← Rời" button */
+  body.remote-active .deck.deck--top-pinned,
+  body.remote-active .deck.deck--top-unpinned {
+    top: calc(6px + env(safe-area-inset-top, 0px)) !important;
+    left: calc(76px + env(safe-area-inset-left, 0px)) !important;
+    right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    max-width: calc(100vw - 84px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+    margin-inline: 0 !important;
+  }
+}
+
+/* 2. Mobile & Tablet Short-Height Landscape Optimization (e.g. iPhone 844x390, 932x430, Android Landscape) */
+@media (max-height: 560px) {
+  /* Hide corner HUD telemetry & orbital rings so they never bleed behind the Standby Guard card */
+  .guard-telemetry,
+  .guard-orbital-ring--2,
+  .guard-orbital-ring--3,
+  .guard-hotkey-hints {
+    display: none !important;
+  }
+
+  .unconnected-screen-guard {
+    padding: calc(48px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)) !important;
+    overflow-y: auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .unconnected-guard-card {
+    padding: 14px 20px 12px !important;
+    max-width: 500px !important;
+    width: min(92vw, 500px) !important;
+    margin: auto !important;
+  }
+
+  .guard-status-pill {
+    margin-bottom: 8px !important;
+    padding: 3px 10px !important;
+    font-size: 9.5px !important;
+  }
+
+  .guard-beacon-wrapper {
+    width: 42px !important;
+    height: 42px !important;
+    margin: 0 auto 8px !important;
+  }
+
+  .unconnected-guard-icon {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+  }
+
+  .unconnected-guard-icon svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .unconnected-guard-title {
+    font-size: 1.02rem !important;
+    margin: 0 0 4px 0 !important;
+  }
+
+  .unconnected-guard-desc {
+    font-size: 0.78rem !important;
+    line-height: 1.4 !important;
+    margin: 0 0 10px 0 !important;
+  }
+
+  .unconnected-guard-actions {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 10px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .unconnected-guard-actions .btn-guard-primary,
+  .unconnected-guard-actions .btn-guard-secondary {
+    width: auto !important;
+    flex: 1 1 0 !important;
+    padding: 8px 14px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* 3. Portrait Mobile Unconnected Screen Guard & Safe Clearance from Top Deck & Bottom Nav */
+@media (max-width: 767px) and (min-height: 561px) {
+  .unconnected-screen-guard {
+    padding: calc(52px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) calc(56px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)) !important;
+    overflow-y: auto !important;
+  }
+
+  .unconnected-guard-card {
+    width: min(92vw, 400px) !important;
+    padding: 22px 18px 18px !important;
+    margin: auto !important;
+  }
+
+  .guard-beacon-wrapper,
+  .unconnected-guard-icon {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  .guard-hotkey-hints {
+    display: none !important;
+  }
+}
+
+/* 4. Universal Safe-Area Insets for Notch / Dynamic Island Across All Workspace Views & Modals */
+@media (max-width: 960px), (max-height: 560px) {
+  .dashboard-container,
+  .files-container,
+  .terminal-container,
+  .tasks-container,
+  .audit-container,
+  .landing-container {
+    padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
+    padding-top: 10px !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Prevent Fleet Group Pills from clipping at right edge on mobile */
+  .fleet-group-pills {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    max-width: 100% !important;
+    padding-bottom: 2px !important;
+    padding-right: 8px !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .fleet-group-pills::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .fleet-group-pill {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Landscape mobile optimization: mainNav in topbar, zero bottom nav dead space */
+@media (orientation: landscape) and (max-height: 520px), (max-height: 480px) {
+  :root {
+    --bottom-nav-h: 0px !important;
+    --bottom-nav-total-h: 0px !important;
+    --topbar-h: 46px !important;
+  }
+
+  .stage {
+    position: absolute !important;
+    top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    padding-bottom: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .topbar {
+    height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)) !important;
+  }
+
+  #mainNav {
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 2px 4px !important;
+    background: var(--ink-2) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 9999px !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+    isolation: isolate !important;
+    box-sizing: border-box !important;
+    gap: 2px !important;
+    overflow: hidden !important;
+  }
+
+  #mainNav button {
+    position: relative !important;
+    z-index: 2 !important;
+    height: 26px !important;
+    min-height: 26px !important;
+    padding: 0 8px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    transition: color var(--dur-fast) var(--ease-out) !important;
+  }
+
+  #mainNav button svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  #mainNav button.on {
+    color: var(--on-accent, #000) !important;
+    background: transparent !important;
+    font-weight: 600 !important;
+  }
+
+  #mainNav .seg__ind {
+    position: absolute !important;
+    z-index: 1 !important;
+    top: 2px !important;
+    bottom: 2px !important;
+    height: 26px !important;
+    border-radius: 9999px !important;
+    background: var(--accent) !important;
+    box-shadow: 0 0 14px -2px var(--accent-glow) !important;
+    pointer-events: none !important;
+    display: block !important;
+  }
+
+  /* Landscape File Explorer Height Optimization */
+  #filesSection .dashboard-header {
+    display: none !important;
+  }
+  #filesSection.dashboard-container:not(.hidden) {
+    padding: 4px max(8px, env(safe-area-inset-right, 0px)) max(4px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)) !important;
+    gap: 2px !important;
+  }
+  #filesSection .explorer-card {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  #filesSection .explorer-topbar {
+    padding: 2px 10px !important;
+    min-height: 30px !important;
+    height: 30px !important;
+    max-height: 30px !important;
+    font-size: 0.70rem !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+  }
+  #filesSection .explorer-toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 3px 8px !important;
+    gap: 6px !important;
+    min-height: 30px !important;
+    height: 30px !important;
+    max-height: 30px !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+  }
+  #filesSection .explorer-toolbar-left {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 3px !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+    grid-template-columns: none !important;
+  }
+  #filesSection .explorer-toolbar-left button {
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 5px !important;
+    box-sizing: border-box !important;
+  }
+  #filesSection .explorer-toolbar-left button span {
+    display: none !important; /* Icon-only in compact landscape to prevent wrapping */
+  }
+  #filesSection .explorer-toolbar-left button svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+  #filesSection .explorer-toolbar-right {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    flex: 0 1 240px !important;
+    max-width: 250px !important;
+    margin-left: auto !important;
+    gap: 4px !important;
+  }
+  #filesSection #explorerSearchInput {
+    height: 24px !important;
+    font-size: 0.68rem !important;
+    padding: 0 6px !important;
+  }
+  #filesSection #viewModeSeg {
+    height: 24px !important;
+    padding: 1px !important;
+  }
+  #filesSection #viewModeSeg button {
+    height: 20px !important;
+    width: 22px !important;
+    padding: 0 !important;
+  }
+  #filesSection .explorer-table thead {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 5 !important;
+    background: var(--ink-1) !important;
+  }
+  #filesSection .explorer-table thead th {
+    padding: 3px 6px !important;
+    font-size: 0.65rem !important;
+    height: 22px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+  }
+  #filesSection .explorer-table td {
+    padding: 3px 6px !important;
+    font-size: 0.70rem !important;
+  }
+  #filesSection #explorerListContainer {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+  }
+
+  /* Landscape Modal Micro-Scaling & Universal Centering */
+  .modal-overlay {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 6px !important;
+  }
+  .modal-overlay > .instrument-card,
+  .modal-overlay > .auth-card,
+  .modal-overlay > .modal-card,
+  .modal-overlay > .dl-apps-card,
+  .modal-overlay > .mobile-modal,
+  .modal-overlay > .host-config-modal-card {
+    margin: auto !important;
+    padding: 10px 16px !important;
+    max-height: calc(100dvh - 12px) !important;
+    width: min(calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 780px) !important;
+    max-width: min(calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 780px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  #quickConnectModal > .instrument-card,
+  #sessionConfigModal > .instrument-card,
+  #modalConfirmDialog > .instrument-card,
+  #modalSendPassword > .instrument-card {
+    width: min(calc(100vw - 24px), 500px) !important;
+    max-width: min(calc(100vw - 24px), 500px) !important;
+  }
+
+  .dl-apps-card,
+  #addDeviceModal > .instrument-card,
+  #modalRemoteHostConfig > .instrument-card,
+  #modalSessionManager > .instrument-card,
+  #modalDeviceMeta > .instrument-card {
+    width: min(calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 780px) !important;
+    max-width: min(calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 780px) !important;
+  }
+
+  .dl-cards-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .dl-box-card {
+    padding: 8px 10px !important;
+    min-height: 0 !important;
+  }
+
+  .dl-box-card__head {
+    margin-bottom: 3px !important;
+  }
+
+  .dl-box-card__title {
+    font-size: 0.74rem !important;
+  }
+
+  .dl-box-card__sub {
+    font-size: 0.62rem !important;
+  }
+
+  .dl-box-card__badge {
+    font-size: 0.58rem !important;
+    padding: 1px 4px !important;
+  }
+
+  .dl-adv-checks {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 4px 10px !important;
+  }
+
+  .dl-adv-check {
+    font-size: 0.68rem !important;
+    margin-bottom: 2px !important;
+  }
+  .modal-overlay .card-hero {
+    margin-bottom: 6px !important;
+  }
+  .modal-overlay .card-title,
+  .modal-overlay h1,
+  .modal-overlay h2,
+  .modal-overlay h3 {
+    font-size: 0.90rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 2px !important;
+  }
+  .modal-overlay .card-subtitle {
+    font-size: 0.64rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 4px !important;
+  }
+  .modal-overlay .form-group {
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+  }
+  .modal-overlay label,
+  .modal-overlay .form-group label {
+    font-size: 0.70rem !important;
+    margin-bottom: 2px !important;
+  }
+  .modal-overlay .field-hint,
+  .modal-overlay small,
+  .modal-overlay .form-hint,
+  .modal-overlay .install-card-desc {
+    font-size: 0.60rem !important;
+    line-height: 1.25 !important;
+    margin-top: 1px !important;
+  }
+  .modal-overlay .instrument-input,
+  .modal-overlay input:not([type="checkbox"]):not([type="radio"]),
+  .modal-overlay select {
+    height: 28px !important;
+    min-height: 28px !important;
+    font-size: 0.72rem !important;
+    padding: 2px 8px !important;
+  }
+  .modal-overlay input[type="password"] {
+    font-family: var(--font-ui), system-ui, -apple-system, sans-serif !important;
+    letter-spacing: 2px !important;
+    font-size: 0.80rem !important;
+  }
+  .modal-overlay .dialog-btn {
+    height: 28px !important;
+    font-size: 0.74rem !important;
+    padding: 0 10px !important;
+  }
+  .modal-overlay .session-sliding-badge {
+    margin-top: 6px !important;
+    padding: 4px 8px !important;
+    font-size: 0.62rem !important;
+    line-height: 1.25 !important;
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE OPTIMIZATION PASS #2 (MODALS, DRAWERS, SECONDARY BARS, 320px..4K)
+   ========================================================================== */
+
+/* 1. Target actual modal inner card classes (.instrument-card, .file-editor-card, .dl-apps-card, .mobile-modal) */
+@media (max-width: 960px) {
+  .modal-overlay {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: max(8px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)) !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-overlay > .instrument-card,
+  .modal-overlay > .auth-card,
+  .modal-overlay > .modal-card,
+  .modal-overlay > .dl-apps-card,
+  .modal-overlay > .mobile-modal,
+  .modal-overlay > .host-config-modal-card {
+    margin: auto !important;
+    padding: 12px 14px !important;
+    max-height: calc(100dvh - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    width: 100% !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
+  }
+
+  @media (orientation: portrait), (max-width: 480px) {
+    .modal-overlay > .instrument-card,
+    .modal-overlay > .auth-card,
+    .modal-overlay > .modal-card,
+    .modal-overlay > .dl-apps-card,
+    .modal-overlay > .mobile-modal,
+    .modal-overlay > .host-config-modal-card {
+      max-width: min(calc(100vw - 20px), 440px) !important;
+    }
+  }
+
+  .modal-overlay .card-hero {
+    margin-bottom: 8px !important;
+  }
+
+  .modal-overlay .card-title,
+  .modal-overlay h1,
+  .modal-overlay h2,
+  .modal-overlay h3 {
+    font-size: 1.0rem !important;
+    line-height: 1.25 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .modal-overlay .card-subtitle {
+    font-size: 0.70rem !important;
+    line-height: 1.3 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .modal-overlay .form-group {
+    margin-top: 6px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .modal-overlay label,
+  .modal-overlay .form-group label {
+    font-size: 0.74rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 2px !important;
+    display: block !important;
+  }
+
+  .modal-overlay .field-hint,
+  .modal-overlay small {
+    font-size: 0.66rem !important;
+    margin-top: 2px !important;
+    line-height: 1.25 !important;
+    color: var(--text-faint) !important;
+    display: block !important;
+  }
+
+  .modal-overlay .instrument-input,
+  .modal-overlay input:not([type="checkbox"]):not([type="radio"]),
+  .modal-overlay select,
+  .modal-overlay textarea,
+  .auth-container input:not([type="checkbox"]):not([type="radio"]),
+  .auth-container select {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 2px 10px !important;
+    font-size: 0.78rem !important;
+    box-sizing: border-box !important;
+  }
+  .modal-overlay input[type="password"],
+  .auth-container input[type="password"],
+  input[type="password"] {
+    font-family: var(--font-ui), system-ui, -apple-system, sans-serif !important;
+    letter-spacing: 2px !important;
+    font-size: 0.78rem !important;
+  }
+
+  .modal-overlay .session-sliding-badge {
+    margin-top: 8px !important;
+    padding: 6px 10px !important;
+    font-size: 0.67rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .modal-overlay .modal-close-pill,
+  .modal-overlay #btnCancelSessionCfgIcon {
+    top: 8px !important;
+    right: 8px !important;
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  .modal-overlay .dialog-btn {
+    height: 30px !important;
+    font-size: 0.76rem !important;
+    padding: 0 10px !important;
+  }
+
+  .modal-overlay form > div:last-child,
+  .modal-overlay .dialog-actions {
+    margin-top: 10px !important;
+    gap: 8px !important;
+  }
+
+  /* File Explorer viewport stretching */
+  #filesSection.dashboard-container:not(.hidden) {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    padding: 10px max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)) !important;
+    box-sizing: border-box !important;
+  }
+
+  #filesSection .dashboard-header {
+    flex-shrink: 0 !important;
+    margin-bottom: 6px !important;
+  }
+
+  #filesSection .dashboard-header .section-title {
+    font-size: 1.05rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 2px !important;
+  }
+
+  #filesSection .dashboard-header .card-subtitle {
+    font-size: 0.7rem !important;
+    line-height: 1.25 !important;
+  }
+
+  #filesSection .explorer-card {
+    flex: 1 1 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  #filesSection .explorer-topbar {
+    flex-shrink: 0 !important;
+    padding: 6px 10px !important;
+  }
+
+  #filesSection .explorer-toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-shrink: 0 !important;
+    padding: 3px 8px !important;
+    gap: 6px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    box-sizing: border-box !important;
+  }
+
+  #filesSection .explorer-toolbar-left {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 4px !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+    grid-template-columns: none !important;
+  }
+
+  #filesSection .explorer-toolbar-left button {
+    height: 26px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+    width: 26px !important;
+    min-width: 26px !important;
+    max-width: 26px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+  }
+
+  #filesSection .explorer-toolbar-left button span {
+    display: none !important;
+  }
+
+  #filesSection .explorer-toolbar-left button svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  #filesSection .explorer-toolbar-right {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 0 1 220px !important;
+    margin-left: auto !important;
+  }
+
+  #filesSection #explorerSearchInput {
+    height: 26px !important;
+    font-size: 0.72rem !important;
+    padding: 0 8px !important;
+  }
+
+  #filesSection #viewModeSeg {
+    height: 26px !important;
+    padding: 2px !important;
+  }
+
+  #filesSection #viewModeSeg button {
+    height: 22px !important;
+    width: 24px !important;
+    padding: 0 !important;
+  }
+
+  #filesSection .explorer-table thead {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 5 !important;
+    background: var(--ink-1) !important;
+  }
+
+  #filesSection .explorer-table thead th {
+    padding: 4px 8px !important;
+    font-size: 0.68rem !important;
+    height: 26px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+  }
+
+  #filesSection #explorerDropTarget {
+    flex: 1 1 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+  }
+
+  #filesSection #explorerListContainer {
+    flex: 1 1 0 !important;
+    height: 100% !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+  }
+
+  /* Terminal stage stretching */
+  #terminalSection.terminal-container:not(.hidden) {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 8px max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  /* Stage sections absolute hidden guard */
+  #stageContainer > section.hidden,
+  #authSection.hidden,
+  #dashboardSection.hidden,
+  #remoteSection.hidden,
+  #filesSection.hidden,
+  #terminalSection.hidden,
+  #tasksSection.hidden,
+  #auditSection.hidden {
+    display: none !important;
+  }
+
+  #terminalSection .terminal-toolbar {
+    flex-shrink: 0 !important;
+    margin-bottom: 4px !important;
+    gap: 6px !important;
+  }
+
+  #terminalSection .terminal-title {
+    font-size: 0.75rem !important;
+  }
+
+  #terminalSection .terminal-badge {
+    font-size: 0.65rem !important;
+    padding: 2px 6px !important;
+  }
+
+  #terminalSection .terminal-hint {
+    display: none !important;
+  }
+
+  #terminalSection #btnExportTerminalLog,
+  #terminalSection #btnClearTerminal {
+    height: 26px !important;
+    font-size: 0.7rem !important;
+    padding: 0 8px !important;
+  }
+
+  #terminalSection .terminal-quick-bar {
+    flex-shrink: 0 !important;
+    padding: 4px 8px !important;
+    gap: 4px !important;
+    margin-bottom: 6px !important;
+  }
+
+  #terminalSection .term-quick-chip {
+    font-size: 0.68rem !important;
+    padding: 2px 6px !important;
+  }
+
+  #terminalSection #terminalScreen {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  /* Auth container in mobile/landscape */
+  .auth-container:not(.modal-overlay):not(.hidden) {
+    padding: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100% !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+
+  .auth-card,
+  .auth-container:not(.modal-overlay) > .instrument-card {
+    padding: 16px 14px !important;
+    max-width: 420px !important;
+    width: 100% !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    margin: auto !important;
+  }
+
+  .auth-tab-pill {
+    height: 32px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .btn-sso-cta,
+  .btn-google-login {
+    height: 34px !important;
+    font-size: 0.78rem !important;
+  }
+
+  #fileEditorModal {
+    padding: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)) !important;
+  }
+
+  .file-editor-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .file-editor-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+  }
+
+  .file-editor-filepath {
+    max-width: 48vw !important;
+  }
+}
+
+/* 2. Prevent Whiteboard Toolbar, Remote Session Tabs Bar, and Mobile Quick Keys from colliding with Deck or Notch */
+@media (max-width: 900px), (max-height: 520px) {
+  /* When Deck is at top, push Whiteboard Toolbar and Remote Session Tabs Bar below the 38px Deck */
+  body.remote-active .whiteboard-toolbar,
+  .deck-at-top .whiteboard-toolbar {
+    top: calc(48px + env(safe-area-inset-top, 0px)) !important;
+    bottom: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+  }
+
+  .remote-session-bar {
+    top: calc(48px + env(safe-area-inset-top, 0px)) !important;
+    max-width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .remote-session-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .mobile-quick-keys {
+    bottom: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
+    max-width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  /* Chat & Clipboard Slide-Over Drawer Safe-Area Insets on Fullscreen Mobile/Landscape */
+  .shelf-drawer {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    padding-left: env(safe-area-inset-left, 0px) !important;
+    padding-right: env(safe-area-inset-right, 0px) !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* 3. Ultra-Narrow Screens (320px - 360px: iPhone SE / Galaxy Fold Outer Display) */
+@media (max-width: 360px) {
+  .landing-hero-arena {
+    padding: 20px 10px 28px !important;
+  }
+
+  .landing-hero-title {
+    font-size: 1.55rem !important;
+  }
+
+  .cockpit-chassis {
+    border-radius: 10px !important;
+  }
+
+  #mainNav button {
+    font-size: 7.5px !important;
+    padding: 3px 1px !important;
+  }
+
+  #mainNav button svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .deck__btn {
+    padding: 0 6px !important;
+    height: 28px !important;
+  }
+}
+
+/* === PASS 10: ULTRA-NARROW FOLDABLES (280px-340px), TABLET SPLIT-SCREEN & SAFE-AREA POLISH === */
+@media screen and (max-width: 359px) {
+  .fleet-filter-bar, .fleet-filter-actions, .process-table-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+  #fleetSearchInput, #processSearchInput, #explorerSearchInput, #auditSearchInput {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .fleet-group-pills {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .instrument-card {
+    padding: 12px !important;
+    max-width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-width: 1024px) {
+  .device-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)) !important;
+  }
+  .fleet-filter-bar {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+}
+
+
+/* ==========================================================================
+   LANDSCAPE MOBILE MASTER SSOT (ORIENTATION: LANDSCAPE & MAX-HEIGHT: 560PX)
+   HIGHEST CASCADE PRECEDENCE - FULL HORIZONTAL SPREAD & ZERO AUTO-ZOOM
+   ========================================================================== */
+@media (orientation: landscape) and (max-height: 560px) {
+  :root {
+    --bottom-nav-h: 0px !important;
+    --bottom-nav-total-h: 0px !important;
+    --topbar-h: 44px !important;
+  }
+
+  .stage {
+    position: absolute !important;
+    top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    padding-bottom: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* 1. Modal Overlay & Horizontal Full Spread */
+  .modal-overlay {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 6px 12px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .modal-overlay > .instrument-card,
+  .modal-overlay > .auth-card,
+  .modal-overlay > .modal-card,
+  .modal-overlay > .dl-apps-card,
+  .modal-overlay > .mobile-modal,
+  .modal-overlay > .host-config-modal-card {
+    margin: auto !important;
+    padding: 8px 16px !important;
+    max-height: calc(100dvh - 12px) !important;
+    width: min(calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 780px) !important;
+    max-width: min(calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 780px) !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
+  }
+
+  /* Compact Modals in Landscape (Keep proportional, 520px-560px wide) */
+  #modalTunnel > .instrument-card,
+  #modalConfirmDialog > .instrument-card,
+  #modalSendPassword > .instrument-card,
+  #modalDeviceMeta > .instrument-card {
+    width: min(calc(100vw - 24px), 540px) !important;
+    max-width: min(calc(100vw - 24px), 540px) !important;
+  }
+
+  #quickConnectModal > .instrument-card,
+  #sessionConfigModal > .instrument-card {
+    width: min(calc(100vw - 24px), 560px) !important;
+    max-width: min(calc(100vw - 24px), 560px) !important;
+  }
+
+  /* Download Apps Modal in Landscape: 3-column grid fits viewport cleanly */
+  .dl-apps-card {
+    width: min(calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 780px) !important;
+    max-width: min(calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 780px) !important;
+    padding: 8px 14px !important;
+  }
+
+  .mobile-modal__head {
+    margin-bottom: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .dl-seg-wrapper {
+    margin-bottom: 4px !important;
+  }
+
+  .dl-seg-wrapper .seg {
+    height: 26px !important;
+  }
+
+  .dl-seg-wrapper .seg button {
+    height: 22px !important;
+    font-size: 0.68rem !important;
+    padding: 0 10px !important;
+  }
+
+  .mobile-modal__sub-box {
+    padding: 3px 8px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .dl-role-hint {
+    font-size: 0.62rem !important;
+    margin-bottom: 4px !important;
+  }
+
+  .dl-cards-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .dl-box-card {
+    padding: 6px 8px !important;
+    min-height: 0 !important;
+  }
+
+  .dl-box-card__head {
+    margin-bottom: 2px !important;
+  }
+
+  .dl-box-card__icon svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .dl-box-card__title {
+    font-size: 0.70rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .dl-box-card__sub {
+    font-size: 0.58rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .dl-box-card__badge {
+    font-size: 0.55rem !important;
+    padding: 1px 4px !important;
+  }
+
+  /* Landing Download Hub in Landscape: Airy 3-column Grid, Zero Clutter */
+  .landing-section-wrap#landingDownloads {
+    padding: 12px 14px 18px !important;
+  }
+
+  .landing-section-title {
+    font-size: 1.05rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 2px !important;
+    text-align: center !important;
+  }
+
+  .landing-section-subtitle {
+    font-size: 0.68rem !important;
+    line-height: 1.3 !important;
+    text-align: center !important;
+    margin-bottom: 10px !important;
+  }
+
+  .dl-platform-seg-wrap {
+    display: flex !important;
+    justify-content: center !important;
+    margin-bottom: 12px !important;
+    padding: 2px 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .dl-platform-seg {
+    margin: 0 auto !important;
+    flex-shrink: 0 !important;
+    height: 30px !important;
+  }
+
+  .dl-platform-seg button {
+    height: 24px !important;
+    padding: 0 10px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .landing-dl-matrix {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    width: 100% !important;
+    align-items: stretch !important;
+  }
+
+  .landing-dl-card {
+    padding: 14px 14px 16px !important;
+    border-radius: 12px !important;
+    background: rgba(11, 19, 43, 0.65) !important;
+    backdrop-filter: blur(12px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    transition: transform 0.2s ease, border-color 0.2s ease !important;
+  }
+
+  .landing-dl-card .dl-badge {
+    font-size: 0.58rem !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 2px !important;
+  }
+
+  .landing-dl-card .dl-card-title {
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    min-height: auto !important;
+    margin: 2px 0 4px 0 !important;
+    line-height: 1.25 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  .landing-dl-card .dl-card-desc {
+    font-size: 0.68rem !important;
+    line-height: 1.4 !important;
+    color: var(--text-muted) !important;
+    margin: 2px 0 12px 0 !important;
+    min-height: auto !important;
+    text-align: left !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  /* Hide dense spec chamber in landscape: cuts 3 duplicate bullet points & nested boxes */
+  .landing-dl-card .dl-spec-chamber {
+    display: none !important;
+  }
+
+  /* Compact 1-line command snippet box for PS1/Bash in landscape */
+  .landing-dl-card .ps1-box {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 2px 0 10px 0 !important;
+    border-radius: 8px !important;
+    background: rgba(3, 7, 18, 0.75) !important;
+  }
+
+  .landing-dl-card .ps1-box-header {
+    display: none !important;
+  }
+
+  .landing-dl-card .ps1-code-viewport {
+    height: 32px !important;
+    max-height: 32px !important;
+    padding: 6px 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .landing-dl-card .ps1-code-viewport::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .landing-dl-card .ps1-code-viewport code {
+    font-size: 0.58rem !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+  }
+
+  .landing-dl-card .dl-action-btn {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 12px !important;
+    margin-top: auto !important;
+    gap: 6px !important;
+    border-radius: 9999px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  .landing-dl-card .dl-action-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .landing-dl-card .btn-dl-text-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .landing-dl-card .btn-dl-title {
+    font-size: 0.68rem !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  .landing-dl-card .btn-dl-size {
+    font-size: 0.56rem !important;
+    line-height: 1 !important;
+  }
+
+  /* 2. Unified Modal Typography in Landscape */
+  .modal-overlay .card-hero {
+    margin-bottom: 6px !important;
+  }
+
+  .modal-overlay .card-title,
+  .modal-overlay h1,
+  .modal-overlay h2,
+  .modal-overlay h3,
+  #modalTunnelTitle,
+  #modalSessionManagerTitle,
+  #confirmDialogTitle,
+  #sendPasswordTitle,
+  #remoteHostCfgTitle {
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .modal-overlay .card-subtitle,
+  .modal-overlay .mobile-modal__subtitle,
+  #sessionManagerSubtitle,
+  #remoteHostCfgSub,
+  #deviceMetaSubtitle {
+    font-size: 0.64rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .modal-overlay .form-group {
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .modal-overlay label,
+  .modal-overlay .form-group label,
+  .modal-overlay .form-label,
+  .tunnel-field-label {
+    font-size: 0.70rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .modal-overlay .field-hint,
+  .modal-overlay small,
+  .modal-overlay .form-hint,
+  .modal-overlay .install-card-desc,
+  .modal-overlay .dl-role-hint,
+  .tunnel-desc,
+  .confirm-dialog-msg {
+    font-size: 0.60rem !important;
+    line-height: 1.25 !important;
+    margin-top: 1px !important;
+  }
+
+  #tunnelStatusText,
+  .tunnel-status-text {
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+  }
+
+  /* 3. Inputs in Landscape (Font size 0.72rem unified with landscape size group) */
+  .modal-overlay .instrument-input,
+  .modal-overlay input:not([type="checkbox"]):not([type="radio"]),
+  .modal-overlay select,
+  .modal-overlay textarea,
+  .auth-container input:not([type="checkbox"]):not([type="radio"]),
+  .auth-container select {
+    height: 28px !important;
+    min-height: 28px !important;
+    font-size: 0.72rem !important;
+    padding: 2px 8px !important;
+    box-sizing: border-box !important;
+  }
+  .modal-overlay input[type="password"],
+  .auth-container input[type="password"],
+  input[type="password"] {
+    font-family: var(--font-ui), system-ui, -apple-system, sans-serif !important;
+    letter-spacing: 2px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .modal-overlay .dialog-btn,
+  .modal-overlay .btn-tunnel-action,
+  .modal-overlay .btn-pill {
+    height: 28px !important;
+    min-height: 28px !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    padding: 0 10px !important;
+  }
+
+  .modal-overlay .modal-close-pill,
+  .modal-overlay #btnCancelSessionCfgIcon,
+  .mobile-modal__close {
+    top: 6px !important;
+    right: 6px !important;
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+  }
+}
+
+#btnTogglePathInput {
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  padding: 0 8px !important;
+  font-size: 0.70rem !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  border-radius: 9999px !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+#authSection.hidden,
+#dashboardSection.hidden,
+#remoteSection.hidden,
+#filesSection.hidden,
+#terminalSection.hidden,
+#tasksSection.hidden,
+#auditSection.hidden,
+.hidden {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ Touch & Selection SSOT */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+#mainNav,
+#mainNav button,
+.deck,
+.deck__btn,
+.seg,
+.seg button,
+.btn,
+.btn-pill,
+.btn-cta,
+.dl-action-btn,
+button,
+a,
+select,
+.platform-tab,
+.mobile-modal__close,
+.instrument-card,
+.landing-dl-card {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  outline: none !important;
+}
+
+::selection {
+  background: rgba(34, 197, 94, 0.25) !important;
+  color: inherit !important;
+}
+
+::-moz-selection {
+  background: rgba(34, 197, 94, 0.25) !important;
+  color: inherit !important;
+}
+
+/* ------------------------------------------------------------------ Audit Section Toolbar SSOT */
+#auditSection .explorer-card {
+  overflow: hidden !important;
+}
+
+#auditSection .explorer-toolbar {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 6px 12px !important;
+  min-height: 42px !important;
+  height: auto !important;
+  background: var(--ink-1) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-sizing: border-box !important;
+}
+
+#auditSection .explorer-toolbar-left {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#auditSection #auditSearchInput {
+  flex: 1 1 240px !important;
+  min-width: 120px !important;
+  max-width: 380px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  font-size: 0.74rem !important;
+  padding: 0 10px !important;
+  border-radius: 9999px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--ink-2) !important;
+  color: var(--text) !important;
+  box-sizing: border-box !important;
+}
+
+#auditSection #auditSearchInput:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow) !important;
+}
+
+#auditSection #auditActionFilter {
+  flex: 0 1 230px !important;
+  min-width: 140px !important;
+  max-width: 280px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  font-size: 0.74rem !important;
+  padding: 0 10px !important;
+  border-radius: 9999px !important;
+  background: var(--ink-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+}
+
+#auditSection #auditActionFilter:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow) !important;
+}
+
+@media (max-width: 640px) {
+  #auditSection .explorer-toolbar {
+    flex-wrap: wrap !important;
+    padding: 6px 8px !important;
+  }
+  #auditSection .explorer-toolbar-left {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  #auditSection #auditSearchInput,
+  #auditSection #auditActionFilter {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+/* ------------------------------------------------------------------ Files Section Toolbar SSOT */
+#filesSection .explorer-card {
+  overflow: hidden !important;
+}
+
+#filesSection .explorer-toolbar {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 4px 10px !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  max-height: 36px !important;
+  background: var(--ink-1) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-sizing: border-box !important;
+}
+
+#filesSection .explorer-toolbar-right {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex: 0 1 auto !important;
+  margin-left: auto !important;
+}
+
+#filesSection #explorerSearchInput {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.72rem !important;
+  line-height: 26px !important;
+  padding: 0 10px !important;
+  border-radius: 9999px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--ink-2) !important;
+  color: var(--text) !important;
+  box-sizing: border-box !important;
+}
+
+#filesSection #explorerSearchInput:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow) !important;
+}
+
+#filesSection #viewModeSeg {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  padding: 2px !important;
+  border-radius: 9999px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--ink-2) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+#filesSection #viewModeSeg button {
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  padding: 0 !important;
+  border-radius: 9999px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+#filesSection #viewModeSeg button.on {
+  background: var(--accent) !important;
+  color: var(--on-accent, #000) !important;
+}
+
+#filesSection #viewModeSeg button svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* ------------------------------------------------------------------ Unified Input Typography SSOT */
+.instrument-input,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.78rem !important;
+  box-sizing: border-box !important;
+}
+
+.instrument-input.mono-font,
+input.mono-font {
+  font-family: var(--font-mono), monospace !important;
+  font-size: 0.76rem !important;
+}
+
+input[type="password"],
+.instrument-input[type="password"] {
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.78rem !important;
+  letter-spacing: 2px !important;
+}
+
+/* ------------------------------------------------------------------ Topbar Pills Unified SSOT */
+#langSwitch.lang-switch-seg {
+  position: relative !important;
+  display: inline-grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: 1fr !important;
+  align-items: center !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  padding: 2px !important;
+  border-radius: 9999px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--ink-2) !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+  flex-shrink: 0 !important;
+}
+
+#langSwitch.lang-switch-seg button {
+  position: relative !important;
+  z-index: 2 !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  padding: 0 10px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  user-select: none !important;
+}
+
+#langSwitch.lang-switch-seg button.on {
+  color: var(--on-accent, #000) !important;
+  background: transparent !important;
+  font-weight: 700 !important;
+}
+
+#langSwitch.lang-switch-seg .seg__ind {
+  position: absolute !important;
+  z-index: 1 !important;
+  top: 2px !important;
+  bottom: 2px !important;
+  height: 24px !important;
+  border-radius: 9999px !important;
+  background: var(--accent) !important;
+  box-shadow: 0 0 10px var(--accent-glow) !important;
+  pointer-events: none !important;
+  display: block !important;
+  box-sizing: border-box !important;
+}
+
+.user-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  padding: 2px 4px 2px 10px !important;
+  gap: 6px !important;
+  background: var(--ink-2) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 9999px !important;
+  font-size: 0.72rem !important;
+  color: var(--text) !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+  overflow: hidden !important;
+}
+
+.user-badge #userNameDisplay {
+  max-width: 110px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  display: inline-block !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+  line-height: 1 !important;
+}
+
+.user-badge #btnOpenSessionConfig {
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  padding: 0 !important;
+  border-radius: 9999px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--ink-1) !important;
+  color: var(--text-muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+}
+
+.user-badge #btnOpenSessionConfig span {
+  display: none !important;
+}
+
+.user-badge #btnOpenSessionConfig svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.user-badge #btnOpenSessionConfig:hover {
+  color: var(--text) !important;
+  border-color: var(--accent) !important;
+}
+
+.user-badge #btnLogout {
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  padding: 0 8px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  line-height: 22px !important;
+  border-radius: 9999px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--ink-1) !important;
+  color: var(--text) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: all 0.15s ease !important;
+}
+
+.user-badge #btnLogout:hover {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+
+/* ==========================================================================
+   MEIKOVA RELAY - UNIFIED BUTTON HIERARCHY SYSTEM (SSOT)
+   Tier 0 (38px): Hero CTA & Primary Actions
+   Tier 1 (30px): Topbar Actions, Header Pills, Section Controls
+   Tier 2 (24px): Pagination, Sort Pills, Modal Quick Copies
+   Tier 3 (40px): Auth SSO & Google OAuth Capsules
+   ========================================================================== */
+
+/* --- TIER 0: HERO ACTIONS (38px) --- */
+.landing-action-deck {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+.landing-action-deck .btn-hero-cta,
+.landing-action-deck #btnLandingStart {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 0 20px !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: var(--accent) !important;
+  color: var(--on-accent, #000) !important;
+  box-shadow: 0 0 20px -2px var(--accent-glow) !important;
+}
+
+.landing-action-deck .btn-pill,
+.landing-action-deck #btnLandingQuickJump,
+.landing-action-deck #btnLandingDownloadJump {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 0 16px !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: var(--ink-2) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text) !important;
+}
+
+.landing-action-deck .btn-hero-cta svg,
+.landing-action-deck .btn-pill svg {
+  width: 14px !important;
+  height: 14px !important;
+  stroke: currentColor !important;
+}
+.landing-action-deck .btn-hero-cta svg {
+  stroke: var(--on-accent, #000) !important;
+  fill: var(--on-accent, #000) !important;
+}
+.landing-action-deck .btn-pill svg {
+  stroke: var(--accent) !important;
+  fill: none !important;
+}
+
+/* --- TIER 1: STANDARD ACTION PILLS (30px) --- */
+#btnNavLogin,
+#btnRefreshAudit,
+#btnExportAuditCsv,
+#btnExportTerminalLog,
+#btnClearTerminal,
+#btnRefreshTasks,
+#btnEndProcess,
+#btnExpUp,
+#btnExpRefresh,
+#btnExpNewFolder,
+#btnUploadFile,
+#btnSaveFile,
+#btnCloseFileEditor,
+#btnOpenAddModal,
+#btnOpenLinkModal,
+#btnOpenWolModal,
+#btnTogglePathInput,
+#btnGoDirectPath,
+#btnCancelDirectPath {
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  padding: 0 10px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  border-radius: 9999px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+#btnExportAuditCsv {
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  color: var(--accent) !important;
+  background: rgba(34, 197, 94, 0.08) !important;
+}
+#btnExportAuditCsv:hover {
+  border-color: var(--accent) !important;
+  background: rgba(34, 197, 94, 0.16) !important;
+  box-shadow: 0 0 12px -2px var(--accent-glow) !important;
+}
+
+#btnRefreshAudit:hover,
+#btnExportTerminalLog:hover,
+#btnClearTerminal:hover,
+#btnRefreshTasks:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px var(--accent-glow) !important;
+}
+
+/* --- TIER 2: COMPACT / SUB / PAGINATION PILLS (24px) --- */
+#btnAuditPrev,
+#btnAuditNext,
+.proc-sort-btn,
+.btn-compact,
+#btnCopyWinCmd,
+#btnCopyMacCmd,
+#btnCopyLinuxCmd,
+#btnCopyTunnelInstallCmd,
+#btnRefreshSessions,
+#btnOpenTimeoutFromSessions {
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  padding: 0 8px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  border-radius: 9999px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+#auditPageIndicator {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  font-family: var(--font-mono), monospace !important;
+  font-size: 0.70rem !important;
+  font-weight: 600 !important;
+  color: var(--accent) !important;
+  padding: 0 6px !important;
+  align-self: center !important;
+}
+
+/* --- TIER 3: AUTH SSO & GOOGLE CAPSULES (40px) --- */
+.btn-sso-gateway,
+#btn-sso-gateway {
+  width: 100% !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  background: rgba(34, 197, 94, 0.08) !important;
+  border: 1px solid rgba(34, 197, 94, 0.35) !important;
+  border-radius: 9999px !important;
+  padding: 0 18px !important;
+  color: var(--accent, #22C55E) !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.80rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-sso-gateway:hover,
+#btn-sso-gateway:hover {
+  background: rgba(34, 197, 94, 0.16) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 14px -2px var(--accent-glow) !important;
+}
+
+.btn-ambient-google,
+#btn-ambient-google {
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  font-size: 0.80rem !important;
+}
+
+/* ==========================================================================
+   REFINED AUTH CARD & HERO ACTIONS SSOT
+   - Perfect mathematical geometry for segmented tabs (zero line artifact)
+   - Balanced 36px/34px hierarchy for auth card (retains logo & subtitle)
+   - 100% unified 38px hero deck actions
+   ========================================================================== */
+
+/* --- HERO ACTION DECK 100% UNIFIED GEOMETRY --- */
+.landing-action-deck {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+  margin-top: 6px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.landing-action-deck button,
+.landing-action-deck .landing-hero-pill,
+.landing-action-deck .btn-hero-cta,
+.landing-action-deck .btn-pill,
+#btnLandingStart,
+#btnLandingQuickJump,
+#btnLandingDownloadJump {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 0 18px !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.01em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: all var(--dur-fast) var(--ease-out) !important;
+  margin: 0 !important;
+  vertical-align: middle !important;
+  text-decoration: none !important;
+}
+
+#btnLandingStart {
+  background: var(--accent) !important;
+  color: var(--on-accent, #000) !important;
+  border: 1px solid var(--accent) !important;
+  box-shadow: 0 0 20px -2px var(--accent-glow) !important;
+}
+
+#btnLandingStart:hover {
+  filter: brightness(1.1) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 0 26px var(--accent) !important;
+}
+
+#btnLandingQuickJump,
+#btnLandingDownloadJump {
+  background: var(--ink-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
+}
+
+#btnLandingQuickJump:hover,
+#btnLandingDownloadJump:hover {
+  background: var(--ink-3) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px -2px var(--accent-glow) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+
+.landing-action-deck svg {
+  width: 14px !important;
+  height: 14px !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+  transform: none !important;
+}
+
+#btnLandingStart svg {
+  stroke: var(--on-accent, #000) !important;
+  fill: var(--on-accent, #000) !important;
+}
+
+#btnLandingQuickJump svg,
+#btnLandingDownloadJump svg {
+  stroke: var(--accent) !important;
+  fill: none !important;
+}
+
+/* --- AUTH SECTION & CARD HARMONIZATION (SSOT) --- */
+#authSection:not(.hidden) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  box-sizing: border-box !important;
+  height: 100% !important;
+  padding: 12px max(14px, env(safe-area-inset-left, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-right, 0px)) !important;
+}
+
+#authSection > .instrument-card {
+  width: min(370px, calc(100vw - 24px)) !important;
+  max-width: 370px !important;
+  margin: auto !important;
+  padding: 20px 22px 22px !important;
+  border-radius: 16px !important;
+  box-sizing: border-box !important;
+  background: var(--ink-1) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+}
+
+#authSection .card-hero {
+  margin-bottom: 10px !important;
+  text-align: center !important;
+}
+
+#authSection .card-hero .brand-font:first-child {
+  font-size: 1.3rem !important;
+  color: var(--accent) !important;
+  margin-bottom: 2px !important;
+  line-height: 1 !important;
+}
+
+#authSection .card-title {
+  font-size: 1.15rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 2px !important;
+  line-height: 1.25 !important;
+  color: var(--text) !important;
+}
+
+#authSection .card-subtitle {
+  font-size: 0.72rem !important;
+  line-height: 1.35 !important;
+  margin-bottom: 10px !important;
+  color: var(--text-muted) !important;
+}
+
+/* --- AUTH SEGMENTED TABS (36px track, 28px buttons, zero line gap) --- */
+#authTabs.seg,
+#authTabs.auth-tabs {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 3px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 9999px !important;
+  background: oklch(0.195 var(--gc) var(--gh) / 0.65) !important;
+  margin-bottom: 10px !important;
+  display: inline-grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: 1fr !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+}
+
+#authTabs button {
+  position: relative !important;
+  z-index: 2 !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 12px !important;
+  border: none !important;
+  background: transparent !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  color: var(--text-muted) !important;
+  border-radius: 9999px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  transition: color var(--dur-fast) var(--ease-out) !important;
+}
+
+#authTabs button.on {
+  color: var(--on-accent, #000) !important;
+  background: transparent !important;
+}
+
+#authTabs .seg__ind {
+  position: absolute !important;
+  z-index: 1 !important;
+  top: 3px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  border-radius: 9999px !important;
+  background: var(--accent) !important;
+  box-shadow: 0 0 16px -2px var(--accent-glow) !important;
+  pointer-events: none !important;
+}
+
+/* --- AUTH BUTTONS (SSO & Google: 36px) --- */
+#authSection .auth-sso-box {
+  margin-bottom: 8px !important;
+  width: 100% !important;
+}
+
+#authSection #btn-sso-gateway,
+#authSection .btn-sso-gateway {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 16px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.76rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  gap: 8px !important;
+  border-radius: 9999px !important;
+  width: 100% !important;
+  background: rgba(34, 197, 94, 0.08) !important;
+  border: 1px solid rgba(34, 197, 94, 0.35) !important;
+  color: var(--accent) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  transition: all var(--dur-fast) var(--ease-out) !important;
+}
+
+#authSection #btn-sso-gateway:hover {
+  background: rgba(34, 197, 94, 0.16) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 14px -2px var(--accent-glow) !important;
+}
+
+#authSection #btn-sso-gateway svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+#authSection .auth-google-box {
+  margin-bottom: 8px !important;
+  width: 100% !important;
+}
+
+#authSection #btn-ambient-google,
+#authSection .btn-ambient-google {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 16px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  gap: 8px !important;
+  border-radius: 9999px !important;
+  width: 100% !important;
+  background: var(--ink-1) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  transition: all var(--dur-fast) var(--ease-out) !important;
+}
+
+#authSection #btn-ambient-google:hover {
+  background: var(--ink-2) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 14px -2px var(--accent-glow) !important;
+  color: #ffffff !important;
+}
+
+#authSection #btn-ambient-google svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* --- AUTH DIVIDER --- */
+#authSection .auth-divider {
+  margin: 8px 0 10px !important;
+  font-size: 0.68rem !important;
+  gap: 10px !important;
+  color: var(--text-faint) !important;
+}
+
+/* --- FORM GROUPS & INPUTS (34px) --- */
+#authSection .form-group {
+  margin-bottom: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+#authSection .form-group label {
+  font-size: 0.70rem !important;
+  font-weight: 500 !important;
+  margin-bottom: 3px !important;
+  line-height: 1 !important;
+  color: var(--text-muted) !important;
+  display: block !important;
+}
+
+#authSection .form-group input.instrument-input {
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  font-size: 0.78rem !important;
+  padding: 0 12px !important;
+  border-radius: 8px !important;
+  background: var(--ink-0) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text) !important;
+  box-sizing: border-box !important;
+}
+
+#authSection .form-group input.instrument-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px -2px var(--accent-glow) !important;
+}
+
+#authSection input[type="password"] {
+  letter-spacing: 2px !important;
+  font-size: 0.85rem !important;
+}
+
+/* --- SUBMIT BUTTON (36px) --- */
+#authSection #btnSubmitAuth {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  margin-top: 8px !important;
+  border-radius: 9999px !important;
+  padding: 0 18px !important;
+  width: 100% !important;
+  background: var(--accent) !important;
+  color: var(--on-accent, #000) !important;
+  border: 1px solid var(--accent) !important;
+  box-shadow: 0 0 18px -2px var(--accent-glow) !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: all var(--dur-fast) var(--ease-out) !important;
+}
+
+#authSection #btnSubmitAuth:hover {
+  filter: brightness(1.1) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 0 24px var(--accent) !important;
+}
+
+/* --- SHORT VIEWPORT RESPONSIVENESS (height <= 540px) --- */
+@media (max-height: 540px) {
+  #authSection:not(.hidden) {
+    padding: 8px !important;
+    justify-content: flex-start !important;
+    overflow-y: auto !important;
+  }
+
+  #authSection > .instrument-card {
+    margin: 4px auto !important;
+    padding: 12px 18px 14px !important;
+    max-height: calc(100dvh - 16px) !important;
+  }
+
+  #authSection .card-hero {
+    margin-bottom: 6px !important;
+  }
+
+  #authSection .card-hero .brand-font:first-child {
+    font-size: 1.15rem !important;
+    margin-bottom: 1px !important;
+  }
+
+  #authSection .card-title {
+    font-size: 1.05rem !important;
+    margin-bottom: 1px !important;
+  }
+
+  #authSection .card-subtitle {
+    font-size: 0.66rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  #authTabs.seg,
+  #authTabs.auth-tabs {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    padding: 2px !important;
+    margin-bottom: 6px !important;
+  }
+
+  #authTabs button {
+    height: 26px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+    font-size: 0.72rem !important;
+  }
+
+  #authTabs .seg__ind {
+    top: 2px !important;
+    height: 26px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+  }
+
+  #authSection .auth-sso-box,
+  #authSection .auth-google-box {
+    margin-bottom: 6px !important;
+  }
+
+  #authSection #btn-sso-gateway,
+  #authSection #btn-ambient-google {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    font-size: 0.72rem !important;
+  }
+
+  #authSection .auth-divider {
+    margin: 6px 0 !important;
+  }
+
+  #authSection .form-group {
+    margin-bottom: 6px !important;
+  }
+
+  #authSection .form-group input.instrument-input {
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    font-size: 0.74rem !important;
+  }
+
+  #authSection #btnSubmitAuth {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    font-size: 0.76rem !important;
+    margin-top: 6px !important;
+  }
 }

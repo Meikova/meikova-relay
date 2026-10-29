@@ -17,7 +17,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = REPO_ROOT / "dist"
 
@@ -105,8 +105,35 @@ def create_deb_package(binary_path: Path, output_deb_path: Path, version: str = 
     # 3. data.tar.gz
     data_buf = io.BytesIO()
     with tarfile.open(fileobj=data_buf, mode="w:gz") as tar:
-        # Binary in /usr/bin
-        bin_data = binary_path.read_bytes() if binary_path.exists() else b"#!/bin/sh\necho 'Meikova Relay'\n"
+        # Bundle full host_agent source into /opt/meikova-relay/host_agent so v1.4.0 GUI & engines are always present
+        host_agent_src = REPO_ROOT / "host_agent"
+        for root, _dirs, files in os.walk(host_agent_src):
+            if "__pycache__" in root:
+                continue
+            for fname in sorted(files):
+                if fname.endswith((".pyc", ".dll", ".pyd")):
+                    continue
+                fpath = Path(root) / fname
+                rel = fpath.relative_to(host_agent_src).as_posix()
+                fdata = fpath.read_bytes()
+                ti_f = tarfile.TarInfo(name=f"./opt/meikova-relay/host_agent/{rel}")
+                ti_f.size = len(fdata)
+                ti_f.mode = 0o755 if fname.endswith((".py", ".sh")) else 0o644
+                ti_f.mtime = now
+                tar.addfile(ti_f, io.BytesIO(fdata))
+
+        # Binary or smart launcher in /usr/bin/meikova-relay-host
+        default_launcher = (
+            b"#!/usr/bin/env bash\n"
+            b"if [ -x /opt/meikova-relay/meikova-relay-host-bin ]; then\n"
+            b"    exec /opt/meikova-relay/meikova-relay-host-bin \"$@\"\n"
+            b"elif [ -x \"$HOME/.meikova-relay/.venv/bin/python3\" ]; then\n"
+            b"    exec \"$HOME/.meikova-relay/.venv/bin/python3\" /opt/meikova-relay/host_agent/gui_agent.py \"$@\"\n"
+            b"else\n"
+            b"    exec python3 /opt/meikova-relay/host_agent/gui_agent.py \"$@\"\n"
+            b"fi\n"
+        )
+        bin_data = binary_path.read_bytes() if binary_path.exists() else default_launcher
         ti = tarfile.TarInfo(name=f"./usr/bin/{bin_name}")
         ti.size = len(bin_data)
         ti.mode = 0o755
@@ -367,7 +394,15 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
         "--hidden-import", "turbojpeg",
         "--hidden-import", "PIL",
         "--hidden-import", "PIL.Image",
+        "--hidden-import", "PIL.ImageDraw",
         "--hidden-import", "PIL.ImageGrab",
+        "--hidden-import", "pystray",
+        "--hidden-import", "pyperclip",
+        "--hidden-import", "psutil",
+        "--hidden-import", "webview",
+        "--hidden-import", "host_agent.engines",
+        "--hidden-import", "host_agent.tray_menu",
+        "--hidden-import", "host_agent.chat_window",
     ]
     if target_os == "windows":
         tj_dll = REPO_ROOT / "host_agent" / "turbojpeg.dll"
@@ -387,9 +422,21 @@ def run_pyinstaller(target_os: str, dist_dir: Path) -> Path:
             "--collect-all", "webview",
         ])
     elif target_os == "linux":
-        hidden_args.extend(["--hidden-import", "mss.linux"])
+        hidden_args.extend([
+            "--hidden-import", "mss.linux",
+            "--hidden-import", "pystray._xorg",
+            "--hidden-import", "pystray._appindicator",
+            "--hidden-import", "pystray._gtk",
+            "--collect-all", "webview",
+            "--collect-all", "pystray",
+        ])
     elif target_os == "macos":
-        hidden_args.extend(["--hidden-import", "mss.darwin"])
+        hidden_args.extend([
+            "--hidden-import", "mss.darwin",
+            "--hidden-import", "pystray._darwin",
+            "--collect-all", "webview",
+            "--collect-all", "pystray",
+        ])
 
     if target_os == "windows":
         name = "MeikovaRelayHost"
@@ -517,6 +564,7 @@ def build(target: str = "auto", dist_dir: Path = DIST_DIR, skip_pyinstaller: boo
 
         print(f"[+] macOS artifacts: {bin_path.name}, {tar_path.name}")
 
+    build_agent_package_zip(REPO_ROOT)
     checksums = generate_checksums(dist_dir)
     print(f"[+] Generated Checksums: {checksums.name}")
     print("=== Build Completed Successfully ===")

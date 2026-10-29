@@ -1,15 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_view.html', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_view.html', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.png', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icon.png', '.'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icons', 'host_agent/tray_icons'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/tray_icons', 'tray_icons')]
-binaries = [('D:/JOB/DEV/meikova/meikova-relay/host_agent/turbojpeg.dll', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay/host_agent/turbojpeg.dll', '.')]
-hiddenimports = ['mss', 'websockets', 'numpy', 'cv2', 'turbojpeg', 'PIL', 'PIL.Image', 'PIL.ImageGrab', 'mss.windows', 'dxcam', 'bettercam', 'comtypes', 'webview', 'webview.platforms.winforms', 'webview.platforms.edgechromium', 'clr', 'clr_loader', 'pythonnet']
+datas = [('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/gui_view.html', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/gui_view.html', '.'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/icon.ico', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/icon.ico', '.'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/icon.png', '.'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/tray_icon.png', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/tray_icon.png', '.'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/tray_icons', 'host_agent/tray_icons'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/tray_icons', 'tray_icons')]
+binaries = [('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/turbojpeg.dll', 'host_agent'), ('D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/turbojpeg.dll', '.')]
+hiddenimports = ['mss', 'websockets', 'numpy', 'cv2', 'turbojpeg', 'PIL', 'PIL.Image', 'PIL.ImageDraw', 'PIL.ImageGrab', 'pystray', 'pyperclip', 'psutil', 'webview', 'host_agent.engines', 'host_agent.tray_menu', 'host_agent.chat_window', 'mss.windows', 'dxcam', 'bettercam', 'comtypes', 'webview', 'webview.platforms.winforms', 'webview.platforms.edgechromium', 'clr', 'clr_loader', 'pythonnet']
 tmp_ret = collect_all('webview')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
-    ['D:/JOB/DEV/meikova/meikova-relay/host_agent/gui_agent.py'],
+    ['D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/gui_agent.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,
@@ -42,5 +42,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['D:/JOB/DEV/meikova/meikova-relay/host_agent/icon.ico'],
+    icon=['D:/JOB/DEV/meikova/meikova-relay-v5-fixed/host_agent/icon.ico'],
 )

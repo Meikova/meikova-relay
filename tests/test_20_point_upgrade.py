@@ -421,7 +421,167 @@ class TestTwentyPointUpgrade(unittest.IsolatedAsyncioTestCase):
             svc.stop()
 
 
+
+    def test_26_responsive_safe_area_and_os_engine_gui_tray_parity(self):
+        """Verifies comprehensive responsive & safe-area CSS rules (Notch / Dynamic Island / Landscape),
+        OS-Engine GUI/Tray/Autostart separation, Linux system tray hooks, and v1.4.0 Host GUI parity."""
+        from host_agent.engines import create_platform_engine, WindowsEngine, MacOSEngine, LinuxEngine
+        from host_agent.tray_menu import build_tray_menu, show_custom_tk_tray_popup
+        from host_agent.gui_agent import HostApi, COLORS, APP_VERSION
+
+        # 1. Verify OS Engines expose all OS-grouped GUI, Window, Autostart, Clipboard, and Tray methods
+        for plat, cls in (("win32", WindowsEngine), ("darwin", MacOSEngine), ("linux", LinuxEngine)):
+            eng = create_platform_engine(plat)
+            self.assertIsInstance(eng, cls)
+            self.assertIn("sans", eng.get_ui_fonts())
+            self.assertIn("mono", eng.get_ui_fonts())
+            self.assertTrue(callable(eng.activate_window))
+            self.assertTrue(callable(eng.apply_window_theme))
+            self.assertTrue(callable(eng.is_autostart_enabled))
+            self.assertTrue(callable(eng.set_autostart))
+            self.assertTrue(callable(eng.set_clipboard_text))
+            self.assertTrue(callable(eng.configure_tray_environment))
+            self.assertTrue(callable(eng.patch_tray_backend))
+
+        # 2. Verify v1.4.0 Ambient Dark palette & version parity in gui_agent.py
+        import json
+        expected_version = json.loads((BASE_DIR / "version.json").read_text(encoding="utf-8"))["version"]
+        self.assertEqual(APP_VERSION, expected_version)
+        self.assertEqual(COLORS["bg_main"], "#111315")
+        self.assertEqual(COLORS["accent_green"], "#83E8AC")
+        self.assertTrue(callable(show_custom_tk_tray_popup))
+
+        # 3. Verify responsive & safe-area CSS rules in relay-server/public/css/style.css
+        css_text = (BASE_DIR / "relay-server" / "public" / "css" / "style.css").read_text(encoding="utf-8")
+        self.assertIn("--bottom-nav-h: 56px;", css_text)
+        self.assertIn("--bottom-nav-total-h: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));", css_text)
+        self.assertIn("left: calc(76px + env(safe-area-inset-left, 0px)) !important;", css_text)
+        self.assertIn("@media (max-height: 560px)", css_text)
+        self.assertIn("env(safe-area-inset-top, 0px)", css_text)
+        self.assertIn("env(safe-area-inset-left, 0px)", css_text)
+        self.assertIn("env(safe-area-inset-right, 0px)", css_text)
+
+
+
+    def test_27_full_os_engine_consolidation_and_100_percent_i18n_responsive_loop(self):
+        """Verifies all 7 OS-Engine subsystem groups across WindowsEngine, MacOSEngine, and LinuxEngine,
+        100% i18n wrapping in index.html / gui_view.html / gui_agent.py / tray_menu.py, and Pass #2 responsive CSS."""
+        import re
+        from host_agent.engines import create_platform_engine
+        from host_agent.power_manager import PowerManager
+        from host_agent.system_manager import SystemManager
+
+        # 1. Verify all 3 OS Engines implement all 7 subsystem groups
+        for plat, expected_paste in (("win32", (0x11, 0x56)), ("darwin", (0x5B, 0x56)), ("linux", (0x11, 0x56))):
+            eng = create_platform_engine(plat)
+            self.assertEqual(eng.get_paste_vk_combo(), expected_paste)
+            self.assertTrue(eng.lock_workstation())
+            self.assertTrue(eng.restart_machine(5))
+            self.assertTrue(eng.shutdown_machine(10))
+            self.assertTrue(eng.cancel_power_action())
+            self.assertTrue(eng.prevent_sleep(True))
+            wake_res = eng.configure_auto_wakeup(True, "07:30")
+            self.assertTrue(wake_res["success"])
+            self.assertEqual(wake_res["wake_time"], "07:30")
+            self.assertTrue(eng.execute_quick_macro("calc"))
+            hw = eng.get_hardware_telemetry()
+            self.assertIn("ram", hw)
+            self.assertIn("disks", hw)
+            self.assertIn("os", hw)
+            self.assertTrue(callable(eng.is_service_installed))
+            self.assertTrue(callable(eng.manage_service))
+
+        # 2. Verify PowerManager and SystemManager delegate cleanly
+        self.assertTrue(PowerManager.lock_workstation())
+        self.assertIn("ram", SystemManager.get_hardware_telemetry())
+
+        # 3. Verify 0 unwrapped Vietnamese elements or attributes in index.html
+        html = (BASE_DIR / "relay-server" / "public" / "index.html").read_text(encoding="utf-8")
+        vi_pat = re.compile(r'[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ]')
+        for line in html.splitlines():
+            if line.strip().startswith("<!--"):
+                continue
+            for m in re.finditer(r'<(span|h1|h2|h3|h4|label|p|button|div|th|option)\b([^>]*)>([^<]+)</\1>', line):
+                attrs, content = m.group(2), m.group(3).strip()
+                if vi_pat.search(content):
+                    self.assertIn("data-i18n", attrs, f"Unwrapped element in index.html: {content}")
+
+        # 4. Verify Pass #2 responsive CSS in style.css and gui_view.html
+        css_text = (BASE_DIR / "relay-server" / "public" / "css" / "style.css").read_text(encoding="utf-8")
+        self.assertIn(".modal-overlay > .instrument-card", css_text)
+        self.assertIn("@media (max-width: 360px)", css_text)
+        gui_html = (BASE_DIR / "host_agent" / "gui_view.html").read_text(encoding="utf-8")
+        self.assertIn("@media (max-width: 520px)", gui_html)
+        self.assertIn("@media (max-height: 680px)", gui_html)
+
+
+    def test_28_continuous_cfr_high_fps_pacing_and_keyframe_heartbeat(self):
+        """Verify Continuous CFR (youtube_smooth) achieves high FPS via MKR0 sub-frame pacing + 250ms keyframe heartbeat + QPC catch-up ticks."""
+        hs_src = (Path(__file__).resolve().parents[1] / "host_agent" / "host_service.py").read_text(encoding="utf-8")
+        self.assertIn("cfr_need_keyframe", hs_src)
+        self.assertIn("_last_cfr_full_send_time", hs_src)
+        self.assertIn("max_in_flight = 12", hs_src)
+        self.assertNotIn("if s_mode not in (\"continuous_cfr\", \"youtube_smooth\"):\n                                await ws.send(MICRO_FRAME_REPEAT)", hs_src)
+
+
+    def test_29_zero_touch_auto_bootstrap_and_vendor_packages(self):
+        """Verify auto_bootstrap.py, setup_dependencies.py, and bundled vendor/packages work out-of-the-box."""
+        from host_agent.auto_bootstrap import activate_vendor_paths, inspect_dependencies
+        v_info = activate_vendor_paths()
+        self.assertTrue(v_info["mounted_packages"])
+        rep = inspect_dependencies()
+        self.assertIn("installed", rep)
+        self.assertIn("missing", rep)
+        installed_names = {item["import_name"] for item in rep["installed"]}
+        self.assertIn("turbojpeg", installed_names)
+        self.assertIn("pyperclip", installed_names)
+        setup_file = Path(__file__).resolve().parents[1] / "setup_dependencies.py"
+        self.assertTrue(setup_file.is_file())
+
+
+    def test_30_fleet_search_anti_password_manager_autofill_guard(self):
+        """Verify fleetSearchInput has readonly-until-interaction and fleetSearchUserInteracted guard against browser username autofill."""
+        root = Path(__file__).resolve().parents[1]
+        html_src = (root / "relay-server" / "public" / "index.html").read_text(encoding="utf-8")
+        js_src = (root / "relay-server" / "public" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("id=\"fleetSearchInput\" readonly", html_src)
+        self.assertIn("fleetSearchUserInteracted", js_src)
+        self.assertIn("if (!fleetSearchUserInteracted)", js_src)
+
+
+    def test_31_ten_group_os_engine_and_dynamic_js_i18n(self):
+        """Verify all 10 OS Engine subsystem groups across Windows/macOS/Linux, dynamic JS i18n keys, and Pass 10 responsive CSS."""
+        from host_agent.engines import create_platform_engine
+        for plat in ("win32", "darwin", "linux"):
+            eng = create_platform_engine(plat)
+            for method_name in (
+                "get_cursor_shape",
+                "get_clipboard_text",
+                "is_headless_display",
+                "get_virtual_display_status",
+                "is_audio_output_available",
+            ):
+                self.assertTrue(callable(getattr(eng, method_name, None)), f"{plat} missing {method_name}")
+            self.assertIsInstance(eng.get_cursor_shape(), str)
+            self.assertIsInstance(eng.get_virtual_display_status(), dict)
+
+        root = Path(__file__).resolve().parents[1]
+        i18n_src = (root / "relay-server" / "public" / "js" / "i18n.js").read_text(encoding="utf-8")
+        app_src = (root / "relay-server" / "public" / "js" / "app.js").read_text(encoding="utf-8")
+        css_src = (root / "relay-server" / "public" / "css" / "style.css").read_text(encoding="utf-8")
+        gui_src = (root / "host_agent" / "gui_view.html").read_text(encoding="utf-8")
+
+        for key in ("pin.hide", "pin.show", "session_mgr.title", "audit.badge_session_conn", "power.lock_title", "tasks.ram_sub_fmt"):
+            self.assertIn(f'"{key}"', i18n_src)
+            self.assertIn(f"'{key}'", app_src)
+
+        self.assertIn("PASS 10: ULTRA-NARROW FOLDABLES", css_src)
+        self.assertIn("@media (max-width: 540px)", gui_src)
+
+
 if __name__ == "__main__":
+
+
 
 
     unittest.main()

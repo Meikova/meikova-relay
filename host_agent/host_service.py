@@ -14,6 +14,31 @@ import urllib.parse
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional, Tuple, Any, Dict
+try:
+    from .auto_bootstrap import (
+        activate_vendor_paths,
+        ensure_dependencies,
+        inspect_dependencies,
+        download_wheelhouse,
+        install_into_vendor_packages,
+    )
+    activate_vendor_paths()
+except Exception:
+    try:
+        from auto_bootstrap import (
+            activate_vendor_paths,
+            ensure_dependencies,
+            inspect_dependencies,
+            download_wheelhouse,
+            install_into_vendor_packages,
+        )
+        activate_vendor_paths()
+    except Exception:
+        activate_vendor_paths = lambda: {}
+        ensure_dependencies = lambda **kw: {}
+        inspect_dependencies = lambda: {}
+        download_wheelhouse = lambda **kw: {}
+        install_into_vendor_packages = lambda **kw: {}
 import concurrent.futures
 try:
     import websockets
@@ -26,7 +51,7 @@ except ImportError:
             raise RuntimeError("websockets package is required for live relay connections")
     websockets = _WebsocketsStub()
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.4.1"
 
 # --- Resilient Network Infrastructure: DNS Bypass, Corporate Proxy, and Resilient SSL ---
 _ORIGINAL_GETADDRINFO = socket.getaddrinfo
@@ -942,17 +967,22 @@ class HostService:
 
                     s_mode = getattr(self, "stream_mode", "adaptive_vfr")
                     is_real_jpeg = len(frame) >= 512
+                    now_pc = time.perf_counter()
+                    cfr_need_keyframe = (
+                        s_mode in ("continuous_cfr", "youtube_smooth")
+                        and (now_pc - getattr(self, "_last_cfr_full_send_time", 0.0)) >= 0.25
+                    )
                     is_same_cached_obj = (
                         is_real_jpeg
-                        and s_mode not in ("continuous_cfr", "youtube_smooth")
+                        and not cfr_need_keyframe
                         and not getattr(self, "_force_full_frame", False)
                         and id(frame) == getattr(self, "_last_sent_frame_obj_id", None)
                     )
 
-                    now_pc = time.perf_counter()
                     if is_same_cached_obj:
                         is_idle_eco = (
-                            bool(self.host_config.get("idle_fps_saver", getattr(self, "idle_fps_saver", False)))
+                            s_mode not in ("continuous_cfr", "youtube_smooth")
+                            and bool(self.host_config.get("idle_fps_saver", getattr(self, "idle_fps_saver", False)))
                             and getattr(self.capture, "_input_dirty_until", 0.0) > 0.0
                             and (now_pc - getattr(self.capture, "_input_dirty_until", 0.0)) > 15.0
                         )
@@ -968,7 +998,7 @@ class HostService:
                         elif s_mode in ("low_latency_drop", "zero_replay") or (s_mode in ("adaptive_vfr", "adaptive_hybrid") and is_input_burst):
                             max_in_flight = 2
                         elif s_mode in ("continuous_cfr", "youtube_smooth"):
-                            max_in_flight = 8
+                            max_in_flight = 12
                         else:
                             max_in_flight = 6
 
@@ -991,11 +1021,13 @@ class HostService:
                                 self.frames_in_flight = max(0, max_in_flight - 1)
 
                         self._last_sent_frame_obj_id = id(frame)
+                        self._last_cfr_full_send_time = now_pc
                         self._force_full_frame = False
                         self.frames_in_flight = min(16, self.frames_in_flight + 1)
                         await ws.send(frame)
 
-                    # Maintain exact QPC frame budget: if a heavy 1080p JPEG capture/write took >1 frame_interval,
+                    # Maintain exact QPC frame budget across all modes (including Continuous CFR):
+                    # if a heavy 1080p/2K/4K JPEG capture/write took >1 frame_interval,
                     # immediately emit the elapsed MKR0 ticks so 30/60/120/144/240/360 FPS never drops below target!
                     if getattr(self, "uncapped_fps", False) or self.frame_interval <= 0.0008:
                         next_send_qpc = time.perf_counter()
@@ -1006,9 +1038,8 @@ class HostService:
                         while now_after >= next_send_qpc and catchup < 32 and not getattr(self, "uncapped_fps", False):
                             next_send_qpc += self.frame_interval
                             catchup += 1
-                            if s_mode not in ("continuous_cfr", "youtube_smooth"):
-                                await ws.send(MICRO_FRAME_REPEAT)
-                                now_after = time.perf_counter()
+                            await ws.send(MICRO_FRAME_REPEAT)
+                            now_after = time.perf_counter()
                         if now_after - next_send_qpc > max(0.08, self.frame_interval * 8.0):
                             next_send_qpc = now_after
 
@@ -1274,7 +1305,12 @@ class HostService:
                         sm = "adaptive_vfr"
                     self.stream_mode = sm
                     self.host_config["stream_mode"] = sm
+                    if "fps_limit" in event or "uncapped" in event:
+                        req_fps = int(event.get("fps_limit") or 0)
+                        is_unc = bool(event.get("uncapped", req_fps <= 0))
+                        self._apply_fps_target(req_fps, uncapped=is_unc)
                     self.frames_in_flight = 0
+                    self._last_cfr_full_send_time = 0.0
                     self._force_full_frame = True
                     if self.ack_event is not None:
                         self.ack_event.set()
@@ -1471,6 +1507,24 @@ class HostService:
                             "is_admin": is_current_user_admin(),
                             "message": "Đã gửi yêu cầu nâng quyền UAC trên màn hình máy trạm." if elevated else "Không thể kích hoạt UAC hoặc người dùng tại máy trạm đã từ chối."
                         }))
+                    continue
+
+                elif ev_type == "check_host_dependencies":
+                    loop = asyncio.get_running_loop()
+                    dep_report = await loop.run_in_executor(None, inspect_dependencies)
+                    await ws.send(json.dumps({
+                        "type": "host_dependencies_status",
+                        "report": dep_report
+                    }))
+                    continue
+
+                elif ev_type == "install_host_dependencies":
+                    loop = asyncio.get_running_loop()
+                    dep_report = await loop.run_in_executor(None, lambda: ensure_dependencies(auto_install=True))
+                    await ws.send(json.dumps({
+                        "type": "host_dependencies_status",
+                        "report": dep_report
+                    }))
                     continue
 
                 # Protocol Probing & Tunnel Events
@@ -1793,11 +1847,14 @@ class HostService:
 
                         if mode in ("gui", "auto"):
                             try:
-                                import subprocess
-                                if cmd.lower() in ("winver", "dxdiag", "taskmgr", "msconfig", "calc", "regedit"):
-                                    subprocess.Popen(cmd, shell=True)
+                                if self.os_engine and hasattr(self.os_engine, "execute_quick_macro"):
+                                    self.os_engine.execute_quick_macro(cmd, mode=mode)
                                 else:
-                                    subprocess.Popen(f'cmd.exe /k "{cmd}"', shell=True)
+                                    import subprocess
+                                    if cmd.lower() in ("winver", "dxdiag", "taskmgr", "msconfig", "calc", "regedit"):
+                                        subprocess.Popen(cmd, shell=True)
+                                    else:
+                                        subprocess.Popen(f'cmd.exe /k "{cmd}"', shell=True)
                             except Exception as ex:
                                 logger.warning(f"[QuickMacro] Failed to spawn GUI process: {ex}")
                     continue
@@ -2046,10 +2103,11 @@ class HostService:
                     if new_text is not None:
                         ok = self.clipboard.set_clipboard_text(new_text)
                         if ok and event.get("auto_paste"):
-                            InputInjector.key_down(0x11)
-                            InputInjector.key_down(0x56)
-                            InputInjector.key_up(0x56)
-                            InputInjector.key_up(0x11)
+                            mod_vk, v_vk = self.os_engine.get_paste_vk_combo() if (self.os_engine and hasattr(self.os_engine, "get_paste_vk_combo")) else (0x11, 0x56)
+                            InputInjector.key_down(mod_vk)
+                            InputInjector.key_down(v_vk)
+                            InputInjector.key_up(v_vk)
+                            InputInjector.key_up(mod_vk)
                             if hasattr(self.capture, "notify_input_activity"):
                                 self.capture.notify_input_activity(0.45)
                     await ws.send(json.dumps({
@@ -2066,10 +2124,11 @@ class HostService:
                     if b64_data:
                         ok = self.clipboard.set_clipboard_image(b64_data, mime)
                         if ok and event.get("auto_paste"):
-                            InputInjector.key_down(0x11)
-                            InputInjector.key_down(0x56)
-                            InputInjector.key_up(0x56)
-                            InputInjector.key_up(0x11)
+                            mod_vk, v_vk = self.os_engine.get_paste_vk_combo() if (self.os_engine and hasattr(self.os_engine, "get_paste_vk_combo")) else (0x11, 0x56)
+                            InputInjector.key_down(mod_vk)
+                            InputInjector.key_down(v_vk)
+                            InputInjector.key_up(v_vk)
+                            InputInjector.key_up(mod_vk)
                             if hasattr(self.capture, "notify_input_activity"):
                                 self.capture.notify_input_activity(0.45)
                     await ws.send(json.dumps({
@@ -2084,10 +2143,11 @@ class HostService:
                     if files:
                         ok = self.clipboard.set_clipboard_files(files)
                         if ok and event.get("auto_paste"):
-                            InputInjector.key_down(0x11)
-                            InputInjector.key_down(0x56)
-                            InputInjector.key_up(0x56)
-                            InputInjector.key_up(0x11)
+                            mod_vk, v_vk = self.os_engine.get_paste_vk_combo() if (self.os_engine and hasattr(self.os_engine, "get_paste_vk_combo")) else (0x11, 0x56)
+                            InputInjector.key_down(mod_vk)
+                            InputInjector.key_down(v_vk)
+                            InputInjector.key_up(v_vk)
+                            InputInjector.key_up(mod_vk)
                             if hasattr(self.capture, "notify_input_activity"):
                                 self.capture.notify_input_activity(0.45)
                     await ws.send(json.dumps({
@@ -2540,6 +2600,10 @@ def build_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument("--install-virtual-audio", action="store_true", help="Download and install VB-Audio Virtual Cable for headless audio")
     parser.add_argument("--install-virtual-display", action="store_true", help="Download and install Microsoft IddCx Virtual Display Driver for headless display")
     parser.add_argument("--probe-protocols", action="store_true", help="Probe and display native protocol negotiation matrix")
+    parser.add_argument("--install-deps", action="store_true", help="Check and automatically install all required Python dependencies for the current OS")
+    parser.add_argument("--embed-deps", action="store_true", help="Download and embed Python libraries directly into vendor/packages/ inside the source tree")
+    parser.add_argument("--download-wheels", action="store_true", help="Download offline .whl installers into vendor/wheels/ inside the source tree")
+    parser.add_argument("--no-auto-bootstrap", action="store_true", help="Disable automatic background dependency installation on startup")
     return parser
 
 
@@ -2552,6 +2616,20 @@ def main():
         if elevate_and_execute(forwarded):
             sys.exit(0)
 
+    if getattr(args, "install_deps", False):
+        rep = ensure_dependencies(auto_install=True)
+        print(json.dumps(rep, indent=2, ensure_ascii=False))
+        sys.exit(0)
+    if getattr(args, "embed_deps", False):
+        rep = install_into_vendor_packages()
+        print(json.dumps(rep, indent=2, ensure_ascii=False))
+        sys.exit(0 if rep.get("success") else 1)
+    if getattr(args, "download_wheels", False):
+        rep = download_wheelhouse()
+        print(json.dumps(rep, indent=2, ensure_ascii=False))
+        sys.exit(0 if rep.get("success") else 1)
+    if not getattr(args, "no_auto_bootstrap", False):
+        ensure_dependencies(auto_install=True, quiet=True)
     if getattr(args, "probe_protocols", False):
         matrix = probe_all_protocols()
         print("=== MEIKOVA NATIVE PROTOCOL MATRIX ===")

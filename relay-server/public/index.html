@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.4.0">
-  <link rel="stylesheet" href="/css/style.css?v=1.4.0">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.4.1">
+  <link rel="stylesheet" href="/css/style.css?v=1.4.1">
 </head>
 <body>
 
@@ -66,7 +66,7 @@
     </div>
 
     <!-- Sliding Segmented Mode Navigation -->
-    <nav class="seg" id="mainNav" role="tablist" aria-label="Phân hệ điều khiển" data-i18n-aria="nav.aria_label">
+    <nav class="seg" id="mainNav" role="tablist" aria-label="Phân hệ điều khiển" data-i18n-aria="nav.aria_subsystem" data-i18n-aria="nav.aria_label">
       <span class="seg__ind" aria-hidden="true"></span>
       <button type="button" data-view="landing" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -99,7 +99,7 @@
     </nav>
 
     <div class="topbar-right">
-      <div class="seg lang-switch-seg" id="langSwitch" role="group" aria-label="Ngôn ngữ / Language">
+      <div class="seg lang-switch-seg" id="langSwitch" role="group" aria-label="Ngôn ngữ / Language" data-i18n-aria="nav.aria_language">
         <span class="seg__ind" aria-hidden="true"></span>
         <button type="button" class="on" data-lang-code="vi" data-i18n-title="lang.vi" title="Tiếng Việt">VI</button>
         <button type="button" data-lang-code="en" data-i18n-title="lang.en" title="English">EN</button>
@@ -137,7 +137,7 @@
       </button>
 
       <!-- Custom Desktop Window Controls (Meikova Harvest & Meikova Loop Avionics style) -->
-      <div id="desktopWinControls" class="desktop-wincontrols" aria-label="Điều khiển cửa sổ">
+      <div id="desktopWinControls" class="desktop-wincontrols" aria-label="Điều khiển cửa sổ" data-i18n-aria="nav.aria_window_controls">
         <button type="button" class="wc-btn wc-btn--min" id="btnWinMin" data-i18n-title="desktop.btn_min" title="Thu nhỏ">
           <svg viewBox="0 0 11 11"><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         </button>
@@ -175,7 +175,7 @@
           <div class="landing-hero-left">
             <div class="landing-telemetry-badge mono-font">
               <span class="status-dot online"></span>
-              <span data-i18n="landing.badge">v1.4.0 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
+              <span data-i18n="landing.badge">v1.4.1 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
             </div>
 
             <h1 class="landing-hero-title brand-font" data-i18n="landing.hero_title">ĐIỀU KHIỂN TỪ XA ĐA NỀN TẢNG CHÍNH XÁC CAO</h1>
@@ -186,15 +186,15 @@
 
             <!-- Primary Floating Action Deck -->
             <div class="landing-action-deck">
-              <button type="button" id="btnLandingStart" class="btn-hero-cta" aria-label="Bắt đầu ngay">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              <button type="button" id="btnLandingStart" class="landing-hero-pill btn-hero-cta" aria-label="Bắt đầu ngay" data-i18n-aria="landing.aria_start">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                 <span id="txtLandingStart" data-i18n="landing.btn_start">Bắt đầu ngay</span>
               </button>
-              <button type="button" id="btnLandingQuickJump" class="btn-pill" aria-label="Kết nối nhanh">
+              <button type="button" id="btnLandingQuickJump" class="landing-hero-pill btn-pill" aria-label="Kết nối nhanh" data-i18n-aria="landing.aria_quick_connect">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                 <span data-i18n="landing.btn_quick">Kết nối nhanh</span>
               </button>
-              <button type="button" id="btnLandingDownloadJump" class="btn-pill" aria-label="Tải bộ cài">
+              <button type="button" id="btnLandingDownloadJump" class="landing-hero-pill btn-pill" aria-label="Tải bộ cài" data-i18n-aria="landing.aria_download_apps">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 <span data-i18n="landing.btn_download">Tải bộ cài</span>
               </button>
@@ -342,45 +342,45 @@
                 <form id="landingQuickConnectForm" class="cockpit-form-pane" autocomplete="off">
                   <div class="cockpit-input-group">
                     <div class="cockpit-label-row">
-                      <label class="cockpit-label mono-font" for="landingRoomInput">MÃ MÁY TRẠM (ROOM ID)</label>
+                      <label class="cockpit-label mono-font" for="landingRoomInput" data-i18n="landing.cockpit_room_label">MÃ MÁY TRẠM (ROOM ID)</label>
                     </div>
                     <div class="cockpit-input-wrap">
                       <span class="cockpit-input-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
                       </span>
-                      <input type="text" id="landingRoomInput" name="relay_room_token" class="cockpit-input mono-font" placeholder="Nhập Room ID (VD: RD-8924)" required autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                      <input type="text" id="landingRoomInput" name="relay_room_token" class="cockpit-input mono-font" placeholder="Nhập Room ID (VD: RD-8924)" data-i18n-placeholder="landing.ph_room_id" required autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
                       <button type="button" id="btnHeroDemoRoom" class="btn-cockpit-pill" data-i18n-title="hero.demo_room_title" title="Tự động điền mã máy mẫu để thử">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                        <span>Mẫu: RD-8924</span>
+                        <span data-i18n="landing.cockpit_room_sample">Mẫu: RD-8924</span>
                       </button>
                     </div>
                   </div>
 
                   <div class="cockpit-input-group">
                     <div class="cockpit-label-row">
-                      <label class="cockpit-label mono-font" for="landingPinInput">MÃ PIN BẢO MẬT (NẾU CÓ)</label>
+                      <label class="cockpit-label mono-font" for="landingPinInput" data-i18n="landing.cockpit_pin_label">MÃ PIN BẢO MẬT (NẾU CÓ)</label>
                     </div>
                     <div class="cockpit-input-wrap">
                       <span class="cockpit-input-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                       </span>
-                      <input type="password" id="landingPinInput" name="relay_pin_token" class="cockpit-input mono-font" placeholder="6 chữ số PIN bảo mật" maxlength="6" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                      <input type="password" id="landingPinInput" name="relay_pin_token" class="cockpit-input mono-font" placeholder="6 chữ số PIN bảo mật" data-i18n-placeholder="landing.ph_pin" maxlength="6" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
                       <button type="button" id="btnToggleHeroPin" class="btn-cockpit-pill btn-cockpit-pill-ghost" data-i18n-title="hero.toggle_pin_title" title="Ẩn/hiện mã PIN">
                         <svg id="heroEyeSvg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                        <span id="txtHeroEye">Hiện</span>
+                        <span id="txtHeroEye" data-i18n="landing.cockpit_pin_show">Hiện</span>
                       </button>
                     </div>
                   </div>
 
                   <button type="submit" id="btnLandingConnectSubmit" class="btn-cockpit-connect">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                    <span>KẾT NỐI MÁY TRẠM NGAY</span>
+                    <span data-i18n="landing.cockpit_connect_now">KẾT NỐI MÁY TRẠM NGAY</span>
                   </button>
 
                   <div class="cockpit-status-bar mono-font">
                     <div class="cockpit-status-item">
                       <span class="status-indicator-led"></span>
-                      <span id="heroRelayStatusText">Relay Tunnel: Sẵn sàng</span>
+                      <span id="heroRelayStatusText" data-i18n="landing.cockpit_relay_ready">Relay Tunnel: Sẵn sàng</span>
                     </div>
                     <div class="cockpit-status-item">
                       <span>TLS 1.3 // E2E Encrypted</span>
@@ -395,20 +395,20 @@
                       <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
                     </div>
                     <div class="unattended-text">
-                      <h4 class="brand-font">Quản trị máy trạm 24/7</h4>
-                      <p>Truy cập mọi máy tính cơ quan, máy render cá nhân đã gắn kết với tài khoản mọi lúc mọi nơi mà không cần người trực bên máy.</p>
+                      <h4 class="brand-font" data-i18n="landing.unattended_title">Quản trị máy trạm 24/7</h4>
+                      <p data-i18n="landing.unattended_desc">Truy cập mọi máy tính cơ quan, máy render cá nhân đã gắn kết với tài khoản mọi lúc mọi nơi mà không cần người trực bên máy.</p>
                     </div>
                   </div>
 
                   <div class="unattended-tags mono-font">
-                    <span class="u-tag">● Tự chạy Windows</span>
-                    <span class="u-tag">● Chống ngủ máy</span>
-                    <span class="u-tag">● Khay hệ thống</span>
+                    <span class="u-tag" data-i18n="landing.utag_autostart">● Tự chạy Windows</span>
+                    <span class="u-tag" data-i18n="landing.utag_keepawake">● Chống ngủ máy</span>
+                    <span class="u-tag" data-i18n="landing.utag_tray">● Khay hệ thống</span>
                   </div>
 
                   <button type="button" id="btnHeroLoginJump" class="btn-cockpit-connect" style="margin-top:16px;">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
-                    <span>ĐĂNG NHẬP VÀO MÁY TRẠM CỦA BẠN</span>
+                    <span data-i18n="landing.btn_login_workstation">ĐĂNG NHẬP VÀO MÁY TRẠM CỦA BẠN</span>
                   </button>
                 </div>
               </div>
@@ -550,7 +550,7 @@
 
         <!-- Segmented Platform Filter Switcher -->
         <div class="dl-platform-seg-wrap">
-          <div class="seg dl-platform-seg" id="dlPlatformSeg" role="tablist" aria-label="Nền tảng cài đặt">
+          <div class="seg dl-platform-seg" id="dlPlatformSeg" role="tablist" aria-label="Nền tảng cài đặt" data-i18n-aria="landing.aria_os_tabs">
             <span class="seg__ind" aria-hidden="true"></span>
             <button type="button" class="on" data-dl-tab="windows" role="tab" aria-selected="true">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg>
@@ -840,7 +840,7 @@
             <button type="button" id="btnLandingDlMacosPlist" class="btn-pill btn-dl-two-line dl-action-btn" style="border-color: #A855F7; color: #E9D5FF; background: rgba(168, 85, 247, 0.12);">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title">Tải com.meikova.relay.plist</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_mac_plist">Tải com.meikova.relay.plist</span>
                 <span class="btn-dl-size mono-font">(Launchd Config)</span>
               </div>
             </button>
@@ -873,7 +873,7 @@
             <button type="button" class="btn-cta btn-dl-two-line dl-action-btn" onclick="document.getElementById('btnLandingQuickJump')?.click();">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title">Kết nối ngay trên trình duyệt</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_web_instant">Kết nối ngay trên trình duyệt</span>
                 <span class="btn-dl-size mono-font">(100% Web Native)</span>
               </div>
             </button>
@@ -903,8 +903,8 @@
             <button type="button" class="btn-pill btn-dl-two-line dl-action-btn" style="border-color: var(--accent); color: var(--accent);" onclick="document.getElementById('btnLandingQuickJump')?.click();">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 12 8"></polygon></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title">Trải nghiệm trên iPad / Tablet</span>
-                <span class="btn-dl-size mono-font">(Cảm ứng nhạy)</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_ipad_tablet">Trải nghiệm trên iPad / Tablet</span>
+                <span class="btn-dl-size mono-font" data-i18n="landing.dl_touch_ready">(Cảm ứng nhạy)</span>
               </div>
             </button>
           </div>
@@ -933,8 +933,8 @@
             <button type="button" class="btn-pill btn-dl-two-line dl-action-btn" style="border-color: #A855F7; color: #E9D5FF; background: rgba(168, 85, 247, 0.12);" onclick="document.getElementById('btnLandingStart')?.click();">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
               <div class="btn-dl-text-wrap">
-                <span class="btn-dl-title">Bắt đầu quản trị ngay</span>
-                <span class="btn-dl-size mono-font">(Vào bảng điều khiển)</span>
+                <span class="btn-dl-title" data-i18n="landing.dl_start_manage">Bắt đầu quản trị ngay</span>
+                <span class="btn-dl-size mono-font" data-i18n="landing.dl_open_dashboard">(Vào bảng điều khiển)</span>
               </div>
             </button>
           </div>
@@ -944,7 +944,7 @@
         <div class="cicd-banner-strip">
           <div class="cicd-flex-wrap">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" style="color: var(--accent); flex-shrink: 0;"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            <div style="flex:1; min-width: 240px;">
+            <div style="flex:1; min-width: min(240px, 100%);">
               <h4 class="brand-font" style="margin-bottom: 4px;" data-i18n="landing.cicd_title">Biên dịch tự động qua GitHub Actions CI/CD</h4>
               <p style="font-size: var(--step--1); color: var(--text-muted); margin:0;" data-i18n="landing.cicd_desc">Mỗi phiên bản phát hành được tự động build và ký gói trên môi trường Windows Runner cô lập của GitHub, đảm bảo tính toàn vẹn 100%.</p>
             </div>
@@ -982,12 +982,12 @@
 
         <!-- Meikova Universal SSO Button -->
         <div class="auth-sso-box" style="margin-bottom: 10px;">
-          <button type="button" class="btn-sso-gateway" id="btn-sso-gateway" data-i18n-title="hero.sso_gateway_title" title="Đăng nhập tập trung qua Meikova ID" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 9999px; padding: 11px 18px; color: #22C55E; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+          <button type="button" class="btn-sso-gateway" id="btn-sso-gateway" data-i18n-title="hero.sso_gateway_title" title="Đăng nhập tập trung qua Meikova ID">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               <path d="m9 12 2 2 4-4"/>
             </svg>
-            <span>ĐĂNG NHẬP MEIKOVA ID (SSO)</span>
+            <span data-i18n="auth.btn_sso_login">ĐĂNG NHẬP MEIKOVA ID (SSO)</span>
           </button>
         </div>
 
@@ -1009,11 +1009,11 @@
         <form id="authForm">
           <div class="form-group">
             <label for="authUsername" data-i18n="auth.username_label">Tên tài khoản</label>
-            <input type="text" id="authUsername" class="instrument-input mono-font" placeholder="Nhập username" data-i18n-placeholder="auth.username_placeholder" required autocomplete="username">
+            <input type="text" id="authUsername" class="instrument-input" placeholder="Nhập username" data-i18n-placeholder="auth.username_placeholder" required autocomplete="username">
           </div>
           <div class="form-group">
             <label for="authPassword" data-i18n="auth.password_label">Mật khẩu</label>
-            <input type="password" id="authPassword" class="instrument-input mono-font" placeholder="••••••••" data-i18n-placeholder="auth.password_placeholder" required autocomplete="current-password">
+            <input type="password" id="authPassword" class="instrument-input" placeholder="••••••••" data-i18n-placeholder="auth.password_placeholder" required autocomplete="current-password">
           </div>
           <button type="submit" id="btnSubmitAuth" class="btn-cta" data-i18n="auth.btn_login">Vào bảng điều khiển</button>
         </form>
@@ -1049,7 +1049,7 @@
           <button type="button" class="fleet-group-pill" data-group="Personal" data-i18n="dashboard.group_personal">Cá nhân</button>
         </div>
         <div class="fleet-filter-actions">
-          <input type="search" id="fleetSearchInput" name="fleet_search_query" class="instrument-input mono-font" placeholder="Tìm tên máy, Room ID, nhóm, thẻ tag..." data-i18n-placeholder="dashboard.search_placeholder" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width: 240px; padding: 6px 12px; font-size: 0.78rem;">
+          <input type="search" id="fleetSearchInput" readonly onfocus="this.removeAttribute('readonly');" name="fleet_search_query" class="instrument-input mono-font" placeholder="Tìm tên máy, Room ID, nhóm, thẻ tag..." data-i18n-placeholder="dashboard.search_placeholder" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
           <button type="button" id="btnOpenWolModal" class="btn-pill" title="Đánh thức máy trạm qua mạng LAN (Wake-on-LAN Magic Packet)" data-i18n-title="dashboard.btn_wol_title">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
             <span data-i18n="dashboard.btn_wol">Wake-on-LAN</span>
@@ -1068,7 +1068,7 @@
         <div class="session-tab-actions">
           <button type="button" id="btnRemoteNewSessionTab" class="session-tab-btn" data-i18n-title="session.new_tab_title" title="Kết nối thêm máy khác (Tab mới)">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Thêm máy</span>
+            <span data-i18n="dashboard.btn_add_device_short">Thêm máy</span>
           </button>
           <button type="button" id="btnCloseSessionTabsBar" class="session-tab-close" data-i18n-title="session.close_tabs_bar_title" title="Đóng thanh chuyển đổi">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1104,7 +1104,7 @@
       <!-- Mobile Floating Quick Exit Button (Always reachable in immersive mode) -->
       <button type="button" id="btnMobileImmersiveExit" class="mobile-immersive-exit hidden" data-i18n-title="mobile.immersive_exit_title" title="Thoát chế độ toàn màn hình">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        <span>Rời</span>
+        <span data-i18n="remote.btn_exit_short">Rời</span>
       </button>
 
       <!-- Symmetrical Canvas Viewport Box (Single Monitor / Virtual Desktop) -->
@@ -1152,7 +1152,7 @@
           </div>
           <div class="guard-telemetry guard-telemetry--br mono-font" aria-hidden="true">
             <span class="telemetry-label" data-i18n="deck.telemetry_engine">ENGINE</span>
-            <span class="telemetry-val" data-i18n="deck.telemetry_engine_val">MEIKOVA RELAY v1.4.0</span>
+            <span class="telemetry-val" data-i18n="deck.telemetry_engine_val">MEIKOVA RELAY v1.4.1</span>
           </div>
 
           <!-- Central Ambient Glass Instrument Card -->
@@ -1277,13 +1277,13 @@
 
         <!-- Grid Layout Quick Switcher Controls -->
         <div id="gridControls" class="grid-controls-deck hidden">
-          <button type="button" id="btnGridSideBySide" class="deck__btn active" data-i18n-title="deck.grid_side_by_side_title" title="Bố cục ngang [Màn 1 | Màn 2]" aria-label="Bố cục ngang">
+          <button type="button" id="btnGridSideBySide" class="deck__btn active" data-i18n-title="deck.grid_side_by_side_title" title="Bố cục ngang [Màn 1 | Màn 2]" aria-label="Bố cục ngang" data-i18n-aria="remote.aria_grid_h">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="1"></rect><rect x="13" y="4" width="8" height="16" rx="1"></rect></svg>
           </button>
-          <button type="button" id="btnGridInvert" class="deck__btn" data-i18n-title="deck.grid_invert_title" title="Đảo ngược vị trí [Màn 2 | Màn 1]" aria-label="Đảo ngược vị trí">
+          <button type="button" id="btnGridInvert" class="deck__btn" data-i18n-title="deck.grid_invert_title" title="Đảo ngược vị trí [Màn 2 | Màn 1]" aria-label="Đảo ngược vị trí" data-i18n-aria="remote.aria_grid_swap">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-4 5 4 5M16 17l4-5-4-5"></path></svg>
           </button>
-          <button type="button" id="btnGridStacked" class="deck__btn" data-i18n-title="deck.grid_stacked_title" title="Bố cục dọc [Màn 1 / Màn 2]" aria-label="Bố cục dọc">
+          <button type="button" id="btnGridStacked" class="deck__btn" data-i18n-title="deck.grid_stacked_title" title="Bố cục dọc [Màn 1 / Màn 2]" aria-label="Bố cục dọc" data-i18n-aria="remote.aria_grid_v">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="8" rx="1"></rect><rect x="4" y="13" width="16" height="8" rx="1"></rect></svg>
           </button>
         </div>
@@ -1311,17 +1311,17 @@
 
         <!-- Hidden Native Select (Synchronized for backward compatibility) -->
         <select id="qualitySelector" class="hidden" data-i18n-title="deck.quality_selector_title" title="Cấu hình phân giải, FPS & chất lượng">
-          <option value="native_1to1">1:1 Chuẩn gốc (Pixel-Perfect)</option>
+          <option value="native_1to1" data-i18n="remote.opt_native_1to1">1:1 Chuẩn gốc (Pixel-Perfect)</option>
           <option value="native_120_1to1">1:1 @ 120 FPS Turbo (Pixel-Perfect)</option>
-          <option value="auto_sync">Tự động tối ưu (Auto-Sync)</option>
+          <option value="auto_sync" data-i18n="remote.opt_auto_sync">Tự động tối ưu (Auto-Sync)</option>
           <option value="extreme_144">144 FPS Extreme (Esports / LAN)</option>
-          <option value="ultra_120">120 FPS Siêu mượt</option>
-          <option value="wan_60_turbo">WAN 60 FPS Turbo (Quốc tế / Cloud)</option>
-          <option value="speed_60">60 FPS Mượt mà</option>
-          <option value="crisp_2k_4k">2K / 4K Cực nét (95%)</option>
-          <option value="crisp_hd">HD Nét (85%)</option>
-          <option value="balanced" selected>30 FPS Cân bằng</option>
-          <option value="grayscale">Tiết kiệm băng thông</option>
+          <option value="ultra_120" data-i18n="remote.opt_ultra_120">120 FPS Siêu mượt</option>
+          <option value="wan_60_turbo" data-i18n="remote.opt_wan_60_turbo">WAN 60 FPS Turbo (Quốc tế / Cloud)</option>
+          <option value="speed_60" data-i18n="remote.opt_speed_60">60 FPS Mượt mà</option>
+          <option value="crisp_2k_4k" data-i18n="remote.opt_crisp_2k_4k">2K / 4K Cực nét (95%)</option>
+          <option value="crisp_hd" data-i18n="remote.opt_crisp_hd">HD Nét (85%)</option>
+          <option value="balanced" selected data-i18n="remote.opt_balanced">30 FPS Cân bằng</option>
+          <option value="grayscale" data-i18n="remote.opt_grayscale">Tiết kiệm băng thông</option>
         </select>
 
         <!-- 1-Click Display Auto-Sync Button -->
@@ -1458,49 +1458,49 @@
             <span class="quality-item-badge">NET</span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.snippet_ipconfig">Kiểm tra IP mạng (ipconfig /all)</div>
-              <div class="quality-item-desc">Hiển thị toàn bộ IP, Gateway, DNS của máy đích</div>
+              <div class="quality-item-desc" data-i18n="remote.macro_ipconfig_desc">Hiển thị toàn bộ IP, Gateway, DNS của máy đích</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-macro="systeminfo">
             <span class="quality-item-badge">SYS</span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.snippet_systeminfo">Thông tin hệ thống (systeminfo)</div>
-              <div class="quality-item-desc">Cấu hình CPU, RAM, BIOS, Hotfix bản vá OS</div>
+              <div class="quality-item-desc" data-i18n="remote.macro_sysinfo_desc">Cấu hình CPU, RAM, BIOS, Hotfix bản vá OS</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-macro="tasklist">
             <span class="quality-item-badge">PROC</span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.snippet_tasklist">Danh sách tiến trình (tasklist)</div>
-              <div class="quality-item-desc">Liệt kê tất cả process đang chạy và PID</div>
+              <div class="quality-item-desc" data-i18n="remote.macro_tasklist_desc">Liệt kê tất cả process đang chạy và PID</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-macro="netstat -ano">
             <span class="quality-item-badge">PORT</span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.snippet_netstat">Kết nối mạng đang mở (netstat -ano)</div>
-              <div class="quality-item-desc">Xem cổng mạng listening và IP kết nối</div>
+              <div class="quality-item-desc" data-i18n="remote.macro_netstat_desc">Xem cổng mạng listening và IP kết nối</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-macro="winver">
             <span class="quality-item-badge">OS</span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.snippet_winver">Phiên bản Windows (winver)</div>
-              <div class="quality-item-desc">Mở hộp thoại kiểm tra bản quyền & build OS</div>
+              <div class="quality-item-desc" data-i18n="remote.macro_winver_desc">Mở hộp thoại kiểm tra bản quyền & build OS</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" data-macro="dxdiag">
             <span class="quality-item-badge">GPU</span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.snippet_dxdiag">Chẩn đoán đồ họa (dxdiag)</div>
-              <div class="quality-item-desc">Kiểm tra thông số DirectX và card màn hình</div>
+              <div class="quality-item-desc" data-i18n="remote.macro_dxdiag_desc">Kiểm tra thông số DirectX và card màn hình</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" id="btnOpenPasswordModal">
             <span class="quality-item-badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: #ef4444;">KEY</span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.snippet_password" style="color: #f87171;">Gửi mật khẩu an toàn...</div>
-              <div class="quality-item-desc">Gõ phím trực tiếp không qua Clipboard</div>
+              <div class="quality-item-desc" data-i18n="remote.macro_sendpass_desc">Gõ phím trực tiếp không qua Clipboard</div>
             </div>
           </button>
           <button type="button" class="quality-menu-item" id="btnDeckOpenSettings">
@@ -1881,7 +1881,7 @@
             <span id="fpsLimitCurrentBadge" class="fps-limit-badge" data-i18n="deck.fps_badge_uncapped">UNCAPPED (KHÔNG GIỚI HẠN)</span>
           </div>
           <div class="fps-limit-pills" id="fpsLimitPills">
-            <button type="button" class="fps-pill active" data-fps-limit="0" title="Không giới hạn FPS (Uncapped Max Speed)" data-i18n="deck.fps_uncapped">MAX</button>
+            <button type="button" class="fps-pill active" data-fps-limit="0" title="Không giới hạn FPS (Uncapped Max Speed)" data-i18n-title="deck.fps_uncapped_title" data-i18n="deck.fps_uncapped">MAX</button>
             <button type="button" class="fps-pill" data-fps-limit="30">30</button>
             <button type="button" class="fps-pill" data-fps-limit="60">60</button>
             <button type="button" class="fps-pill" data-fps-limit="120">120</button>
@@ -2018,7 +2018,7 @@
         <div class="quality-menu-header" data-i18n="deck.resolution_menu_title">ĐỘ PHÂN GIẢI & MÀN HÌNH ẢO</div>
         <div class="quality-menu-list" id="resolutionMenuList">
           <button type="button" class="quality-menu-item" data-res-w="0" data-res-h="0" data-res-label="GỐC">
-            <span class="quality-item-badge">GỐC</span>
+            <span class="quality-item-badge" data-i18n="remote.badge_native">GỐC</span>
             <div class="quality-item-text">
               <div class="quality-item-title" data-i18n="deck.res_native">Độ phân giải gốc màn hình (Native)</div>
               <div class="quality-item-desc" data-i18n="deck.res_native_desc">Khôi phục độ phân giải vật lý mặc định của màn hình máy trạm</div>
@@ -2097,7 +2097,7 @@
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               <span data-i18n="virtual.display_status">Màn hình:</span>
             </span>
-            <span id="vdDisplayBadge" class="mono-font" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(34, 197, 94, 0.15); color: #22c55e;">SẴN SÀNG</span>
+            <span id="vdDisplayBadge" class="mono-font" data-i18n="remote.badge_ready" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(34, 197, 94, 0.15); color: #22c55e;">SẴN SÀNG</span>
           </div>
           <button type="button" id="btnInstallVDisplay" class="deck__btn hidden" style="width: 100%; justify-content: center; font-size: 11px; padding: 6px; background: var(--accent-subtle); color: var(--accent); border: 1px solid var(--accent);" data-i18n="virtual.display_install_btn">
             Kích Hoạt Màn Hình Ảo
@@ -2107,7 +2107,7 @@
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
               <span data-i18n="virtual.audio_status">Loa ngoài:</span>
             </span>
-            <span id="vdAudioBadge" class="mono-font" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(34, 197, 94, 0.15); color: #22c55e;">SẴN SÀNG</span>
+            <span id="vdAudioBadge" class="mono-font" data-i18n="remote.badge_ready" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(34, 197, 94, 0.15); color: #22c55e;">SẴN SÀNG</span>
           </div>
           <button type="button" id="btnInstallVAudio" class="deck__btn hidden" style="width: 100%; justify-content: center; font-size: 11px; padding: 6px; background: var(--accent-subtle); color: var(--accent); border: 1px solid var(--accent);" data-i18n="virtual.audio_install_btn">
             Cài Đặt Loa Ảo (Virtual Audio)
@@ -2168,7 +2168,7 @@
       <div id="oskOverlay" class="osk-overlay hidden">
         <div class="osk-header">
           <span class="osk-title mono-font">VIRTUAL OSK</span>
-          <button type="button" class="osk-close-btn" id="btnCloseOSK" title="Đóng bàn phím ảo" aria-label="Đóng bàn phím ảo">
+          <button type="button" class="osk-close-btn" id="btnCloseOSK" title="Đóng bàn phím ảo" aria-label="Đóng bàn phím ảo" data-i18n-title="remote.close_osk" data-i18n-aria="remote.close_osk">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -2256,10 +2256,10 @@
           <button type="button" class="osk-key space" data-key="Space">Space</button>
           <button type="button" class="osk-key" data-key="AltRight">Alt</button>
           <button type="button" class="osk-key" data-key="ControlRight">Ctrl</button>
-          <button type="button" class="osk-key" data-key="ArrowLeft" data-i18n-title="osk.left_title" title="Mũi tên trái" aria-label="Mũi tên trái"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-          <button type="button" class="osk-key" data-key="ArrowUp" data-i18n-title="osk.up_title" title="Mũi tên lên" aria-label="Mũi tên lên"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
-          <button type="button" class="osk-key" data-key="ArrowDown" data-i18n-title="osk.down_title" title="Mũi tên xuống" aria-label="Mũi tên xuống"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-          <button type="button" class="osk-key" data-key="ArrowRight" data-i18n-title="osk.right_title" title="Mũi tên phải" aria-label="Mũi tên phải"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowLeft" data-i18n-title="osk.left_title" title="Mũi tên trái" aria-label="Mũi tên trái" data-i18n-aria="remote.aria_arrow_left"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowUp" data-i18n-title="osk.up_title" title="Mũi tên lên" aria-label="Mũi tên lên" data-i18n-aria="remote.aria_arrow_up"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowDown" data-i18n-title="osk.down_title" title="Mũi tên xuống" aria-label="Mũi tên xuống" data-i18n-aria="remote.aria_arrow_down"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+          <button type="button" class="osk-key" data-key="ArrowRight" data-i18n-title="osk.right_title" title="Mũi tên phải" aria-label="Mũi tên phải" data-i18n-aria="remote.aria_arrow_right"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
         </div>
       </div>
     </section>
@@ -2339,7 +2339,7 @@
             <button type="button" class="btn-pill proc-sort-btn active" data-proc-sort="ram" style="padding: 4px 10px; font-size: 0.72rem;" data-i18n="tasks.sort_ram">Theo RAM</button>
             <button type="button" class="btn-pill proc-sort-btn" data-proc-sort="name" style="padding: 4px 10px; font-size: 0.72rem;" data-i18n="tasks.sort_name">Theo Tên</button>
             <button type="button" class="btn-pill proc-sort-btn" data-proc-sort="pid" style="padding: 4px 10px; font-size: 0.72rem;" data-i18n="tasks.sort_pid">Theo PID</button>
-            <input type="search" id="processSearchInput" name="process_search_query" class="instrument-input mono-font" placeholder="Lọc tiến trình..." data-i18n-placeholder="tasks.search_placeholder" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width: 200px; padding: 6px 12px; font-size: 0.8rem;">
+            <input type="search" id="processSearchInput" readonly onfocus="this.removeAttribute('readonly');" name="process_search_query" class="instrument-input mono-font" placeholder="Lọc tiến trình..." data-i18n-placeholder="tasks.search_placeholder" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width: min(200px, 100%); padding: 6px 12px; font-size: 0.8rem;">
           </div>
         </div>
         <div class="table-scroll-area">
@@ -2381,7 +2381,7 @@
               <span data-i18n="files.drives_list">Danh sách ổ đĩa</span>
             </span>
           </div>
-          <button id="btnTogglePathInput" class="btn-pill" title="Nhập đường dẫn trực tiếp" data-i18n-title="files.edit_path_title" style="flex-shrink: 0; padding: 4px 8px; font-size: 0.75rem;">
+          <button id="btnTogglePathInput" class="btn-pill" title="Nhập đường dẫn trực tiếp" data-i18n-title="files.edit_path_title">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             <span class="hide-mobile" data-i18n="files.btn_edit_path">Đường dẫn</span>
           </button>
@@ -2427,8 +2427,8 @@
           </div>
 
           <div class="explorer-toolbar-right">
-            <input type="search" id="explorerSearchInput" name="explorer_search_query" class="instrument-input mono-font" placeholder="Lọc tệp trong thư mục..." data-i18n-placeholder="files.search_placeholder" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width: 200px; padding: 6px 12px; font-size: 0.8rem;">
-            <div class="seg" id="viewModeSeg" style="padding: 2px;">
+            <input type="search" id="explorerSearchInput" readonly onfocus="this.removeAttribute('readonly');" name="explorer_search_query" class="instrument-input" placeholder="Lọc tệp trong thư mục..." data-i18n-placeholder="files.search_placeholder" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+            <div class="seg" id="viewModeSeg">
               <button type="button" class="on" id="btnModeList" title="Xem danh sách" data-i18n-title="files.mode_list_title">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               </button>
@@ -2477,7 +2477,7 @@
 
         <!-- Explorer Status Bar -->
         <div class="explorer-footer mono-font" id="explorerStatusBar">
-          <span id="expStatusCount">0 mục</span>
+          <span id="expStatusCount" data-i18n="files.zero_items">0 mục</span>
           <span id="expStatusSelected" style="color: var(--accent);"></span>
           <span id="expStatusSize">0 B</span>
         </div>
@@ -2496,7 +2496,7 @@
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             <span data-i18n="audit.btn_refresh">Làm mới</span>
           </button>
-          <button id="btnExportAuditCsv" class="btn-pill" style="border-color: var(--accent); color: var(--accent);" title="Xuất toàn bộ nhật ký sang CSV" data-i18n-title="audit.btn_export_csv_title">
+          <button id="btnExportAuditCsv" class="btn-pill" title="Xuất toàn bộ nhật ký sang CSV" data-i18n-title="audit.btn_export_csv_title">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="audit.btn_export_csv">Xuất CSV</span>
           </button>
@@ -2506,9 +2506,9 @@
       <div class="explorer-card">
         <!-- Filter Toolbar -->
         <div class="explorer-toolbar">
-          <div class="explorer-toolbar-left" style="flex: 1;">
-            <input type="search" id="auditSearchInput" name="audit_search_query" class="instrument-input mono-font" placeholder="Tìm theo IP, tài khoản, thiết bị, Room ID, lệnh..." data-i18n-placeholder="audit.search_placeholder" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="flex: 1; max-width: 380px; padding: 6px 12px; font-size: 0.8rem;">
-            <select id="auditActionFilter" class="instrument-input mono-font" style="padding: 6px 12px; font-size: 0.8rem; background: var(--ink-1); color: var(--text); border-color: var(--line);">
+          <div class="explorer-toolbar-left">
+            <input type="search" id="auditSearchInput" readonly onfocus="this.removeAttribute('readonly');" name="audit_search_query" class="instrument-input mono-font" placeholder="Tìm theo IP, tài khoản, thiết bị, Room ID, lệnh..." data-i18n-placeholder="audit.search_placeholder" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+            <select id="auditActionFilter" class="instrument-input mono-font">
               <option value="all" data-i18n="audit.action_all">Tất cả hành động</option>
               <option value="SESSION_CONNECTED" data-i18n="audit.action_session_conn">Kết nối máy trạm (SESSION_CONNECTED)</option>
               <option value="SESSION_DISCONNECTED" data-i18n="audit.action_session_disc">Ngắt kết nối (SESSION_DISCONNECTED)</option>
@@ -2556,11 +2556,11 @@
 
         <!-- Audit Pagination Footer -->
         <div class="explorer-footer mono-font">
-          <span id="auditPageSummary">Hiển thị 0 / 0 bản ghi</span>
+          <span id="auditPageSummary" data-i18n="audit.zero_records">Hiển thị 0 / 0 bản ghi</span>
           <div style="display: flex; gap: 8px;">
-            <button id="btnAuditPrev" class="btn-pill" style="padding: 2px 10px; font-size: 0.75rem;" disabled data-i18n="audit.prev">Trang trước</button>
-            <span id="auditPageIndicator" style="color: var(--accent); font-size: 0.75rem; align-self: center;">1 / 1</span>
-            <button id="btnAuditNext" class="btn-pill" style="padding: 2px 10px; font-size: 0.75rem;" disabled data-i18n="audit.next">Trang sau</button>
+            <button id="btnAuditPrev" class="btn-pill" disabled data-i18n="audit.prev">Trang trước</button>
+            <span id="auditPageIndicator">1 / 1</span>
+            <button id="btnAuditNext" class="btn-pill" disabled data-i18n="audit.next">Trang sau</button>
           </div>
         </div>
       </div>
@@ -2663,7 +2663,7 @@
             <div class="chat-target-info">
               <span class="chat-status-led active"></span>
               <div class="chat-target-text">
-                <span id="chatHostName" class="chat-target-name">Máy trạm</span>
+                <span id="chatHostName" class="chat-target-name" data-i18n="chat.default_host">Máy trạm</span>
                 <span class="chat-target-sub" data-i18n="shelf.chat_live_direct">Kênh trao đổi trực tiếp</span>
               </div>
             </div>
@@ -2687,15 +2687,15 @@
           <div class="chat-quick-chips">
             <button type="button" class="chat-chip" data-quick-msg="Xin chào! Tôi bắt đầu hỗ trợ máy tính cho bạn nhé.">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <span>Xin chào</span>
+              <span data-i18n="chat.quick_hello">Xin chào</span>
             </button>
             <button type="button" class="chat-chip" data-quick-msg="Vui lòng giữ nguyên màn hình và không di chuột trong giây lát.">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span>Giữ màn hình</span>
+              <span data-i18n="chat.quick_hold">Giữ màn hình</span>
             </button>
             <button type="button" class="chat-chip" data-quick-msg="Đã xử lý xong tác vụ. Bạn kiểm tra lại giúp tôi nhé!">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>Hoàn tất</span>
+              <span data-i18n="chat.quick_done">Hoàn tất</span>
             </button>
           </div>
 
@@ -2715,7 +2715,7 @@
   <!-- Add Workstation / Multi-OS Installer Modal -->
   <div id="addDeviceModal" class="auth-container modal-overlay hidden">
     <div class="instrument-card" style="max-width: 680px; width: 92vw; position: relative;">
-      <button type="button" id="btnCloseAddModalIcon" class="modal-close-pill" aria-label="Đóng" style="position: absolute; top: 18px; right: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink-2); border: 1px solid var(--line); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s ease;">
+      <button type="button" id="btnCloseAddModalIcon" class="modal-close-pill" aria-label="Đóng" data-i18n-aria="modal.aria_close" style="position: absolute; top: 18px; right: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink-2); border: 1px solid var(--line); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s ease;">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
       <div class="card-hero" style="margin-bottom: 20px;">
@@ -2746,32 +2746,32 @@
           <div class="install-card-header">
             <span class="install-card-title">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg>
-              <span>Lệnh PowerShell tự động (Nhanh nhất)</span>
+              <span data-i18n="modal.win_ps_auto">Lệnh PowerShell tự động (Nhanh nhất)</span>
             </span>
-            <button type="button" id="btnCopyWinCmd" class="btn-pill" style="height: 26px; padding: 0 10px; font-size: 0.72rem;">Sao chép</button>
+            <button type="button" id="btnCopyWinCmd" class="btn-pill" data-i18n="modal.btn_copy_short" style="height: 26px; padding: 0 10px; font-size: 0.72rem;">Sao chép</button>
           </div>
           <pre class="cmd-box" id="cmdWinText"></pre>
-          <p class="install-card-desc">Mở PowerShell và dán lệnh để tự động tải, cấu hình và kết nối ngay.</p>
+          <p class="install-card-desc" data-i18n="modal.win_ps_desc">Mở PowerShell và dán lệnh để tự động tải, cấu hình và kết nối ngay.</p>
         </div>
 
         <div class="install-card">
           <div class="install-card-header">
             <span class="install-card-title">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Tải file cài đặt thủ công</span>
+              <span data-i18n="modal.manual_dl_title">Tải file cài đặt thủ công</span>
             </span>
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button id="modalBtnDownloadExe" class="btn-pill" style="border-color: #83E8AC; color: #83E8AC; font-weight: 600;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802"/></svg>
-              <span>Bản Standalone (.exe)</span>
+              <span data-i18n="modal.win_standalone_exe">Bản Standalone (.exe)</span>
             </button>
             <button id="modalBtnDownloadBat" class="btn-pill" style="border-color: var(--accent); color: var(--accent); font-weight: 600;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Bộ cài tự động (.bat)</span>
+              <span data-i18n="modal.win_auto_bat">Bộ cài tự động (.bat)</span>
             </button>
           </div>
-          <p class="install-card-desc" style="margin-top: 8px;">Bản .exe (24MB) chạy trực tiếp không cần Python. Bản .bat tự động tải exe và ghim vào khay hệ thống.</p>
+          <p class="install-card-desc" style="margin-top: 8px;" data-i18n="modal.win_exe_bat_note">Bản .exe (24MB) chạy trực tiếp không cần Python. Bản .bat tự động tải exe và ghim vào khay hệ thống.</p>
         </div>
       </div>
 
@@ -2781,25 +2781,25 @@
           <div class="install-card-header">
             <span class="install-card-title">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.84c.66-.8 1.11-1.92.99-3.04-.96.04-2.12.64-2.8 1.44-.61.71-1.15 1.85-1 2.95 1.07.08 2.16-.55 2.81-1.35z"/></svg>
-              <span>Lệnh Terminal tự động (Apple Silicon M1-M4 & Intel)</span>
+              <span data-i18n="modal.mac_term_auto">Lệnh Terminal tự động (Apple Silicon M1-M4 & Intel)</span>
             </span>
-            <button type="button" id="btnCopyMacCmd" class="btn-pill" style="height: 26px; padding: 0 10px; font-size: 0.72rem;">Sao chép</button>
+            <button type="button" id="btnCopyMacCmd" class="btn-pill" data-i18n="modal.btn_copy_short" style="height: 26px; padding: 0 10px; font-size: 0.72rem;">Sao chép</button>
           </div>
           <pre class="cmd-box" id="cmdMacText"></pre>
-          <p class="install-card-desc">Mở Terminal và dán lệnh để cài đặt và chạy dịch vụ ngầm.</p>
+          <p class="install-card-desc" data-i18n="modal.mac_term_desc">Mở Terminal và dán lệnh để cài đặt và chạy dịch vụ ngầm.</p>
         </div>
 
         <div class="install-card">
           <div class="install-card-header">
             <span class="install-card-title">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Tải file script hoặc cấu hình quyền</span>
+              <span data-i18n="modal.mac_manual_title">Tải file script hoặc cấu hình quyền</span>
             </span>
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
             <button id="modalBtnDownloadMacSh" class="btn-pill" style="border-color: var(--line); color: var(--text);">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Tải script cài đặt (.sh)</span>
+              <span data-i18n="modal.dl_script_sh">Tải script cài đặt (.sh)</span>
             </button>
           </div>
           <p class="install-card-desc" style="margin-top: 8px; color: #F59E0B;">
@@ -2814,28 +2814,28 @@
           <div class="install-card-header">
             <span class="install-card-title">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12.003 2c-3.12 0-5.65 2.53-5.65 5.65 0 .53.07 1.04.21 1.53C4.383 10.22 3 12.45 3 15c0 3.31 2.69 6 6 6h6c3.31 0 6-2.69 6-6 0-2.55-1.38-4.78-3.56-5.82.14-.49.21-1 .21-1.53 0-3.12-2.53-5.65-5.65-5.65z"/></svg>
-              <span>Lệnh Terminal tự động (Ubuntu / Debian / Arch / Fedora)</span>
+              <span data-i18n="modal.linux_term_auto">Lệnh Terminal tự động (Ubuntu / Debian / Arch / Fedora)</span>
             </span>
-            <button type="button" id="btnCopyLinuxCmd" class="btn-pill" style="height: 26px; padding: 0 10px; font-size: 0.72rem;">Sao chép</button>
+            <button type="button" id="btnCopyLinuxCmd" class="btn-pill" data-i18n="modal.btn_copy_short" style="height: 26px; padding: 0 10px; font-size: 0.72rem;">Sao chép</button>
           </div>
           <pre class="cmd-box" id="cmdLinuxText"></pre>
-          <p class="install-card-desc">Chạy lệnh để tự động tạo service systemd chạy ngầm 24/7.</p>
+          <p class="install-card-desc" data-i18n="modal.linux_term_desc">Chạy lệnh để tự động tạo service systemd chạy ngầm 24/7.</p>
         </div>
 
         <div class="install-card">
           <div class="install-card-header">
             <span class="install-card-title">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Tải file script hoặc gói nhị phân</span>
+              <span data-i18n="modal.linux_manual_title">Tải file script hoặc gói nhị phân</span>
             </span>
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
             <button id="modalBtnDownloadLinuxSh" class="btn-pill" style="border-color: var(--line); color: var(--text);">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Tải script cài đặt (.sh)</span>
+              <span data-i18n="modal.dl_script_sh">Tải script cài đặt (.sh)</span>
             </button>
           </div>
-          <p class="install-card-desc" style="margin-top: 8px;">Hỗ trợ môi trường X11 và Wayland headless, tự động kết nối lại khi reboot máy.</p>
+          <p class="install-card-desc" style="margin-top: 8px;" data-i18n="modal.linux_x11_wayland_note">Hỗ trợ môi trường X11 và Wayland headless, tự động kết nối lại khi reboot máy.</p>
         </div>
       </div>
 
@@ -2848,7 +2848,7 @@
   <!-- Quick Connect Modal -->
   <div id="quickConnectModal" class="auth-container modal-overlay hidden">
     <div class="instrument-card" style="max-width: 480px; position: relative;">
-      <button type="button" id="btnCancelQCIcon" class="modal-close-pill" aria-label="Đóng" style="position: absolute; top: 18px; right: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink-2); border: 1px solid var(--line); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s ease;">
+      <button type="button" id="btnCancelQCIcon" class="modal-close-pill" aria-label="Đóng" data-i18n-aria="modal.aria_close" style="position: absolute; top: 18px; right: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink-2); border: 1px solid var(--line); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s ease;">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
       <div class="card-hero" style="margin-bottom: 22px;">
@@ -2883,29 +2883,29 @@
   <!-- Session Timeout Configuration Modal -->
   <div id="sessionConfigModal" class="auth-container modal-overlay hidden">
     <div class="instrument-card" style="max-width: 480px; position: relative;">
-      <button type="button" id="btnCancelSessionCfgIcon" class="modal-close-pill" aria-label="Đóng" style="position: absolute; top: 18px; right: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink-2); border: 1px solid var(--line); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s ease;">
+      <button type="button" id="btnCancelSessionCfgIcon" class="modal-close-pill" aria-label="Đóng" data-i18n-aria="modal.aria_close" style="position: absolute; top: 18px; right: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink-2); border: 1px solid var(--line); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s ease;">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
-      <div class="card-hero" style="margin-bottom: 22px;">
+      <div class="card-hero" style="margin-bottom: 12px;">
         <h2 class="card-title brand-font" data-i18n="session.modal_title">Cấu hình phiên hoạt động</h2>
         <p class="card-subtitle" data-i18n="session.modal_subtitle">Tự động ngắt kết nối và đăng xuất an toàn khi không hoạt động</p>
       </div>
       <form id="sessionConfigForm">
         <div class="form-group">
           <label for="cfgTimeoutRemote" data-i18n="session.remote_idle_label">Thời gian chờ ngắt kết nối (X phút)</label>
-          <input type="number" id="cfgTimeoutRemote" class="instrument-input mono-font" min="1" max="1440" value="15" required>
-          <span class="field-hint" style="font-size: 0.72rem; color: var(--text-faint); margin-top: 4px; display: block;" data-i18n="session.remote_idle_hint">Tự động ngắt phiên điều khiển máy trạm khi không có thao tác chuột/phím</span>
+          <span class="field-hint" data-i18n="session.remote_idle_hint">Tự động ngắt phiên điều khiển máy trạm khi không có thao tác chuột/phím</span>
+          <input type="number" id="cfgTimeoutRemote" class="instrument-input mono-font" min="1" max="1440" value="15" required style="margin-top: 4px;">
         </div>
-        <div class="form-group" style="margin-top: 14px;">
+        <div class="form-group" style="margin-top: 8px;">
           <label for="cfgTimeoutGlobal" data-i18n="session.global_idle_label">Thời gian chờ tự động đăng xuất (Y phút)</label>
-          <input type="number" id="cfgTimeoutGlobal" class="instrument-input mono-font" min="2" max="1440" value="30" required>
-          <span class="field-hint" style="font-size: 0.72rem; color: var(--text-faint); margin-top: 4px; display: block;" data-i18n="session.global_idle_hint">Tự động đăng xuất tài khoản khi không có kết nối hay thao tác gì</span>
+          <span class="field-hint" data-i18n="session.global_idle_hint">Tự động đăng xuất tài khoản khi không có kết nối hay thao tác gì</span>
+          <input type="number" id="cfgTimeoutGlobal" class="instrument-input mono-font" min="2" max="1440" value="30" required style="margin-top: 4px;">
         </div>
-        <div class="form-group" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft);">
+        <div class="form-group" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft);">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
             <div>
-              <label for="cfgEnableToasts" style="font-size: 0.85rem; font-weight: 600; color: var(--text); cursor: pointer;" data-i18n="settings.toasts_label">Thông báo Toast (Trạng thái)</label>
-              <span class="field-hint" style="font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; display: block;" data-i18n="settings.toasts_hint">Bật hoặc tắt popup thông báo góc màn hình. Tắt đi để làm việc yên tĩnh.</span>
+              <label for="cfgEnableToasts" style="cursor: pointer;" data-i18n="settings.toasts_label">Thông báo Toast (Trạng thái)</label>
+              <span class="field-hint" data-i18n="settings.toasts_hint">Bật hoặc tắt popup thông báo góc màn hình. Tắt đi để làm việc yên tĩnh.</span>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="cfgEnableToasts" checked>
@@ -2913,11 +2913,37 @@
             </label>
           </div>
         </div>
-        <div class="session-sliding-badge mono-font" style="margin-top: 16px; padding: 10px 14px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 8px; font-size: 0.75rem; color: #4ADE80; line-height: 1.5;">
+        <div class="form-group" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft);">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div>
+              <label data-i18n="settings.ui_zoom_label">Tỷ lệ hiển thị (Zoom)</label>
+              <span class="field-hint" data-i18n="settings.ui_zoom_hint">Thu nhỏ hoặc phóng to toàn bộ giao diện</span>
+            </div>
+            <div class="ui-zoom-controls" style="display: inline-flex; align-items: center; gap: 6px; background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--round); padding: 3px 6px;">
+              <button type="button" id="btnUiZoomOut" class="btn-pill" title="Thu nhỏ (Ctrl+-)" aria-label="Zoom out" style="width: 28px; height: 28px; min-width: 28px; border-radius: 50%; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <span id="uiZoomLevelDisplay" class="mono-font" style="font-size: 0.78rem; font-weight: 700; color: var(--accent); min-width: 44px; text-align: center;">100%</span>
+              <button type="button" id="btnUiZoomIn" class="btn-pill" title="Phóng to (Ctrl++)" aria-label="Zoom in" style="width: 28px; height: 28px; min-width: 28px; border-radius: 50%; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <button type="button" id="btnUiZoomReset" class="btn-pill" title="Mặc định (100%)" aria-label="Reset zoom" style="padding: 0 8px; height: 26px; font-size: 0.72rem; margin-left: 2px;" data-i18n="settings.zoom_reset">100%</button>
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; flex-wrap: wrap;">
+            <button type="button" class="btn-pill js-zoom-preset" data-zoom="0.5" style="padding: 2px 7px; font-size: 0.68rem; height: 22px;">50%</button>
+            <button type="button" class="btn-pill js-zoom-preset" data-zoom="0.65" style="padding: 2px 7px; font-size: 0.68rem; height: 22px;">65%</button>
+            <button type="button" class="btn-pill js-zoom-preset" data-zoom="0.75" style="padding: 2px 7px; font-size: 0.68rem; height: 22px;">75%</button>
+            <button type="button" class="btn-pill js-zoom-preset" data-zoom="0.85" style="padding: 2px 7px; font-size: 0.68rem; height: 22px;">85%</button>
+            <button type="button" class="btn-pill js-zoom-preset" data-zoom="1.0" style="padding: 2px 7px; font-size: 0.68rem; height: 22px;">100%</button>
+            <button type="button" class="btn-pill js-zoom-preset" data-zoom="1.2" style="padding: 2px 7px; font-size: 0.68rem; height: 22px;">120%</button>
+          </div>
+        </div>
+        <div class="session-sliding-badge mono-font" style="margin-top: 10px; padding: 8px 12px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 8px; color: #4ADE80; line-height: 1.4;">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <span data-i18n="session.sliding_hint">Cơ chế trượt: Mọi thao tác chuột/phím sẽ tự làm mới token và gia hạn phiên để tránh văng.</span>
         </div>
-        <div style="display: flex; gap: 12px; margin-top: 24px;">
+        <div style="display: flex; gap: 10px; margin-top: 14px;">
           <button type="button" id="btnCancelSessionCfg" class="dialog-btn dialog-btn--secondary" style="flex: 1;" data-i18n="session.btn_cancel">Hủy</button>
           <button type="submit" id="btnSaveSessionCfg" class="dialog-btn dialog-btn--primary" style="flex: 1.3;" data-i18n="session.btn_save">Lưu cấu hình</button>
         </div>
@@ -2983,8 +3009,8 @@
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <div>
-            <h2 id="modalSessionManagerTitle" class="card-title brand-font" style="margin:0; font-size:1.15rem;">Quản lý phiên điều khiển</h2>
-            <p class="card-subtitle mono-font" id="sessionManagerSubtitle" style="margin:2px 0 0 0; font-size:0.68rem; color:var(--text-faint);">CÁC THIẾT BỊ ĐANG REMOTE VÀO MÁY TRẠM NÀY</p>
+            <h2 id="modalSessionManagerTitle" class="card-title brand-font" data-i18n="modal.session_mgr_title" style="margin:0; font-size:1.15rem;">Quản lý phiên điều khiển</h2>
+            <p class="card-subtitle mono-font" id="sessionManagerSubtitle" data-i18n="modal.session_mgr_subtitle" style="margin:2px 0 0 0; font-size:0.68rem; color:var(--text-faint);">CÁC THIẾT BỊ ĐANG REMOTE VÀO MÁY TRẠM NÀY</p>
           </div>
         </div>
         <button type="button" id="btnCloseSessionManager" class="btn-pill" style="padding:6px; width:32px; height:32px; justify-content:center;" data-i18n-title="common.close" title="Đóng">
@@ -3001,10 +3027,10 @@
 
       <!-- Footer Info & Refresh -->
       <div class="dl-modal-footer mono-font" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 20px; border-top:1px solid var(--line); font-size:0.7rem; color:var(--text-faint);">
-        <span id="sessionManagerFooterCount">0 phiên đang hoạt động</span>
+        <span id="sessionManagerFooterCount" data-i18n="modal.session_mgr_zero">0 phiên đang hoạt động</span>
         <div style="display:flex; gap:8px;">
-          <button type="button" id="btnOpenTimeoutFromSessions" class="btn-pill" style="padding:4px 10px; font-size:0.7rem; color:var(--text-muted);">Cấu hình Timeout</button>
-          <button type="button" id="btnRefreshSessions" class="btn-pill" style="padding:4px 10px; font-size:0.7rem; color:var(--accent); border-color:rgba(34,197,94,0.4);">Làm mới</button>
+          <button type="button" id="btnOpenTimeoutFromSessions" class="btn-pill" data-i18n="modal.btn_cfg_timeout" style="padding:4px 10px; font-size:0.7rem; color:var(--text-muted);">Cấu hình Timeout</button>
+          <button type="button" id="btnRefreshSessions" class="btn-pill" data-i18n="modal.btn_refresh_sessions" style="padding:4px 10px; font-size:0.7rem; color:var(--accent); border-color:rgba(34,197,94,0.4);">Làm mới</button>
         </div>
       </div>
     </div>
@@ -3083,15 +3109,15 @@
           <div class="dl-adv-grid">
             <div class="dl-adv-field">
               <label for="dlAdvRoomId" data-i18n="dl_modal.adv_room">Room ID cố định (Tùy chọn)</label>
-              <input type="text" id="dlAdvRoomId" class="instrument-input mono-font" placeholder="Tự động sinh nếu để trống">
+              <input type="text" id="dlAdvRoomId" class="instrument-input mono-font" placeholder="Tự động sinh nếu để trống" data-i18n-placeholder="modal.ph_auto_room">
             </div>
             <div class="dl-adv-field">
               <label for="dlAdvPin" data-i18n="dl_modal.adv_pin">Mã PIN khởi tạo</label>
-              <input type="text" id="dlAdvPin" class="instrument-input mono-font" placeholder="Mặc định ngẫu nhiên 6 số" maxlength="12">
+              <input type="text" id="dlAdvPin" class="instrument-input mono-font" placeholder="Mặc định ngẫu nhiên 6 số" data-i18n-placeholder="modal.ph_auto_pin" maxlength="12">
             </div>
             <div class="dl-adv-field">
               <label for="dlAdvDeviceName" data-i18n="dl_modal.adv_device_name">Tên định danh máy trạm</label>
-              <input type="text" id="dlAdvDeviceName" class="instrument-input mono-font" placeholder="VD: PC-KeToan-01">
+              <input type="text" id="dlAdvDeviceName" class="instrument-input mono-font" placeholder="VD: PC-KeToan-01" data-i18n-placeholder="modal.ph_adv_device_name">
             </div>
             <div class="dl-adv-field">
               <label for="dlAdvFpsLimit" data-i18n="dl_modal.adv_fps">Giới hạn FPS (0 = Không giới hạn)</label>
@@ -3100,11 +3126,11 @@
             <div class="dl-adv-field">
               <label for="dlAdvQuality" data-i18n="dl_modal.adv_quality">Chế độ hình ảnh mặc định</label>
               <select id="dlAdvQuality" class="instrument-input mono-font">
-                <option value="auto_sync">Auto-Sync (Tự động tối ưu)</option>
+                <option value="auto_sync" data-i18n="modal.opt_auto_sync">Auto-Sync (Tự động tối ưu)</option>
                 <option value="native_1to1">1:1 Pixel-Perfect (4:4:4)</option>
                 <option value="ultra_120">Ultra 120+ FPS</option>
                 <option value="crisp_2k_4k">2K / 4K Ultra Crisp</option>
-                <option value="balanced">Balanced (Tiêu chuẩn)</option>
+                <option value="balanced" data-i18n="modal.opt_balanced">Balanced (Tiêu chuẩn)</option>
               </select>
             </div>
             <div class="dl-adv-field">
@@ -3399,7 +3425,7 @@
 
         <!-- Viewer Segmented Platform Tabs & High-Signal Micro Steps -->
         <div class="mobile-modal__guide">
-          <div class="platform-tabs" role="tablist" aria-label="Hướng dẫn Viewer theo nền tảng">
+          <div class="platform-tabs" role="tablist" aria-label="Hướng dẫn Viewer theo nền tảng" data-i18n-aria="modal.aria_viewer_os">
             <button type="button" class="platform-tab relay-viewer-platform-tab is-active" data-viewer-platform="desktop" role="tab" aria-selected="true">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               <span data-i18n="dl_modal.viewer_tab_desktop">Máy tính (Desktop)</span>
@@ -3506,7 +3532,7 @@
 
   <!-- Modal: Cloudflare Quick Tunnel (Multiplatform One-Click WAN) -->
   <div id="modalTunnel" class="auth-container modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTunnelTitle">
-    <div class="instrument-card" style="max-width: 460px; width: 92vw; padding: 20px; text-align: left;">
+    <div class="instrument-card modal-card" id="tunnelCard" style="position: relative;">
       <!-- Header: Clean Left Aligned -->
       <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom: 16px;">
         <div style="display:flex; align-items:center; gap: 10px;">
@@ -3515,9 +3541,9 @@
               <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
             </svg>
           </div>
-          <h2 id="modalTunnelTitle" class="brand-font" style="margin:0; font-size: 1.1rem; font-weight: 600; color: #fff; text-align: left;" data-i18n="tunnel.modal_title">Cloudflare Tunnel</h2>
+          <h2 id="modalTunnelTitle" class="card-title brand-font" data-i18n="tunnel.modal_title">Cloudflare Tunnel</h2>
         </div>
-        <button type="button" id="btnCloseTunnelModal" class="btn-pill" style="padding: 6px 10px;" aria-label="Đóng" data-i18n-title="common.close" title="Đóng">
+        <button type="button" id="btnCloseTunnelModal" class="modal-close-pill" aria-label="Đóng" data-i18n-aria="modal.aria_close" data-i18n-title="common.close" title="Đóng">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
@@ -3527,7 +3553,7 @@
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
           <div style="display: flex; align-items: center; gap: 10px; text-align: left;">
             <span id="tunnelStatusBadgeDot" class="status-dot tunnel-dot tunnel-dot--idle"></span>
-            <div id="tunnelStatusText" style="font-weight: 600; font-size: 0.95rem; color: #fff;" data-i18n="tunnel.status_idle">Đang tắt</div>
+            <div id="tunnelStatusText" class="tunnel-status-text" data-i18n="tunnel.status_idle">Đang tắt</div>
           </div>
           <button id="btnToggleTunnel" class="btn-pill btn-tunnel-action" type="button">
             <span id="btnToggleTunnelText" data-i18n="tunnel.action_start">Bật</span>
@@ -3581,8 +3607,8 @@
           <svg id="confirmDialogIconAlert" class="hidden" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
         <div style="flex: 1; min-width: 0;">
-          <h3 id="confirmDialogTitle" class="brand-font" style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--text);" data-i18n="common.confirm_title">Xác nhận</h3>
-          <p id="confirmDialogMessage" style="margin: 0; font-size: 0.86rem; color: var(--text-muted); line-height: 1.5; word-break: break-word; white-space: pre-wrap;"></p>
+          <h3 id="confirmDialogTitle" class="card-title brand-font" data-i18n="dialog.confirm_title">Xác nhận</h3>
+          <p id="confirmDialogMessage" class="confirm-dialog-msg"></p>
           <div id="confirmDialogInputWrap" class="hidden" style="margin-top: 14px;">
             <input type="text" id="confirmDialogInput" class="instrument-input mono-font" style="width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 0.85rem;" placeholder="">
           </div>
@@ -3602,7 +3628,7 @@
   <div id="modalSendPassword" class="auth-container modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="sendPasswordTitle" style="z-index: 10002;">
     <div class="instrument-card" style="max-width: 420px; width: 90vw; padding: 20px; text-align: left;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
-        <h3 id="sendPasswordTitle" class="brand-font" style="margin: 0; font-size: 1.1rem; color: #fff;" data-i18n="modal.send_password_title">Gửi Mật Khẩu An Toàn</h3>
+        <h3 id="sendPasswordTitle" class="card-title brand-font" data-i18n="modal.send_password_title">Gửi Mật Khẩu An Toàn</h3>
         <button type="button" id="btnCloseSendPassword" class="modal-close-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -3623,7 +3649,7 @@
     <div class="instrument-card" style="max-width: 580px; width: 94vw; padding: 20px; text-align: left;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
         <div>
-          <h3 id="remoteHostCfgTitle" class="brand-font" style="margin: 0; font-size: 1.1rem; color: #fff;" data-i18n="host_cfg.title">Cấu hình &amp; Quản trị Máy trạm từ xa</h3>
+          <h3 id="remoteHostCfgTitle" class="card-title brand-font" data-i18n="host_cfg.title">Cấu hình &amp; Quản trị Máy trạm từ xa</h3>
           <p class="mono-font" style="margin: 2px 0 0 0; font-size: 0.7rem; color: var(--text-faint);" id="remoteHostCfgSub" data-i18n="host_cfg.subtitle">ĐỒNG BỘ TRỰC TIẾP VỚI MEIKOVA HOST AGENT</p>
         </div>
         <button type="button" id="btnCloseRemoteHostConfig" class="btn-pill" style="padding: 6px 10px;">
@@ -3697,11 +3723,11 @@
   <div id="modalDeviceMeta" class="auth-container modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 10003;">
     <div class="instrument-card" style="max-width: 440px; width: 92vw; padding: 20px; text-align: left;">
       <h3 class="brand-font" style="margin: 0 0 6px 0; font-size: 1.08rem; color: #fff;" data-i18n="dashboard.meta_modal_title">Phân nhóm &amp; Gắn thẻ Máy trạm</h3>
-      <p id="deviceMetaSubtitle" class="mono-font" style="font-size: 0.72rem; color: var(--accent); margin: 0 0 14px 0;">ROOM-ID</p>
+      <p id="deviceMetaSubtitle" class="card-subtitle mono-font">ROOM-ID</p>
       <input type="hidden" id="inpMetaRoomId">
       <div class="form-group">
         <label for="inpMetaGroupName" data-i18n="dashboard.meta_group_label">Nhóm máy trạm (Group)</label>
-        <input type="text" id="inpMetaGroupName" class="instrument-input mono-font" placeholder="VD: Văn phòng, Server, Cá nhân..." list="groupSuggestions">
+        <input type="text" id="inpMetaGroupName" class="instrument-input mono-font" placeholder="VD: Văn phòng, Server, Cá nhân..." data-i18n-placeholder="dashboard.ph_meta_group" list="groupSuggestions">
         <datalist id="groupSuggestions">
           <option value="Favorites"></option>
           <option value="Work"></option>
@@ -3711,11 +3737,11 @@
       </div>
       <div class="form-group">
         <label for="inpMetaTags" data-i18n="dashboard.meta_tags_label">Thẻ gắn (Tags - cách nhau bởi dấu phẩy)</label>
-        <input type="text" id="inpMetaTags" class="instrument-input mono-font" placeholder="VD: GPU, 24/7, Production, Tầng-2">
+        <input type="text" id="inpMetaTags" class="instrument-input mono-font" placeholder="VD: GPU, 24/7, Production, Tầng-2" data-i18n-placeholder="dashboard.ph_meta_tags">
       </div>
       <div class="form-group">
         <label for="inpMetaNotes" data-i18n="dashboard.meta_notes_label">Ghi chú quản trị</label>
-        <input type="text" id="inpMetaNotes" class="instrument-input mono-font" placeholder="Cấu hình, vị trí đặt máy, người phụ trách...">
+        <input type="text" id="inpMetaNotes" class="instrument-input mono-font" placeholder="Cấu hình, vị trí đặt máy, người phụ trách..." data-i18n-placeholder="dashboard.ph_meta_notes">
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
         <button type="button" id="btnCancelDeviceMeta" class="dialog-btn dialog-btn--secondary" data-i18n="common.cancel">Hủy</button>
@@ -3724,13 +3750,13 @@
     </div>
   </div>
 
-  <script src="/js/i18n.js?v=1.4.0"></script>
-  <script src="/js/sync_engine.js?v=1.4.0"></script>
-  <script src="/js/app.js?v=1.4.0"></script>
+  <script src="/js/i18n.js?v=1.4.1"></script>
+  <script src="/js/sync_engine.js?v=1.4.1"></script>
+  <script src="/js/app.js?v=1.4.1"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=1.4.0').then((reg) => {
+        navigator.serviceWorker.register('/sw.js?v=1.4.1').then((reg) => {
           document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
               reg.update().catch(() => {});

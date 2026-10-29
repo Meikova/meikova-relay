@@ -3,7 +3,7 @@
   'use strict';
   // PWA Cache Storage Purge on Version Bump
   try {
-    const PWA_VER = '1.4.0';
+    const PWA_VER = '1.4.1';
     const lastPwaVer = localStorage.getItem('meikova_pwa_ver');
     if (lastPwaVer && lastPwaVer !== PWA_VER && 'caches' in window) {
       localStorage.setItem('meikova_pwa_ver', PWA_VER);
@@ -23,6 +23,23 @@
   window.addEventListener('DOMContentLoaded', syncTrueViewportHeight);
   window.addEventListener('load', syncTrueViewportHeight);
   window.addEventListener('orientationchange', () => setTimeout(syncTrueViewportHeight, 200));
+
+  // Reset viewport zoom/scroll when input loses focus (iOS Safari zoom-in fix)
+  document.addEventListener('focusout', (e) => {
+    if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.body.scrollLeft = 0;
+      document.documentElement.scrollLeft = 0;
+      const meta = document.querySelector('meta[name="viewport"]');
+      if (meta) {
+        meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
+        setTimeout(() => {
+          meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+        }, 60);
+      }
+    }
+  });
 
   // --- DOM Navigation & Views ---
   const mainNav = document.getElementById('mainNav');
@@ -902,7 +919,8 @@
     const onBtn = seg.querySelector('button.on');
     const ind = seg.querySelector('.seg__ind');
     if (!ind) return;
-    if (window.innerWidth < 768 && seg.id === 'mainNav') {
+    // On portrait mobile (height >= 520 & width < 768), mainNav is fixed at bottom without sliding pill
+    if (window.innerWidth < 768 && window.innerHeight >= 520 && seg.id === 'mainNav') {
       ind.style.opacity = '0';
       ind.style.setProperty('--ind-w', '0px');
       return;
@@ -2379,15 +2397,15 @@
         const txtEye = document.getElementById('txtHeroEye');
         if (inputPin.type === 'password') {
           inputPin.type = 'text';
-          if (txtEye) txtEye.textContent = 'Ẩn';
-          else btnTogglePin.textContent = 'Ẩn';
+          if (txtEye) txtEye.textContent = t('pin.hide') || 'Ẩn';
+          else btnTogglePin.textContent = t('pin.hide') || 'Ẩn';
           if (eyeSvg) {
             eyeSvg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
           }
         } else {
           inputPin.type = 'password';
-          if (txtEye) txtEye.textContent = 'Hiện';
-          else btnTogglePin.textContent = 'Hiện';
+          if (txtEye) txtEye.textContent = t('pin.show') || 'Hiện';
+          else btnTogglePin.textContent = t('pin.show') || 'Hiện';
           if (eyeSvg) {
             eyeSvg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
           }
@@ -2431,7 +2449,7 @@
           const data = await res.json().catch(() => null);
           if (data && data.offline) {
             if (pingReadout) pingReadout.textContent = 'RTT: --';
-            if (relayStatusText) relayStatusText.textContent = 'Relay Tunnel: Đang tắt (Offline)';
+            if (relayStatusText) relayStatusText.textContent = t('tunnel.offline') || 'Relay Tunnel: Offline';
             return;
           }
           const rtt = Math.max(0.8, (t1 - t0)).toFixed(1);
@@ -2439,11 +2457,11 @@
             pingReadout.textContent = `RTT: ${rtt}ms`;
           }
           if (relayStatusText) {
-            relayStatusText.textContent = `Relay Tunnel: Sẵn sàng (${rtt}ms)`;
+            relayStatusText.textContent = t('tunnel.ready_rtt', { rtt }) || `Relay Tunnel: Ready (${rtt}ms)`;
           }
         } else {
           if (pingReadout) pingReadout.textContent = 'RTT: --';
-          if (relayStatusText) relayStatusText.textContent = 'Relay Tunnel: Đang tắt (Offline)';
+          if (relayStatusText) relayStatusText.textContent = t('tunnel.offline') || 'Relay Tunnel: Offline';
         }
       } catch {
         if (pingReadout) pingReadout.textContent = 'RTT: --';
@@ -2498,7 +2516,7 @@
     if (!roStatus) return;
     const roTl = document.getElementById('ro-tl');
     if (roTl) {
-      roTl.style.display = currentView === 'landing' ? 'none' : '';
+      roTl.style.display = (currentView === 'remote' && window.innerWidth > 767) ? '' : 'none';
     }
     if (currentView === 'landing') {
       roStatus.textContent = t('ro.landing');
@@ -2571,8 +2589,9 @@
       } else if (view === 'dashboard') {
         dashboardSection.classList.remove('hidden');
         const fInp = document.getElementById('fleetSearchInput');
-        if (fInp && !activeFleetSearchQuery) {
+        if (fInp && (!activeFleetSearchQuery || !fleetSearchUserInteracted)) {
           fInp.value = '';
+          activeFleetSearchQuery = '';
         }
         loadDeviceFleet();
       } else if (view === 'remote') {
@@ -2994,6 +3013,80 @@
   const cfgTimeoutRemote = document.getElementById('cfgTimeoutRemote');
   const cfgTimeoutGlobal = document.getElementById('cfgTimeoutGlobal');
 
+  // --- UI ZOOM / SCALING CONTROLLER ---
+  let currentUiZoom = 1.0;
+  function applyUiZoom(scale, persist = true) {
+    const clamped = Math.round(Math.min(1.5, Math.max(0.4, scale)) * 100) / 100;
+    currentUiZoom = clamped;
+    if (clamped === 1.0) {
+      document.documentElement.style.zoom = '';
+    } else {
+      document.documentElement.style.zoom = String(clamped);
+    }
+    const display = document.getElementById('uiZoomLevelDisplay');
+    if (display) {
+      display.textContent = `${Math.round(clamped * 100)}%`;
+    }
+    document.querySelectorAll('.js-zoom-preset').forEach((btn) => {
+      const z = parseFloat(btn.getAttribute('data-zoom'));
+      if (Math.abs(z - clamped) < 0.02) {
+        btn.classList.add('btn-active');
+      } else {
+        btn.classList.remove('btn-active');
+      }
+    });
+    if (persist) {
+      try {
+        localStorage.setItem('meikova_ui_zoom', String(clamped));
+      } catch (err) {}
+    }
+  }
+
+  function initUiZoom() {
+    try {
+      const saved = parseFloat(localStorage.getItem('meikova_ui_zoom') || '1.0');
+      if (!isNaN(saved) && saved >= 0.4 && saved <= 1.5) {
+        applyUiZoom(saved, false);
+      }
+    } catch (e) {}
+
+    const btnZoomIn = document.getElementById('btnUiZoomIn');
+    const btnZoomOut = document.getElementById('btnUiZoomOut');
+    const btnZoomReset = document.getElementById('btnUiZoomReset');
+
+    btnZoomIn?.addEventListener('click', () => applyUiZoom(currentUiZoom + 0.05));
+    btnZoomOut?.addEventListener('click', () => applyUiZoom(currentUiZoom - 0.05));
+    btnZoomReset?.addEventListener('click', () => applyUiZoom(1.0));
+
+    document.querySelectorAll('.js-zoom-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetZoom = parseFloat(btn.getAttribute('data-zoom'));
+        if (!isNaN(targetZoom)) applyUiZoom(targetZoom);
+      });
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        return;
+      }
+      if (typeof isConnected === 'boolean' && isConnected && document.activeElement?.id === 'remoteCanvas') {
+        return;
+      }
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        applyUiZoom(currentUiZoom + 0.05);
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        applyUiZoom(currentUiZoom - 0.05);
+      } else if (e.key === '0') {
+        e.preventDefault();
+        applyUiZoom(1.0);
+      }
+    });
+  }
+  initUiZoom();
+
   function openSettingsModal() {
     if (cfgTimeoutRemote && cfgTimeoutGlobal) {
       cfgTimeoutRemote.value = timeoutRemoteMin;
@@ -3002,6 +3095,10 @@
     const cfgEnableToasts = document.getElementById('cfgEnableToasts');
     if (cfgEnableToasts) {
       cfgEnableToasts.checked = localStorage.getItem('meikova_toast_enabled') !== 'false';
+    }
+    const display = document.getElementById('uiZoomLevelDisplay');
+    if (display) {
+      display.textContent = `${Math.round(currentUiZoom * 100)}%`;
     }
     if (window.MeikovaI18n && typeof window.MeikovaI18n.applyTranslations === 'function' && sessionConfigModal) {
       window.MeikovaI18n.applyTranslations(sessionConfigModal);
@@ -3279,21 +3376,21 @@
     currentManagingRoomId = roomId || currentRoom || currentRoomId;
     const titleEl = document.getElementById('modalSessionManagerTitle');
     const subEl = document.getElementById('sessionManagerSubtitle');
-    if (titleEl) titleEl.textContent = `Quản lý phiên // ${deviceName || currentManagingRoomId}`;
-    if (subEl) subEl.textContent = `MÃ PHÒNG: ${currentManagingRoomId} // ĐA PHIÊN & NGẮT PHIÊN ĐỐI PHƯƠNG`;
+    if (titleEl) titleEl.textContent = t('session_mgr.title', { name: deviceName || currentManagingRoomId });
+    if (subEl) subEl.textContent = t('session_mgr.subtitle', { room: currentManagingRoomId });
 
     modalSessionManager?.classList.remove('hidden');
     await refreshSessionManagerList();
   }
 
   function formatTimeAgo(timestamp) {
-    if (!timestamp) return 'Vừa xong';
+    if (!timestamp) return t('session_mgr.just_now') || 'Just now';
     const sec = Math.max(1, Math.floor((Date.now() - timestamp) / 1000));
-    if (sec < 60) return `${sec}s trước`;
+    if (sec < 60) return t('session_mgr.sec_ago', { sec });
     const min = Math.floor(sec / 60);
-    if (min < 60) return `${min} phút trước`;
+    if (min < 60) return t('session_mgr.min_ago', { min });
     const hrs = Math.floor(min / 60);
-    return `${hrs}h${min % 60}m trước`;
+    return t('session_mgr.hr_min_ago', { hrs, min: min % 60 });
   }
 
   async function refreshSessionManagerList() {
@@ -3323,7 +3420,7 @@
     const listEl = document.getElementById('sessionManagerList');
     const footerCount = document.getElementById('sessionManagerFooterCount');
     if (!listEl) return;
-    if (footerCount) footerCount.textContent = `${(sessions || []).length} phiên đang hoạt động`;
+    if (footerCount) footerCount.textContent = t('session_mgr.active_count', { count: (sessions || []).length });
 
     if (!sessions || sessions.length === 0) {
       listEl.innerHTML = `
@@ -3361,7 +3458,7 @@
           ${!isSelf ? `
             <button type="button" class="btn-kill-session btn-pill" data-session-id="${sess.id}" data-user="${escapeHtml(sess.username || 'Khách')}" style="border-color:rgba(239,68,68,0.4); color:#ef4444; background:rgba(239,68,68,0.08); font-weight:600; padding:5px 12px; font-size:0.72rem; flex-shrink:0;" onmouseenter="this.style.background='rgba(239,68,68,0.2)';" onmouseleave="this.style.background='rgba(239,68,68,0.08)';">
               <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-              <span>Ngắt phiên</span>
+              <span>${t('session_mgr.btn_disconnect')}</span>
             </button>
           ` : `
             <span class="mono-font" style="font-size:0.68rem; color:var(--text-faint); padding: 4px 6px;">Phiên của bạn</span>
@@ -3376,7 +3473,7 @@
         const uName = btn.dataset.user;
         const confirmed = await showConfirmModal({
           title: t('dialog.confirm_title') || 'Ngắt phiên điều khiển',
-          message: `Bạn có chắc muốn NGẮT PHIÊN của "${uName}" ngay lập tức?`,
+          message: t('session_mgr.confirm_kill', { user: uName }),
           confirmText: t('dialog.btn_kill') || 'Ngắt phiên',
           cancelText: t('dialog.btn_cancel') || 'Hủy',
           danger: true
@@ -3384,7 +3481,7 @@
         if (!confirmed) return;
 
         btn.disabled = true;
-        btn.textContent = 'Đang ngắt...';
+        btn.textContent = t('session_mgr.disconnecting');
 
         try {
           if (ws && ws.readyState === WebSocket.OPEN && (currentRoom === currentManagingRoomId || currentRoomId === currentManagingRoomId)) {
@@ -3403,12 +3500,12 @@
           } else {
             showToast(t('toast.generic_error', { message: res?.message || 'Error' }), 'error');
             btn.disabled = false;
-            btn.textContent = 'Ngắt phiên';
+            btn.textContent = t('session_mgr.btn_disconnect');
           }
         } catch (err) {
           showToast(t('toast.generic_error', { message: err.message }), 'error');
           btn.disabled = false;
-          btn.textContent = 'Ngắt phiên';
+          btn.textContent = t('session_mgr.btn_disconnect');
         }
       });
     });
@@ -3481,7 +3578,7 @@
       return `
         <div class="device-card">
           <div class="device-card-header">
-            <span class="device-name brand-font">${escapeHtml(d.device_name)}</span>
+            <span class="device-name brand-font" title="${escapeHtml(d.device_name)}">${escapeHtml(d.device_name)}</span>
             <span class="status-badge ${isOnline ? 'online' : 'offline'}">
               <span class="status-dot"></span><span data-i18n="${isOnline ? 'dashboard.status_online' : 'dashboard.status_offline'}">${isOnline ? onlineLabel : offlineLabel}</span>
             </span>
@@ -3501,12 +3598,12 @@
           <div class="device-sessions-bar" style="margin: 8px 0; display:flex; align-items:center; justify-content:space-between; font-size: 0.72rem; padding: 6px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: var(--radius);">
             <span class="sessions-indicator mono-font" style="display:inline-flex; align-items:center; gap:6px; color: ${(d.session_count || 0) > 0 ? 'var(--accent)' : 'var(--text-faint)'};">
               <span class="status-dot" style="width:6px; height:6px; border-radius:50%; background: ${(d.session_count || 0) > 0 ? 'var(--accent)' : 'var(--line)'}; ${(d.session_count || 0) > 0 ? 'box-shadow: 0 0 6px var(--accent);' : ''}"></span>
-              <span>${(d.session_count || 0) > 0 ? `${d.session_count} phiên đang kết nối` : 'Chưa có phiên kết nối'}</span>
+              <span>${(d.session_count || 0) > 0 ? t('dashboard.sessions_connected', { count: d.session_count }) : t('dashboard.no_sessions')}</span>
             </span>
             ${(d.session_count || 0) > 0 ? `
               <button type="button" class="btn-manage-sessions btn-pill" data-room="${escapeHtml(d.room_id)}" data-name="${escapeHtml(d.device_name)}" style="padding: 2px 8px; font-size: 0.68rem; height: 22px; border-color: rgba(131, 232, 172, 0.4); color: #83e8ac; background: rgba(131, 232, 172, 0.08);" title="Quản lý & ngắt phiên kết nối">
                 <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:3px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
-                <span>Quản lý</span>
+                <span>${t('dashboard.btn_manage')}</span>
               </button>
             ` : ''}
           </div>
@@ -4020,7 +4117,7 @@
           };
           if (expTransferProgress) {
             expTransferProgress.classList.remove('hidden');
-            expTransferLabel.textContent = `Đang tải về: ${msg.filename} (${formatBytes(msg.filesize)})`;
+            expTransferLabel.textContent = t('files.downloading_fmt', { name: msg.filename, size: formatBytes(msg.filesize) });
             expTransferPercent.textContent = '0%';
             expTransferFill.style.width = '0%';
           }
@@ -5270,10 +5367,11 @@
     const isDeckAtTop = (remoteSection && remoteSection.classList.contains('deck-at-top')) ||
                          document.body.classList.contains('deck-at-top') ||
                          (floatingDeck && (floatingDeck.classList.contains('deck--top-pinned') || floatingDeck.classList.contains('deck--top-unpinned')));
-    const isMobile = window.innerWidth <= 640 || window.innerHeight <= 520;
+    const isMobile = window.innerWidth <= 767 || window.innerHeight <= 560;
     const btnRect = triggerBtn.getBoundingClientRect();
     const stageEl = dropdownEl.offsetParent || remoteSection || document.body;
     const stageRect = stageEl.getBoundingClientRect();
+    const bottomNavReserve = (!document.body.classList.contains('remote-active') && window.innerWidth <= 767) ? 68 : 18;
 
     // Calculate offset relative to dropdownEl's containing block (#remoteSection starts below .topbar)
     let maxAvailHeight = 380;
@@ -5281,12 +5379,12 @@
       const relTop = Math.max(6, Math.round(btnRect.bottom - stageRect.top + 6));
       dropdownEl.style.top = `${relTop}px`;
       dropdownEl.style.bottom = 'auto';
-      maxAvailHeight = Math.max(140, Math.floor(window.innerHeight - btnRect.bottom - 14));
+      maxAvailHeight = Math.max(130, Math.floor(window.innerHeight - btnRect.bottom - bottomNavReserve));
     } else {
       const relBottom = Math.max(8, Math.round(stageRect.bottom - btnRect.top + 6));
       dropdownEl.style.bottom = `${relBottom}px`;
       dropdownEl.style.top = 'auto';
-      maxAvailHeight = Math.max(140, Math.floor(btnRect.top - stageRect.top - 12));
+      maxAvailHeight = Math.max(130, Math.floor(btnRect.top - stageRect.top - 12));
     }
     dropdownEl.style.maxHeight = `${maxAvailHeight}px`;
 
@@ -5334,7 +5432,7 @@
       }
     }, { passive: false });
 
-    floatingDeck.addEventListener('scroll', () => {
+    const repositionOpenDeckDropdowns = () => {
       for (const item of DECK_DROPDOWNS) {
         const d = item.getDropdown();
         const b = item.getBtn();
@@ -5342,7 +5440,10 @@
           positionDeckDropdown(b, d);
         }
       }
-    }, { passive: true });
+    };
+    floatingDeck.addEventListener('scroll', repositionOpenDeckDropdowns, { passive: true });
+    window.addEventListener('resize', repositionOpenDeckDropdowns, { passive: true });
+    window.addEventListener('orientationchange', () => setTimeout(repositionOpenDeckDropdowns, 80), { passive: true });
 
     let isDeckDragging = false;
     let deckStartX = 0;
@@ -5457,10 +5558,15 @@
       e.stopPropagation();
       const mode = pill.getAttribute('data-stream-mode') || 'adaptive_vfr';
       updateStreamModeUI(mode);
+      lastAcceptedFrameTickTime = 0;
+      fpsTokenBucket = Math.max(6, Math.ceil((currentFpsLimit || 60) * 0.15));
+      lastTokenRefillTime = performance.now();
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
           type: 'set_stream_mode',
-          stream_mode: mode
+          stream_mode: mode,
+          fps_limit: currentFpsLimit > 0 ? currentFpsLimit : 0,
+          uncapped: currentFpsLimit <= 0
         }));
       }
       const modeNameMap = {
@@ -6555,7 +6661,7 @@
       btnToggleAudio.classList.toggle('btn-active', isAudioStreaming);
       audioSvgMuted?.classList.toggle('hidden', isAudioStreaming);
       audioSvgPlaying?.classList.toggle('hidden', !isAudioStreaming);
-      btnToggleAudio.title = isAudioStreaming ? 'Tắt âm thanh máy trạm' : 'Bật âm thanh máy trạm (Live Audio)';
+      btnToggleAudio.title = isAudioStreaming ? t('deck.audio_mute_title') : t('deck.audio_unmute_title');
     }
   }
 
@@ -6683,7 +6789,7 @@
       btnToggleMic.classList.toggle('btn-active', isMicStreaming);
       micSvgMuted?.classList.toggle('hidden', isMicStreaming);
       micSvgActive?.classList.toggle('hidden', !isMicStreaming);
-      btnToggleMic.title = isMicStreaming ? 'Tắt micro nói sang máy trạm' : 'Bật micro nói sang máy trạm (Live Voice)';
+      btnToggleMic.title = isMicStreaming ? t('deck.mic_mute_title') : t('deck.mic_unmute_title');
     }
   }
 
@@ -7216,7 +7322,7 @@
     btnMobileTouchMode.addEventListener('click', (e) => {
       e.stopPropagation();
       mobileTouchMode = (mobileTouchMode === 'direct') ? 'trackpad' : 'direct';
-      touchModeLabel.textContent = (mobileTouchMode === 'direct') ? 'Chạm' : 'Chuột';
+      touchModeLabel.textContent = (mobileTouchMode === 'direct') ? (t('deck.touch_direct') || 'Touch') : (t('deck.touch_trackpad') || 'Mouse');
       btnMobileTouchMode.classList.toggle('active', mobileTouchMode === 'trackpad');
       showToast(mobileTouchMode === 'direct' ? 'Chế độ cảm ứng: Chạm trực tiếp' : 'Chế độ cảm ứng: Bàn di chuột', 'info', 1500);
     });
@@ -7695,7 +7801,7 @@
       if (norm === '2160P') return '4K';
       return explicitLabel;
     }
-    if (!w && !h) return 'GỐC';
+    if (!w && !h) return t('deck.res_native') || 'GỐC';
     if (w >= 3840 || h >= 2160) return '4K';
     if (w >= 3440 && h >= 1440) return 'UW2K';
     if (w >= 2560 && h >= 1440) return '2K';
@@ -7710,7 +7816,7 @@
   function updateResolutionUi(w, h, label) {
     const isNative = isNativeResolutionSelected || (w === 0 && h === 0) || label === 'GỐC';
     if (resolutionCurrentLabel) {
-      resolutionCurrentLabel.textContent = isNative ? 'GỐC' : mapResolutionToTierTag(w, h, label);
+      resolutionCurrentLabel.textContent = isNative ? (t('deck.res_native') || 'GỐC') : mapResolutionToTierTag(w, h, label);
     }
     document.querySelectorAll('#resolutionMenuList .quality-menu-item').forEach(btn => {
       const bw = parseInt(btn.dataset.resW, 10);
@@ -7833,9 +7939,9 @@
       }
       if (act === 'lock') {
         const confirmed = await showConfirmModal({
-          title: 'Khóa máy trạm',
-          message: 'Khóa màn hình máy trạm (Lock Workstation)?',
-          confirmText: 'Khóa',
+          title: t('power.lock_title'),
+          message: t('power.lock_msg'),
+          confirmText: t('power.lock_btn'),
           cancelText: t('dialog.btn_cancel') || 'Hủy'
         });
         if (confirmed) {
@@ -7847,9 +7953,9 @@
           return;
         }
         const confirmed = await showConfirmModal({
-          title: 'Chế độ Ngủ (Sleep)',
-          message: 'Đưa máy trạm vào chế độ Ngủ (Sleep)? Bạn có thể đánh thức máy qua Wake-on-LAN hoặc hẹn giờ BIOS Auto-Wakeup.',
-          confirmText: 'Đưa vào Sleep',
+          title: t('power.sleep_title'),
+          message: t('power.sleep_msg'),
+          confirmText: t('power.sleep_btn'),
           cancelText: t('dialog.btn_cancel') || 'Hủy'
         });
         if (confirmed) {
@@ -7861,9 +7967,9 @@
           return;
         }
         const confirmed = await showConfirmModal({
-          title: 'Tắt nguồn máy trạm (Shutdown)',
-          message: 'CẢNH BÁO: Tắt nguồn hoàn toàn máy trạm sẽ ngắt kết nối cho đến khi máy được bật lại hoặc đánh thức qua Wake-on-LAN. Bạn có chắc chắn?',
-          confirmText: 'Tắt máy',
+          title: t('power.shutdown_title'),
+          message: t('power.shutdown_msg'),
+          confirmText: t('power.shutdown_btn'),
           cancelText: t('dialog.btn_cancel') || 'Hủy',
           danger: true
         });
@@ -7876,9 +7982,9 @@
           return;
         }
         const confirmed = await showConfirmModal({
-          title: 'Khởi động lại máy trạm',
+          title: t('power.restart_title'),
           message: t('deck.power_restart_confirm') || 'Khởi động lại máy trạm sẽ ngắt phiên làm việc tạm thời. Hệ thống sẽ tự động kết nối lại khi máy online. Bạn có chắc chắn?',
-          confirmText: 'Khởi động lại',
+          confirmText: t('power.restart_btn'),
           cancelText: t('dialog.btn_cancel') || 'Hủy',
           danger: true
         });
@@ -8147,14 +8253,14 @@
     if (stats.ram) {
       ramValue.textContent = `${stats.ram.used_gb} / ${stats.ram.total_gb} GB`;
       ramGaugeBar.style.width = `${stats.ram.percent}%`;
-      ramSub.textContent = `${stats.ram.percent}% Đang sử dụng (${stats.ram.free_gb} GB còn trống)`;
+      ramSub.textContent = t('tasks.ram_sub_fmt', { percent: stats.ram.percent, free: stats.ram.free_gb });
     }
     // Disk C:
     if (stats.disks && stats.disks.length > 0) {
       const diskC = stats.disks[0];
       diskCValue.textContent = `${diskC.used_gb} / ${diskC.total_gb} GB`;
       diskCGaugeBar.style.width = `${diskC.percent}%`;
-      diskCSub.textContent = `${diskC.percent}% Đã dùng (${diskC.free_gb} GB trống)`;
+      diskCSub.textContent = t('tasks.disk_sub_fmt', { percent: diskC.percent, free: diskC.free_gb });
     }
   }
 
@@ -8197,9 +8303,9 @@
         const pid = parseInt(btn.dataset.pid, 10);
         const name = btn.dataset.name || 'process';
         const confirmed = await showConfirmModal({
-          title: 'Dừng tiến trình',
+          title: t('tasks.kill_title'),
           message: t('tasks.kill_confirm', { name, pid }),
-          confirmText: 'Dừng tiến trình',
+          confirmText: t('tasks.kill_btn'),
           cancelText: t('dialog.btn_cancel') || 'Hủy',
           danger: true
         });
@@ -9014,7 +9120,7 @@
 
     if (expTransferProgress) {
       expTransferProgress.classList.remove('hidden');
-      expTransferLabel.textContent = `Đang tải lên: ${displayName} (${formatBytes(file.size)})`;
+      expTransferLabel.textContent = t('files.uploading_fmt', { name: displayName, size: formatBytes(file.size) });
       expTransferPercent.textContent = '0%';
       expTransferFill.style.width = '0%';
     }
@@ -9196,7 +9302,7 @@
     if (!data) return;
     remoteCurrentPath = data.current_path || '';
     remoteParentPath = data.parent_path || '';
-    currentFolderPath.textContent = remoteCurrentPath || 'Danh sách ổ đĩa';
+    currentFolderPath.textContent = remoteCurrentPath || t('files.drive_list');
 
     if (data.error) {
       remoteFolderList.innerHTML = `<div style="color: #EF4444; font-size: 0.75rem; padding: 10px;">${escapeHtml(data.error)}</div>`;
@@ -9568,7 +9674,7 @@
     async function onRenameClick(path, name) {
       const newName = await showPromptModal({
         title: t('files.rename_title') || 'Đổi tên tệp / thư mục',
-        message: `Nhập tên mới cho "${name}":`,
+        message: t('files.rename_msg', { name }),
         defaultValue: name,
         confirmText: t('dialog.btn_confirm') || 'Đổi tên',
         cancelText: t('dialog.btn_cancel') || 'Hủy'
@@ -9584,7 +9690,7 @@
 
     async function onDeleteClick(path, name) {
       const confirmed = await showConfirmModal({
-        title: 'Xóa tệp / thư mục',
+        title: t('files.delete_title'),
         message: t('files.delete_confirm', { name: name }),
         confirmText: t('dialog.btn_delete') || 'Xóa',
         cancelText: t('dialog.btn_cancel') || 'Hủy',
@@ -9732,9 +9838,9 @@
       }
       const folderName = await showPromptModal({
         title: t('files.new_folder_title') || 'Tạo thư mục mới',
-        message: 'Nhập tên thư mục mới cần tạo trên máy trạm:',
+        message: t('files.new_folder_msg'),
         defaultValue: 'New Folder',
-        placeholder: 'Tên thư mục...',
+        placeholder: t('files.new_folder_ph'),
         confirmText: t('dialog.btn_confirm') || 'Tạo thư mục',
         cancelText: t('dialog.btn_cancel') || 'Hủy'
       });
@@ -10112,43 +10218,43 @@
 
     switch (action) {
       case 'SESSION_CONNECTED':
-        color = '#22C55E'; bg = 'rgba(34, 197, 94, 0.15)'; text = 'KẾT NỐI PHIÊN'; break;
+        color = '#22C55E'; bg = 'rgba(34, 197, 94, 0.15)'; text = t('audit.badge_session_conn'); break;
       case 'SESSION_DISCONNECTED':
-        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'NGẮT KẾT NỐI'; break;
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = t('audit.badge_session_disc'); break;
       case 'CONNECT_PIN_FAILED':
-        color = '#F43F5E'; bg = 'rgba(244, 63, 94, 0.15)'; text = 'SAI MÃ PIN'; break;
+        color = '#F43F5E'; bg = 'rgba(244, 63, 94, 0.15)'; text = t('audit.badge_pin_fail'); break;
       case 'HOST_ONLINE':
-        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = 'TRẠM ONLINE'; break;
+        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = t('audit.badge_host_online'); break;
       case 'HOST_OFFLINE':
-        color = '#64748B'; bg = 'rgba(100, 116, 139, 0.15)'; text = 'TRẠM OFFLINE'; break;
+        color = '#64748B'; bg = 'rgba(100, 116, 139, 0.15)'; text = t('audit.badge_host_offline'); break;
       case 'CMD_EXEC':
-        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = 'LỆNH CMD'; break;
+        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = t('audit.badge_cmd'); break;
       case 'FILE_BROWSE':
-        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = 'XEM THƯ MỤC'; break;
+        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = t('audit.badge_file_browse'); break;
       case 'FILE_DOWNLOAD':
-        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = 'TẢI FILE VỀ'; break;
+        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = t('audit.badge_file_dl'); break;
       case 'FILE_UPLOAD':
-        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = 'TẢI FILE LÊN'; break;
+        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = t('audit.badge_file_ul'); break;
       case 'FILE_DELETE':
-        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'XÓA TỆP'; break;
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = t('audit.badge_file_del'); break;
       case 'FILE_MKDIR':
-        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = 'TẠO THƯ MỤC'; break;
+        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = t('audit.badge_file_mkdir'); break;
       case 'PROCESS_KILL':
-        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'DỪNG TIẾN TRÌNH'; break;
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = t('audit.badge_proc_kill'); break;
       case 'POWER_ACTION':
-        color = '#F59E0B'; bg = 'rgba(245, 158, 11, 0.15)'; text = 'NGUỒN / KHÓA'; break;
+        color = '#F59E0B'; bg = 'rgba(245, 158, 11, 0.15)'; text = t('audit.badge_power'); break;
       case 'BLOCK_INPUT':
-        color = '#EAB308'; bg = 'rgba(234, 179, 8, 0.15)'; text = 'KHÓA THAO TÁC'; break;
+        color = '#EAB308'; bg = 'rgba(234, 179, 8, 0.15)'; text = t('audit.badge_input_lock'); break;
       case 'CLIPBOARD_SYNC':
         color = '#06B6D4'; bg = 'rgba(6, 182, 212, 0.15)'; text = 'CLIPBOARD'; break;
       case 'AUTH_LOGIN':
-        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = 'ĐĂNG NHẬP'; break;
+        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = t('audit.badge_login'); break;
       case 'AUTH_LOGIN_FAILED':
-        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = 'ĐĂNG NHẬP LỖI'; break;
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = t('audit.badge_login_fail'); break;
       case 'AUTH_REGISTER':
-        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = 'ĐĂNG KÝ'; break;
+        color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = t('audit.badge_register'); break;
       case 'DEVICE_LINKED':
-        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = 'LIÊN KẾT TRẠM'; break;
+        color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = t('audit.badge_device_link'); break;
     }
 
     return `<span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: ${color}; background: ${bg}; border: 1px solid ${color}40;">${text}</span>`;
@@ -11071,20 +11177,37 @@
   });
 
   const fleetSearchEl = document.getElementById('fleetSearchInput');
+  let fleetSearchUserInteracted = false;
   if (fleetSearchEl) {
     fleetSearchEl.value = '';
+    fleetSearchEl.setAttribute('readonly', 'readonly');
+    const unlockFleetSearch = () => {
+      fleetSearchUserInteracted = true;
+      fleetSearchEl.removeAttribute('readonly');
+    };
+    fleetSearchEl.addEventListener('pointerdown', unlockFleetSearch);
+    fleetSearchEl.addEventListener('keydown', unlockFleetSearch);
     fleetSearchEl.addEventListener('input', (e) => {
+      // Block Chrome/Edge Password Manager from auto-filling saved account username (e.g. "kiempd") on page load
+      if (!fleetSearchUserInteracted) {
+        e.target.value = '';
+        activeFleetSearchQuery = '';
+        renderDeviceGrid(currentDeviceList);
+        return;
+      }
       activeFleetSearchQuery = e.target.value.trim();
       renderDeviceGrid(currentDeviceList);
     });
-    // Defeat browser password manager / form autofill if injected asynchronously
-    setTimeout(() => {
-      if (fleetSearchEl && !activeFleetSearchQuery && fleetSearchEl.value) {
-        fleetSearchEl.value = '';
-        activeFleetSearchQuery = '';
-        renderDeviceGrid(currentDeviceList);
-      }
-    }, 250);
+    // Multi-pass sweep to clear late browser autofill injections at 100ms, 350ms, and 900ms
+    [100, 350, 900].forEach((delayMs) => {
+      setTimeout(() => {
+        if (fleetSearchEl && !fleetSearchUserInteracted && fleetSearchEl.value) {
+          fleetSearchEl.value = '';
+          activeFleetSearchQuery = '';
+          renderDeviceGrid(currentDeviceList);
+        }
+      }, delayMs);
+    });
   }
 
   const getDeviceMetaModal = () => document.getElementById('modalDeviceMeta');
@@ -11135,10 +11258,10 @@
   document.getElementById('btnOpenWolModal')?.addEventListener('click', async () => {
     const mac = await showPromptModal({
       title: 'Wake-on-LAN (Magic Packet)',
-      message: 'Nhập địa chỉ MAC của máy trạm cần đánh thức qua mạng LAN (VD: AA:BB:CC:DD:EE:FF):',
+      message: t('wol.prompt_msg'),
       defaultValue: '00:11:22:33:44:55',
       placeholder: 'AA:BB:CC:DD:EE:FF',
-      confirmText: 'Đánh thức ngay',
+      confirmText: t('wol.prompt_btn'),
       cancelText: t('dialog.btn_cancel') || 'Hủy'
     });
     if (mac && mac.trim()) {
@@ -11159,9 +11282,9 @@
     }
     const fileName = await showPromptModal({
       title: t('files.btn_new_file_title') || 'Tạo tệp mới',
-      message: 'Nhập tên tệp cần tạo trong thư mục hiện tại (VD: notes.txt, script.ps1):',
+      message: t('files.new_file_msg'),
       defaultValue: 'new_file.txt',
-      confirmText: 'Tạo tệp',
+      confirmText: t('files.new_file_btn'),
       cancelText: t('dialog.btn_cancel') || 'Hủy'
     });
     if (fileName && fileName.trim()) {
@@ -11181,9 +11304,9 @@
     }
     const query = await showPromptModal({
       title: t('files.btn_deep_search_title') || 'Tìm kiếm tệp đệ quy',
-      message: 'Nhập từ khóa tên tệp cần tìm trong thư mục hiện tại và các thư mục con:',
+      message: t('files.deep_search_msg'),
       defaultValue: explorerSearchInput?.value || '',
-      confirmText: 'Tìm kiếm',
+      confirmText: t('files.deep_search_btn'),
       cancelText: t('dialog.btn_cancel') || 'Hủy'
     });
     if (query && query.trim()) {

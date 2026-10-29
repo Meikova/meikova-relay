@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import queue
 import threading
 try:
     import tkinter as tk
@@ -13,11 +14,17 @@ except ImportError:
 from pathlib import Path
 from typing import Callable, Optional
 
-# Ponytail: Pure stdlib Tkinter floating chat for host workstation.
-# Zero dependencies. Ambient Dark frameless style matching Meikova ecosystem.
+try:
+    from host_agent.engines import get_active_os_engine
+except ModuleNotFoundError:
+    try:
+        from engines import get_active_os_engine
+    except Exception:
+        get_active_os_engine = None
+
 
 class HostChatWindow:
-    """Floating Ambient Dark frameless chat window for host workstation."""
+    """Floating Ambient Dark frameless chat window for host workstation (Windows, macOS, Linux)."""
 
     PLACEHOLDER_TEXT = "Nhập tin nhắn gửi kỹ thuật viên..."
 
@@ -42,14 +49,53 @@ class HostChatWindow:
         self._drag_start_y = 0
         self._win_start_x = 0
         self._win_start_y = 0
+        self._ui_queue: "queue.Queue" = queue.Queue()
+        self._destroyed = False
+
+        os_eng = get_active_os_engine() if get_active_os_engine else None
+        fonts = os_eng.get_ui_fonts() if os_eng else {"sans": "Segoe UI", "mono": "Consolas"}
+        self.f_sans = fonts.get("sans", "Segoe UI")
+        self.f_mono = fonts.get("mono", "Consolas")
 
         if self.parent:
             self._init_ui(parent=self.parent)
             self._ready_event.set()
+            self._schedule_queue_poll()
         else:
             self._thread = threading.Thread(target=self._standalone_worker, daemon=True)
             self._thread.start()
             self._ready_event.wait(timeout=3.0)
+
+    def _enqueue_ui(self, fn: Callable[[], None]):
+        if self._destroyed:
+            return
+        self._ui_queue.put(fn)
+        if self.root is not None:
+            try:
+                self.root.after_idle(self._drain_queue)
+            except Exception:
+                pass
+
+    def _drain_queue(self):
+        while not self._destroyed:
+            try:
+                fn = self._ui_queue.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                fn()
+            except Exception:
+                pass
+
+    def _schedule_queue_poll(self):
+        if self._destroyed or not self.root:
+            return
+        self._drain_queue()
+        try:
+            if hasattr(self.root, "winfo_exists") and self.root.winfo_exists():
+                self.root.after(80, self._schedule_queue_poll)
+        except Exception:
+            pass
 
     def _standalone_worker(self):
         # macOS Cocoa AppKit strictly prohibits NSWindow creation on secondary threads
@@ -57,14 +103,32 @@ class HostChatWindow:
             self._ready_event.set()
             return
 
+        root = None
         try:
             root = tk.Tk()
             root.withdraw()
             self._init_ui(parent=None, tk_root=root)
             self._ready_event.set()
+            self._schedule_queue_poll()
             root.mainloop()
         except Exception:
             self._ready_event.set()
+        finally:
+            if hasattr(self, "_icon_img") and self._icon_img is not None:
+                try:
+                    self._icon_img.name = None
+                except Exception:
+                    pass
+                self._icon_img = None
+            self._text_area = None
+            self._entry = None
+            if root is not None:
+                try:
+                    root.destroy()
+                except Exception:
+                    pass
+                del root
+            self.root = None
 
     def _find_icon_asset(self) -> Optional[str]:
         """Locates brand squircle icon for titlebar and window."""
@@ -92,23 +156,20 @@ class HostChatWindow:
         else:
             self.root = tk.Tk()
 
-        # Hide window immediately before styling to prevent momentary flash
         try:
             self.root.withdraw()
         except Exception:
             pass
 
-        # Frameless Ambient Dark: remove OS white titlebar completely
         try:
             self.root.overrideredirect(True)
         except Exception:
             pass
 
         self.root.title(self.title_text)
-        self.root.configure(bg="#070D17")
+        self.root.configure(bg="#111315")
         self.root.attributes("-topmost", True)
 
-        # Window Size & Position (Bottom Right above taskbar)
         w, h = 380, 500
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
@@ -117,38 +178,34 @@ class HostChatWindow:
         self.root.geometry(f"{w}x{h}+{x}+{y}")
         self.root.minsize(320, 360)
 
-        # Window click to focus
         self.root.bind("<Button-1>", lambda e: self._on_window_click())
 
-        # Outer 1px hairline border for crisp contrast on dark/light desktops
-        outer_border = tk.Frame(self.root, bg="#1E293B", padx=1, pady=1)
+        outer_border = tk.Frame(self.root, bg="#282B30", padx=1, pady=1)
         outer_border.pack(fill=tk.BOTH, expand=True)
 
-        inner_container = tk.Frame(outer_border, bg="#070D17")
+        inner_container = tk.Frame(outer_border, bg="#111315")
         inner_container.pack(fill=tk.BOTH, expand=True)
 
         # ==================== CUSTOM TITLEBAR (36px Ambient Dark) ====================
-        titlebar = tk.Frame(inner_container, bg="#0D1524", height=36, padx=10, pady=0)
+        titlebar = tk.Frame(inner_container, bg="#16181A", height=36, padx=10, pady=0)
         titlebar.pack(side=tk.TOP, fill=tk.X)
         titlebar.pack_propagate(False)
 
-        # Drag event bindings
         titlebar.bind("<ButtonPress-1>", self._start_drag)
         titlebar.bind("<B1-Motion>", self._on_drag)
 
-        # Brand Icon or glowing indicator
         icon_path = self._find_icon_asset()
         if icon_path:
             try:
-                self._icon_img = tk.PhotoImage(file=icon_path)
-                icon_lbl = tk.Label(titlebar, image=self._icon_img, bg="#0D1524", bd=0)
+                self._icon_img = tk.PhotoImage(file=icon_path, master=self.root)
+                icon_lbl = tk.Label(titlebar, image=self._icon_img, bg="#16181A", bd=0)
                 icon_lbl.pack(side=tk.LEFT, padx=(0, 6))
                 icon_lbl.bind("<ButtonPress-1>", self._start_drag)
                 icon_lbl.bind("<B1-Motion>", self._on_drag)
             except Exception:
                 self._icon_img = None
 
-        dot = tk.Label(titlebar, text="●", fg="#22C55E", bg="#0D1524", font=("Segoe UI", 10, "bold"), bd=0)
+        dot = tk.Label(titlebar, text="●", fg="#83E8AC", bg="#16181A", font=(self.f_sans, 10, "bold"), bd=0)
         dot.pack(side=tk.LEFT, padx=(0, 6))
         dot.bind("<ButtonPress-1>", self._start_drag)
         dot.bind("<B1-Motion>", self._on_drag)
@@ -156,9 +213,9 @@ class HostChatWindow:
         title_lbl = tk.Label(
             titlebar,
             text="TRÒ CHUYỆN TRỰC TIẾP",
-            fg="#F8FAFC",
-            bg="#0D1524",
-            font=("Segoe UI", 9, "bold"),
+            fg="#F4F6F8",
+            bg="#16181A",
+            font=(self.f_sans, 9, "bold"),
             bd=0
         )
         title_lbl.pack(side=tk.LEFT)
@@ -168,25 +225,24 @@ class HostChatWindow:
         sub_lbl = tk.Label(
             titlebar,
             text="// KỸ THUẬT VIÊN",
-            fg="#64748B",
-            bg="#0D1524",
-            font=("Segoe UI", 8),
+            fg="#7D8590",
+            bg="#16181A",
+            font=(self.f_sans, 8),
             bd=0
         )
         sub_lbl.pack(side=tk.LEFT, padx=(4, 0))
         sub_lbl.bind("<ButtonPress-1>", self._start_drag)
         sub_lbl.bind("<B1-Motion>", self._on_drag)
 
-        # Window Controls: Minimize and Close
         btn_close = tk.Button(
             titlebar,
             text="X",
-            fg="#94A3B8",
-            bg="#0D1524",
-            activebackground="#EF4444",
+            fg="#A0AAB4",
+            bg="#16181A",
+            activebackground="#FF5E6C",
             activeforeground="#FFFFFF",
             bd=0,
-            font=("Segoe UI", 9, "bold"),
+            font=(self.f_sans, 9, "bold"),
             cursor="hand2",
             padx=10,
             pady=0,
@@ -195,21 +251,21 @@ class HostChatWindow:
         btn_close.pack(side=tk.RIGHT, fill=tk.Y)
 
         def _on_close_enter(e):
-            btn_close.config(bg="#EF4444", fg="#FFFFFF")
+            btn_close.config(bg="#FF5E6C", fg="#FFFFFF")
         def _on_close_leave(e):
-            btn_close.config(bg="#0D1524", fg="#94A3B8")
+            btn_close.config(bg="#16181A", fg="#A0AAB4")
         btn_close.bind("<Enter>", _on_close_enter)
         btn_close.bind("<Leave>", _on_close_leave)
 
         btn_min = tk.Button(
             titlebar,
             text="—",
-            fg="#94A3B8",
-            bg="#0D1524",
-            activebackground="#1E293B",
+            fg="#A0AAB4",
+            bg="#16181A",
+            activebackground="#23272D",
             activeforeground="#FFFFFF",
             bd=0,
-            font=("Segoe UI", 9, "bold"),
+            font=(self.f_sans, 9, "bold"),
             cursor="hand2",
             padx=10,
             pady=0,
@@ -218,38 +274,36 @@ class HostChatWindow:
         btn_min.pack(side=tk.RIGHT, fill=tk.Y)
 
         def _on_min_enter(e):
-            btn_min.config(bg="#1E293B", fg="#FFFFFF")
+            btn_min.config(bg="#23272D", fg="#FFFFFF")
         def _on_min_leave(e):
-            btn_min.config(bg="#0D1524", fg="#94A3B8")
+            btn_min.config(bg="#16181A", fg="#A0AAB4")
         btn_min.bind("<Enter>", _on_min_enter)
         btn_min.bind("<Leave>", _on_min_leave)
 
-        # Hairline separator below titlebar
-        title_sep = tk.Frame(inner_container, bg="#1E293B", height=1)
+        title_sep = tk.Frame(inner_container, bg="#282B30", height=1)
         title_sep.pack(side=tk.TOP, fill=tk.X)
 
         # ==================== INPUT AREA (ANCHORED AT BOTTOM) ====================
-        # IMPORTANT: Pack input_frame at BOTTOM FIRST so it is NEVER hidden or clipped!
-        input_container = tk.Frame(inner_container, bg="#0D1524")
+        input_container = tk.Frame(inner_container, bg="#16181A")
         input_container.pack(side=tk.BOTTOM, fill=tk.X)
 
-        input_sep = tk.Frame(input_container, bg="#1E293B", height=1)
+        input_sep = tk.Frame(input_container, bg="#282B30", height=1)
         input_sep.pack(side=tk.TOP, fill=tk.X)
 
-        input_frame = tk.Frame(input_container, bg="#0D1524", padx=10, pady=10)
+        input_frame = tk.Frame(input_container, bg="#16181A", padx=10, pady=10)
         input_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
         self._entry = tk.Entry(
             input_frame,
-            bg="#070D17",
-            fg="#64748B",
-            insertbackground="#22C55E",
-            font=("Segoe UI", 9),
+            bg="#0D0E10",
+            fg="#7D8590",
+            insertbackground="#83E8AC",
+            font=(self.f_sans, 9),
             bd=1,
             relief=tk.SOLID,
             highlightthickness=1,
-            highlightcolor="#22C55E",
-            highlightbackground="#1E293B"
+            highlightcolor="#83E8AC",
+            highlightbackground="#282B30"
         )
         self._entry.insert(0, self.PLACEHOLDER_TEXT)
         self._entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=5, padx=(0, 8))
@@ -260,11 +314,11 @@ class HostChatWindow:
         btn_send = tk.Button(
             input_frame,
             text="GỬI",
-            bg="#22C55E",
-            fg="#070D17",
-            activebackground="#16A34A",
-            activeforeground="#070D17",
-            font=("Segoe UI", 9, "bold"),
+            bg="#83E8AC",
+            fg="#111315",
+            activebackground="#6AD696",
+            activeforeground="#111315",
+            font=(self.f_sans, 9, "bold"),
             bd=0,
             padx=14,
             pady=4,
@@ -274,42 +328,40 @@ class HostChatWindow:
         btn_send.pack(side=tk.RIGHT)
 
         def _on_send_enter(e):
-            btn_send.config(bg="#4ADE80")
+            btn_send.config(bg="#9BF0BF")
         def _on_send_leave(e):
-            btn_send.config(bg="#22C55E")
+            btn_send.config(bg="#83E8AC")
         btn_send.bind("<Enter>", _on_send_enter)
         btn_send.bind("<Leave>", _on_send_leave)
 
         # ==================== CHAT HISTORY AREA (FILL REMAINING) ====================
-        history_frame = tk.Frame(inner_container, bg="#070D17", padx=10, pady=8)
+        history_frame = tk.Frame(inner_container, bg="#111315", padx=10, pady=8)
         history_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         self._text_area = tk.Text(
             history_frame,
-            bg="#0A1120",
-            fg="#F1F5F9",
-            insertbackground="#22C55E",
-            font=("Segoe UI", 9),
+            bg="#0D0E10",
+            fg="#F4F6F8",
+            insertbackground="#83E8AC",
+            font=(self.f_sans, 9),
             wrap=tk.WORD,
             bd=1,
             relief=tk.SOLID,
             highlightthickness=1,
-            highlightcolor="#1E293B",
-            highlightbackground="#1E293B",
+            highlightcolor="#282B30",
+            highlightbackground="#282B30",
             padx=10,
             pady=8,
             state=tk.NORMAL
         )
         self._text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Configure message color tags
-        self._text_area.tag_config("time", foreground="#64748B", font=("Consolas", 8))
-        self._text_area.tag_config("remote_sender", foreground="#83E8AC", font=("Segoe UI", 9, "bold"))
-        self._text_area.tag_config("local_sender", foreground="#22C55E", font=("Segoe UI", 9, "bold"))
-        self._text_area.tag_config("system", foreground="#94A3B8", font=("Segoe UI", 8, "italic"))
-        self._text_area.tag_config("body", foreground="#F8FAFC", font=("Segoe UI", 9))
+        self._text_area.tag_config("time", foreground="#7D8590", font=(self.f_mono, 8))
+        self._text_area.tag_config("remote_sender", foreground="#83E8AC", font=(self.f_sans, 9, "bold"))
+        self._text_area.tag_config("local_sender", foreground="#83E8AC", font=(self.f_sans, 9, "bold"))
+        self._text_area.tag_config("system", foreground="#A0AAB4", font=(self.f_sans, 8, "italic"))
+        self._text_area.tag_config("body", foreground="#F4F6F8", font=(self.f_sans, 9))
 
-        # Initial subtle welcome / instruction banner
         self._text_area.insert(
             tk.END,
             "[Hệ thống] Trò chuyện trực tiếp 2 chiều với kỹ thuật viên.\nNhập tin nhắn bên dưới và bấm GỬI (hoặc Enter) để phản hồi.\n\n",
@@ -317,11 +369,10 @@ class HostChatWindow:
         )
         self._text_area.config(state=tk.DISABLED)
 
-        scrollbar = tk.Scrollbar(history_frame, command=self._text_area.yview, bg="#0A1120", bd=0)
+        scrollbar = tk.Scrollbar(history_frame, command=self._text_area.yview, bg="#0D0E10", bd=0)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self._text_area.config(yscrollcommand=scrollbar.set)
 
-        # Win32 taskbar integration for frameless window
         if sys.platform == "win32":
             try:
                 self.root.update_idletasks()
@@ -338,7 +389,6 @@ class HostChatWindow:
             except Exception:
                 pass
 
-        # Initially hidden until message received or user opens
         self.root.withdraw()
 
     def _start_drag(self, event):
@@ -362,20 +412,20 @@ class HostChatWindow:
     def _on_entry_focus_in(self, event):
         if self._placeholder_active:
             self._entry.delete(0, tk.END)
-            self._entry.config(fg="#F8FAFC")
+            self._entry.config(fg="#F4F6F8")
             self._placeholder_active = False
 
     def _on_entry_focus_out(self, event):
         if not self._entry.get().strip():
             self._entry.delete(0, tk.END)
             self._entry.insert(0, self.PLACEHOLDER_TEXT)
-            self._entry.config(fg="#64748B")
+            self._entry.config(fg="#7D8590")
             self._placeholder_active = True
 
     def show(self):
         if not self._ready_event.is_set() or not self.root:
             return
-        self.root.after(0, self._show_ui)
+        self._enqueue_ui(self._show_ui)
 
     def _show_ui(self):
         if not self.root:
@@ -385,6 +435,7 @@ class HostChatWindow:
         except Exception:
             pass
         self.root.deiconify()
+        self.root.update_idletasks()
         self.root.lift()
         self.root.attributes("-topmost", True)
         self.root.focus_force()
@@ -394,7 +445,7 @@ class HostChatWindow:
     def hide(self):
         if not self._ready_event.is_set() or not self.root:
             return
-        self.root.after(0, self._hide_ui)
+        self._enqueue_ui(self._hide_ui)
 
     def _hide_ui(self):
         if self.root:
@@ -404,10 +455,7 @@ class HostChatWindow:
         self.history.append({"sender": sender, "text": text, "is_local": is_local, "time": time.time()})
         if not self._ready_event.is_set() or not self.root:
             return
-        try:
-            self.root.after(0, lambda: self._add_message_ui(sender, text, is_local))
-        except Exception:
-            pass
+        self._enqueue_ui(lambda: self._add_message_ui(sender, text, is_local))
 
     def _add_message_ui(self, sender: str, text: str, is_local: bool = False):
         if not self._text_area:
@@ -424,7 +472,6 @@ class HostChatWindow:
         self._text_area.see(tk.END)
         self._text_area.config(state=tk.DISABLED)
 
-        # Play system notification sound on remote incoming message and reveal
         if not is_local:
             try:
                 import winsound
@@ -449,6 +496,13 @@ class HostChatWindow:
                 print(f"[Chat Error] Failed to send reply: {e}", file=sys.stderr)
 
     def destroy(self):
+        self._destroyed = True
+        if hasattr(self, "_icon_img") and self._icon_img is not None:
+            try:
+                self._icon_img.name = None
+            except Exception:
+                pass
+            self._icon_img = None
         if self.root:
             try:
                 self.root.after(0, self.root.quit)

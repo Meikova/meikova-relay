@@ -871,6 +871,58 @@
       70% { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
       100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
+
+    /* Responsive Adaptation for Compact / Resized Host Window & High-DPI Scaling */
+    @media (max-width: 520px) {
+      .app-container {
+        padding: 8px 12px 10px;
+      }
+      .sub-header {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .card {
+        padding: 8px 10px;
+      }
+      .card-val {
+        font-size: 17px;
+      }
+      .seg-btn {
+        font-size: 10px;
+        padding: 6px 2px;
+      }
+      .host-quick-chips {
+        flex-wrap: wrap;
+      }
+    }
+
+    @media (max-height: 680px) {
+      .app-container {
+        padding: 6px 14px 8px;
+      }
+      .seg-nav {
+        margin: 8px 0 6px;
+      }
+      .log-box {
+        height: 76px;
+      }
+      .bottom-deck {
+        margin-top: 6px;
+        padding-top: 6px;
+      }
+      .btn-master {
+        height: 38px;
+      }
+    }
+  
+    @media (max-width: 540px), (max-height: 580px) {
+      .app-shell { padding: 8px 10px !important; gap: 8px !important; }
+      .header-bar { flex-wrap: wrap !important; gap: 6px !important; }
+      .pin-grid, .control-grid, .metrics-strip { grid-template-columns: 1fr !important; }
+      .btn-pill, .action-btn { min-height: 36px !important; font-size: 0.75rem !important; }
+      .modal-card { width: min(96vw, 420px) !important; max-height: 90dvh !important; overflow-y: auto !important; }
+    }
+
   </style>
 </head>
 <body oncontextmenu="return false;">
@@ -885,7 +937,7 @@
           <path fill-rule="evenodd" d="M88 71H55L43 59L55 47H70V59H60L57 62H76V38H60V26H88Z"/>
         </g>
       </svg>
-      <span class="titlebar-title">MEIKOVA RELAY HOST <span class="host-version-pill" id="txtHostVersion">v1.4.0</span></span>
+      <span class="titlebar-title">MEIKOVA RELAY HOST <span class="host-version-pill" id="txtHostVersion">v1.4.1</span></span>
     </div>
     <div class="titlebar-spacer pywebview-drag-region"></div>
     <div class="titlebar-actions">
@@ -1158,8 +1210,8 @@
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </button>
         <div>
-          <div class="host-chat-title">TRÒ CHUYỆN VỚI KỸ THUẬT VIÊN</div>
-          <div class="host-chat-subtitle mono"><span class="chat-live-led">●</span> TRỰC TIẾP // 2 CHIỀU</div>
+          <div id="txtHostChatTitle" class="host-chat-title">TRÒ CHUYỆN VỚI KỸ THUẬT VIÊN</div>
+          <div class="host-chat-subtitle mono"><span class="chat-live-led">●</span> <span id="txtHostChatSubtitle">TRỰC TIẾP // 2 CHIỀU</span></div>
         </div>
       </div>
       <div class="host-chat-header-actions">
@@ -1175,8 +1227,8 @@
         <div class="host-chat-empty-icon">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
-        <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text);">Kênh Chat Máy Trạm</div>
-        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">Trao đổi tin nhắn 2 chiều với kỹ thuật viên điều khiển từ xa.</div>
+        <div id="txtHostChatEmptyTitle" style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text);">Kênh Chat Máy Trạm</div>
+        <div id="txtHostChatEmptyDesc" style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">Trao đổi tin nhắn 2 chiều với kỹ thuật viên điều khiển từ xa.</div>
       </div>
     </div>
 
@@ -1286,7 +1338,22 @@
         status_stopped: "● ĐÃ DỪNG",
         status_ready: "● SẴN SÀNG KẾT NỐI",
         status_reconnecting: "● ĐANG KẾT NỐI LẠI...",
-        status_connected: "● ĐANG CÓ KẾT NỐI"
+        status_connected: "● ĐANG CÓ KẾT NỐI",
+        chat_title: "TRÒ CHUYỆN VỚI KỸ THUẬT VIÊN",
+        chat_subtitle: "TRỰC TIẾP // 2 CHIỀU",
+        chat_empty_title: "Kênh Chat Máy Trạm",
+        chat_empty_desc: "Trao đổi tin nhắn 2 chiều với kỹ thuật viên điều khiển từ xa.",
+        chat_ph: "Nhập tin nhắn gửi tới kỹ thuật viên...",
+        dep_user_active: "● ĐÃ KÍCH HOẠT (Tự chạy khi đăng nhập)",
+        dep_user_inactive: "○ Chưa kích hoạt",
+        dep_btn_remove: "GỠ BỎ",
+        dep_btn_install: "CÀI ĐẶT",
+        dep_srv_active: "● ĐANG HOẠT ĐỘNG (Dịch vụ 24/7)",
+        dep_srv_inactive: "○ Chưa cài đặt",
+        dep_btn_remove_srv: "GỠ SERVICE",
+        dep_btn_install_srv: "CÀI SERVICE",
+        dep_btn_install_srv_uac: "CÀI SERVICE (UAC)",
+        kicker_fmt: "MÁY TRẠM: {name} // 120+ FPS // TRUY CẬP KÉP"
       },
       en: {
         header_title: "MEIKOVA RELAY HOST",
@@ -1350,7 +1417,22 @@
         status_stopped: "● STOPPED",
         status_ready: "● READY TO CONNECT",
         status_reconnecting: "● RECONNECTING...",
-        status_connected: "● ACTIVE SESSION"
+        status_connected: "● ACTIVE SESSION",
+        chat_title: "CHAT WITH TECHNICIAN",
+        chat_subtitle: "LIVE // TWO-WAY",
+        chat_empty_title: "Workstation Chat Channel",
+        chat_empty_desc: "Two-way instant messaging with the remote support technician.",
+        chat_ph: "Type a message to the technician...",
+        dep_user_active: "● ACTIVE (Runs on user login)",
+        dep_user_inactive: "○ Not installed",
+        dep_btn_remove: "REMOVE",
+        dep_btn_install: "INSTALL",
+        dep_srv_active: "● RUNNING (24/7 Service)",
+        dep_srv_inactive: "○ Not installed",
+        dep_btn_remove_srv: "REMOVE SERVICE",
+        dep_btn_install_srv: "INSTALL SERVICE",
+        dep_btn_install_srv_uac: "INSTALL SERVICE (UAC)",
+        kicker_fmt: "WORKSTATION: {name} // 120+ FPS // DUAL-MODE ACCESS"
       }
     };
 
@@ -1468,13 +1550,39 @@
       if (document.getElementById('lblServiceModeHost')) document.getElementById('lblServiceModeHost').innerText = t('lbl_service_mode_host');
       document.getElementById('txtSaveSettings').innerText = t('btn_save_settings');
       document.getElementById('lblLog').innerText = t('lbl_log');
+      if (document.getElementById('txtHostChatTitle')) document.getElementById('txtHostChatTitle').innerText = t('chat_title');
+      if (document.getElementById('txtHostChatSubtitle')) document.getElementById('txtHostChatSubtitle').innerText = t('chat_subtitle');
+      if (document.getElementById('txtHostChatEmptyTitle')) document.getElementById('txtHostChatEmptyTitle').innerText = t('chat_empty_title');
+      if (document.getElementById('txtHostChatEmptyDesc')) document.getElementById('txtHostChatEmptyDesc').innerText = t('chat_empty_desc');
+      if (document.getElementById('hostChatInput')) document.getElementById('hostChatInput').placeholder = t('chat_ph');
+      if (document.getElementById('txtKicker')) {
+        const hostName = localConfig.device_name || 'PC-LOCAL';
+        document.getElementById('txtKicker').innerText = t('kicker_fmt', { name: hostName });
+      }
+      if (currentDeployment) updateDeploymentUI(currentDeployment);
       updateAdminLeverUI(isAdminActive);
 
       if (isServiceRunning) {
         document.getElementById('txtMasterToggle').innerText = t('btn_stop');
       } else {
         document.getElementById('txtMasterToggle').innerText = t('btn_start');
+        const txtSt = document.getElementById('txtStatus');
+        if (txtSt) txtSt.innerText = t('status_stopped');
+        const sessInf = document.getElementById('txtSessionInfo');
+        if (sessInf) sessInf.innerText = t('session_stopped');
       }
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.getAttribute('data-i18n');
+        if (k && DICT[currentLang] && DICT[currentLang][k]) el.innerText = t(k);
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const k = el.getAttribute('data-i18n-title');
+        if (k && DICT[currentLang] && DICT[currentLang][k]) el.title = t(k);
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const k = el.getAttribute('data-i18n-placeholder');
+        if (k && DICT[currentLang] && DICT[currentLang][k]) el.placeholder = t(k);
+      });
     }
 
     function addLog(msg) {
@@ -1557,17 +1665,17 @@
       if (dep.user_installed) {
         cardUser?.classList.add('active-installed');
         if (statusUser) {
-          statusUser.innerText = "● ĐÃ KÍCH HOẠT (Tự chạy khi đăng nhập)";
+          statusUser.innerText = t("dep_user_active");
           statusUser.className = "install-status mono active";
         }
-        if (btnUser) btnUser.innerText = "GỠ BỎ";
+        if (btnUser) btnUser.innerText = t("dep_btn_remove");
       } else {
         cardUser?.classList.remove('active-installed');
         if (statusUser) {
-          statusUser.innerText = "○ Chưa kích hoạt";
+          statusUser.innerText = t("dep_user_inactive");
           statusUser.className = "install-status mono";
         }
-        if (btnUser) btnUser.innerText = "CÀI ĐẶT";
+        if (btnUser) btnUser.innerText = t("dep_btn_install");
       }
 
       const cardAdmin = document.getElementById('cardTierAdmin');
@@ -1576,17 +1684,17 @@
       if (dep.service_installed) {
         cardAdmin?.classList.add('active-installed');
         if (statusAdmin) {
-          statusAdmin.innerText = "● ĐANG HOẠT ĐỘNG (Dịch vụ 24/7)";
+          statusAdmin.innerText = t("dep_srv_active");
           statusAdmin.className = "install-status mono active";
         }
-        if (btnAdmin) btnAdmin.innerText = "GỠ SERVICE";
+        if (btnAdmin) btnAdmin.innerText = t("dep_btn_remove_srv");
       } else {
         cardAdmin?.classList.remove('active-installed');
         if (statusAdmin) {
-          statusAdmin.innerText = "○ Chưa cài đặt";
+          statusAdmin.innerText = t("dep_srv_inactive");
           statusAdmin.className = "install-status mono";
         }
-        if (btnAdmin) btnAdmin.innerText = dep.is_admin ? "CÀI SERVICE" : "CÀI SERVICE (UAC)";
+        if (btnAdmin) btnAdmin.innerText = dep.is_admin ? t("dep_btn_install_srv") : t("dep_btn_install_srv_uac");
       }
     }
 

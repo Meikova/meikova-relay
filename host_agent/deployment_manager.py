@@ -46,16 +46,20 @@ def is_current_user_admin() -> bool:
 
 
 def elevate_and_execute(args_str: str) -> bool:
-    """Launches an elevated process using Windows UAC 'runas' verb."""
-    if sys.platform != "win32":
-        return False
+    """Launches an elevated process via OS Engine (Windows UAC 'runas', macOS osascript, Linux pkexec)."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            exe = sys.executable
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", exe, args_str, None, 1
+            )
+            return ret > 32
+        except Exception:
+            return False
     try:
-        import ctypes
-        exe = sys.executable
-        ret = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", exe, args_str, None, 1
-        )
-        return ret > 32
+        from host_agent.engines import create_platform_engine
+        return create_platform_engine(sys.platform).elevate_and_execute(args_str)
     except Exception:
         return False
 
@@ -463,13 +467,21 @@ def manage_windows_service(action: str = "install") -> Tuple[bool, str]:
 
 
 def get_deployment_status() -> Dict[str, Any]:
-    """Returns a full summary of installation states for the GUI."""
-    user_installed = is_task_scheduler_autostart_enabled() or is_hkcu_run_enabled()
-    service_installed = is_windows_service_installed()
+    """Returns a full summary of installation states for the GUI across Windows, macOS, and Linux."""
+    try:
+        from host_agent.engines import create_platform_engine
+        eng = create_platform_engine(sys.platform)
+        user_installed = is_task_scheduler_autostart_enabled() or is_hkcu_run_enabled() or eng.is_autostart_enabled()
+        service_installed = is_windows_service_installed() or eng.is_service_installed()
+        exe_name = eng.get_executable_name()
+    except Exception:
+        user_installed = is_task_scheduler_autostart_enabled() or is_hkcu_run_enabled()
+        service_installed = is_windows_service_installed()
+        exe_name = "MeikovaRelayHost.exe"
     return {
         "is_admin": is_current_user_admin(),
-        "user_installed": user_installed,
-        "service_installed": service_installed,
-        "user_exe_path": str(get_user_install_dir() / "MeikovaRelayHost.exe"),
-        "admin_exe_path": str(get_admin_install_dir() / "MeikovaRelayHost.exe")
+        "user_installed": bool(user_installed),
+        "service_installed": bool(service_installed),
+        "user_exe_path": str(get_user_install_dir() / exe_name),
+        "admin_exe_path": str(get_admin_install_dir() / exe_name)
     }

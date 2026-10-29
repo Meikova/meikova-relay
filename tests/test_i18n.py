@@ -96,5 +96,29 @@ class TestI18nEngine(unittest.TestCase):
         # 5. Verify updateRoStatus is called in meikova-lang-changed
         self.assertIn("updateRoStatus();", app_content)
 
+
+    def test_zero_missing_html_and_js_i18n_keys(self):
+        """Ensure every single data-i18n* attribute in index.html and t(...) call in app.js exists in both VI and EN dictionaries."""
+        root = Path(__file__).resolve().parents[1]
+        html_text = (root / "relay-server" / "public" / "index.html").read_text(encoding="utf-8")
+        app_text = (root / "relay-server" / "public" / "js" / "app.js").read_text(encoding="utf-8")
+
+        vi_keys = set(self._extract_dict("vi").keys())
+        en_keys = set(self._extract_dict("en").keys())
+
+        used_html_keys = set(re.findall(r"data-i18n(?:-[a-z]+)?=[\x27\"]([^\x27\"]+)[\x27\"]", html_text))
+        used_js_keys = set(re.findall(r"\bti?\(\s*[\x27\"]([a-zA-Z0-9_.-]+)[\x27\"]", app_text))
+
+        missing_html_vi = used_html_keys - vi_keys
+        missing_html_en = used_html_keys - en_keys
+        missing_js_vi = used_js_keys - vi_keys
+        missing_js_en = used_js_keys - en_keys
+
+        self.assertEqual(missing_html_vi, set(), f"HTML data-i18n keys missing in VI: {missing_html_vi}")
+        self.assertEqual(missing_html_en, set(), f"HTML data-i18n keys missing in EN: {missing_html_en}")
+        self.assertEqual(missing_js_vi, set(), f"JS t() keys missing in VI: {missing_js_vi}")
+        self.assertEqual(missing_js_en, set(), f"JS t() keys missing in EN: {missing_js_en}")
+
+
 if __name__ == "__main__":
     unittest.main()

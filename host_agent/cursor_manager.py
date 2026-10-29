@@ -52,9 +52,16 @@ class CursorManager:
             pass
 
     def get_cursor(self) -> str:
-        """Returns the current active CSS cursor name ('default', 'pointer', 'text', etc.)."""
+        """Returns the current active CSS cursor name ('default', 'pointer', 'text', etc.) across Windows, macOS, and Linux."""
         if sys.platform == "win32":
             return self._get_windows_cursor()
+        try:
+            from host_agent.engines import get_active_os_engine
+            eng = get_active_os_engine()
+            if eng is not None and hasattr(eng, "get_cursor_shape"):
+                return eng.get_cursor_shape()
+        except Exception:
+            pass
         return "default"
 
     def _get_windows_cursor(self) -> str:

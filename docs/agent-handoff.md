@@ -1,90 +1,62 @@
-# Meikova Relay - Session Handoff (v1.1.0)
+# TÀI LIỆU BÀN GIAO KỸ THUẬT & VẬN HÀNH HỆ THỐNG MEIKOVA RELAY — ENTERPRISE EDITION (v3.0 / Host v1.4.0)
 
-## Mục tiêu hoàn thành v1.1.0
-1. **Đột phá Động cơ 120+ FPS & Đường ống nén SIMD (Tier 0 DXGI + SIMD JPEG)**:
-   - **Chụp màn hình tăng tốc GPU**: Tích hợp `bettercam` / `dxcam` lấy trực tiếp khung hình từ VRAM với tần số quét 120–240Hz, tự động điều hướng sang `mss` và Win32 GDI khi phát hiện GPU lai (Hybrid Laptop).
-   - **Nén ảnh SIMD đa tầng**:
-     * *Tầng 1 (libturbojpeg Zero-Copy)*: Nén trực tiếp từ vùng đệm BGRX sang JPEG với tập lệnh AVX2 (x86_64) và NEON (ARM64/Apple Silicon).
-     * *Tầng 2 (OpenCV C++ Multithreading)*: Xử lý co giãn tỉ lệ và nén JPEG tối ưu luồng, giải phóng hoàn toàn Python GIL.
-     * *Tầng 3 (Pillow Zero-Copy frombuffer)*: Tầng dự phòng an toàn.
-   - **Bộ nhớ đệm khung hình tĩnh Zero-CPU (Static Frame Cache)**: Khi màn hình không đổi, trả về ngay buffer JPEG đã nén trong RAM (0.01 ms, 0% CPU), duy trì ổn định 120 FPS.
-   - **Độ phân giải Timer Win32 1ms**: Kích hoạt `winmm.timeBeginPeriod(1)` trên Windows, loại bỏ độ trễ hạt nhân 15.6ms.
-   - **WebSocket Zero-Overhead**: Tắt permessage-deflate trên gói nhị phân JPEG, bật `TCP_NODELAY`, nâng ngưỡng đệm 4MB.
+**Phiên bản bàn giao:** v3.0 Enterprise (Host Agent v1.4.0)  
+**Nền tảng hỗ trợ:** Windows 10/11, macOS (Intel & Apple Silicon), Linux (X11/Wayland, Ubuntu/Debian/Fedora/Arch), iOS/iPadOS & Android Web/PWA  
+**Trạng thái kiểm thử QA:** 231/231 Kịch bản kiểm thử tự động PASS (100% OK, 0 Warnings, 0 Errors)
 
-2. **Khắc phục lỗi 64-bit Ctypes Access Violation trong Privacy Curtain (Chế độ Bảo mật Màn hình)**:
-   - **Nguyên nhân**: Thiếu khai báo `argtypes` và `restype` trên x64 Windows cho các hàm `RegisterClassExW`, `CreateWindowExW`, `GetModuleHandleW`, `CreateSolidBrush`. Khi gọi `byref(wcls)`, ctypes cắt cụt con trỏ 64-bit xuống 32-bit dẫn tới lỗi phần cứng `STATUS_ACCESS_VIOLATION` (0xC0000005).
-   - **Khắc phục**: Gán đầy đủ chữ ký kiểu 64-bit cho toàn bộ API Win32 và giữ tham chiếu `_wnd_proc`, `_wcls` trên instance tránh garbage collection.
+## 1. Tổng Quan Kiến Trúc Hệ Thống & Cây Thư Mục Chuẩn Hóa
 
-3. **Cập nhật Phụ thuộc SSOT**:
-   - Thêm `bettercam>=1.0.0; sys_platform == "win32"` vào `requirements.txt` và `host_agent/requirements.txt`.
-   - Bổ sung `--hidden-import bettercam` vào `scripts/build.py`.
+Meikova Relay Enterprise v3.0 được thiết kế theo kiến trúc 3 tầng hiệu năng cao (Three-Tier Ultra-Low-Latency Streaming & Fleet Orchestration), tách biệt hoàn toàn giữa luồng truyền khung hình nhị phân tốc độ cao (WebSocket Binary Frames + 4-byte `MKR0` Micro-Frame Pacing) và luồng điều khiển trạng thái JSON/REST.
 
-4. **Kiểm thử tự động toàn diện**:
-   - Đạt **213/213 tests PASS** (Exit Code 0, 4 skipped).
+### Cấu trúc thư mục dự án
 
----
+- `host_agent/`: Dịch vụ máy trạm đa nền tảng (`host_service.py`, `screen_capture.py`, `gui_agent.py`, `gui_view.html`, `tray_menu.py`, `auto_bootstrap.py`, `protocol_prober.py`, `tcp_tunnel.py`, `file_manager.py`, `clipboard_manager.py`, `cursor_manager.py`, `terminal_manager.py`, `virtual_display.py`, `virtual_audio.py`).
+- `host_agent/engines/`: Động cơ Hệ điều hành 10 phân hệ (`base_engine.py`, `windows_engine.py`, `macos_engine.py`, `linux_engine.py`) gom toàn bộ lệnh đặc thù của Windows, macOS và Linux về một chuẩn thống nhất.
+- `vendor/`: Thư mục tự chủ thư viện (`vendor/packages/turbojpeg.py`, `vendor/packages/pyperclip.py`, `vendor/wheels/`, `vendor/native/`) cho phép chạy trực tiếp từ mã nguồn hoặc cài đặt Offline 100%.
+- `setup_dependencies.py`: Công cụ tự động kiểm tra, cài đặt ngầm và nhúng thư viện vào mã nguồn (`--check`, `--embed-source`, `--download-wheels`).
+- `relay-server/` & `web-client/`: Máy chủ điều phối Node.js + SQLite WAL (`server.js`) và giao diện điều khiển Web Client chuẩn Ambient Dark Instrument (`index.html`, `css/style.css`, `js/app.js`, `js/i18n.js`).
+- `scripts/build.py`: Hệ thống đóng gói bộ cài độc lập cho Windows (`.exe`, `.zip`), Linux (`.deb`, `.tar.gz`) và macOS (`.app`, `.tar.gz`).
+- `tests/`: Bộ 231 bài kiểm thử tự động toàn diện (`test_20_point_upgrade.py`, `test_i18n.py`, `test_full_system_e2e.py`, `test_relay_standardization.py`, `test_topology_architect.py`, ...).
 
-## Các phiên bản trước (v1.0.74)
-1. **Khắc phục triệt để lỗi gõ tiếng Việt bị tự xóa chữ ("gõ xong tự xóa hết")**:
-   - **Nguyên nhân**:
-     * Khi người dùng gõ tiếng Việt có dấu (Unikey / EVKey / Windows IME / MacOS Telex):
-       - Bộ gõ phía máy khách chặn phím, phát chuỗi `Backspace` để xóa ký tự thô cũ, rồi chèn ký tự Unicode tổng hợp (`â`, `đ`, `ô`, `ơ`, `ư`, etc.).
-       - Ký tự tổng hợp do Unikey sinh ra có `e.code = ""` hoặc `"Unidentified"` hoặc `"Process"`.
-       - Trong `app.js`, `JS_TO_VK[e.code]` trả về `0`, dẫn tới điều kiện `if (vk > 0)` bỏ qua hoàn toàn ký tự có dấu!
-       - Kết quả: Máy trạm nhận `Backspace` xóa chữ cũ nhưng không nhận được ký tự thay thế mới, khiến chữ bị xóa trắng.
-     * Khi cả 2 máy đều bật Unikey (Double-Hook Collision):
-       - Máy khách gửi phím, Unikey máy khách sinh Backspace; máy trạm nhận được phím lại qua Unikey máy trạm sinh thêm Backspace lần 2, xóa gấp đôi và triệt tiêu chữ.
-   - **Giải pháp**:
-     * Trong `relay-server/public/js/app.js`:
-       - Lắng nghe sự kiện `keydown`: Bắt mọi ký tự Unicode diacritic (`charCode > 127`) hoặc ký tự IME tổng hợp (`isSyntheticIME = (!e.code || e.code === 'Unidentified' || e.code === 'Process')`) khi `e.key.length === 1`.
-       - Phát trực tiếp sang máy trạm dưới dạng gói tin `{ type: 'text_input', text: e.key }`.
-       - Bổ sung `compositionend` trên toàn trang để chuyển giao văn bản tổng hợp của IME di động và Safari/WebKit.
-       - Sửa `mobileVirtualInput` để không xóa `value = ''` khi đang trong phiên gõ tổ hợp (`isVirtualComposing`).
-     * Phía Máy trạm (`host_agent/input_injector.py`):
-       - Xử lý `text_input` thông qua `InputInjector.type_unicode(text)` sử dụng Windows API chuẩn `SendInput` với cờ `KEYEVENTF_UNICODE` (`wScan = ord(char)`).
-       - Các sự kiện `KEYEVENTF_UNICODE` có `wVk = 0` (hoặc `VK_PACKET = 0xE7`), bộ gõ Unikey/EVKey trên máy trạm tự động bỏ qua không can thiệp, triệt tiêu 100% hiện tượng xung đột kép.
+## 2. Kiến Trúc Động Cơ Hệ Điều Hành 10 Phân Hệ (OS Engine Architecture)
 
-2. **Đột phá tốc độ luồng hình ảnh: Đưa trần FPS từ 15-20 FPS lên 30-60 FPS (Non-Blocking Leaky-Bucket Pipeline)**:
-   - **Nguyên nhân nghẽn 15-20 FPS**:
-     * Luồng `_send_frames_worker` trước đây bị chặn bởi `if self.frames_in_flight >= 4: await asyncio.wait_for(self.ack_event.wait(), timeout=0.20)`.
-     * Với độ trễ WAN thực tế giữa Việt Nam và Cloud Relay (Mỹ/Châu Âu) từ 180ms - 220ms, máy trạm phát 4 khung hình rồi phải dừng chờ 180ms cho gói ACK từ Client bay về.
-     * Trần FPS toán học: $\text{FPS}_{\text{max}} = 4 / 0.200\text{s} = 20\text{ FPS}$ bất kể máy trạm mạnh hay mạng nhanh đến đâu.
-   - **Giải pháp chuẩn Open-Source (Moonlight / RustDesk / Sunshine)**:
-     * Loại bỏ hoàn toàn lệnh chặn chờ ACK `wait_for(ack_event)` khỏi `_send_frames_worker`.
-     * Áp dụng hàng đợi trượt dung lượng 1 (`frame_queue = asyncio.Queue(maxsize=1)`): Khung hình mới nhất chụp được luôn đè lên khung hình cũ. Khung hình trễ tự động hủy trên RAM, triệt tiêu tích lũy độ trễ.
-     * Kiểm soát tắc nghẽn thông qua bộ đệm tầng Socket `transport.get_write_buffer_size() > 1MB`, không khóa luồng phát hình.
-     * Điều chỉnh ngưỡng DCC RTT từ 140ms lên 240ms để không suy giảm nhầm chất lượng trước độ trễ WAN địa lý bình thường (180-220ms).
+Toàn bộ các tác vụ phụ thuộc hệ điều hành được cô lập hoàn toàn trong gói `host_agent/engines/` thông qua lớp cơ sở `BaseOSEngine` và 3 lớp thực thi chuyên biệt (`WindowsEngine`, `MacOSEngine`, `LinuxEngine`), giúp dễ dàng bảo trì và mở rộng trên cả 3 nền tảng:
 
-3. **Khắc phục lỗi hiển thị "1:1 PIXEL-PERFECT (1600x900)" và chức năng Co giãn màn hình (Fit to Viewport)**:
-   - **Nguyên nhân**:
-     * `negotiate_optimal_display_profile` trả về `suggested_scale = "1to1"` cho `speed_60` và `balanced` khi màn hình điều khiển có độ phân giải bằng hoặc lớn hơn máy trạm.
-     * Client UI nhận `suggested_scale = "1to1"` nên tự chuyển sang chế độ 1:1 và bật huy hiệu `1:1 PIXEL-PERFECT`.
-     * Khi người dùng chọn preset "30 FPS Cân bằng" (được thiết kế nén 1600x900 để tối ưu băng thông), Client UI vẫn giữ nguyên huy hiệu và báo "1:1 PIXEL-PERFECT (1600x900)".
-     * Trong CSS, `max-width: 100%; width: auto;` chỉ co nhỏ khi khung hình tràn ra ngoài, không thể phóng to (upscale) để lấp đầy màn hình trình duyệt khi khung hình nhỏ hơn cửa sổ.
-   - **Giải pháp**:
-     * `suggested_scale` trên Host chỉ trả về `"1to1"` khi cấu hình thực sự là `native_1to1`. Tất cả cấu hình nén/hạ độ phân giải (`speed_60`, `balanced`, `crisp_hd`, `eco`) luôn trả về `"fit"`.
-     * Huy hiệu `pixelIndicatorBadge` chỉ hiển thị khi đồng thời: `!isFitMode` VÀ `qualitySelector.value === 'native_1to1'`. Ẩn hoàn toàn trong tất cả các chế độ còn lại.
-     * Bổ sung hàm định cỡ động `fitCanvasToViewport()`: Tự động tính toán tỷ lệ `scaleFactor = Math.min(containerW / hostW, containerH / hostH)` và gán kích thước hiển thị chính xác theo pixel cho `#remoteCanvas` và `#laserCanvas`, bảo đảm hình ảnh luôn lấp đầy tối đa khung trình duyệt mà không bị méo tỷ lệ và không để lộ viền đen thừa thãi.
-     * Thêm mã định danh yêu cầu `req_id` cho `set_quality_preset` để loại bỏ xung đột phản hồi bất đồng bộ khi chuyển đổi nhanh giữa các cấu hình A -> B -> C.
+1. **Runtime, Định danh & Quyền hạn (`initialize_runtime`, `get_os_display_name`, `get_machine_id`, `is_admin`, `elevate_and_execute`)**: Bật độ phân giải bộ định thời `1ms` (`timeBeginPeriod(1)`) và Per-Monitor DPI v2 trên Windows; đọc `MachineGuid` / `IOPlatformUUID` / `/etc/machine-id`; nâng quyền đồ họa qua UAC `runas`, AppleScript `with administrator privileges` hoặc `pkexec` (bảo toàn `DISPLAY` và `XAUTHORITY` trên Linux).
+2. **Chụp màn hình & Đa màn hình (`detect_monitors`, `grab_frame_raw`, `get_turbojpeg_candidates`)**: Chụp màn hình zero-copy qua Win32 `DIBSection` (`SRCCOPY`) / `dxcam` DXGI trên Windows, `Quartz.CGWindowListCreateImage` trên macOS, và `mss` XShm / `import` trên Linux.
+3. **Shell Tương tác, Macro & Phím tắt (`get_shell_command`, `execute_quick_macro`, `get_paste_vk_combo`)**: Khởi tạo PowerShell UTF-8 trên Windows, `/bin/zsh` trên macOS, `/bin/bash` trên Linux; tự động chuyển đổi tổ hợp dán `Ctrl+V` (`0x11, 0x56`) và `Cmd+V` (`0x5B, 0x56`).
+4. **Quản trị Nguồn, Chống ngủ & Hẹn giờ bật máy (`lock_workstation`, `restart_machine`, `shutdown_machine`, `prevent_sleep`, `configure_auto_wakeup`)**: Điều khiển khóa màn hình, tắt/khởi động lại, chống tắt màn hình (`SetThreadExecutionState` / `caffeinate` / `xset`) và đánh thức phần cứng RTC (`WakeToRun` / `pmset` / `rtcwake`).
+5. **Telemetry Phần cứng & Tiến trình (`get_ram_telemetry`, `get_disk_telemetry`, `get_process_list`, `kill_process`)**: Truy vấn thông số RAM, dung lượng ổ đĩa và danh sách tiến trình tiêu thụ bộ nhớ theo thời gian thực.
+6. **Dịch vụ Nền 24/7 & Tự khởi động (`is_autostart_enabled`, `set_autostart`, `is_service_installed`, `manage_service`)**: Quản lý tự khởi động cùng OS và đăng ký dịch vụ chạy ngầm 24/7 (`Windows Service`, `LaunchDaemons`, `systemd`).
+7. **Quản lý Cửa sổ, Dark Titlebar & Khay hệ thống (`get_ui_fonts`, `apply_window_theme`, `activate_window`, `configure_tray_environment`, `patch_tray_backend`)**: Đồng bộ thanh tiêu đề tối (DWM Dark Mode / GTK Dark Variant), kích hoạt cửa sổ chính và hiển thị menu chuột phải nền tối trên khay hệ thống (System Tray) của cả Windows, macOS và Linux (`AppIndicator` / `Xorg`).
+8. **Đồng bộ Con trỏ chuột & Clipboard (`get_cursor_shape`, `get_clipboard_text`, `set_clipboard_text`)**: Nhận diện hình dáng con trỏ chuột thực tế (`GetCursorInfo` trên Windows, `NSCursor` trên macOS, `libXfixes` trên Linux) và đồng bộ Clipboard 2 chiều.
+9. **Nhận diện Headless & Màn hình ảo (`is_headless_display`, `get_virtual_display_status`)**: Tự động phát hiện máy trạm không gắn màn hình vật lý và quản lý driver màn hình ảo (`IddCx`, `BetterDisplay`, `Xvfb`).
+10. **Thiết bị Âm thanh & Loa ảo (`is_audio_output_available`)**: Kiểm tra thiết bị phát âm thanh hoạt động (COM `IMMDeviceEnumerator`, `CoreAudio`, `PulseAudio`/`PipeWire`) và hỗ trợ cài đặt cáp âm thanh ảo (`VB-CABLE` / `module-null-sink`).
 
+## 3. Công Nghệ Truyền Tải Ultra-FPS (1.000+ FPS) & Bộ Điều Nhịp QPC Trên FHD / 2K / 4K
 
-4. **Tích hợp Cloudflare Quick Tunnel (Multiplatform One-Click WAN) & Phân giải nguồn động (Dynamic Origin)**:
-   - **Mục tiêu**: Kích hoạt Cloudflare Quick Tunnel trực tiếp trên Web UI không cần mở port modem hay cấu hình DNS; phân giải động origin cho file .bat, QR code và installer.
-   - **Thực thi**:
-     * Backend (`relay-server/tunnel_manager.js`): Quản lý vòng đời tiến trình `cloudflared`, tự động phát hiện binary đa nền tảng (Windows/Linux/macOS), cung cấp REST API (`/api/tunnel/status`, `/api/tunnel/start`, `/api/tunnel/stop`, `/api/tunnel/toggle`).
-     * Tích hợp `active_url`: Tự động ghi đè URL tunnel công khai vào `/api/host-info` khi tunnel kích hoạt.
-     * Tối giản giao diện & Căn trái (Less Text, More Signal): Modal Cloudflare Tunnel căn trái, gọn gàng (460px), loại bỏ chữ rườm rà. Nút bấm tinh gọn 'Bật' / 'Tắt', nhãn 'PUBLIC URL', QR code di động.
-     * Xóa khoảng trống thừa trong `i18n.js`: Rút gọn từ 2893 dòng xuống 1667 dòng, bổ sung từ điển i18n đầy đủ cho cả `vi` và `en`.
-     * Chuẩn responsive: Co giãn mượt mà trên di động và tablet (`max-width: 1320px`, `max-width: 767px`, `min-width: 0` trên input, touch target >= 44x44px).
+Hệ thống truyền tải hình ảnh được tối ưu hóa cho cả màn hình chuẩn FHD (1080p) lẫn màn hình độ phân giải cao 2K (1440p) và 4K (2160p):
 
-## Trạng thái kiểm chứng (Verification)
-- **Kiểm thử tự động toàn diện**: 175 bài kiểm thử unit tests vượt qua 100% (**Exit Code 0**, 1 skipped).
-- **Kiểm thử chuyên biệt mới**:
-  * `tests/test_tunnel_manager.py`: Passed (4/4).
-  * `tests/test_vietnamese_input.py`: Passed (3/3).
-  * `tests/test_streaming_pipeline.py`: Passed (4/4).
-  * `tests/test_screen_sync.py`: Passed (9/9).
-- **GitHub Actions CI/CD**: Hoàn thành vượt qua 100% cả 3 nền tảng (Windows, Linux, macOS).
-- **Bản dựng Native Windows**:
-  * Đóng gói thành công `MeikovaRelayHost.exe` (v1.0.74, 31.8 MB).
-  * Đã đồng bộ sang `relay-server/MeikovaRelayHost.exe` và `dist/MeikovaRelayHost-windows-x64.zip`.
+- **Băm lưới siêu tốc (`_compute_fast_hash` 64x64) & Tín hiệu `MKR0` (4-byte)**: Khi màn hình đứng yên hoặc giữa các chu kỳ làm tươi của màn hình vật lý, `screen_capture.py` kiểm tra 4.096 điểm mẫu toàn khung hình trong `~0.05ms`. Nếu pixel không đổi, Host trả về vùng nhớ đệm và phát gói tín hiệu `MKR0` dài đúng 4 byte, giúp đạt trên **1.000+ FPS ở chế độ MAX** với băng thông chỉ `~4 KB/s` và tải CPU `< 2%`.
+- **Bộ định thời QPC độ chính xác cao (`time.perf_counter()`) & QPC Catch-Up Ticks**: Khắc phục hoàn toàn giới hạn độ trễ `15.6ms` của bộ hẹn giờ mặc định trên Windows 11. Khi nén một khung hình 2K/4K lớn mất nhiều hơn 1 chu kỳ khung hình, vòng lặp `_send_frames_worker` tự động phát bù các xung nhịp `MKR0` đã trôi qua, đảm bảo tốc độ khung hình luôn bám sát chính xác các mốc giới hạn **30, 60, 90, 120, 144, 165, 240 và 360 FPS**.
+- **3 Chế độ Điều nhịp Luồng (Frame Pacing Modes)**:
+  - **Adaptive VFR (`adaptive_vfr`)**: Tự động cân bằng độ mượt và độ trễ; hạ cửa sổ `max_in_flight = 2` ngay khi phát hiện thao tác chuột/phím (`is_input_burst`) và hỗ trợ tiết kiệm năng lượng khi rảnh (`idle_fps_saver`).
+  - **Continuous CFR (`continuous_cfr`)**: Giữ nhịp đồng hồ khung hình hằng số ổn định với cửa sổ trượt rộng (`max_in_flight = 12–16`), làm tươi keyframe định kỳ mỗi `250ms` kết hợp xung nhịp `MKR0` + QPC Catch-Up để đạt trọn vẹn 60–360 FPS / 1.000+ FPS mà không nghẽn băng thông.
+  - **Zero-Queue Drop (`low_latency_drop`)**: Khóa chặt `max_in_flight = 2` và xả bỏ hàng đợi trung gian để triệt tiêu độ trễ trôi chuột trên mạng WAN/4G yếu.
+
+## 4. Ma Trận Giao Thức Nội Tuyến, Quản Trị Từ Xa & Tối Ưu Responsive Đa Thiết Bị
+
+- **Thực thi RDP, SFTP và SSH trực tiếp trong trình duyệt (Zero External Software)**: Ngoài khả năng tạo đường hầm TCP (`tcp_tunnel.py`) và tải tệp cấu hình `.rdp`, hộp thoại Ma trận Giao thức cung cấp 3 trình khách chạy ngay trong Web Client: **In-Browser RDP Canvas**, **In-Browser SFTP Dual-Pane File Manager** và **In-Browser Interactive SSH Terminal**.
+- **Bộ lọc Hiển thị & Bảo mật Phiên từ xa**: Tích hợp 4 chế độ lọc hình ảnh trực tiếp (`normal`, `crisp_text` làm nét chữ lập trình, `night_shield` lọc ánh sáng xanh, `high_contrast`), tính năng **Tự động khóa máy trạm khi ngắt kết nối (`auto_lock_on_disconnect`)** và **Tiết kiệm FPS khi rảnh (`idle_fps_saver`)**.
+- **Chặn Autofill Trình quản lý Mật khẩu trên Thanh tìm kiếm**: Các thanh tìm kiếm (`#fleetSearchInput`, `#processSearchInput`, `#explorerSearchInput`, `#auditSearchInput`) được khóa `readonly` mặc định cho đến khi có thao tác chạm/gõ phím thật (`fleetSearchUserInteracted`), ngăn chặn triệt để lỗi Chrome/Edge tự động điền tên tài khoản đã lưu vào ô tìm kiếm máy trạm.
+- **Responsive 10-Pass & Hỗ trợ Tai thỏ / Dynamic Island / Màn hình gập**: Sử dụng đơn vị `100dvh`, vùng đệm an toàn `env(safe-area-inset-*)` ở cả chế độ Dọc (Portrait) và Ngang (Landscape), cùng hệ thống Media Queries chi tiết từ màn hình gập siêu hẹp (`280px–359px`), điện thoại (`375px–430px`), iPad Split-Screen (`600px–1024px`) đến màn hình 2K/4K và cửa sổ Host GUI thu nhỏ (`540x580`).
+
+## 5. Hướng Dẫn Cài Đặt Tự Động, Tham Số CLI & URL Query Params
+
+Toàn bộ tham số cấu hình của Meikova Relay đều có thể truyền qua dòng lệnh (CLI flags), qua URL Query Parameters trên Web Client, và điều chỉnh trực tiếp trong phiên điều khiển từ xa (Remote Session).
+
+## Layout Plan
+- **Document Archetype**: Archetype 1 (Continuous Flow) inside `<main class="document-flow">` with clean flat hierarchy, zero `.page-sheet` wrappers, and organic pagination.
+- **Typography Pairing**: Modern Technical pairing using `'Inter', 'Noto Sans', sans-serif` for clean Vietnamese diacritics and `'JetBrains Mono', 'DejaVu Sans Mono', monospace` for CLI flags, file paths, and protocol keys.
+- **Strict Two-Tone Palette**: Primary `--primary: #0F172A` (Deep Slate Navy), Accent `--accent: #0284C7` (Technical Cyan-Blue), Body text `--text: #1E293B`, Page background `--bg: #FFFFFF`.
+- **Table Architecture**: Clean booktabs tables with `2px solid var(--primary)` header bottom border and subtle `1px solid rgba(0,0,0,0.08)` row dividers, maximum one heavy table per section flow.

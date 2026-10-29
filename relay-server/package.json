@@ -1,6 +1,6 @@
 {
   "name": "meikova-relay-server",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "High-performance WebSocket Relay Server and Static File Host for Meikova Relay",
   "main": "server.js",
   "license": "MIT",

@@ -1,3 +1,12 @@
+try:
+    from .auto_bootstrap import activate_vendor_paths as _activate_vendor_paths
+    _activate_vendor_paths()
+except Exception:
+    try:
+        from auto_bootstrap import activate_vendor_paths as _activate_vendor_paths
+        _activate_vendor_paths()
+    except Exception:
+        pass
 import os
 import sys
 import time
@@ -26,7 +35,7 @@ from typing import Optional
 import multiprocessing
 multiprocessing.freeze_support()
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.4.1"
 
 # Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":
@@ -44,121 +53,48 @@ if sys.platform == "win32":
 
 _interactive_desktop_attached = False
 
-def ensure_interactive_desktop() -> bool:
-    """Attaches process and thread to winsta0\\default so windows and tray icon appear on the active user desktop."""
-    global _interactive_desktop_attached
-    if _interactive_desktop_attached:
-        return True
-    if sys.platform == "win32":
-        try:
-            import ctypes
-            u = ctypes.windll.user32
-            hw = u.OpenWindowStationW("winsta0", False, 0x000F037F)
-            if hw:
-                u.SetProcessWindowStation(hw)
-                u.CloseWindowStation(hw)
-            hd = u.OpenDesktopW("default", 0, False, 0x000F01FF)
-            if hd:
-                u.SetThreadDesktop(hd)
-            _interactive_desktop_attached = True
-            return True
-        except Exception:
-            pass
-    return False
-
-def force_window_foreground(window, cached_hwnd: Optional[int] = None):
-    """Restores, unhides, and raises GUI window to foreground cross-platform."""
-    if not window:
-        return
-
-    # 1. Native pywebview show and restore
-    try:
-        window.show()
-    except Exception:
-        pass
-    try:
-        window.restore()
-    except Exception:
-        pass
-
-    # 2. OS-specific foreground activation
-    if sys.platform == "win32":
-        try:
-            import ctypes
-            user32 = ctypes.windll.user32
-            kernel32 = ctypes.windll.kernel32
-
-            hwnd = cached_hwnd
-            if not hwnd and hasattr(window, "native") and window.native:
-                try:
-                    if hasattr(window.native, "Handle"):
-                        h_val = window.native.Handle
-                        hwnd = int(h_val.ToInt64()) if hasattr(h_val, "ToInt64") else int(str(h_val))
-                except Exception:
-                    pass
-
-            if not hwnd:
-                hwnd = user32.FindWindowW(None, "Meikova Relay Host")
-
-            if hwnd:
-                SW_RESTORE = 9
-                SW_SHOW = 5
-                user32.ShowWindow(hwnd, SW_RESTORE)
-                user32.ShowWindow(hwnd, SW_SHOW)
-
-                # AttachThreadInput trick to steal foreground lock from current foreground app/taskbar
-                fore_hwnd = user32.GetForegroundWindow()
-                fore_thread = user32.GetWindowThreadProcessId(fore_hwnd, None)
-                app_thread = kernel32.GetCurrentThreadId()
-
-                if fore_thread and fore_thread != app_thread:
-                    user32.AttachThreadInput(app_thread, fore_thread, True)
-                    user32.BringWindowToTop(hwnd)
-                    user32.SetForegroundWindow(hwnd)
-                    user32.AttachThreadInput(app_thread, fore_thread, False)
-                else:
-                    user32.BringWindowToTop(hwnd)
-                    user32.SetForegroundWindow(hwnd)
-
-                # HWND_TOP (0), SWP_NOSIZE (1) | SWP_NOMOVE (2) | SWP_SHOWWINDOW (0x40)
-                user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040)
-        except Exception:
-            pass
-    elif sys.platform == "darwin":
-        try:
-            import subprocess
-            subprocess.run(["osascript", "-e", 'tell application "Meikova Relay Host" to activate'], check=False)
-        except Exception:
-            pass
-    elif sys.platform.startswith("linux"):
-        try:
-            import subprocess
-            subprocess.run(["wmctrl", "-a", "Meikova Relay Host"], check=False)
-        except Exception:
-            pass
-
-ensure_interactive_desktop()
-
 # Ensure package is resolvable
 current_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(current_dir))
 sys.path.insert(0, str(current_dir.parent))
 
+try:
+    from host_agent.engines import create_platform_engine, get_active_os_engine
+except ModuleNotFoundError:
+    from engines import create_platform_engine, get_active_os_engine
+
+
+def _get_engine_for_current_platform():
+    """Returns OS engine matching current sys.platform (supports unit test sys.platform patching)."""
+    eng = get_active_os_engine()
+    plat = sys.platform.lower()
+    if plat.startswith("win") and eng.platform_key != "win32":
+        return create_platform_engine("win32")
+    if (plat == "darwin" or plat.startswith("mac")) and eng.platform_key != "darwin":
+        return create_platform_engine("darwin")
+    if plat.startswith("linux") and eng.platform_key != "linux":
+        return create_platform_engine("linux")
+    return eng
+
+
+def ensure_interactive_desktop() -> bool:
+    """Attaches process and thread to interactive desktop via active OS Engine."""
+    return _get_engine_for_current_platform().ensure_interactive_desktop()
+
+
+def force_window_foreground(window, cached_hwnd: Optional[int] = None):
+    """Restores, unhides, and raises GUI window to foreground cross-platform via OS Engine."""
+    if not window:
+        return
+    _get_engine_for_current_platform().activate_window(window, cached_hwnd=cached_hwnd, title="Meikova Relay Host")
+
+
+ensure_interactive_desktop()
+
+
 def get_app_data_dir() -> Path:
-    """Returns project-specific data directory for logs, config, and state.
-    Windows: %LOCALAPPDATA%/MeikovaRelayHost
-    POSIX:   ~/.meikova-relay
-    """
-    if sys.platform == "win32":
-        local_app = os.environ.get("LOCALAPPDATA")
-        d = Path(local_app) / "MeikovaRelayHost" if local_app else Path.home() / ".meikova-relay"
-    else:
-        d = Path.home() / ".meikova-relay"
-    try:
-        d.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        pass
-    return d
+    """Returns project-specific data directory for logs, config, and state via OS Engine."""
+    return _get_engine_for_current_platform().get_app_data_dir()
 
 try:
     from host_agent.host_service import HostService
@@ -222,12 +158,13 @@ except Exception as e:
         pass
 
 try:
-    from host_agent.tray_menu import build_tray_menu
+    from host_agent.tray_menu import build_tray_menu, show_custom_tk_tray_popup
 except ModuleNotFoundError:
     try:
-        from tray_menu import build_tray_menu
+        from tray_menu import build_tray_menu, show_custom_tk_tray_popup
     except Exception:
         build_tray_menu = None
+        show_custom_tk_tray_popup = None
 
 # Optional Microsoft Edge WebView2 GUI Support via pywebview
 try:
@@ -313,26 +250,26 @@ APP_REG_NAME = "MeikovaRelayHost"
 
 # Studio-grade dark ambient color tokens (/ambient-instrument-ui)
 COLORS = {
-    "bg_main": "#070D17",         # Deep ambient ink-0
-    "bg_panel": "#0B1322",        # Surface ink-1
-    "bg_card": "#101B2E",         # Card ink-2
-    "bg_card_inner": "#0A111E",   # Inner chamber
-    "line": "#1C2D4A",            # Hairline border
-    "line_hover": "#2B436D",      # Focused border
-    "text_main": "#F8FAFC",       # High contrast white
-    "text_muted": "#64748B",      # Studio muted gray
-    "text_sub": "#94A3B8",        # Monospace/secondary label
-    "accent_green": "#22C55E",    # Emerald beacon
-    "accent_green_bg": "#082315", # Dark emerald chip
-    "accent_green_line": "#15803D", # Emerald border
-    "accent_cyan": "#38BDF8",     # Cyan telemetry
-    "accent_cyan_bg": "#0A2238",  # Dark cyan chip
-    "accent_red": "#EF4444",      # Crimson alert
-    "accent_red_bg": "#1F1015",   # Dark crimson chip
-    "accent_amber": "#F59E0B",    # Amber warning
-    "accent_amber_bg": "#261908", # Dark amber chip
-    "btn_surface": "#142138",     # Pill button surface
-    "btn_surface_hover": "#1C2F50"# Pill button hover
+    "bg_main": "#111315",         # v1.4.0 Deep ambient ink-0
+    "bg_panel": "#16181A",        # v1.4.0 Surface ink-1
+    "bg_card": "#1D2024",         # v1.4.0 Card ink-2
+    "bg_card_inner": "#0D0E10",   # v1.4.0 Inner input chamber
+    "line": "#282B30",            # v1.4.0 Hairline border
+    "line_hover": "#3D424A",      # v1.4.0 Focused border
+    "text_main": "#F4F6F8",       # v1.4.0 High contrast white
+    "text_muted": "#7D8590",      # v1.4.0 Studio muted gray
+    "text_sub": "#A0AAB4",        # v1.4.0 Monospace/secondary label
+    "accent_green": "#83E8AC",    # v1.4.0 Meikova Emerald
+    "accent_green_bg": "#15291E", # v1.4.0 Dark emerald chip
+    "accent_green_line": "#285B3E", # v1.4.0 Emerald border
+    "accent_cyan": "#83E8AC",     # v1.4.0 Unified emerald/cyan telemetry
+    "accent_cyan_bg": "#15291E",  # v1.4.0 Dark emerald chip
+    "accent_red": "#FF5E6C",      # v1.4.0 Crimson alert/stop
+    "accent_red_bg": "#2B1418",   # v1.4.0 Dark crimson chip
+    "accent_amber": "#F6B851",    # v1.4.0 Amber warning
+    "accent_amber_bg": "#2A2010", # v1.4.0 Dark amber chip
+    "btn_surface": "#23272D",     # v1.4.0 Pill button surface
+    "btn_surface_hover": "#2E333B"# v1.4.0 Pill button hover
 }
 
 # Master bilingual translation dictionary (VI / EN)
@@ -379,6 +316,17 @@ TRANSLATIONS = {
         "relay_ph": "ws://localhost:8080",
         "btn_save_settings": "LƯU CẤU HÌNH",
         "log_title": "Nhật ký hoạt động thời gian thực (Activity Log):",
+        "close_to_tray_label": "Thu nhỏ xuống khay hệ thống khi bấm nút đóng [X]",
+        "stealth_label": "Chế độ Tàng hình (Ẩn khay hệ thống & chạy ngầm)",
+        "admin_lever_label": "Cần gạt Quản trị viên (Admin Mode: Khóa vật lý / Màn hình riêng tư)",
+        "tray_status_online": "Phòng: {room_id} (Trực tuyến)",
+        "tray_status_offline": "Phòng: {room_id} (Dừng)",
+        "tray_chat": "Mở cửa sổ Chat",
+        "tray_web": "Mở Dashboard trên Web",
+        "tray_autostart_fmt": "Khởi động cùng hệ thống: {state}",
+        "tray_keepawake_fmt": "Chế độ giữ máy luôn thức: {state}",
+        "state_on": "Bật",
+        "state_off": "Tắt",
         "tray_open": "Mở Meikova Relay",
         "tray_copy": "Sao chép mã kết nối",
         "tray_exit": "Thoát",
@@ -445,6 +393,17 @@ TRANSLATIONS = {
         "relay_ph": "ws://localhost:8080",
         "btn_save_settings": "SAVE SETTINGS",
         "log_title": "Real-time Activity Log:",
+        "close_to_tray_label": "Minimize to system tray when clicking close [X]",
+        "stealth_label": "Stealth Mode (Hide tray icon & run in background)",
+        "admin_lever_label": "Administrator Lever (Admin Mode: Block Input / Privacy Curtain)",
+        "tray_status_online": "Room: {room_id} (Online)",
+        "tray_status_offline": "Room: {room_id} (Stopped)",
+        "tray_chat": "Open Chat Window",
+        "tray_web": "Open Web Dashboard",
+        "tray_autostart_fmt": "Run on system boot: {state}",
+        "tray_keepawake_fmt": "Keep workstation awake: {state}",
+        "state_on": "ON",
+        "state_off": "OFF",
         "tray_open": "Open Meikova Relay",
         "tray_copy": "Copy Connection Info",
         "tray_exit": "Exit",
@@ -503,17 +462,27 @@ def resolve_config_path() -> Path:
 
 class MeikovaRelayHostGUI:
     def __init__(self, root: tk.Tk):
+        import queue
         self.root = root
-        self.root.geometry("540x720")
+        self.app_version = APP_VERSION
+        self._os_engine = _get_engine_for_current_platform()
+        fonts = self._os_engine.get_ui_fonts()
+        self.f_sans = fonts.get("sans", "Segoe UI")
+        self.f_mono = fonts.get("mono", "Consolas")
+
+        self.root.geometry("560x740")
         self.root.minsize(500, 660)
         self.root.configure(bg=COLORS["bg_main"])
 
+        self._ui_queue: "queue.Queue" = queue.Queue()
         self.service_thread: Optional[threading.Thread] = None
         self.host_service: Optional[HostService] = None
         self.is_running = False
+        self._is_running = False
         self.current_tab = "ultra"  # "ultra" | "chrome" | "settings"
         self.connected_client_info: Optional[str] = None
         self.tray_icon = None
+        self._tray_icon = None
         self.chat_window: Optional[HostChatWindow] = None
         if HostChatWindow:
             try:
@@ -524,22 +493,53 @@ class MeikovaRelayHostGUI:
             except Exception:
                 self.chat_window = None
 
-        # Windows taskbar grouping AppUserModelID for custom icon display
         try:
             import ctypes
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MeikovaRelay.WorkstationHost.2.0")
+            if hasattr(ctypes, "windll") and hasattr(ctypes.windll, "shell32"):
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MeikovaRelay.WorkstationHost.2.0")
         except Exception:
             pass
 
         self._load_config()
+        self._config = self.config
         self.root.title(self.t("app_title"))
         self._setup_window_icon()
         self._build_ui()
         self._check_autostart_status()
         self._init_system_tray()
+        self._os_engine.apply_window_theme(self.root)
 
-        # Handle window close (X button)
         self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
+        self._schedule_ui_poll()
+
+    def _enqueue_ui_action(self, fn):
+        """Thread-safe UI action queue so Linux/macOS/Windows tray and service threads always wake up Tk."""
+        if callable(fn):
+            self._ui_queue.put(fn)
+            try:
+                self.root.after_idle(self._drain_ui_queue)
+            except Exception:
+                pass
+
+    def _drain_ui_queue(self):
+        import queue
+        while True:
+            try:
+                fn = self._ui_queue.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                fn()
+            except Exception:
+                pass
+
+    def _schedule_ui_poll(self):
+        self._drain_ui_queue()
+        try:
+            if hasattr(self.root, "winfo_exists") and self.root.winfo_exists():
+                self.root.after(80, self._schedule_ui_poll)
+        except Exception:
+            pass
 
     def _setup_window_icon(self):
         base_dirs = [
@@ -548,7 +548,6 @@ class MeikovaRelayHostGUI:
             Path(getattr(sys, "_MEIPASS", current_dir)),
             Path(getattr(sys, "_MEIPASS", current_dir)) / "host_agent"
         ]
-        
         ico_path = None
         png_path = None
         for d in base_dirs:
@@ -592,7 +591,7 @@ class MeikovaRelayHostGUI:
         return resolve_config_path()
 
     def _load_config(self):
-        default_comp = os.environ.get("COMPUTERNAME", socket.gethostname())
+        default_comp = os.environ.get("COMPUTERNAME") or socket.gethostname() or "Workstation"
         self.config = {
             "relay": "wss://meikova-relay.onrender.com",
             "account": "",
@@ -600,6 +599,15 @@ class MeikovaRelayHostGUI:
             "room_id": f"RD-{random.randint(1000, 9999)}",
             "pin": f"{random.randint(100000, 999999)}",
             "keep_awake": True,
+            "open_on_boot": False,
+            "close_to_tray": True,
+            "show_tray_icon": True,
+            "stealth_mode": False,
+            "admin_elevated": False,
+            "auto_wakeup": False,
+            "auto_wakeup_time": "08:00",
+            "block_input": False,
+            "privacy_curtain": False,
             "start_minimized": False,
             "lang": "vi"
         }
@@ -624,40 +632,110 @@ class MeikovaRelayHostGUI:
             pass
 
     # -------------------------------------------------------------
-    # UI CONSTRUCTION (/ambient-instrument-ui)
+    # UI CONSTRUCTION (v1.4.0 Ambient Dark Instrument UI)
     # -------------------------------------------------------------
     def _build_ui(self):
-        # 1. Header & Studio Telemetry
-        header = tk.Frame(self.root, bg=COLORS["bg_main"], pady=14, padx=22)
-        header.pack(fill="x")
+        # 1. Top Brand Bar + Version Badge + Quick Chat Button (matches v1.4.0 image_2d8f88.png)
+        top_bar = tk.Frame(self.root, bg=COLORS["bg_panel"], pady=10, padx=18, highlightthickness=1, highlightbackground=COLORS["line"])
+        top_bar.pack(fill="x")
 
-        title_row = tk.Frame(header, bg=COLORS["bg_main"])
-        title_row.pack(fill="x")
+        brand_left = tk.Frame(top_bar, bg=COLORS["bg_panel"])
+        brand_left.pack(side="left")
+
+        logo_badge = tk.Label(
+            brand_left,
+            text="∞",
+            font=(self.f_sans, 11, "bold"),
+            fg=COLORS["accent_green"],
+            bg=COLORS["bg_card"],
+            padx=6,
+            pady=1,
+            highlightthickness=1,
+            highlightbackground=COLORS["line"]
+        )
+        logo_badge.pack(side="left", padx=(0, 8))
 
         self.lbl_header_title = tk.Label(
-            title_row,
+            brand_left,
             text=self.t("header_title"),
-            font=("Segoe UI", 15, "bold"),
+            font=(self.f_sans, 10, "bold"),
             fg=COLORS["text_main"],
-            bg=COLORS["bg_main"]
+            bg=COLORS["bg_panel"]
         )
         self.lbl_header_title.pack(side="left")
 
-        # Right header controls (Language switcher + Status pill)
-        right_header = tk.Frame(title_row, bg=COLORS["bg_main"])
+        self.lbl_version_badge = tk.Label(
+            brand_left,
+            text=f"v{APP_VERSION}",
+            font=(self.f_mono, 8, "bold"),
+            fg=COLORS["accent_green"],
+            bg=COLORS["accent_green_bg"],
+            padx=6,
+            pady=1,
+            highlightthickness=1,
+            highlightbackground=COLORS["accent_green_line"]
+        )
+        self.lbl_version_badge.pack(side="left", padx=(8, 0))
+
+        self.btn_header_chat = tk.Button(
+            top_bar,
+            text="Chat",
+            font=(self.f_sans, 8, "bold"),
+            bg=COLORS["bg_card"],
+            fg=COLORS["text_sub"],
+            activebackground=COLORS["btn_surface_hover"],
+            activeforeground=COLORS["accent_green"],
+            relief="flat",
+            bd=0,
+            padx=10,
+            pady=3,
+            cursor="hand2",
+            command=lambda: self.chat_window.show() if self.chat_window else None
+        )
+        self.btn_header_chat.pack(side="right")
+
+        # 2. Telemetry & Status Sub-Header Bar
+        header = tk.Frame(self.root, bg=COLORS["bg_main"], pady=10, padx=18)
+        header.pack(fill="x")
+
+        comp_name = self.config.get("device_name") or os.environ.get("COMPUTERNAME") or socket.gethostname() or "Workstation"
+        self.lbl_header_subtitle = tk.Label(
+            header,
+            text=self.t("workstation_fmt", name=comp_name),
+            font=(self.f_mono, 8),
+            fg=COLORS["text_muted"],
+            bg=COLORS["bg_main"]
+        )
+        self.lbl_header_subtitle.pack(side="left")
+
+        right_header = tk.Frame(header, bg=COLORS["bg_main"])
         right_header.pack(side="right")
 
-        # Language Switcher Pill Box
+        self.status_pill = tk.Label(
+            right_header,
+            text=self.t("status_stopped"),
+            font=(self.f_sans, 8, "bold"),
+            fg=COLORS["accent_red"],
+            bg=COLORS["accent_red_bg"],
+            padx=10,
+            pady=3,
+            relief="flat",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=COLORS["line"]
+        )
+        self.status_pill.pack(side="right", padx=(8, 0))
+
         lang_box = tk.Frame(right_header, bg=COLORS["bg_card"], padx=2, pady=2, highlightthickness=1, highlightbackground=COLORS["line"])
-        lang_box.pack(side="right", padx=(8, 0))
+        lang_box.pack(side="right")
 
         self.btn_lang_vi = tk.Button(
             lang_box,
             text="VI",
-            font=("Segoe UI", 7, "bold"),
-            bg=COLORS["accent_cyan"] if self.lang == "vi" else COLORS["bg_card"],
+            font=(self.f_sans, 7, "bold"),
+            bg=COLORS["accent_green"] if self.lang == "vi" else COLORS["bg_card"],
             fg=COLORS["bg_main"] if self.lang == "vi" else COLORS["text_muted"],
-            activebackground=COLORS["accent_cyan"],
+            activebackground=COLORS["accent_green"],
             activeforeground=COLORS["bg_main"],
             relief="flat",
             bd=0,
@@ -671,10 +749,10 @@ class MeikovaRelayHostGUI:
         self.btn_lang_en = tk.Button(
             lang_box,
             text="EN",
-            font=("Segoe UI", 7, "bold"),
-            bg=COLORS["accent_cyan"] if self.lang == "en" else COLORS["bg_card"],
+            font=(self.f_sans, 7, "bold"),
+            bg=COLORS["accent_green"] if self.lang == "en" else COLORS["bg_card"],
             fg=COLORS["bg_main"] if self.lang == "en" else COLORS["text_muted"],
-            activebackground=COLORS["accent_cyan"],
+            activebackground=COLORS["accent_green"],
             activeforeground=COLORS["bg_main"],
             relief="flat",
             bd=0,
@@ -685,33 +763,9 @@ class MeikovaRelayHostGUI:
         )
         self.btn_lang_en.pack(side="left")
 
-        self.status_pill = tk.Label(
-            right_header,
-            text=self.t("status_stopped"),
-            font=("Segoe UI", 8, "bold"),
-            fg=COLORS["accent_red"],
-            bg=COLORS["accent_red_bg"],
-            padx=10,
-            pady=3,
-            relief="solid",
-            bd=1,
-            highlightthickness=0
-        )
-        self.status_pill.pack(side="right")
-
-        comp_name = os.environ.get("COMPUTERNAME", "Workstation")
-        self.lbl_header_subtitle = tk.Label(
-            header,
-            text=self.t("workstation_fmt", name=comp_name),
-            font=("Consolas", 8),
-            fg=COLORS["text_muted"],
-            bg=COLORS["bg_main"]
-        )
-        self.lbl_header_subtitle.pack(anchor="w", pady=(3, 0))
-
-        # 2. Segmented Mode Switcher (Pill tabs)
-        seg_container = tk.Frame(self.root, bg=COLORS["bg_main"], padx=22)
-        seg_container.pack(fill="x", pady=(0, 10))
+        # 3. Segmented Mode Switcher (Pill tabs)
+        seg_container = tk.Frame(self.root, bg=COLORS["bg_main"], padx=18)
+        seg_container.pack(fill="x", pady=(0, 8))
 
         seg_frame = tk.Frame(seg_container, bg=COLORS["bg_panel"], padx=3, pady=3, highlightthickness=1, highlightbackground=COLORS["line"])
         seg_frame.pack(fill="x")
@@ -719,10 +773,10 @@ class MeikovaRelayHostGUI:
         self.btn_tab_ultra = tk.Button(
             seg_frame,
             text=self.t("tab_ultra"),
-            font=("Segoe UI", 8, "bold"),
+            font=(self.f_sans, 8, "bold"),
             bg=COLORS["accent_green"],
             fg=COLORS["bg_main"],
-            activebackground="#16A34A",
+            activebackground="#6AD696",
             activeforeground=COLORS["bg_main"],
             relief="flat",
             padx=12,
@@ -736,7 +790,7 @@ class MeikovaRelayHostGUI:
         self.btn_tab_chrome = tk.Button(
             seg_frame,
             text=self.t("tab_chrome"),
-            font=("Segoe UI", 8, "bold"),
+            font=(self.f_sans, 8, "bold"),
             bg=COLORS["bg_panel"],
             fg=COLORS["text_sub"],
             activebackground=COLORS["btn_surface"],
@@ -753,7 +807,7 @@ class MeikovaRelayHostGUI:
         self.btn_tab_cfg = tk.Button(
             seg_frame,
             text=self.t("tab_settings"),
-            font=("Segoe UI", 8, "bold"),
+            font=(self.f_sans, 8, "bold"),
             bg=COLORS["bg_panel"],
             fg=COLORS["text_sub"],
             activebackground=COLORS["btn_surface"],
@@ -767,37 +821,62 @@ class MeikovaRelayHostGUI:
         )
         self.btn_tab_cfg.pack(side="left", expand=True, fill="x", padx=2)
 
-        # 3. Main Content Container
-        self.content_container = tk.Frame(self.root, bg=COLORS["bg_main"], padx=22)
+        # 4. Main Content Container
+        self.content_container = tk.Frame(self.root, bg=COLORS["bg_main"], padx=18)
         self.content_container.pack(fill="both", expand=True)
 
-        # Build individual panels
-        self.panel_ultra = tk.Frame(self.content_container, bg=COLORS["bg_panel"], padx=18, pady=18, highlightthickness=1, highlightbackground=COLORS["line"])
-        self.panel_chrome = tk.Frame(self.content_container, bg=COLORS["bg_panel"], padx=18, pady=18, highlightthickness=1, highlightbackground=COLORS["line"])
-        self.panel_settings = tk.Frame(self.content_container, bg=COLORS["bg_panel"], padx=18, pady=18, highlightthickness=1, highlightbackground=COLORS["line"])
+        self.panel_ultra = tk.Frame(self.content_container, bg=COLORS["bg_panel"], padx=16, pady=14, highlightthickness=1, highlightbackground=COLORS["line"])
+        self.panel_chrome = tk.Frame(self.content_container, bg=COLORS["bg_panel"], padx=16, pady=14, highlightthickness=1, highlightbackground=COLORS["line"])
+        self.panel_settings = tk.Frame(self.content_container, bg=COLORS["bg_panel"], padx=16, pady=12, highlightthickness=1, highlightbackground=COLORS["line"])
 
         self._build_ultra_panel()
         self._build_chrome_panel()
         self._build_settings_panel()
 
-        # Show default tab
         self._switch_tab("ultra")
 
-        # 4. Master Control Strip (Bottom)
-        bottom_frame = tk.Frame(self.root, bg=COLORS["bg_main"], pady=14, padx=22)
-        bottom_frame.pack(fill="x")
+        # 5. Persistent Activity Log Dock + Master Control Strip (Bottom, visible across all tabs like v1.4.0)
+        bottom_dock = tk.Frame(self.root, bg=COLORS["bg_main"], pady=10, padx=18)
+        bottom_dock.pack(fill="x", side="bottom")
+
+        log_card = tk.Frame(bottom_dock, bg=COLORS["bg_panel"], padx=12, pady=8, highlightthickness=1, highlightbackground=COLORS["line"])
+        log_card.pack(fill="x", pady=(0, 8))
+
+        self.lbl_log_title = tk.Label(
+            log_card,
+            text=self.t("log_title"),
+            font=(self.f_mono, 8, "bold"),
+            fg=COLORS["text_muted"],
+            bg=COLORS["bg_panel"]
+        )
+        self.lbl_log_title.pack(anchor="w", pady=(0, 4))
+
+        self.log_text = tk.Text(
+            log_card,
+            bg=COLORS["bg_card_inner"],
+            fg=COLORS["text_sub"],
+            insertbackground=COLORS["accent_green"],
+            font=(self.f_mono, 8),
+            relief="flat",
+            height=4,
+            wrap="word",
+            state="disabled",
+            highlightthickness=1,
+            highlightbackground=COLORS["line"]
+        )
+        self.log_text.pack(fill="x")
 
         self.btn_master_toggle = tk.Button(
-            bottom_frame,
+            bottom_dock,
             text=self.t("btn_start_service"),
-            font=("Segoe UI", 10, "bold"),
+            font=(self.f_sans, 10, "bold"),
             bg=COLORS["accent_green"],
             fg=COLORS["bg_main"],
-            activebackground="#16A34A",
+            activebackground="#6AD696",
             activeforeground=COLORS["bg_main"],
             relief="flat",
             bd=0,
-            pady=12,
+            pady=10,
             cursor="hand2",
             command=self._toggle_service
         )
@@ -810,7 +889,7 @@ class MeikovaRelayHostGUI:
         self.lbl_ultra_title = tk.Label(
             self.panel_ultra,
             text=self.t("ultra_title"),
-            font=("Segoe UI", 10, "bold"),
+            font=(self.f_sans, 10, "bold"),
             fg=COLORS["text_main"],
             bg=COLORS["bg_panel"]
         )
@@ -819,27 +898,27 @@ class MeikovaRelayHostGUI:
         self.lbl_ultra_desc = tk.Label(
             self.panel_ultra,
             text=self.t("ultra_desc"),
-            font=("Segoe UI", 8),
+            font=(self.f_sans, 8),
             fg=COLORS["text_muted"],
             bg=COLORS["bg_panel"]
         )
-        self.lbl_ultra_desc.pack(anchor="w", pady=(2, 12))
+        self.lbl_ultra_desc.pack(anchor="w", pady=(2, 10))
 
         # ID Card
-        id_card = tk.Frame(self.panel_ultra, bg=COLORS["bg_card"], padx=14, pady=12, highlightthickness=1, highlightbackground=COLORS["line"])
+        id_card = tk.Frame(self.panel_ultra, bg=COLORS["bg_card"], padx=14, pady=10, highlightthickness=1, highlightbackground=COLORS["line"])
         id_card.pack(fill="x", pady=4)
 
-        self.lbl_room_tag = tk.Label(id_card, text=self.t("room_id_label"), font=("Consolas", 8, "bold"), fg=COLORS["accent_cyan"], bg=COLORS["bg_card"])
+        self.lbl_room_tag = tk.Label(id_card, text=self.t("room_id_label"), font=(self.f_mono, 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
         self.lbl_room_tag.pack(anchor="w")
 
         id_row = tk.Frame(id_card, bg=COLORS["bg_card"])
-        id_row.pack(fill="x", pady=(6, 0))
+        id_row.pack(fill="x", pady=(4, 0))
 
         self.room_var = tk.StringVar(master=self.root, value=self.config.get("room_id", "RD-8888"))
         self.lbl_room_display = tk.Label(
             id_row,
             textvariable=self.room_var,
-            font=("Consolas", 20, "bold"),
+            font=(self.f_mono, 18, "bold"),
             fg=COLORS["text_main"],
             bg=COLORS["bg_card"]
         )
@@ -851,7 +930,7 @@ class MeikovaRelayHostGUI:
         self.btn_renew_room = tk.Button(
             btn_box1,
             text=self.t("btn_renew_room"),
-            font=("Segoe UI", 8, "bold"),
+            font=(self.f_sans, 8, "bold"),
             bg=COLORS["btn_surface"],
             fg=COLORS["text_sub"],
             activebackground=COLORS["btn_surface_hover"],
@@ -868,11 +947,11 @@ class MeikovaRelayHostGUI:
         self.btn_copy_room = tk.Button(
             btn_box1,
             text=self.t("btn_copy_room"),
-            font=("Segoe UI", 8, "bold"),
+            font=(self.f_sans, 8, "bold"),
             bg=COLORS["btn_surface"],
-            fg=COLORS["accent_cyan"],
+            fg=COLORS["text_main"],
             activebackground=COLORS["btn_surface_hover"],
-            activeforeground=COLORS["accent_cyan"],
+            activeforeground=COLORS["accent_green"],
             relief="flat",
             bd=0,
             padx=12,
@@ -883,20 +962,20 @@ class MeikovaRelayHostGUI:
         self.btn_copy_room.pack(side="right")
 
         # PIN Card
-        pin_card = tk.Frame(self.panel_ultra, bg=COLORS["bg_card"], padx=14, pady=12, highlightthickness=1, highlightbackground=COLORS["line"])
-        pin_card.pack(fill="x", pady=6)
+        pin_card = tk.Frame(self.panel_ultra, bg=COLORS["bg_card"], padx=14, pady=10, highlightthickness=1, highlightbackground=COLORS["line"])
+        pin_card.pack(fill="x", pady=4)
 
-        self.lbl_pin_tag = tk.Label(pin_card, text=self.t("pin_label"), font=("Consolas", 8, "bold"), fg=COLORS["accent_green"], bg=COLORS["bg_card"])
+        self.lbl_pin_tag = tk.Label(pin_card, text=self.t("pin_label"), font=(self.f_mono, 8, "bold"), fg=COLORS["accent_green"], bg=COLORS["bg_card"])
         self.lbl_pin_tag.pack(anchor="w")
 
         pin_row = tk.Frame(pin_card, bg=COLORS["bg_card"])
-        pin_row.pack(fill="x", pady=(6, 0))
+        pin_row.pack(fill="x", pady=(4, 0))
 
         self.pin_var = tk.StringVar(master=self.root, value=self.config.get("pin", "123456"))
         self.lbl_pin_display = tk.Label(
             pin_row,
             textvariable=self.pin_var,
-            font=("Consolas", 20, "bold"),
+            font=(self.f_mono, 18, "bold"),
             fg=COLORS["accent_green"],
             bg=COLORS["bg_card"]
         )
@@ -908,7 +987,7 @@ class MeikovaRelayHostGUI:
         self.btn_renew_pin = tk.Button(
             btn_box2,
             text=self.t("btn_renew_pin"),
-            font=("Segoe UI", 8, "bold"),
+            font=(self.f_sans, 8, "bold"),
             bg=COLORS["btn_surface"],
             fg=COLORS["text_sub"],
             activebackground=COLORS["btn_surface_hover"],
@@ -925,7 +1004,7 @@ class MeikovaRelayHostGUI:
         self.btn_copy_pin = tk.Button(
             btn_box2,
             text=self.t("btn_copy_pin"),
-            font=("Segoe UI", 8, "bold"),
+            font=(self.f_sans, 8, "bold"),
             bg=COLORS["btn_surface"],
             fg=COLORS["accent_green"],
             activebackground=COLORS["btn_surface_hover"],
@@ -943,25 +1022,25 @@ class MeikovaRelayHostGUI:
         self.btn_share = tk.Button(
             self.panel_ultra,
             text=self.t("btn_share_info"),
-            font=("Segoe UI", 9, "bold"),
+            font=(self.f_sans, 9, "bold"),
             bg=COLORS["btn_surface"],
-            fg=COLORS["accent_cyan"],
+            fg=COLORS["text_main"],
             activebackground=COLORS["btn_surface_hover"],
-            activeforeground=COLORS["text_main"],
+            activeforeground=COLORS["accent_green"],
             relief="flat",
             bd=0,
-            pady=10,
+            pady=9,
             cursor="hand2",
             command=self._copy_share_info
         )
-        self.btn_share.pack(fill="x", pady=(12, 6))
+        self.btn_share.pack(fill="x", pady=(8, 6))
 
         # Active Session Live Notification Banner
-        self.active_session_card = tk.Frame(self.panel_ultra, bg=COLORS["bg_card_inner"], padx=12, pady=10, highlightthickness=1, highlightbackground=COLORS["line"])
+        self.active_session_card = tk.Frame(self.panel_ultra, bg=COLORS["bg_card_inner"], padx=12, pady=8, highlightthickness=1, highlightbackground=COLORS["line"])
         self.active_session_label = tk.Label(
             self.active_session_card,
             text=self.t("session_waiting"),
-            font=("Segoe UI", 8, "bold"),
+            font=(self.f_sans, 8, "bold"),
             fg=COLORS["accent_green"],
             bg=COLORS["bg_card_inner"]
         )
@@ -970,9 +1049,9 @@ class MeikovaRelayHostGUI:
         self.btn_open_chat = tk.Button(
             self.active_session_card,
             text="Chat",
-            font=("Segoe UI", 7, "bold"),
+            font=(self.f_sans, 7, "bold"),
             bg=COLORS["btn_surface"],
-            fg=COLORS["accent_cyan"],
+            fg=COLORS["accent_green"],
             activebackground=COLORS["btn_surface_hover"],
             activeforeground="#FFFFFF",
             relief="flat",
@@ -986,7 +1065,7 @@ class MeikovaRelayHostGUI:
         self.btn_disconnect_client = tk.Button(
             self.active_session_card,
             text=self.t("btn_disconnect"),
-            font=("Segoe UI", 7, "bold"),
+            font=(self.f_sans, 7, "bold"),
             bg=COLORS["accent_red"],
             fg="#FFFFFF",
             activebackground="#DC2626",
@@ -997,16 +1076,16 @@ class MeikovaRelayHostGUI:
             cursor="hand2",
             command=self._disconnect_active_client
         )
-        self.active_session_card.pack(fill="x", pady=(6, 0))
+        self.active_session_card.pack(fill="x", pady=(4, 0))
 
     # -------------------------------------------------------------
-    # PANEL 2: UNATTENDED / BACKGROUND ACCESS
+    # PANEL 2: UNATTENDED / BACKGROUND ACCESS (24/7)
     # -------------------------------------------------------------
     def _build_chrome_panel(self):
         self.lbl_chrome_title = tk.Label(
             self.panel_chrome,
             text=self.t("chrome_title"),
-            font=("Segoe UI", 10, "bold"),
+            font=(self.f_sans, 10, "bold"),
             fg=COLORS["text_main"],
             bg=COLORS["bg_panel"]
         )
@@ -1015,58 +1094,58 @@ class MeikovaRelayHostGUI:
         self.lbl_chrome_desc = tk.Label(
             self.panel_chrome,
             text=self.t("chrome_desc"),
-            font=("Segoe UI", 8),
+            font=(self.f_sans, 8),
             fg=COLORS["text_muted"],
             bg=COLORS["bg_panel"],
-            wraplength=460,
+            wraplength=480,
             justify="left"
         )
-        self.lbl_chrome_desc.pack(anchor="w", pady=(2, 10))
+        self.lbl_chrome_desc.pack(anchor="w", pady=(2, 8))
 
         self.account_var = tk.StringVar(master=self.root, value=self.config.get("account", ""))
-        self.name_var = tk.StringVar(master=self.root, value=self.config.get("device_name", os.environ.get("COMPUTERNAME", "Workstation")))
+        self.name_var = tk.StringVar(master=self.root, value=self.config.get("device_name", os.environ.get("COMPUTERNAME", socket.gethostname() or "Workstation")))
 
-        card = tk.Frame(self.panel_chrome, bg=COLORS["bg_card"], padx=14, pady=12, highlightthickness=1, highlightbackground=COLORS["line"])
+        card = tk.Frame(self.panel_chrome, bg=COLORS["bg_card"], padx=14, pady=10, highlightthickness=1, highlightbackground=COLORS["line"])
         card.pack(fill="x", pady=(0, 8))
 
-        self.lbl_account = tk.Label(card, text=self.t("account_label"), font=("Segoe UI", 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
-        self.lbl_account.pack(anchor="w", pady=(2, 2))
+        self.lbl_account = tk.Label(card, text=self.t("account_label"), font=(self.f_sans, 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
+        self.lbl_account.pack(anchor="w", pady=(1, 2))
         entry_account = tk.Entry(
             card,
             textvariable=self.account_var,
-            font=("Consolas", 9),
+            font=(self.f_mono, 9),
             bg=COLORS["bg_card_inner"],
             fg=COLORS["text_main"],
-            insertbackground=COLORS["accent_cyan"],
+            insertbackground=COLORS["accent_green"],
             relief="flat",
             highlightthickness=1,
             highlightbackground=COLORS["line"],
-            highlightcolor=COLORS["accent_cyan"]
+            highlightcolor=COLORS["accent_green"]
         )
         entry_account.pack(fill="x", ipady=4, pady=(0, 6))
 
-        self.lbl_device_name = tk.Label(card, text=self.t("device_name_label"), font=("Segoe UI", 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
-        self.lbl_device_name.pack(anchor="w", pady=(2, 2))
+        self.lbl_device_name = tk.Label(card, text=self.t("device_name_label"), font=(self.f_sans, 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
+        self.lbl_device_name.pack(anchor="w", pady=(1, 2))
         entry_name = tk.Entry(
             card,
             textvariable=self.name_var,
-            font=("Consolas", 9),
+            font=(self.f_mono, 9),
             bg=COLORS["bg_card_inner"],
             fg=COLORS["text_main"],
-            insertbackground=COLORS["accent_cyan"],
+            insertbackground=COLORS["accent_green"],
             relief="flat",
             highlightthickness=1,
             highlightbackground=COLORS["line"],
-            highlightcolor=COLORS["accent_cyan"]
+            highlightcolor=COLORS["accent_green"]
         )
         entry_name.pack(fill="x", ipady=4, pady=(0, 6))
 
-        self.lbl_perm_pin = tk.Label(card, text=self.t("perm_pin_label"), font=("Segoe UI", 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
-        self.lbl_perm_pin.pack(anchor="w", pady=(2, 2))
+        self.lbl_perm_pin = tk.Label(card, text=self.t("perm_pin_label"), font=(self.f_sans, 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
+        self.lbl_perm_pin.pack(anchor="w", pady=(1, 2))
         entry_pin = tk.Entry(
             card,
             textvariable=self.pin_var,
-            font=("Consolas", 10, "bold"),
+            font=(self.f_mono, 10, "bold"),
             bg=COLORS["bg_card_inner"],
             fg=COLORS["accent_green"],
             insertbackground=COLORS["accent_green"],
@@ -1078,9 +1157,85 @@ class MeikovaRelayHostGUI:
         )
         entry_pin.pack(fill="x", ipady=4, pady=(0, 2))
 
-        # Checkboxes Card
-        chk_card = tk.Frame(self.panel_chrome, bg=COLORS["bg_card"], padx=14, pady=10, highlightthickness=1, highlightbackground=COLORS["line"])
-        chk_card.pack(fill="x", pady=(0, 8))
+        self.btn_minimize_tray = tk.Button(
+            self.panel_chrome,
+            text=self.t("btn_minimize_tray"),
+            font=(self.f_sans, 8, "bold"),
+            bg=COLORS["btn_surface"],
+            fg=COLORS["text_main"],
+            activebackground=COLORS["btn_surface_hover"],
+            activeforeground=COLORS["accent_green"],
+            relief="flat",
+            bd=0,
+            pady=8,
+            cursor="hand2",
+            command=self._minimize_to_tray
+        )
+        self.btn_minimize_tray.pack(fill="x", pady=(2, 0))
+
+    # -------------------------------------------------------------
+    # PANEL 3: SETTINGS & PRIVILEGE / SYSTEM SWITCHES (v1.4.0)
+    # -------------------------------------------------------------
+    def _build_settings_panel(self):
+        card = tk.Frame(self.panel_settings, bg=COLORS["bg_card"], padx=12, pady=8, highlightthickness=1, highlightbackground=COLORS["line"])
+        card.pack(fill="x", pady=(0, 6))
+
+        self.lbl_relay = tk.Label(card, text=self.t("relay_label"), font=(self.f_sans, 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
+        self.lbl_relay.pack(anchor="w", pady=(0, 3))
+
+        relay_row = tk.Frame(card, bg=COLORS["bg_card"])
+        relay_row.pack(fill="x")
+
+        self.relay_var = tk.StringVar(master=self.root, value=self.config.get("relay", "wss://meikova-relay.onrender.com"))
+        entry_relay = tk.Entry(
+            relay_row,
+            textvariable=self.relay_var,
+            font=(self.f_mono, 9),
+            bg=COLORS["bg_card_inner"],
+            fg=COLORS["text_main"],
+            insertbackground=COLORS["accent_green"],
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=COLORS["line"],
+            highlightcolor=COLORS["accent_green"]
+        )
+        entry_relay.pack(side="left", fill="x", expand=True, ipady=3)
+
+        self.btn_save_settings = tk.Button(
+            relay_row,
+            text=self.t("btn_save_settings"),
+            font=(self.f_sans, 8, "bold"),
+            bg=COLORS["btn_surface"],
+            fg=COLORS["accent_green"],
+            activebackground=COLORS["btn_surface_hover"],
+            activeforeground=COLORS["accent_green"],
+            relief="flat",
+            bd=0,
+            padx=12,
+            pady=4,
+            cursor="hand2",
+            command=self._save_settings_click
+        )
+        self.btn_save_settings.pack(side="right", padx=(8, 0))
+
+        # Basic & Admin Config Switches Card (matches v1.4.0 gui_view.html)
+        chk_card = tk.Frame(self.panel_settings, bg=COLORS["bg_card"], padx=12, pady=8, highlightthickness=1, highlightbackground=COLORS["line"])
+        chk_card.pack(fill="both", expand=True)
+
+        self.keepawake_var = tk.BooleanVar(master=self.root, value=bool(self.config.get("keep_awake", True)))
+        self.chk_keepawake = tk.Checkbutton(
+            chk_card,
+            text=self.t("keepawake_label"),
+            variable=self.keepawake_var,
+            command=self._on_keepawake_toggle,
+            bg=COLORS["bg_card"],
+            fg=COLORS["text_main"],
+            selectcolor=COLORS["bg_card_inner"],
+            activebackground=COLORS["bg_card"],
+            activeforeground=COLORS["accent_green"],
+            font=(self.f_sans, 8)
+        )
+        self.chk_keepawake.pack(anchor="w", pady=1)
 
         self.autostart_var = tk.BooleanVar(master=self.root, value=False)
         self.chk_autostart = tk.Checkbutton(
@@ -1093,108 +1248,76 @@ class MeikovaRelayHostGUI:
             selectcolor=COLORS["bg_card_inner"],
             activebackground=COLORS["bg_card"],
             activeforeground=COLORS["accent_green"],
-            font=("Segoe UI", 8)
+            font=(self.f_sans, 8)
         )
-        self.chk_autostart.pack(anchor="w", pady=2)
+        self.chk_autostart.pack(anchor="w", pady=1)
 
-        self.keepawake_var = tk.BooleanVar(master=self.root, value=self.config.get("keep_awake", True))
-        self.chk_keepawake = tk.Checkbutton(
+        self.close_to_tray_var = tk.BooleanVar(master=self.root, value=bool(self.config.get("close_to_tray", True)))
+        self.chk_close_to_tray = tk.Checkbutton(
             chk_card,
-            text=self.t("keepawake_label"),
-            variable=self.keepawake_var,
-            command=self._on_keepawake_toggle,
+            text=self.t("close_to_tray_label"),
+            variable=self.close_to_tray_var,
+            command=self._on_close_to_tray_toggle,
             bg=COLORS["bg_card"],
             fg=COLORS["text_main"],
             selectcolor=COLORS["bg_card_inner"],
             activebackground=COLORS["bg_card"],
             activeforeground=COLORS["accent_green"],
-            font=("Segoe UI", 8)
+            font=(self.f_sans, 8)
         )
-        self.chk_keepawake.pack(anchor="w", pady=2)
+        self.chk_close_to_tray.pack(anchor="w", pady=1)
 
-        # Minimize to tray button
-        self.btn_minimize_tray = tk.Button(
-            self.panel_chrome,
-            text=self.t("btn_minimize_tray"),
-            font=("Segoe UI", 8, "bold"),
-            bg=COLORS["btn_surface"],
-            fg=COLORS["text_sub"],
-            activebackground=COLORS["btn_surface_hover"],
-            activeforeground=COLORS["text_main"],
-            relief="flat",
-            bd=0,
-            pady=8,
-            cursor="hand2",
-            command=self._minimize_to_tray
-        )
-        self.btn_minimize_tray.pack(fill="x", pady=(4, 0))
-
-    # -------------------------------------------------------------
-    # PANEL 3: SETTINGS & LIVE LOGS
-    # -------------------------------------------------------------
-    def _build_settings_panel(self):
-        card = tk.Frame(self.panel_settings, bg=COLORS["bg_card"], padx=14, pady=12, highlightthickness=1, highlightbackground=COLORS["line"])
-        card.pack(fill="x", pady=(0, 10))
-
-        self.lbl_relay = tk.Label(card, text=self.t("relay_label"), font=("Segoe UI", 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
-        self.lbl_relay.pack(anchor="w", pady=(0, 4))
-
-        relay_row = tk.Frame(card, bg=COLORS["bg_card"])
-        relay_row.pack(fill="x")
-
-        self.relay_var = tk.StringVar(master=self.root, value=self.config.get("relay", "wss://meikova-relay.onrender.com"))
-        entry_relay = tk.Entry(
-            relay_row,
-            textvariable=self.relay_var,
-            font=("Consolas", 9),
-            bg=COLORS["bg_card_inner"],
+        self.stealth_var = tk.BooleanVar(master=self.root, value=bool(self.config.get("stealth_mode", False)))
+        self.chk_stealth = tk.Checkbutton(
+            chk_card,
+            text=self.t("stealth_label"),
+            variable=self.stealth_var,
+            command=self._on_stealth_toggle,
+            bg=COLORS["bg_card"],
             fg=COLORS["text_main"],
-            insertbackground=COLORS["accent_cyan"],
-            relief="flat",
-            highlightthickness=1,
-            highlightbackground=COLORS["line"],
-            highlightcolor=COLORS["accent_cyan"]
+            selectcolor=COLORS["bg_card_inner"],
+            activebackground=COLORS["bg_card"],
+            activeforeground=COLORS["accent_green"],
+            font=(self.f_sans, 8)
         )
-        entry_relay.pack(side="left", fill="x", expand=True, ipady=4)
+        self.chk_stealth.pack(anchor="w", pady=1)
 
-        self.btn_save_settings = tk.Button(
-            relay_row,
-            text=self.t("btn_save_settings"),
-            font=("Segoe UI", 8, "bold"),
-            bg=COLORS["btn_surface"],
-            fg=COLORS["accent_cyan"],
-            activebackground=COLORS["btn_surface_hover"],
-            activeforeground=COLORS["accent_cyan"],
-            relief="flat",
-            bd=0,
-            padx=12,
-            pady=4,
-            cursor="hand2",
-            command=self._save_settings_click
+        self.admin_var = tk.BooleanVar(master=self.root, value=bool(self.config.get("admin_elevated", False) or self._os_engine.is_admin()))
+        self.chk_admin = tk.Checkbutton(
+            chk_card,
+            text=self.t("admin_lever_label"),
+            variable=self.admin_var,
+            command=self._on_admin_toggle,
+            bg=COLORS["bg_card"],
+            fg=COLORS["accent_green"],
+            selectcolor=COLORS["bg_card_inner"],
+            activebackground=COLORS["bg_card"],
+            activeforeground=COLORS["accent_green"],
+            font=(self.f_sans, 8, "bold")
         )
-        self.btn_save_settings.pack(side="right", padx=(8, 0))
+        self.chk_admin.pack(anchor="w", pady=(4, 1))
 
-        # Activity Log Card
-        log_card = tk.Frame(self.panel_settings, bg=COLORS["bg_card"], padx=14, pady=12, highlightthickness=1, highlightbackground=COLORS["line"])
-        log_card.pack(fill="both", expand=True)
+    def _on_close_to_tray_toggle(self):
+        self.config["close_to_tray"] = bool(self.close_to_tray_var.get())
+        self._save_config()
 
-        self.lbl_log_title = tk.Label(log_card, text=self.t("log_title"), font=("Segoe UI", 8, "bold"), fg=COLORS["text_sub"], bg=COLORS["bg_card"])
-        self.lbl_log_title.pack(anchor="w", pady=(0, 6))
+    def _on_stealth_toggle(self):
+        is_on = bool(self.stealth_var.get())
+        self.config["stealth_mode"] = is_on
+        self.config["show_tray_icon"] = not is_on
+        self._save_config()
+        if self.tray_icon:
+            try:
+                self.tray_icon.visible = not is_on
+            except Exception:
+                pass
+        self._log(f"Stealth Mode: {'ON' if is_on else 'OFF'}")
 
-        self.log_text = tk.Text(
-            log_card,
-            bg=COLORS["bg_card_inner"],
-            fg=COLORS["text_sub"],
-            insertbackground=COLORS["accent_green"],
-            font=("Consolas", 8),
-            relief="flat",
-            height=10,
-            wrap="word",
-            state="disabled",
-            highlightthickness=1,
-            highlightbackground=COLORS["line"]
-        )
-        self.log_text.pack(fill="both", expand=True)
+    def _on_admin_toggle(self):
+        is_on = bool(self.admin_var.get())
+        self.config["admin_elevated"] = is_on
+        self._save_config()
+        self._log(f"Admin Mode: {'ENABLED' if is_on else 'DISABLED'}")
 
     # -------------------------------------------------------------
     # TAB SWITCHING
@@ -1205,10 +1328,9 @@ class MeikovaRelayHostGUI:
         self.panel_chrome.pack_forget()
         self.panel_settings.pack_forget()
 
-        # Update button styles
         for btn, name in [(self.btn_tab_ultra, "ultra"), (self.btn_tab_chrome, "chrome"), (self.btn_tab_cfg, "settings")]:
             if name == tab:
-                btn.config(bg=COLORS["accent_green"], fg=COLORS["bg_main"], activebackground="#16A34A", activeforeground=COLORS["bg_main"])
+                btn.config(bg=COLORS["accent_green"], fg=COLORS["bg_main"], activebackground="#6AD696", activeforeground=COLORS["bg_main"])
             else:
                 btn.config(bg=COLORS["bg_panel"], fg=COLORS["text_sub"], activebackground=COLORS["btn_surface"], activeforeground=COLORS["text_main"])
 
@@ -1224,30 +1346,26 @@ class MeikovaRelayHostGUI:
     # -------------------------------------------------------------
     def _apply_language(self):
         self.root.title(self.t("app_title"))
-        comp_name = os.environ.get("COMPUTERNAME", "Workstation")
+        comp_name = self.config.get("device_name") or os.environ.get("COMPUTERNAME") or socket.gethostname() or "Workstation"
         self.lbl_header_subtitle.config(text=self.t("workstation_fmt", name=comp_name))
         self.lbl_header_title.config(text=self.t("header_title"))
 
-        # Language buttons
         if self.lang == "vi":
-            self.btn_lang_vi.config(bg=COLORS["accent_cyan"], fg=COLORS["bg_main"])
+            self.btn_lang_vi.config(bg=COLORS["accent_green"], fg=COLORS["bg_main"])
             self.btn_lang_en.config(bg=COLORS["bg_card"], fg=COLORS["text_muted"])
         else:
-            self.btn_lang_en.config(bg=COLORS["accent_cyan"], fg=COLORS["bg_main"])
+            self.btn_lang_en.config(bg=COLORS["accent_green"], fg=COLORS["bg_main"])
             self.btn_lang_vi.config(bg=COLORS["bg_card"], fg=COLORS["text_muted"])
 
-        # Tab buttons
         self.btn_tab_ultra.config(text=self.t("tab_ultra"))
         self.btn_tab_chrome.config(text=self.t("tab_chrome"))
         self.btn_tab_cfg.config(text=self.t("tab_settings"))
 
-        # Master toggle
         if self.is_running:
             self.btn_master_toggle.config(text=self.t("btn_stop_service"))
         else:
             self.btn_master_toggle.config(text=self.t("btn_start_service"))
 
-        # Status pill
         if self.is_running:
             if self.connected_client_info:
                 self.status_pill.config(text=self.t("status_connected"), fg=COLORS["accent_cyan"], bg=COLORS["accent_cyan_bg"])
@@ -1256,7 +1374,6 @@ class MeikovaRelayHostGUI:
         else:
             self.status_pill.config(text=self.t("status_stopped"), fg=COLORS["accent_red"], bg=COLORS["accent_red_bg"])
 
-        # Active session banner
         if self.connected_client_info:
             self.active_session_label.config(text=self.t("session_active", client=self.connected_client_info), fg=COLORS["accent_cyan"])
         elif self.is_running:
@@ -1264,7 +1381,6 @@ class MeikovaRelayHostGUI:
         else:
             self.active_session_label.config(text=self.t("session_stopped"), fg=COLORS["text_muted"])
 
-        # Panel Ultra
         self.lbl_ultra_title.config(text=self.t("ultra_title"))
         self.lbl_ultra_desc.config(text=self.t("ultra_desc"))
         self.lbl_room_tag.config(text=self.t("room_id_label"))
@@ -1276,7 +1392,6 @@ class MeikovaRelayHostGUI:
         self.btn_share.config(text=self.t("btn_share_info"))
         self.btn_disconnect_client.config(text=self.t("btn_disconnect"))
 
-        # Panel Chrome
         self.lbl_chrome_title.config(text=self.t("chrome_title"))
         self.lbl_chrome_desc.config(text=self.t("chrome_desc"))
         self.lbl_account.config(text=self.t("account_label"))
@@ -1284,21 +1399,20 @@ class MeikovaRelayHostGUI:
         self.lbl_perm_pin.config(text=self.t("perm_pin_label"))
         self.chk_autostart.config(text=self.t("autostart_label"))
         self.chk_keepawake.config(text=self.t("keepawake_label"))
+        self.chk_close_to_tray.config(text=self.t("close_to_tray_label"))
+        self.chk_stealth.config(text=self.t("stealth_label"))
+        self.chk_admin.config(text=self.t("admin_lever_label"))
         self.btn_minimize_tray.config(text=self.t("btn_minimize_tray"))
 
-        # Panel Settings
         self.lbl_relay.config(text=self.t("relay_label"))
         self.btn_save_settings.config(text=self.t("btn_save_settings"))
         self.lbl_log_title.config(text=self.t("log_title"))
 
-        # Update tray menu if active
         if HAS_TRAY and self.tray_icon:
             try:
-                self.tray_icon.menu = pystray.Menu(
-                    pystray.MenuItem(self.t("tray_open"), self._restore_from_tray, default=True),
-                    pystray.MenuItem(self.t("tray_copy"), self._copy_share_info),
-                    pystray.MenuItem(self.t("tray_exit"), self._exit_application)
-                )
+                if build_tray_menu:
+                    self.tray_icon.menu = build_tray_menu(self, self._restore_from_tray, self._exit_application)
+                self.tray_icon.update_menu()
             except Exception:
                 pass
 
@@ -1323,24 +1437,33 @@ class MeikovaRelayHostGUI:
         if self.config["keep_awake"]:
             PowerManager.prevent_sleep(True)
 
+        fps_cfg = int(self.config.get("fps", 120))
         self.host_service = HostService(
             relay_url=self.config["relay"],
             room_id=self.config["room_id"],
             pin=self.config["pin"],
             device_name=self.config["device_name"],
-            account=self.config["account"], user_id=self.config.get("user_id")
+            account=self.config["account"],
+            user_id=self.config.get("user_id"),
+            fps=fps_cfg,
+            host_config=self.config,
         )
 
-        # Wire live callbacks
-        self.host_service.on_status_change = lambda st: self.root.after(0, lambda: self._on_service_status(st))
-        self.host_service.on_client_connect = lambda ev: self.root.after(0, lambda: self._on_client_connected(ev))
-        self.host_service.on_client_disconnect = lambda: self.root.after(0, self._on_client_disconnected)
+        def _on_cfg_updated(new_cfg):
+            self.config.update(new_cfg)
+            self._save_config()
+
+        self.host_service.on_config_updated = _on_cfg_updated
+        self.host_service.on_status_change = lambda st, detail="": self._enqueue_ui_action(lambda: self._on_service_status(st, detail))
+        self.host_service.on_client_connect = lambda ev: self._enqueue_ui_action(lambda: self._on_client_connected(ev))
+        self.host_service.on_client_disconnect = lambda: self._enqueue_ui_action(self._on_client_disconnected)
+
         def _on_chat(sender, text):
             self._log(f"[CHAT] [{sender}]: {text}")
             if self.chat_window:
                 self.chat_window.add_message(sender, text, is_local=False)
 
-        self.host_service.on_chat_message = lambda sender, text: self.root.after(0, lambda: _on_chat(sender, text))
+        self.host_service.on_chat_message = lambda sender, text: self._enqueue_ui_action(lambda: _on_chat(sender, text))
 
         def runner():
             loop = asyncio.new_event_loop()
@@ -1348,12 +1471,13 @@ class MeikovaRelayHostGUI:
             try:
                 loop.run_until_complete(self.host_service.start())
             except Exception as e:
-                self.root.after(0, lambda: self._log(f"Service Error: {e}"))
+                self._enqueue_ui_action(lambda: self._log(f"Service Error: {e}"))
 
         self.service_thread = threading.Thread(target=runner, daemon=True)
         self.service_thread.start()
 
         self.is_running = True
+        self._is_running = True
         self.status_pill.config(text=self.t("status_running"), fg=COLORS["accent_green"], bg=COLORS["accent_green_bg"])
         self.btn_master_toggle.config(text=self.t("btn_stop_service"), bg=COLORS["accent_red"], fg="#FFFFFF", activebackground="#DC2626")
         self.active_session_label.config(text=self.t("session_waiting"), fg=COLORS["accent_green"])
@@ -1368,9 +1492,10 @@ class MeikovaRelayHostGUI:
 
         PowerManager.prevent_sleep(False)
         self.is_running = False
+        self._is_running = False
         self.connected_client_info = None
         self.status_pill.config(text=self.t("status_stopped"), fg=COLORS["accent_red"], bg=COLORS["accent_red_bg"])
-        self.btn_master_toggle.config(text=self.t("btn_start_service"), bg=COLORS["accent_green"], fg=COLORS["bg_main"], activebackground="#16A34A")
+        self.btn_master_toggle.config(text=self.t("btn_start_service"), bg=COLORS["accent_green"], fg=COLORS["bg_main"], activebackground="#6AD696")
         self.active_session_label.config(text=self.t("session_stopped"), fg=COLORS["text_muted"])
         if hasattr(self, "btn_open_chat"):
             self.btn_open_chat.pack_forget()
@@ -1448,8 +1573,7 @@ class MeikovaRelayHostGUI:
         self._log(self.t("log_new_pin", pin=rand_pin))
 
     def _copy_to_clip(self, text: str, name: str):
-        self.root.clipboard_clear()
-        self.root.clipboard_append(text)
+        self._os_engine.set_clipboard_text(text, tk_root=self.root)
         self._log(self.t("log_copied", name=name, text=text))
 
     def _copy_share_info(self):
@@ -1457,7 +1581,6 @@ class MeikovaRelayHostGUI:
         pin = self.pin_var.get().strip()
         relay = self.relay_var.get().strip()
         http_url = relay.replace("wss://", "https://").replace("ws://", "http://")
-        
         info = (
             f"{self.t('share_header')}\n"
             f"{self.t('share_dashboard')} {http_url}/dashboard\n"
@@ -1465,64 +1588,51 @@ class MeikovaRelayHostGUI:
             f"{self.t('share_pin')} {pin}\n"
             "--------------------------------------------"
         )
-        self.root.clipboard_clear()
-        self.root.clipboard_append(info)
+        self._os_engine.set_clipboard_text(info, tk_root=self.root)
         self._log(self.t("log_copied_all"))
+
+    def copy_share_info(self):
+        self._copy_share_info()
 
     def _save_settings_click(self):
         self.config["relay"] = self.relay_var.get().strip()
+        self.config["account"] = self.account_var.get().strip()
+        self.config["device_name"] = self.name_var.get().strip()
         self._save_config()
         self._log(self.t("log_saved_relay"))
 
     # -------------------------------------------------------------
-    # AUTO-START & SYSTEM TRAY
+    # AUTO-START & SYSTEM TRAY (OS-Engine Powered)
     # -------------------------------------------------------------
     def _check_autostart_status(self):
-        if not winreg:
-            self.autostart_var.set(False)
-            return
         try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_READ)
-            val, _ = winreg.QueryValueEx(key, APP_REG_NAME)
-            winreg.CloseKey(key)
-            if val:
-                self.autostart_var.set(True)
+            self.autostart_var.set(bool(self._os_engine.is_autostart_enabled()))
         except Exception:
             self.autostart_var.set(False)
 
     def _on_autostart_toggle(self):
-        if not winreg:
-            return
-        enable = self.autostart_var.get()
-        try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
-            if enable:
-                if getattr(sys, "frozen", False):
-                    exe_path = sys.executable
-                    cmd = f'"{exe_path}" --autostart'
-                else:
-                    script_path = str(Path(__file__).resolve())
-                    pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
-                    cmd = f'"{pythonw_exe}" "{script_path}" --autostart'
-                winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
-                self._log(self.t("log_autostart_on"))
-            else:
-                try:
-                    winreg.DeleteValue(key, APP_REG_NAME)
-                    self._log(self.t("log_autostart_off"))
-                except FileNotFoundError:
-                    pass
-            winreg.CloseKey(key)
-        except Exception as e:
-            messagebox.showerror("Registry Error", f"Cannot update Registry: {e}")
+        enable = bool(self.autostart_var.get())
+        ok, detail = self._os_engine.set_autostart(enable, config_path=self._get_config_path())
+        if ok:
+            self._log(f"{self.t('log_autostart_on' if enable else 'log_autostart_off')} ({detail})")
+        else:
+            self._log(f"Autostart Error: {detail}")
+
+    def toggle_autostart(self, is_on: bool):
+        self.autostart_var.set(bool(is_on))
+        self._on_autostart_toggle()
 
     def _on_keepawake_toggle(self):
-        enable = self.keepawake_var.get()
+        enable = bool(self.keepawake_var.get())
         self.config["keep_awake"] = enable
         self._save_config()
         PowerManager.prevent_sleep(enable)
         state_str = "ON" if (enable and self.lang == "en") else ("BẬT" if enable else ("OFF" if self.lang == "en" else "TẮT"))
         self._log(self.t("log_keepawake", state=state_str))
+
+    def toggle_keepawake(self, is_on: bool):
+        self.keepawake_var.set(bool(is_on))
+        self._on_keepawake_toggle()
 
     def _init_system_tray(self):
         if not HAS_TRAY:
@@ -1537,8 +1647,18 @@ class MeikovaRelayHostGUI:
                 pystray.MenuItem(self.t("tray_exit"), self._exit_application)
             )
         self.tray_icon = pystray.Icon("MeikovaRelayHost", get_tray_icon_image(), "Meikova Relay Host", menu)
+        self.tray_icon._thread = threading.current_thread()
+        self.tray_icon._running = False
+        self._tray_icon = self.tray_icon
 
-        show_tray = self.config.get("show_tray_icon", True)
+        # Attach Linux/XOrg left & right click hooks directly onto the tray icon instance
+        self.tray_icon._meikova_on_left_click = lambda _ic=None, rx=None, ry=None: self._restore_from_tray()
+        if show_custom_tk_tray_popup:
+            self.tray_icon._meikova_on_right_click = lambda _ic=None, rx=None, ry=None: show_custom_tk_tray_popup(
+                self, self._restore_from_tray, self._exit_application, x=rx, y=ry
+            )
+
+        show_tray = self.config.get("show_tray_icon", True) and not self.config.get("stealth_mode", False)
         if "--no-tray" in sys.argv:
             show_tray = False
         elif "--tray" in sys.argv:
@@ -1562,40 +1682,14 @@ class MeikovaRelayHostGUI:
         self._log(self.t("log_minimized"))
 
     def _restore_from_tray(self, icon=None, item=None):
-        self.root.after(0, self._show_window)
+        self._enqueue_ui_action(self._show_window)
 
     def _show_window(self):
-        try:
-            self.root.deiconify()
-            self.root.lift()
-            self.root.focus_force()
-        except Exception:
-            pass
-        if sys.platform == "win32":
-            try:
-                import ctypes
-                hwnd = self.root.winfo_id()
-                parent = ctypes.windll.user32.GetParent(hwnd)
-                target = parent if parent else hwnd
-                ctypes.windll.user32.ShowWindow(target, 9)
-                ctypes.windll.user32.SetForegroundWindow(target)
-            except Exception:
-                pass
-        elif sys.platform == "darwin":
-            try:
-                import subprocess
-                subprocess.run(["osascript", "-e", 'tell application "Meikova Relay Host" to activate'], check=False)
-            except Exception:
-                pass
-        elif sys.platform.startswith("linux"):
-            try:
-                import subprocess
-                subprocess.run(["wmctrl", "-a", "Meikova Relay Host"], check=False)
-            except Exception:
-                pass
+        self._os_engine.activate_window(self.root, title="Meikova Relay Host")
 
     def _on_window_close(self):
-        if HAS_TRAY:
+        close_to_tray = self.config.get("close_to_tray", True)
+        if close_to_tray and HAS_TRAY:
             self._minimize_to_tray()
         else:
             self._exit_application()
@@ -1615,10 +1709,13 @@ class MeikovaRelayHostGUI:
 
     def _log(self, msg: str):
         if hasattr(self, "log_text"):
-            self.log_text.config(state="normal")
-            self.log_text.insert("end", f"[{time.strftime('%H:%M:%S')}] {msg}\n")
-            self.log_text.see("end")
-            self.log_text.config(state="disabled")
+            try:
+                self.log_text.config(state="normal")
+                self.log_text.insert("end", f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+                self.log_text.see("end")
+                self.log_text.config(state="disabled")
+            except Exception:
+                pass
 
 def find_resource(filename: str) -> Optional[Path]:
     base_dirs = [
@@ -1635,66 +1732,12 @@ def find_resource(filename: str) -> Optional[Path]:
     return None
 
 def set_clipboard_text(text: str) -> bool:
-    if sys.platform == "win32":
-        try:
-            import ctypes
-            u = ctypes.windll.user32
-            k = ctypes.windll.kernel32
-            k.GlobalAlloc.restype = ctypes.c_void_p
-            k.GlobalLock.restype = ctypes.c_void_p
-            k.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
-            k.GlobalLock.argtypes = [ctypes.c_void_p]
-            k.GlobalUnlock.argtypes = [ctypes.c_void_p]
-            u.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
-            if u.OpenClipboard(0):
-                try:
-                    u.EmptyClipboard()
-                    b = text.encode("utf-16le") + b"\x00\x00"
-                    h = k.GlobalAlloc(2, len(b))
-                    if h:
-                        p = k.GlobalLock(h)
-                        if p:
-                            ctypes.memmove(p, b, len(b))
-                            k.GlobalUnlock(h)
-                            u.SetClipboardData(13, h)
-                            return True
-                        k.GlobalFree(h)
-                finally:
-                    u.CloseClipboard()
-        except Exception:
-            pass
-    try:
-        r = tk.Tk()
-        r.withdraw()
-        r.clipboard_clear()
-        r.clipboard_append(text)
-        r.update()
-        r.destroy()
-        return True
-    except Exception:
-        pass
-    return False
+    return _get_engine_for_current_platform().set_clipboard_text(text)
+
 
 def is_autostart_enabled() -> bool:
-    if sys.platform == "win32":
-        if is_task_scheduler_autostart_enabled():
-            return True
-        if winreg:
-            try:
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_READ)
-                val, _ = winreg.QueryValueEx(key, APP_REG_NAME)
-                winreg.CloseKey(key)
-                return bool(val)
-            except Exception:
-                pass
-        return False
-    elif sys.platform == "darwin":
-        plist = Path.home() / "Library/LaunchAgents/com.meikovarelay.host.plist"
-        return plist.exists()
-    else:
-        # Linux
-        desktop = Path.home() / ".config/autostart/meikovarelayhost.desktop"
-        return desktop.exists()
+    return _get_engine_for_current_platform().is_autostart_enabled()
+
 
 def apply_dark_titlebar(hwnd):
     """Apply native dark theme and extend frame into client area to eliminate white borders."""
@@ -2291,79 +2334,11 @@ class HostApi:
         return res
 
     def toggle_autostart(self, is_on: bool):
-        try:
-            if sys.platform == "win32":
-                setup_task_scheduler_autostart(is_on)
-                if winreg:
-                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_KEY, 0, winreg.KEY_SET_VALUE)
-                    if is_on:
-                        perm_exe = ensure_permanent_deployment(self._config_path)
-                        if getattr(sys, "frozen", False):
-                            cmd = f'"{perm_exe}" --autostart'
-                        else:
-                            script_path = str(Path(__file__).resolve())
-                            pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
-                            cmd = f'"{pythonw_exe}" "{script_path}" --autostart'
-                        winreg.SetValueEx(key, APP_REG_NAME, 0, winreg.REG_SZ, cmd)
-                        self._log(self.t("log_autostart_on") + " (Task Scheduler /rl highest + %LOCALAPPDATA%)")
-                    else:
-                        try:
-                            winreg.DeleteValue(key, APP_REG_NAME)
-                            self._log(self.t("log_autostart_off"))
-                        except FileNotFoundError:
-                            pass
-                    winreg.CloseKey(key)
-            elif sys.platform == "darwin":
-                plist_dir = Path.home() / "Library/LaunchAgents"
-                plist_path = plist_dir / "com.meikovarelay.host.plist"
-                if is_on:
-                    plist_dir.mkdir(parents=True, exist_ok=True)
-                    perm_exe = ensure_permanent_deployment(self._config_path)
-                    content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.meikovarelay.host</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>{perm_exe}</string>
-        <string>--autostart</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>"""
-                    plist_path.write_text(content, encoding="utf-8")
-                    self._log(self.t("log_autostart_on") + " (macOS LaunchAgents)")
-                else:
-                    if plist_path.exists():
-                        plist_path.unlink()
-                    self._log(self.t("log_autostart_off"))
-            else:
-                autostart_dir = Path.home() / ".config/autostart"
-                desktop_path = autostart_dir / "meikovarelayhost.desktop"
-                if is_on:
-                    autostart_dir.mkdir(parents=True, exist_ok=True)
-                    perm_exe = ensure_permanent_deployment(self._config_path)
-                    content = f"""[Desktop Entry]
-Type=Application
-Version=1.0
-Name=Meikova Relay Host
-Comment=Meikova Relay Workstation Host Service
-Exec="{perm_exe}" --autostart
-Icon=meikovarelayhost
-Terminal=false
-Categories=Network;RemoteAccess;
-"""
-                    desktop_path.write_text(content, encoding="utf-8")
-                    self._log(self.t("log_autostart_on") + " (XDG Autostart)")
-                else:
-                    if desktop_path.exists():
-                        desktop_path.unlink()
-                    self._log(self.t("log_autostart_off"))
-        except Exception as e:
-            self._log(f"Autostart Error: {e}")
+        ok, detail = _get_engine_for_current_platform().set_autostart(bool(is_on), config_path=self._config_path)
+        if ok:
+            self._log(f"{self.t('log_autostart_on' if is_on else 'log_autostart_off')} ({detail})")
+        else:
+            self._log(f"Autostart Error: {detail}")
 
     def install_user_tier(self) -> dict:
         ok, msg = install_user_tier(self._config_path)
@@ -2700,6 +2675,8 @@ def launch_webview_app(autostart: bool = False):
                 pystray.MenuItem(api.t("tray_exit"), tray_exit),
             )
         api._tray_icon = pystray.Icon("MeikovaRelayHost", get_tray_icon_image(), "Meikova Relay Host", tray_menu)
+        api._tray_icon._thread = threading.current_thread()
+        api._tray_icon._running = False
 
         show_tray = config.get("show_tray_icon", True)
         if "--no-tray" in sys.argv:

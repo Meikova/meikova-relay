@@ -39,6 +39,11 @@ class TestHostChat(unittest.TestCase):
         finally:
             service.stop()
             loop.call_soon_threadsafe(loop.stop)
+            t.join(timeout=1.0)
+            try:
+                loop.close()
+            except Exception:
+                pass
 
     def test_send_chat_message_empty(self):
         service = HostService(
@@ -86,6 +91,12 @@ class TestHostChat(unittest.TestCase):
             mock_service.send_chat_message = MagicMock(return_value=True)
             api._host_service = mock_service
 
+            # Mock chat window to prevent headless Tkinter thread deallocation warning
+            mock_chat = MagicMock()
+            mock_chat.history = []
+            mock_chat.add_message = MagicMock(side_effect=lambda s, m, is_local: mock_chat.history.append({"sender": s, "text": m, "is_local": is_local}))
+            api._chat_window = mock_chat
+
             res = api.send_host_chat("Xin chào kỹ thuật viên!")
             self.assertEqual(res["status"], "ok")
             mock_service.send_chat_message.assert_called_with("Xin chào kỹ thuật viên!")
@@ -93,6 +104,7 @@ class TestHostChat(unittest.TestCase):
             # Verify chat history
             hist = api.get_chat_history()
             self.assertIsInstance(hist, list)
+            self.assertEqual(len(hist), 1)
 
             # Empty message check
             empty_res = api.send_host_chat("   ")
@@ -125,7 +137,16 @@ class TestHostChat(unittest.TestCase):
             self.assertEqual(chat.history[0]["sender"], "Client")
         finally:
             try:
+                chat.destroy()
+            except Exception:
+                pass
+            try:
                 root.destroy()
+            except Exception:
+                pass
+            try:
+                del chat
+                del root
             except Exception:
                 pass
 

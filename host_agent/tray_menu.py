@@ -6,7 +6,10 @@ Follows Ambient Dark / Meikova Harvest architecture:
 - Custom vector icons for every menu item (Emerald, Cyan, White, Red)
 - Rich telemetry header & status indicator
 - In-menu quick toggles (Autostart, Keep Awake)
-- Fully cross-platform: safely degrades to native text menu on Linux & macOS
+- Cross-platform OS-Engine integration:
+  * Windows: Win32 Owner-Draw / MIIM_BITMAP + UXTheme DarkMode_Explorer
+  * Linux: Hooks pystray._xorg / _gtk / _appindicator + Native Dark Tkinter Popup Menu fallback
+  * macOS: Native AppKit StatusItem menu with thread-safe UI dispatch
 """
 
 import sys
@@ -14,11 +17,11 @@ import os
 import math
 import webbrowser
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 
 current_dir = Path(__file__).resolve().parent
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.4.1"
 
 try:
     from PIL import Image, ImageDraw
@@ -32,6 +35,14 @@ try:
 except Exception:
     HAS_PYSTRAY = False
 
+try:
+    from host_agent.engines import get_active_os_engine
+except ModuleNotFoundError:
+    try:
+        from engines import get_active_os_engine
+    except Exception:
+        get_active_os_engine = None
+
 # Palette constants
 EMERALD = (34, 197, 94, 255)       # #22C55E
 CYAN = (56, 189, 248, 255)         # #38BDF8
@@ -42,6 +53,7 @@ BG_DARK = (7, 13, 23, 255)         # #070D17
 
 _icon_cache: Dict[str, Any] = {}
 _hbitmap_cache: Dict[str, int] = {}
+_active_tk_popup: Optional[Any] = None
 
 
 def _render_menu_icon(name: str) -> Optional[Any]:
@@ -75,40 +87,33 @@ def _render_menu_icon(name: str) -> Optional[Any]:
         return img
 
     elif name == "status_online":
-        # Glowing green status beacon
         d.ellipse([16, 16, 48, 48], fill=(34, 197, 94, 70))
         d.ellipse([22, 22, 42, 42], fill=EMERALD)
         d.ellipse([28, 28, 36, 36], fill=WHITE)
 
     elif name == "status_offline":
-        # Muted gray status beacon
         d.ellipse([22, 22, 42, 42], fill=SLATE)
 
     elif name == "window":
-        # Desktop app window with titlebar dots
         d.rounded_rectangle([6, 10, 58, 54], radius=8, outline=EMERALD, width=4)
         d.line([6, 22, 58, 22], fill=EMERALD, width=3)
         d.ellipse([14, 14, 18, 18], fill=EMERALD)
         d.ellipse([22, 14, 26, 18], fill=EMERALD)
 
     elif name == "copy":
-        # Overlapping copy cards
         d.rounded_rectangle([18, 8, 54, 44], radius=6, outline=CYAN, width=4)
         d.rounded_rectangle([10, 18, 44, 56], radius=6, outline=WHITE, width=4)
 
     elif name == "chat":
-        # Speech bubble
         d.rounded_rectangle([10, 14, 54, 44], radius=8, outline=CYAN, width=4)
         d.polygon([(18, 44), (18, 54), (28, 44)], fill=CYAN)
 
     elif name == "browser":
-        # Web globe with equator and central meridian
         d.ellipse([8, 8, 56, 56], outline=CYAN, width=4)
         d.line([8, 32, 56, 32], fill=CYAN, width=3)
         d.ellipse([20, 8, 44, 56], outline=CYAN, width=3)
 
     elif name == "autostart_on":
-        # Windows 4-tiles active with checkmark
         d.rounded_rectangle([8, 8, 28, 28], radius=4, outline=EMERALD, width=3, fill=(34, 197, 94, 60))
         d.rounded_rectangle([36, 8, 56, 28], radius=4, outline=EMERALD, width=3, fill=(34, 197, 94, 60))
         d.rounded_rectangle([8, 36, 28, 56], radius=4, outline=EMERALD, width=3, fill=(34, 197, 94, 60))
@@ -117,14 +122,12 @@ def _render_menu_icon(name: str) -> Optional[Any]:
         d.line([45, 51, 54, 40], fill=WHITE, width=4)
 
     elif name == "autostart_off":
-        # Windows 4-tiles muted outline
         d.rounded_rectangle([8, 8, 28, 28], radius=4, outline=SLATE, width=3)
         d.rounded_rectangle([36, 8, 56, 28], radius=4, outline=SLATE, width=3)
         d.rounded_rectangle([8, 36, 28, 56], radius=4, outline=SLATE, width=3)
         d.rounded_rectangle([36, 36, 56, 56], radius=4, outline=SLATE, width=3)
 
     elif name == "keepawake_on":
-        # Active energy beacon / lightning sun
         d.ellipse([20, 20, 44, 44], outline=EMERALD, width=4, fill=(34, 197, 94, 80))
         for angle in range(0, 360, 45):
             rad = math.radians(angle)
@@ -135,11 +138,9 @@ def _render_menu_icon(name: str) -> Optional[Any]:
             d.line([x1, y1, x2, y2], fill=EMERALD, width=3)
 
     elif name == "keepawake_off":
-        # Sleep mode / muted moon
         d.ellipse([20, 20, 44, 44], outline=SLATE, width=3)
 
     elif name == "quit":
-        # Power / Exit symbol in neon red
         d.arc([10, 10, 54, 54], start=310, end=230, fill=RED, width=5)
         d.line([32, 6, 32, 28], fill=RED, width=5)
 
@@ -208,8 +209,17 @@ def _get_hbitmap_for_icon(name: str, target_size: int = 16) -> Optional[int]:
     return None
 
 
-def apply_pystray_dark_theme():
-    """Enforces dark theme and item icons for pystray Win32 context menus."""
+def apply_pystray_dark_theme(on_left_click: Any = None, on_right_click: Any = None):
+    """Enforces dark theme and item icons for pystray context menus across Windows, Linux, and macOS."""
+    if get_active_os_engine:
+        try:
+            get_active_os_engine().patch_tray_backend(
+                on_left_click=on_left_click,
+                on_right_click=on_right_click,
+            )
+        except Exception:
+            pass
+
     if sys.platform != "win32" or not HAS_PYSTRAY:
         return
 
@@ -237,14 +247,12 @@ def apply_pystray_dark_theme():
                 try:
                     import ctypes
                     uxtheme = ctypes.windll.uxtheme
-                    # 1. ForceDark for application menus
                     try:
                         uxtheme[135](2)
                         uxtheme[136]()
                     except Exception:
                         pass
 
-                    # 2. Set dark theme on systray message windows
                     for target_h in (getattr(self, "_hwnd", None), getattr(self, "_menu_hwnd", None)):
                         if target_h:
                             try:
@@ -259,7 +267,6 @@ def apply_pystray_dark_theme():
         w.Icon._create_menu_item = patched_create_menu_item
         w.Icon._on_notify = patched_on_notify
 
-        # Apply process-level preferred app mode immediately
         try:
             import ctypes
             ctypes.windll.uxtheme[135](2)
@@ -279,62 +286,168 @@ class CustomMenuItem(pystray.MenuItem if HAS_PYSTRAY else object):
         self.icon_name = icon_name
 
 
-def build_tray_menu(api, on_restore, on_exit):
-    """
-    Builds dynamic Meikova Harvest-style tray menu:
-    - Header: Meikova Relay // v1.4.0 (Logo icon)
-    - Status: Room ID & Online/Offline (Status beacon)
-    - Separator
-    - Mở Meikova Relay (Window icon)
-    - Sao chép mã kết nối (Copy icon)
-    - Mở Dashboard trên Web (Browser icon)
-    - Separator
-    - Khởi động cùng hệ thống: Bật / Tắt (Autostart icon)
-    - Chế độ thức (Keep Awake): Bật / Tắt (Keepawake icon)
-    - Separator
-    - Thoát ứng dụng (Quit red icon)
-    """
-    apply_pystray_dark_theme()
+def _dispatch_to_ui(api: Any, fn: Callable[[], None]) -> None:
+    """Safely executes a callback on the main GUI thread if available, or directly."""
+    if hasattr(api, "_enqueue_ui_action") and callable(api._enqueue_ui_action):
+        try:
+            api._enqueue_ui_action(fn)
+            return
+        except Exception:
+            pass
+    tk_root = getattr(api, "root", None)
+    if tk_root is not None and hasattr(tk_root, "after"):
+        try:
+            tk_root.after(0, fn)
+            return
+        except Exception:
+            pass
+    try:
+        fn()
+    except Exception:
+        pass
 
-    def get_menu_items():
+
+def show_custom_tk_tray_popup(api: Any, on_restore: Callable, on_exit: Callable, x: Optional[int] = None, y: Optional[int] = None) -> None:
+    """Renders a sleek Ambient Dark Tkinter popup menu at (x, y) for Linux / X11 / Wayland environments
+    where pystray._xorg lacks native context menus or where right-clicking needs a dark popup.
+    """
+    global _active_tk_popup
+    tk_root = getattr(api, "root", None)
+    if tk_root is None:
+        # Fallback if no Tk root is bound: restore window directly
+        try:
+            on_restore()
+        except Exception:
+            pass
+        return
+
+    def _open_on_main():
+        global _active_tk_popup
+        try:
+            import tkinter as tk
+        except ImportError:
+            on_restore()
+            return
+
+        if _active_tk_popup is not None:
+            try:
+                _active_tk_popup.destroy()
+            except Exception:
+                pass
+            _active_tk_popup = None
+
         cfg = getattr(api, "_config", None) or getattr(api, "config", {})
         room_id = cfg.get("room_id", "RD-8888")
-        is_running = getattr(api, "_is_running", False) or getattr(api, "is_running", False)
+        is_running = bool(getattr(api, "_is_running", False) or getattr(api, "is_running", False))
+        header_ver = getattr(api, "app_version", None) or getattr(api, "APP_VERSION", None) or APP_VERSION
 
-        from host_agent.gui_agent import is_autostart_enabled
-        autostart_active = is_autostart_enabled()
+        os_eng = get_active_os_engine() if get_active_os_engine else None
+        autostart_active = os_eng.is_autostart_enabled() if os_eng else False
         keepawake_active = bool(cfg.get("keep_awake", True))
 
-        status_text = f"Phòng: {room_id} (Trực tuyến)" if is_running else f"Phòng: {room_id} (Dừng)"
-        status_icon = "status_online" if is_running else "status_offline"
+        def _t(k, default_val=""):
+            if hasattr(api, "t"):
+                val = api.t(k)
+                if val and val != k:
+                    return val
+            return default_val or k
 
-        def _do_toggle_autostart():
-            new_state = not autostart_active
-            if hasattr(api, "toggle_autostart"):
-                api.toggle_autostart(new_state)
-            elif hasattr(api, "_on_autostart_toggle"):
-                api.autostart_var.set(new_state)
-                api._on_autostart_toggle()
-            _tray = getattr(api, "_tray_icon", None) or getattr(api, "tray_icon", None)
-            if _tray:
+        status_text = "● " + (_t("tray_status_online", f"Phòng: {room_id} (Trực tuyến)").format(room_id=room_id) if is_running else _t("tray_status_offline", f"Phòng: {room_id} (Dừng)").format(room_id=room_id))
+        status_fg = "#83E8AC" if is_running else "#94A3B8"
+
+        popup = tk.Toplevel(tk_root)
+        _active_tk_popup = popup
+        popup._tk_icons = []
+        popup.withdraw()
+        popup.overrideredirect(True)
+        popup.configure(bg="#2C3035", padx=1, pady=1)
+        try:
+            popup.attributes("-topmost", True)
+        except Exception:
+            pass
+
+        inner = tk.Frame(popup, bg="#16181A", padx=6, pady=6)
+        inner.pack(fill="both", expand=True)
+
+        fonts = os_eng.get_ui_fonts() if os_eng else {"sans": "DejaVu Sans", "mono": "DejaVu Sans Mono"}
+        f_sans = fonts["sans"]
+        f_mono = fonts["mono"]
+
+        def _get_tk_icon(icon_key: str):
+            try:
+                from PIL import ImageTk
+                pil_im = _render_menu_icon(icon_key)
+                if pil_im:
+                    resized = pil_im.resize((16, 16), Image.Resampling.LANCZOS)
+                    tk_im = ImageTk.PhotoImage(resized, master=popup)
+                    popup._tk_icons.append(tk_im)
+                    return tk_im
+            except Exception:
+                pass
+            return None
+
+        def _close_popup(*_a):
+            global _active_tk_popup
+            if _active_tk_popup is not None:
                 try:
-                    _tray.update_menu()
+                    _active_tk_popup.destroy()
                 except Exception:
                     pass
+                _active_tk_popup = None
 
-        def _do_toggle_keepawake():
-            new_state = not keepawake_active
-            if hasattr(api, "toggle_keepawake"):
-                api.toggle_keepawake(new_state)
-            elif hasattr(api, "_on_keepawake_toggle"):
-                api.keepawake_var.set(new_state)
-                api._on_keepawake_toggle()
-            _tray = getattr(api, "_tray_icon", None) or getattr(api, "tray_icon", None)
-            if _tray:
-                try:
-                    _tray.update_menu()
-                except Exception:
-                    pass
+        # Header & Status
+        tk.Label(
+            inner,
+            text=f"  Meikova Relay // v{header_ver}",
+            image=_get_tk_icon("logo"),
+            compound="left",
+            font=(f_sans, 9, "bold"),
+            fg="#83E8AC",
+            bg="#16181A",
+            anchor="w",
+            padx=10,
+            pady=4,
+        ).pack(fill="x")
+
+        tk.Label(
+            inner,
+            text=f"  {status_text}",
+            image=_get_tk_icon("status_online" if is_running else "status_offline"),
+            compound="left",
+            font=(f_mono, 8, "bold"),
+            fg=status_fg,
+            bg="#16181A",
+            anchor="w",
+            padx=10,
+            pady=3,
+        ).pack(fill="x")
+
+        tk.Frame(inner, bg="#282B30", height=1).pack(fill="x", padx=6, pady=4)
+
+        def _add_item(label: str, callback: Callable, icon_key: str = "window", fg: str = "#F4F6F8", hover_fg: str = "#83E8AC"):
+            tk_img = _get_tk_icon(icon_key)
+            btn = tk.Label(
+                inner,
+                text=f"  {label}" if tk_img else label,
+                image=tk_img,
+                compound="left" if tk_img else "none",
+                font=(f_sans, 9),
+                fg=fg,
+                bg="#16181A",
+                anchor="w",
+                padx=10,
+                pady=6,
+                cursor="hand2",
+            )
+            btn.pack(fill="x")
+            btn.bind("<Enter>", lambda _e: btn.configure(bg="#2A2E33", fg=hover_fg))
+            btn.bind("<Leave>", lambda _e: btn.configure(bg="#16181A", fg=fg))
+            btn.bind("<ButtonRelease-1>", lambda _e: (_close_popup(), callback()))
+
+        def _do_open_chat():
+            chat_win = getattr(api, "chat_window", None)
+            if chat_win:
+                chat_win.show()
 
         def _do_copy():
             if hasattr(api, "copy_share_info"):
@@ -345,13 +458,171 @@ def build_tray_menu(api, on_restore, on_exit):
         def _do_open_web():
             relay = cfg.get("relay") or cfg.get("relay_url") or "wss://meikova-relay.onrender.com"
             http_url = relay.replace("wss://", "https://").replace("ws://", "http://")
+            webbrowser.open(f"{http_url}/dashboard")
+
+        def _do_toggle_autostart():
+            new_state = not autostart_active
+            if hasattr(api, "toggle_autostart"):
+                api.toggle_autostart(new_state)
+            elif hasattr(api, "_on_autostart_toggle"):
+                if hasattr(api, "autostart_var"):
+                    api.autostart_var.set(new_state)
+                api._on_autostart_toggle()
+
+        def _do_toggle_keepawake():
+            new_state = not keepawake_active
+            if hasattr(api, "toggle_keepawake"):
+                api.toggle_keepawake(new_state)
+            elif hasattr(api, "_on_keepawake_toggle"):
+                if hasattr(api, "keepawake_var"):
+                    api.keepawake_var.set(new_state)
+                api._on_keepawake_toggle()
+
+        _add_item(_t("tray_open", "Mở Meikova Relay"), lambda: on_restore(), icon_key="window")
+        _add_item(_t("tray_chat", "Mở cửa sổ Chat"), _do_open_chat, icon_key="chat")
+        _add_item(_t("tray_copy", "Sao chép mã kết nối"), _do_copy, icon_key="copy")
+        _add_item(_t("tray_web", "Mở Dashboard trên Web"), _do_open_web, icon_key="browser")
+
+        tk.Frame(inner, bg="#282B30", height=1).pack(fill="x", padx=6, pady=4)
+
+        _add_item(
+            _t("tray_autostart_fmt", "Khởi động cùng hệ thống: {state}").format(state=_t("state_on", "Bật") if autostart_active else _t("state_off", "Tắt")),
+            _do_toggle_autostart,
+            icon_key="autostart_on" if autostart_active else "autostart_off",
+        )
+        _add_item(
+            _t("tray_keepawake_fmt", "Chế độ giữ máy luôn thức: {state}").format(state=_t("state_on", "Bật") if keepawake_active else _t("state_off", "Tắt")),
+            _do_toggle_keepawake,
+            icon_key="keepawake_on" if keepawake_active else "keepawake_off",
+        )
+
+        tk.Frame(inner, bg="#282B30", height=1).pack(fill="x", padx=6, pady=4)
+
+        _add_item(_t("tray_exit", "Thoát ứng dụng"), lambda: on_exit(), icon_key="quit", fg="#FF5E6C", hover_fg="#FF808B")
+
+        popup.update_idletasks()
+        pw = max(popup.winfo_reqwidth(), 250)
+        ph = max(popup.winfo_reqheight(), 280)
+        sw = popup.winfo_screenwidth()
+        sh = popup.winfo_screenheight()
+
+        px = int(x if x is not None and x > 0 else tk_root.winfo_pointerx())
+        py = int(y if y is not None and y > 0 else tk_root.winfo_pointery())
+
+        if px + pw > sw - 8:
+            px = max(8, sw - pw - 8)
+        if py + ph > sh - 36:
+            py = max(8, py - ph - 8)
+
+        popup.geometry(f"{pw}x{ph}+{px}+{py}")
+        popup.deiconify()
+        popup.lift()
+        popup.focus_force()
+        popup.bind("<FocusOut>", _close_popup)
+        popup.bind("<Escape>", _close_popup)
+
+    _dispatch_to_ui(api, _open_on_main)
+
+
+def build_tray_menu(api, on_restore, on_exit):
+    """
+    Builds dynamic Meikova Harvest-style tray menu:
+    - Header: Meikova Relay // v1.4.1 (Logo icon)
+    - Status: Room ID & Online/Offline (Status beacon)
+    - Separator
+    - Mở Meikova Relay (Window icon)
+    - Mở cửa sổ Chat (Chat icon)
+    - Sao chép mã kết nối (Copy icon)
+    - Mở Dashboard trên Web (Browser icon)
+    - Separator
+    - Khởi động cùng hệ thống: Bật / Tắt (Autostart icon)
+    - Chế độ thức (Keep Awake): Bật / Tắt (Keepawake icon)
+    - Separator
+    - Thoát ứng dụng (Quit red icon)
+    """
+    def _on_tray_left_click(_icon=None, rx=None, ry=None):
+        _dispatch_to_ui(api, lambda: on_restore())
+
+    def _on_tray_right_click(_icon=None, rx=None, ry=None):
+        show_custom_tk_tray_popup(api, on_restore, on_exit, x=rx, y=ry)
+
+    apply_pystray_dark_theme(
+        on_left_click=_on_tray_left_click,
+        on_right_click=_on_tray_right_click,
+    )
+
+    def get_menu_items():
+        cfg = getattr(api, "_config", None) or getattr(api, "config", {})
+        room_id = cfg.get("room_id", "RD-8888")
+        is_running = getattr(api, "_is_running", False) or getattr(api, "is_running", False)
+
+        from host_agent.gui_agent import is_autostart_enabled
+        autostart_active = is_autostart_enabled()
+        keepawake_active = bool(cfg.get("keep_awake", True))
+
+        status_text = (api.t("tray_status_online", room_id=room_id) if is_running else api.t("tray_status_offline", room_id=room_id)) if hasattr(api, "t") else (f"Phòng: {room_id} (Trực tuyến)" if is_running else f"Phòng: {room_id} (Dừng)")
+        status_icon = "status_online" if is_running else "status_offline"
+
+        def _do_restore(*_args):
+            _dispatch_to_ui(api, lambda: on_restore())
+
+        def _do_exit(*_args):
+            _dispatch_to_ui(api, lambda: on_exit())
+
+        def _do_toggle_autostart(*_args):
+            def _act():
+                new_state = not autostart_active
+                if hasattr(api, "toggle_autostart"):
+                    api.toggle_autostart(new_state)
+                elif hasattr(api, "_on_autostart_toggle"):
+                    if hasattr(api, "autostart_var"):
+                        api.autostart_var.set(new_state)
+                    api._on_autostart_toggle()
+                _tray = getattr(api, "_tray_icon", None) or getattr(api, "tray_icon", None)
+                if _tray:
+                    try:
+                        _tray.update_menu()
+                    except Exception:
+                        pass
+            _dispatch_to_ui(api, _act)
+
+        def _do_toggle_keepawake(*_args):
+            def _act():
+                new_state = not keepawake_active
+                if hasattr(api, "toggle_keepawake"):
+                    api.toggle_keepawake(new_state)
+                elif hasattr(api, "_on_keepawake_toggle"):
+                    if hasattr(api, "keepawake_var"):
+                        api.keepawake_var.set(new_state)
+                    api._on_keepawake_toggle()
+                _tray = getattr(api, "_tray_icon", None) or getattr(api, "tray_icon", None)
+                if _tray:
+                    try:
+                        _tray.update_menu()
+                    except Exception:
+                        pass
+            _dispatch_to_ui(api, _act)
+
+        def _do_copy(*_args):
+            def _act():
+                if hasattr(api, "copy_share_info"):
+                    api.copy_share_info()
+                elif hasattr(api, "_copy_share_info"):
+                    api._copy_share_info()
+            _dispatch_to_ui(api, _act)
+
+        def _do_open_web(*_args):
+            relay = cfg.get("relay") or cfg.get("relay_url") or "wss://meikova-relay.onrender.com"
+            http_url = relay.replace("wss://", "https://").replace("ws://", "http://")
             dashboard_url = f"{http_url}/dashboard"
             webbrowser.open(dashboard_url)
 
-        def _do_open_chat():
-            chat_win = getattr(api, "chat_window", None)
-            if chat_win:
-                chat_win.show()
+        def _do_open_chat(*_args):
+            def _act():
+                chat_win = getattr(api, "chat_window", None)
+                if chat_win:
+                    chat_win.show()
+            _dispatch_to_ui(api, _act)
 
         def _t(k):
             if hasattr(api, "t"):
@@ -361,32 +632,32 @@ def build_tray_menu(api, on_restore, on_exit):
         header_ver = getattr(api, "app_version", None) or getattr(api, "APP_VERSION", None) or APP_VERSION
         return (
             # 1. App Title Header
-            CustomMenuItem(f"Meikova Relay // v{header_ver}", lambda: None, icon_name="logo", enabled=False),
+            CustomMenuItem(f"Meikova Relay // v{header_ver}", lambda *_a: None, icon_name="logo", enabled=False),
             # 2. Live telemetry status
-            CustomMenuItem(status_text, lambda: None, icon_name=status_icon, enabled=False),
+            CustomMenuItem(status_text, lambda *_a: None, icon_name=status_icon, enabled=False),
             pystray.Menu.SEPARATOR,
             # 3. Main actions
-            CustomMenuItem(_t("tray_open"), on_restore, icon_name="window", default=True),
-            CustomMenuItem("Mở cửa sổ Chat", _do_open_chat, icon_name="chat"),
+            CustomMenuItem(_t("tray_open"), _do_restore, icon_name="window", default=True),
+            CustomMenuItem(_t("tray_chat"), _do_open_chat, icon_name="chat"),
             CustomMenuItem(_t("tray_copy"), _do_copy, icon_name="copy"),
-            CustomMenuItem("Mở Dashboard trên Web", _do_open_web, icon_name="browser"),
+            CustomMenuItem(_t("tray_web"), _do_open_web, icon_name="browser"),
             pystray.Menu.SEPARATOR,
             # 4. Settings toggles
             CustomMenuItem(
-                f"Khởi động cùng hệ thống: {'Bật' if autostart_active else 'Tắt'}",
+                _t("tray_autostart_fmt", "Khởi động cùng hệ thống: {state}").format(state=_t("state_on", "Bật") if autostart_active else _t("state_off", "Tắt")),
                 _do_toggle_autostart,
                 icon_name="autostart_on" if autostart_active else "autostart_off",
                 checked=lambda item: autostart_active
             ),
             CustomMenuItem(
-                f"Chế độ giữ máy luôn thức: {'Bật' if keepawake_active else 'Tắt'}",
+                _t("tray_keepawake_fmt", "Chế độ giữ máy luôn thức: {state}").format(state=_t("state_on", "Bật") if keepawake_active else _t("state_off", "Tắt")),
                 _do_toggle_keepawake,
                 icon_name="keepawake_on" if keepawake_active else "keepawake_off",
                 checked=lambda item: keepawake_active
             ),
             pystray.Menu.SEPARATOR,
             # 5. Quit
-            CustomMenuItem(_t("tray_exit"), on_exit, icon_name="quit")
+            CustomMenuItem(_t("tray_exit"), _do_exit, icon_name="quit")
         )
 
     return pystray.Menu(get_menu_items)

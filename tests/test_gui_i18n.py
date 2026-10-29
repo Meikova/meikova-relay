@@ -77,6 +77,16 @@ class TestGuiI18n(unittest.TestCase):
             except Exception:
                 pass
             tk._default_root = None
+            try:
+                del app
+            except Exception:
+                pass
+            try:
+                del root
+            except Exception:
+                pass
+            import gc
+            gc.collect()
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,3 +1,12 @@
+try:
+    from .auto_bootstrap import activate_vendor_paths as _activate_vendor_paths
+    _activate_vendor_paths()
+except Exception:
+    try:
+        from auto_bootstrap import activate_vendor_paths as _activate_vendor_paths
+        _activate_vendor_paths()
+    except Exception:
+        pass
 import io
 import os
 import time

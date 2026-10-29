@@ -1852,7 +1852,7 @@ if ! command -v python3 &> /dev/null; then
 
 fi
 
-python3 -m venv .venv
+python3 -m venv --system-site-packages .venv || python3 -m venv .venv
 
 source .venv/bin/activate
 
@@ -1988,7 +1988,7 @@ if ! command -v python3 &> /dev/null; then
 
 fi
 
-python3 -m venv .venv
+python3 -m venv --system-site-packages .venv || python3 -m venv .venv
 
 source .venv/bin/activate
 
