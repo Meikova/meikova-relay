@@ -8,6 +8,7 @@ const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const net = require('net');
 
 // Cloudflare Edge Colocation (IATA Airport Codes) SSOT Map
 const COLO_LOCATIONS = {
@@ -254,9 +255,18 @@ class CloudflaredTunnelManager {
 
   _measureLatency(retries = 2) {
     if (this.status !== 'running') return;
-    const startTime = Date.now();
     try {
-      // Direct connection to Cloudflare Anycast Edge for instant RTT & Colo detection
+      // 1. Measure pure 1-RTT TCP Handshake Latency directly to Cloudflare Anycast IP
+      const pingStart = Date.now();
+      const socket = net.connect({ host: '1.1.1.1', port: 443, timeout: 3000 }, () => {
+        this.latencyMs = Date.now() - pingStart;
+        socket.destroy();
+        this._notifyState();
+      });
+      socket.on('error', () => { socket.destroy(); });
+      socket.on('timeout', () => { socket.destroy(); });
+
+      // 2. Fetch Colo identity from Cloudflare trace
       const req = https.get({
         hostname: '1.1.1.1',
         port: 443,
@@ -267,14 +277,13 @@ class CloudflaredTunnelManager {
         let body = '';
         res.on('data', chunk => { body += chunk; });
         res.on('end', () => {
-          this.latencyMs = Date.now() - startTime;
           const match = body.match(/^colo=([A-Z]{3})/m);
           if (match && !this.edgeColo) {
             const code = match[1].toUpperCase();
             this.edgeColo = code;
             this.edgeLocation = COLO_LOCATIONS[code] || code;
+            this._notifyState();
           }
-          this._notifyState();
         });
       });
       req.on('error', () => {
