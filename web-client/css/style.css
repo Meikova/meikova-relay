@@ -12337,6 +12337,34 @@ input[type="password"],
   background: oklch(0.18 var(--gc) var(--gh) / 0.7);
 }
 
+.host-cfg-row__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.host-cfg-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.host-cfg-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.host-cfg-row:hover .host-cfg-icon {
+  transform: scale(1.06);
+}
+
 .host-cfg-row__text {
   display: flex;
   flex-direction: column;

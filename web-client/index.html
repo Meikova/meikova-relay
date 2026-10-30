@@ -3780,13 +3780,13 @@
 
       <!-- Master Admin Privilege Lever Card -->
       <div class="host-admin-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 10px; background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.28); margin-bottom: 12px; gap: 12px;">
-        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-          <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(245, 158, 11, 0.15); display: flex; align-items: center; justify-content: center; color: #fbbf24; flex-shrink: 0;">
+        <div class="host-cfg-row__left">
+          <div class="host-cfg-icon" style="color: #fbbf24; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35);">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
-          <div style="min-width: 0;">
-            <div style="font-size: 0.82rem; font-weight: 600; color: #fbbf24;" data-i18n="host_cfg.admin_lever_title">Quyền quản trị hệ thống</div>
-            <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.3;" id="remoteHostAdminDesc" data-i18n="host_cfg.admin_lever_desc">Kích hoạt quyền Quản trị trên máy đích để mở khóa nhóm chức năng can thiệp sâu.</div>
+          <div class="host-cfg-row__text">
+            <div class="host-cfg-row__title" style="color: #fbbf24;" data-i18n="host_cfg.admin_lever_title">Cần gạt quyền Quản trị</div>
+            <div class="host-cfg-row__desc" id="remoteHostAdminDesc" data-i18n="host_cfg.admin_lever_desc">Kích hoạt quyền Quản trị trên máy đích để mở khóa các chức năng can thiệp sâu.</div>
           </div>
         </div>
         <label class="ambient-toggle" title="Bật/Tắt quyền Quản trị">
@@ -3810,12 +3810,17 @@
       <!-- Tab Content Area (Scrollable Pane) -->
       <div style="flex: 1; min-height: 0; overflow-y: auto; padding-right: 2px;">
         
-        <!-- Tab 1: Nguồn & Tự động hóa (Power & Automation) -->
+                <!-- Tab 1: Nguồn & Tự động hóa (Power & Automation) -->
         <div id="hostPanePower" class="host-pane">
           <div class="host-cfg-row">
-            <div class="host-cfg-row__text">
-              <div class="host-cfg-row__title" data-i18n="host_cfg.anti_sleep">Chống tự động ngủ</div>
-              <div class="host-cfg-row__desc" data-i18n="host_cfg.anti_sleep_desc">Ngăn máy trạm rơi vào trạng thái ngủ khi đang kết nối từ xa.</div>
+            <div class="host-cfg-row__left">
+              <div class="host-cfg-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.anti_sleep">Chống tự động ngủ</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.anti_sleep_desc">Ngăn máy trạm rơi vào trạng thái ngủ khi đang kết nối từ xa.</div>
+              </div>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="chkHostAntiSleep">
@@ -3824,9 +3829,14 @@
           </div>
 
           <div class="host-cfg-row">
-            <div class="host-cfg-row__text">
-              <div class="host-cfg-row__title" data-i18n="host_cfg.idle_saver">Tiết kiệm năng lượng khi nhàn rỗi</div>
-              <div class="host-cfg-row__desc" data-i18n="host_cfg.idle_saver_desc">Tự động giảm tốc độ chụp hình xuống 5 FPS khi không có thao tác chuột hoặc phím.</div>
+            <div class="host-cfg-row__left">
+              <div class="host-cfg-icon" style="color: #10b981; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.idle_saver">Tiết kiệm năng lượng khi nhàn rỗi</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.idle_saver_desc">Tự động giảm tốc độ chụp hình xuống 5 FPS khi không có thao tác chuột hoặc phím.</div>
+              </div>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="chkHostIdleSaver">
@@ -3835,9 +3845,14 @@
           </div>
 
           <div class="host-cfg-row">
-            <div class="host-cfg-row__text">
-              <div class="host-cfg-row__title" data-i18n="host_cfg.image_clipboard">Đồng bộ hình ảnh khay nhớ tạm</div>
-              <div class="host-cfg-row__desc" data-i18n="host_cfg.image_clipboard_desc">Tự động truyền hình ảnh chụp màn hình và ảnh sao chép hai chiều giữa máy khách và máy trạm.</div>
+            <div class="host-cfg-row__left">
+              <div class="host-cfg-icon" style="color: #818cf8; background: rgba(129, 140, 248, 0.12); border: 1px solid rgba(129, 140, 248, 0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.image_clipboard">Đồng bộ ảnh khay nhớ tạm</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.image_clipboard_desc">Tự động truyền hình ảnh chụp màn hình và ảnh sao chép hai chiều giữa máy khách và máy trạm.</div>
+              </div>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="chkHostImageClipboard">
@@ -3847,16 +3862,21 @@
 
           <div class="host-cfg-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div class="host-cfg-row__text">
-                <div class="host-cfg-row__title" data-i18n="host_cfg.auto_wakeup">Đánh thức theo lịch hẹn BIOS</div>
-                <div class="host-cfg-row__desc" data-i18n="host_cfg.auto_wakeup_desc">Đặt lịch BIOS RTC tự động đánh thức máy tính theo giờ cài đặt (Yêu cầu quyền Quản trị).</div>
+              <div class="host-cfg-row__left">
+                <div class="host-cfg-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3);">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="host-cfg-row__text">
+                  <div class="host-cfg-row__title" data-i18n="host_cfg.auto_wakeup">Tự động thức dậy theo BIOS</div>
+                  <div class="host-cfg-row__desc" data-i18n="host_cfg.auto_wakeup_desc">Đặt lịch BIOS RTC tự động đánh thức máy tính theo giờ cài đặt (Cần Admin).</div>
+                </div>
               </div>
               <label class="ambient-toggle">
                 <input type="checkbox" id="chkHostAutoWake">
                 <span class="ambient-toggle__slider"></span>
               </label>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; padding-left: 44px;">
               <span style="font-size: 0.72rem; color: var(--text-muted);" data-i18n="host_cfg.wake_time_label">Giờ đánh thức:</span>
               <input type="text" id="inpHostWakeTime" class="instrument-input mono-font" value="07:00" placeholder="HH:MM" style="width: 90px; padding: 4px 8px; font-size: 0.78rem; text-align: center;">
             </div>
@@ -3866,9 +3886,14 @@
         <!-- Tab 2: Hệ thống & Dịch vụ (System & Services) -->
         <div id="hostPaneSystem" class="host-pane hidden">
           <div class="host-cfg-row">
-            <div class="host-cfg-row__text">
-              <div class="host-cfg-row__title" data-i18n="host_cfg.service_247">Dịch vụ hệ thống 24/7</div>
-              <div class="host-cfg-row__desc" data-i18n="host_cfg.service_247_desc">Cài đặt Host Agent dưới dạng Windows Service / Systemd daemon chạy nền 24/7 (Yêu cầu quyền Quản trị).</div>
+            <div class="host-cfg-row__left">
+              <div class="host-cfg-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+              </div>
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.service_247">Dịch vụ hệ thống 24/7</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.service_247_desc">Cài đặt Host Agent chạy nền 24/7 cả khi chưa đăng nhập (Cần Admin).</div>
+              </div>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="chkHostService247">
@@ -3877,9 +3902,14 @@
           </div>
 
           <div class="host-cfg-row">
-            <div class="host-cfg-row__text">
-              <div class="host-cfg-row__title" data-i18n="host_cfg.autostart">Tự khởi động cùng hệ thống</div>
-              <div class="host-cfg-row__desc" data-i18n="host_cfg.autostart_desc">Tự động khởi động máy trạm khi máy tính bật nguồn hoặc đăng nhập.</div>
+            <div class="host-cfg-row__left">
+              <div class="host-cfg-icon" style="color: #34d399; background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+              </div>
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.autostart">Tự khởi động cùng hệ thống</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.autostart_desc">Tự động khởi động máy trạm khi máy tính bật nguồn hoặc đăng nhập.</div>
+              </div>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="chkHostAutostart">
@@ -3888,9 +3918,14 @@
           </div>
 
           <div class="host-cfg-row">
-            <div class="host-cfg-row__text">
-              <div class="host-cfg-row__title" data-i18n="host_cfg.stealth">Chế độ chạy ẩn</div>
-              <div class="host-cfg-row__desc" data-i18n="host_cfg.stealth_desc">Ẩn biểu tượng khay hệ thống và thông báo để đảm bảo hoạt động kín đáo.</div>
+            <div class="host-cfg-row__left">
+              <div class="host-cfg-icon" style="color: #a78bfa; background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </div>
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.stealth">Chế độ tàng hình</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.stealth_desc">Ẩn hoàn toàn biểu tượng khay hệ thống, chạy ngầm tĩnh lặng.</div>
+              </div>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="chkHostStealth">
@@ -3899,9 +3934,14 @@
           </div>
 
           <div class="host-cfg-row">
-            <div class="host-cfg-row__text">
-              <div class="host-cfg-row__title" data-i18n="host_cfg.dpi_aware">Tương thích màn hình High DPI</div>
-              <div class="host-cfg-row__desc" data-i18n="host_cfg.dpi_aware_desc">Tự động tối ưu độ phân giải và tỉ lệ thu phóng màn hình theo tỉ lệ DPI thực của máy trạm.</div>
+            <div class="host-cfg-row__left">
+              <div class="host-cfg-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+              </div>
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.dpi_aware">Tương thích màn hình High DPI</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.dpi_aware_desc">Tối ưu tọa độ chuột và chụp ảnh nét trên màn hình Retina có scale >100%.</div>
+              </div>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="chkHostDpiAware">
@@ -3910,9 +3950,14 @@
           </div>
 
           <div class="host-cfg-row">
-            <div class="host-cfg-row__text">
-              <div class="host-cfg-row__title" data-i18n="host_cfg.auto_update">Tự động cập nhật không gián đoạn</div>
-              <div class="host-cfg-row__desc" data-i18n="host_cfg.auto_update_desc">Tự động kiểm tra và nâng cấp phiên bản Host Agent mới nhất trong nền.</div>
+            <div class="host-cfg-row__left">
+              <div class="host-cfg-icon" style="color: #10b981; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </div>
+              <div class="host-cfg-row__text">
+                <div class="host-cfg-row__title" data-i18n="host_cfg.auto_update">Tự động cập nhật không gián đoạn</div>
+                <div class="host-cfg-row__desc" data-i18n="host_cfg.auto_update_desc">Cơ chế tráo đổi nguyên tử NTFS nâng cấp host agent không mất kết nối.</div>
+              </div>
             </div>
             <label class="ambient-toggle">
               <input type="checkbox" id="chkHostAutoUpdate">
@@ -3920,8 +3965,7 @@
             </label>
           </div>
         </div>
-
-      </div>
+</div>
 
       <!-- Modal Footer -->
       <div class="host-cfg-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);">
