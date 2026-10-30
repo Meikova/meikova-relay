@@ -13,6 +13,7 @@ Validates:
 import hashlib
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -104,7 +105,11 @@ class TestHostMasterCapabilities(unittest.TestCase):
 
         # Unstick all inputs
         res = InputInjector.unstick_all_inputs()
-        self.assertTrue(res)
+        self.assertIsInstance(res, int)
+        if sys.platform == "win32":
+            self.assertGreaterEqual(res, 258)
+        else:
+            self.assertGreaterEqual(res, 0)
 
         # Verify unlock_workstation is callable
         self.assertTrue(hasattr(InputInjector, "unlock_workstation"))

@@ -986,7 +986,7 @@
 
       'nav.home': 'Trang chủ',
       'ro.landing': 'TRANG CHỦ // GIỚI THIỆU',
-      'landing.badge': 'v1.5.0 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
+      'landing.badge': 'v1.5.1 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
       'landing.hero_title': 'ĐIỀU KHIỂN TỪ XA ĐA NỀN TẢNG CHÍNH XÁC CAO',
       'landing.hero_subtitle': 'Màn hình 120 FPS, âm thanh 2 chiều, kéo thả bố cục đa màn hình, thanh Deck 3 chế độ thông minh và quản trị máy trạm Windows, macOS, Linux an toàn qua Outbound Relay.',
       'landing.os_support_lbl': 'MÁY TRẠM HỖ TRỢ:',
@@ -2475,7 +2475,7 @@
 
       'nav.home': 'Home',
       'ro.landing': 'HOME // OVERVIEW',
-      'landing.badge': 'v1.5.0 // CROSS-PLATFORM // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
+      'landing.badge': 'v1.5.1 // CROSS-PLATFORM // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
       'landing.hero_title': 'PRECISION CROSS-PLATFORM REMOTE CONTROL',
       'landing.hero_subtitle': '120 FPS display, 2-way audio, multi-monitor grid layout, 3-mode smart deck, and secure remote control for Windows, macOS, and Linux workstations via Outbound Relay.',
       'landing.os_support_lbl': 'SUPPORTED WORKSTATIONS:',

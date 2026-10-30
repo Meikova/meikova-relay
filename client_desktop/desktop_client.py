@@ -707,7 +707,7 @@ class ClientTray:
         item_pad = Padding(4, 5, 4, 5)
 
         # 1. Header (Branding, Disabled)
-        header = ToolStripMenuItem("MEIKOVA RELAY // v1.5.0")
+        header = ToolStripMenuItem("MEIKOVA RELAY // v1.5.1")
         header.Enabled = False
         header.Font = font_bold
         header.Padding = Padding(4, 6, 4, 6)
@@ -849,7 +849,7 @@ class ClientTray:
 
             auto_on = is_autostart_enabled()
             menu = pystray.Menu(
-                pystray.MenuItem("MEIKOVA RELAY // v1.5.0", None, enabled=False),
+                pystray.MenuItem("MEIKOVA RELAY // v1.5.1", None, enabled=False),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Mở Meikova Relay", on_show, default=True),
                 pystray.MenuItem("Mở trên trình duyệt Web", on_web),

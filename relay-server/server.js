@@ -32,7 +32,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const FALLBACK_DIR = path.join(__dirname, '..', 'web-client');
 const WEB_CLIENT_DIR = fs.existsSync(path.join(PUBLIC_DIR, 'index.html')) ? PUBLIC_DIR : FALLBACK_DIR;
 
-let APP_VERSION = '1.5.0';
+let APP_VERSION = '1.5.1';
 try {
   const pkgData = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'));
   if (pkgData && pkgData.version) APP_VERSION = pkgData.version;
@@ -240,7 +240,7 @@ const server = http.createServer(async (req, res) => {
       return jsonResponse(res, 200, {
         name: 'Meikova Relay',
         version: APP_VERSION,
-        min_host_version: '1.0.0',
+        min_host_version: APP_VERSION,
         download_url: `${origin}/api/download/MeikovaRelayHost.exe`,
         setup_bat_url: `${origin}/api/download/setup.bat`,
         timestamp: Date.now()

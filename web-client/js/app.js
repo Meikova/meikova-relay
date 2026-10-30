@@ -3,7 +3,7 @@
   'use strict';
   // PWA Cache Storage Purge on Version Bump
   try {
-    const PWA_VER = '1.5.0';
+    const PWA_VER = '1.5.1';
     const lastPwaVer = localStorage.getItem('meikova_pwa_ver');
     if (lastPwaVer && lastPwaVer !== PWA_VER && 'caches' in window) {
       localStorage.setItem('meikova_pwa_ver', PWA_VER);
@@ -916,18 +916,27 @@
   // --- SLIDING SEGMENTED INDICATOR ENGINE (MEIKOVA LOOP PATTERN) ---
   function placeIndicator(seg) {
     if (!seg) return;
-    const onBtn = seg.querySelector('button.on');
-    const ind = seg.querySelector('.seg__ind');
-    if (!ind) return;
+    let ind = seg.querySelector('.seg__ind');
+    if (!ind) {
+      ind = document.createElement('span');
+      ind.className = 'seg__ind';
+      ind.setAttribute('aria-hidden', 'true');
+      seg.prepend(ind);
+    }
+    const onBtn = seg.querySelector('button.on, button.is-active, button.active');
     // On portrait mobile (height >= 520 & width < 768), mainNav is fixed at bottom without sliding pill
     if (window.innerWidth < 768 && window.innerHeight >= 520 && seg.id === 'mainNav') {
       ind.style.opacity = '0';
       ind.style.setProperty('--ind-w', '0px');
       return;
     }
-    if (!onBtn) {
-      ind.style.setProperty('--ind-w', '0px');
-      ind.style.opacity = '0';
+    if (!onBtn || onBtn.offsetWidth === 0) {
+      if (onBtn && seg.offsetParent !== null) {
+        requestAnimationFrame(() => placeIndicator(seg));
+      } else {
+        ind.style.setProperty('--ind-w', '0px');
+        ind.style.opacity = '0';
+      }
       return;
     }
     ind.style.opacity = '1';
@@ -936,7 +945,7 @@
   }
 
   function placeAllIndicators() {
-    document.querySelectorAll('.seg').forEach(placeIndicator);
+    document.querySelectorAll('.seg, .platform-tabs').forEach(placeIndicator);
   }
 
   window.placeIndicator = placeIndicator;
@@ -945,6 +954,36 @@
   window.addEventListener('resize', placeAllIndicators);
   if (document.fonts) document.fonts.ready.then(placeAllIndicators);
   setTimeout(placeAllIndicators, 60);
+
+  // Global delegated click listener for all segmented navigation buttons
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg button, .platform-tabs button');
+    if (!btn) return;
+    const seg = btn.closest('.seg, .platform-tabs');
+    if (!seg) return;
+    requestAnimationFrame(() => placeIndicator(seg));
+    setTimeout(() => placeIndicator(seg), 50);
+  }, true);
+
+  // Auto-recalculate indicators when modals or dynamic sections open
+  if (typeof MutationObserver !== 'undefined') {
+    const segVisibilityObserver = new MutationObserver((mutations) => {
+      let needsUpdate = false;
+      for (const m of mutations) {
+        if (m.type === 'attributes' && m.attributeName === 'class') {
+          const el = m.target;
+          if (el.classList.contains('modal-overlay') || el.classList.contains('section-view') || el.classList.contains('host-pane')) {
+            if (!el.classList.contains('hidden')) needsUpdate = true;
+          }
+        }
+      }
+      if (needsUpdate) {
+        requestAnimationFrame(placeAllIndicators);
+        setTimeout(placeAllIndicators, 60);
+      }
+    });
+    segVisibilityObserver.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+  }
 
   // Persistent Client Machine GUID for Hardware-Level Loopback & Multi-Client Session Isolation
   let myMachineId = localStorage.getItem('meikova_relay_client_machine_id');
@@ -10187,12 +10226,14 @@
 
   // View Mode: List vs Grid
   if (btnModeList && btnModeGrid) {
+    const viewSeg = document.getElementById('viewModeSeg');
     btnModeList.addEventListener('click', () => {
       explorerViewMode = 'list';
       btnModeList.classList.add('on');
       btnModeGrid.classList.remove('on');
       explorerListContainer.classList.remove('hidden');
       explorerGridContainer.classList.add('hidden');
+      if (viewSeg) placeIndicator(viewSeg);
     });
 
     btnModeGrid.addEventListener('click', () => {
@@ -10201,6 +10242,7 @@
       btnModeList.classList.remove('on');
       explorerListContainer.classList.add('hidden');
       explorerGridContainer.classList.remove('hidden');
+      if (viewSeg) placeIndicator(viewSeg);
     });
   }
 
@@ -10684,11 +10726,14 @@
     document.querySelectorAll('.relay-viewer-platform-tab').forEach((b) => {
       const isActive = b.getAttribute('data-viewer-platform') === platform;
       b.classList.toggle('is-active', isActive);
+      b.classList.toggle('on', isActive);
       b.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
     document.querySelectorAll('.relay-viewer-platform-pane').forEach((p) => {
       p.classList.toggle('is-active', p.getAttribute('data-viewer-pane') === platform);
     });
+    const pTabs = document.querySelector('.platform-tabs');
+    if (pTabs) placeIndicator(pTabs);
   }
 
   document.querySelectorAll('.relay-viewer-platform-tab').forEach((tabBtn) => {
@@ -10929,6 +10974,11 @@
       if (dlSeg) {
         requestAnimationFrame(() => placeIndicator(dlSeg));
         setTimeout(() => placeIndicator(dlSeg), 60);
+      }
+      const pTabs = document.querySelector('.platform-tabs');
+      if (pTabs) {
+        requestAnimationFrame(() => placeIndicator(pTabs));
+        setTimeout(() => placeIndicator(pTabs), 60);
       }
     };
     const closeDownloadModal = () => {
@@ -11351,6 +11401,7 @@
 
   
   // Unified Host Config Modal Tabs
+  const hostConfigTabsSeg = document.getElementById('hostConfigTabsSeg');
   const hostSegBtns = document.querySelectorAll('#hostConfigTabsSeg button');
   const hostPanes = {
     power: document.getElementById('hostPanePower'),
@@ -11361,12 +11412,15 @@
     btn.addEventListener('click', () => {
       const targetTab = btn.getAttribute('data-host-tab');
       hostSegBtns.forEach(b => {
-        b.classList.toggle('on', b === btn);
-        b.classList.toggle('active', b === btn);
+        const isMatch = b === btn;
+        b.classList.toggle('on', isMatch);
+        b.classList.toggle('active', isMatch);
+        b.setAttribute('aria-selected', isMatch ? 'true' : 'false');
       });
       Object.entries(hostPanes).forEach(([tabName, pane]) => {
         pane?.classList.toggle('hidden', tabName !== targetTab);
       });
+      if (hostConfigTabsSeg) placeIndicator(hostConfigTabsSeg);
     });
   });
 
@@ -11401,6 +11455,8 @@
       ws.send(JSON.stringify({ type: 'get_host_config' }));
     }
     document.getElementById('modalRemoteHostConfig')?.classList.remove('hidden');
+    const hSeg = document.getElementById('hostConfigTabsSeg');
+    if (hSeg) { requestAnimationFrame(() => placeIndicator(hSeg)); setTimeout(() => placeIndicator(hSeg), 60); }
   }
   document.getElementById('badgeTelemetry')?.addEventListener('click', openHostConfigFromTelemetry);
   document.getElementById('deckTelemetryHost')?.addEventListener('click', openHostConfigFromTelemetry);
@@ -11430,6 +11486,8 @@
       ws.send(JSON.stringify({ type: 'get_host_config' }));
     }
     modalRemoteHostConfig?.classList.remove('hidden');
+    const hSeg2 = document.getElementById('hostConfigTabsSeg');
+    if (hSeg2) { requestAnimationFrame(() => placeIndicator(hSeg2)); setTimeout(() => placeIndicator(hSeg2), 60); }
   });
   document.getElementById('btnCloseRemoteHostConfig')?.addEventListener('click', () => modalRemoteHostConfig?.classList.add('hidden'));
   document.getElementById('btnCancelRemoteHostConfig')?.addEventListener('click', () => modalRemoteHostConfig?.classList.add('hidden'));

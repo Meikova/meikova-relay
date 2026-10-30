@@ -84,6 +84,13 @@ def sync_all(version: str):
         lock_file.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
         print(f"  [+] Updated: relay-server/package-lock.json")
 
+    # 2b. relay-server/server.js
+    update_file(
+        REPO_ROOT / "relay-server" / "server.js",
+        r"let APP_VERSION\s*=\s*'[^']+';",
+        f"let APP_VERSION = '{version}';"
+    )
+
     # 3. installer_host.iss & installer_client.iss
     for iss in ["installer_host.iss", "installer_client.iss"]:
         update_file(

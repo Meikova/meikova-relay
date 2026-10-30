@@ -17,7 +17,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = REPO_ROOT / "dist"
 

@@ -53,6 +53,8 @@ class TestVirtualDisplay(unittest.TestCase):
 
     def test_set_display_resolution_cross_platform(self):
         """Tests setting resolution returns a valid status dictionary without throwing."""
+        from host_agent.virtual_display import _last_res_change_time_ref
+        _last_res_change_time_ref[0] = 0.0
         res = set_display_resolution(1920, 1080)
         self.assertIsInstance(res, dict)
         self.assertTrue(res.get("success", False))

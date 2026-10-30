@@ -51,7 +51,7 @@ except ImportError:
             raise RuntimeError("websockets package is required for live relay connections")
     websockets = _WebsocketsStub()
 
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.5.1"
 
 # --- Resilient Network Infrastructure: DNS Bypass, Corporate Proxy, and Resilient SSL ---
 _ORIGINAL_GETADDRINFO = socket.getaddrinfo

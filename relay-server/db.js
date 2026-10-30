@@ -149,11 +149,16 @@ let adapterUrl = '';
 let initPromise = null;
 
 function setupClient(override = {}) {
-  const tursoUrl = (override.url || process.env.TURSO_DATABASE_URL || '').trim();
-  const tursoToken = (override.authToken || process.env.TURSO_AUTH_TOKEN || '').trim();
+  const tursoUrl = (override.url !== undefined ? override.url : (process.env.TURSO_DATABASE_URL || '')).trim();
+  const tursoToken = (override.authToken !== undefined ? override.authToken : (process.env.TURSO_AUTH_TOKEN || '')).trim();
   const hasLocalOverride = Boolean(override.dbPath || process.env.DB_PATH || process.env.NODE_ENV === 'test');
 
-  if (!hasLocalOverride && tursoUrl && (tursoToken || tursoUrl.startsWith('libsql:') || tursoUrl.startsWith('https:'))) {
+  // ONLY connect to Turso Cloud if explicitly configured with both URL and token (or non-remote url)
+  // If no .env or credentials missing, 100% default to local SQLite WAL without error!
+  const isCloudUrl = tursoUrl.startsWith('libsql://') || tursoUrl.startsWith('https://');
+  const canUseTurso = !hasLocalOverride && tursoUrl && (!isCloudUrl || tursoToken);
+
+  if (canUseTurso) {
     isTurso = true;
     adapterUrl = tursoUrl;
     client = createClient({
@@ -178,7 +183,7 @@ function setupClient(override = {}) {
     client = createClient({
       url: adapterUrl
     });
-    console.log(`[DB] Fallback to local SQLite WAL database (${adapterUrl})`);
+    console.log(`[DB] Defaulting to local SQLite WAL database (${adapterUrl})`);
   }
   initPromise = null;
 }
@@ -203,6 +208,11 @@ async function ensureInit() {
     try {
       await client.executeMultiple(SCHEMA_SQL);
     } catch (err) {
+      if (isTurso) {
+        console.warn(`[DB] Turso Cloud initialization failed (${err.message}). Automatically falling back to local SQLite WAL database...`);
+        setupClient({ url: '' });
+        return ensureInit();
+      }
       console.error('[DB] Schema initialization error:', err.message);
       throw err;
     }
