@@ -11086,6 +11086,11 @@
     const tunnelNotInstalledBox = document.getElementById('tunnelNotInstalledBox');
     const tunnelInstallCmd = document.getElementById('tunnelInstallCmd');
     const btnCopyTunnelInstallCmd = document.getElementById('btnCopyTunnelInstallCmd');
+    const tunnelEdgeBox = document.getElementById('tunnelEdgeBox');
+    const tunnelEdgeColoText = document.getElementById('tunnelEdgeColoText');
+    const tunnelLatencyText = document.getElementById('tunnelLatencyText');
+    const tunnelLatencyDot = document.getElementById('tunnelLatencyDot');
+    const tunnelRoutingHint = document.getElementById('tunnelRoutingHint');
 
     if (!btnNavTunnel || !modalTunnel) return;
 
@@ -11112,6 +11117,34 @@
         if (tunnelUrlInput) tunnelUrlInput.value = st.url;
         if (tunnelQrImg) tunnelQrImg.src = '/api/qr?data=' + encodeURIComponent(st.url);
         if (tunnelNotInstalledBox) tunnelNotInstalledBox.classList.add('hidden');
+        if (tunnelEdgeBox) tunnelEdgeBox.classList.remove('hidden');
+        if (tunnelRoutingHint) tunnelRoutingHint.style.display = 'block';
+        if (tunnelEdgeColoText) {
+          if (st.edgeLocation && st.edgeColo) {
+            tunnelEdgeColoText.textContent = `${st.edgeLocation} (${st.edgeColo})`;
+          } else if (st.edgeColo) {
+            tunnelEdgeColoText.textContent = st.edgeColo;
+          } else {
+            tunnelEdgeColoText.textContent = ti('tunnel.edge_detecting', 'Đang nhận diện...');
+          }
+        }
+        if (tunnelLatencyText) {
+          if (typeof st.latencyMs === 'number' && st.latencyMs > 0) {
+            tunnelLatencyText.textContent = `${st.latencyMs} ms`;
+            if (tunnelLatencyDot) {
+              if (st.latencyMs < 60) {
+                tunnelLatencyDot.style.background = '#22C55E';
+              } else if (st.latencyMs < 120) {
+                tunnelLatencyDot.style.background = '#F59E0B';
+              } else {
+                tunnelLatencyDot.style.background = '#EF4444';
+              }
+            }
+          } else {
+            tunnelLatencyText.textContent = '-- ms';
+            if (tunnelLatencyDot) tunnelLatencyDot.style.background = 'var(--accent)';
+          }
+        }
       } else if (st.status === 'starting') {
         if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
         if (tunnelStatusBadgeDot) tunnelStatusBadgeDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
@@ -11133,6 +11166,10 @@
           btnToggleTunnel.disabled = false;
         }
         if (tunnelActiveBox) tunnelActiveBox.classList.add('hidden');
+        if (tunnelEdgeBox) tunnelEdgeBox.classList.add('hidden');
+        if (tunnelRoutingHint) tunnelRoutingHint.style.display = 'none';
+        if (tunnelEdgeColoText) tunnelEdgeColoText.textContent = '---';
+        if (tunnelLatencyText) tunnelLatencyText.textContent = '-- ms';
 
         if (!st.installed && tunnelNotInstalledBox) {
           tunnelNotInstalledBox.classList.remove('hidden');

@@ -18,6 +18,7 @@ services:
       - ./data:/app/relay-server/data
       - ./relay-server/public:/app/relay-server/public
       - ./relay-server/server.js:/app/relay-server/server.js
+      - ./relay-server/tunnel_manager.js:/app/relay-server/tunnel_manager.js
       - ./web-client:/app/web-client
       - ./dist:/app/dist
     healthcheck:

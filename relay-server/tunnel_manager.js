@@ -1,12 +1,44 @@
 /**
  * Meikova Platform - Universal Tunnel Manager
  * Integrates Cloudflare Quick Tunnel (trycloudflare.com) for One-Click WAN exposure
- * Zero-config, NAT/Firewall traversal, HTTPS encryption
+ * Zero-config, NAT/Firewall traversal, HTTPS encryption, Edge PoP & Latency Detection
  */
 
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+
+// Cloudflare Edge Colocation (IATA Airport Codes) SSOT Map
+const COLO_LOCATIONS = {
+  HAN: 'Hà Nội (Việt Nam)',
+  SGN: 'TP. Hồ Chí Minh (Việt Nam)',
+  HKG: 'Hong Kong',
+  SIN: 'Singapore',
+  BKK: 'Bangkok (Thái Lan)',
+  KUL: 'Kuala Lumpur (Malaysia)',
+  TPE: 'Đài Bắc (Taiwan)',
+  NRT: 'Tokyo Narita (Nhật Bản)',
+  HND: 'Tokyo Haneda (Nhật Bản)',
+  KIX: 'Osaka (Nhật Bản)',
+  ICN: 'Seoul (Hàn Quốc)',
+  MNL: 'Manila (Philippines)',
+  CGK: 'Jakarta (Indonesia)',
+  SYD: 'Sydney (Úc)',
+  MEL: 'Melbourne (Úc)',
+  LAX: 'Los Angeles (Mỹ)',
+  SFO: 'San Francisco (Mỹ)',
+  SJC: 'San Jose (Mỹ)',
+  SEA: 'Seattle (Mỹ)',
+  ORD: 'Chicago (Mỹ)',
+  IAD: 'Washington DC (Mỹ)',
+  EWR: 'Newark / New York (Mỹ)',
+  JFK: 'New York (Mỹ)',
+  LHR: 'London (Anh)',
+  FRA: 'Frankfurt (Đức)',
+  AMS: 'Amsterdam (Hà Lan)',
+  CDG: 'Paris (Pháp)'
+};
 
 class CloudflaredTunnelManager {
   constructor() {
@@ -16,6 +48,10 @@ class CloudflaredTunnelManager {
     this.error = null;
     this.startedAt = null;
     this.activePort = 8080;
+    this.edgeIpVersion = 'auto'; // 'auto' | '4' | '6'
+    this.edgeColo = null; // 'HKG', 'SIN', 'HAN', etc.
+    this.edgeLocation = null; // 'Hong Kong', 'Singapore', etc.
+    this.latencyMs = null; // Measured round-trip latency in ms
     this._startPromise = null;
     this.onStateChange = null;
   }
@@ -81,11 +117,15 @@ class CloudflaredTunnelManager {
       installed: !!bin,
       binaryPath: bin,
       platform: process.platform,
-      installCommand: this.getInstallCommand()
+      installCommand: this.getInstallCommand(),
+      edgeIpVersion: this.edgeIpVersion,
+      edgeColo: this.edgeColo,
+      edgeLocation: this.edgeLocation,
+      latencyMs: this.latencyMs
     };
   }
 
-  async start(port = 8080) {
+  async start(port = 8080, ipVersion = 'auto') {
     if (this.status === 'running' && this.tunnelUrl) {
       return this.getStatus();
     }
@@ -101,6 +141,10 @@ class CloudflaredTunnelManager {
     }
 
     this.activePort = port;
+    this.edgeIpVersion = ipVersion || 'auto';
+    this.edgeColo = null;
+    this.edgeLocation = null;
+    this.latencyMs = null;
     this.status = 'starting';
     this.error = null;
     this._notifyState();
@@ -112,7 +156,7 @@ class CloudflaredTunnelManager {
         const args = [
           'tunnel',
           '--protocol', 'http2',
-          '--edge-ip-version', 'auto',
+          '--edge-ip-version', this.edgeIpVersion,
           '--no-autoupdate',
           '--url', `http://127.0.0.1:${port}`
         ];
@@ -142,6 +186,18 @@ class CloudflaredTunnelManager {
 
       const handleData = (data) => {
         const text = data.toString('utf-8');
+
+        // Detect Edge PoP Colocation (e.g., location=hkg09, location=sin02)
+        const locMatch = text.match(/location=([a-zA-Z]{3})[0-9]*/i);
+        if (locMatch && !this.edgeColo) {
+          const code = locMatch[1].toUpperCase();
+          this.edgeColo = code;
+          this.edgeLocation = COLO_LOCATIONS[code] || code;
+          if (resolved) {
+            this._notifyState();
+          }
+        }
+
         const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
         if (match && !resolved) {
           resolved = true;
@@ -151,6 +207,7 @@ class CloudflaredTunnelManager {
           this.startedAt = Date.now();
           this._startPromise = null;
           this._notifyState();
+          this._measureLatency();
           resolve(this.getStatus());
         }
       };
@@ -183,6 +240,9 @@ class CloudflaredTunnelManager {
           this.status = 'idle';
           this.tunnelUrl = null;
           this.process = null;
+          this.edgeColo = null;
+          this.edgeLocation = null;
+          this.latencyMs = null;
           this._startPromise = null;
           this._notifyState();
         }
@@ -190,6 +250,40 @@ class CloudflaredTunnelManager {
     });
 
     return this._startPromise;
+  }
+
+  _measureLatency(retries = 2) {
+    if (this.status !== 'running') return;
+    const startTime = Date.now();
+    try {
+      // Direct connection to Cloudflare Anycast Edge for instant RTT & Colo detection
+      const req = https.get({
+        hostname: '1.1.1.1',
+        port: 443,
+        path: '/cdn-cgi/trace',
+        timeout: 4000,
+        headers: { 'User-Agent': 'MeikovaRelay-ColoCheck' }
+      }, (res) => {
+        let body = '';
+        res.on('data', chunk => { body += chunk; });
+        res.on('end', () => {
+          this.latencyMs = Date.now() - startTime;
+          const match = body.match(/^colo=([A-Z]{3})/m);
+          if (match && !this.edgeColo) {
+            const code = match[1].toUpperCase();
+            this.edgeColo = code;
+            this.edgeLocation = COLO_LOCATIONS[code] || code;
+          }
+          this._notifyState();
+        });
+      });
+      req.on('error', () => {
+        if (retries > 0 && this.status === 'running') {
+          setTimeout(() => this._measureLatency(retries - 1), 1500);
+        }
+      });
+      req.on('timeout', () => { req.destroy(); });
+    } catch (_) {}
   }
 
   stop() {
@@ -208,16 +302,19 @@ class CloudflaredTunnelManager {
     this.status = 'idle';
     this.tunnelUrl = null;
     this.startedAt = null;
+    this.edgeColo = null;
+    this.edgeLocation = null;
+    this.latencyMs = null;
     this._startPromise = null;
     this._notifyState();
     return this.getStatus();
   }
 
-  toggle(port = 8080) {
+  toggle(port = 8080, ipVersion = 'auto') {
     if (this.status === 'running') {
       return this.stop();
     } else {
-      return this.start(port);
+      return this.start(port, ipVersion);
     }
   }
 
@@ -239,5 +336,6 @@ process.on('exit', () => {
 
 module.exports = {
   CloudflaredTunnelManager,
-  tunnelManager
+  tunnelManager,
+  COLO_LOCATIONS
 };

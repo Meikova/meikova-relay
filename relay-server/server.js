@@ -12,6 +12,11 @@ try {
 
 const DB = require('./db');
 const { tunnelManager } = require('./tunnel_manager');
+tunnelManager.onStateChange = (st) => {
+  try {
+    broadcastTunnelUpdate(st);
+  } catch (_) {}
+};
 const { securityShield } = require('./security_shield');
 
 
@@ -318,7 +323,12 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/tunnel/start' && req.method === 'POST') {
       try {
-        const st = await tunnelManager.start(PORT);
+        let ipVersion = url.searchParams.get('ipVersion') || 'auto';
+        try {
+          const body = await parseJsonBody(req);
+          if (body && body.ipVersion) ipVersion = body.ipVersion;
+        } catch (_) {}
+        const st = await tunnelManager.start(PORT, ipVersion);
         broadcastTunnelUpdate(st);
         return jsonResponse(res, 200, { ok: true, ...st });
       } catch (err) {
@@ -334,11 +344,16 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/tunnel/toggle' && req.method === 'POST') {
       try {
+        let ipVersion = url.searchParams.get('ipVersion') || 'auto';
+        try {
+          const body = await parseJsonBody(req);
+          if (body && body.ipVersion) ipVersion = body.ipVersion;
+        } catch (_) {}
         let st;
         if (tunnelManager.status === 'running') {
           st = tunnelManager.stop();
         } else {
-          st = await tunnelManager.start(PORT);
+          st = await tunnelManager.start(PORT, ipVersion);
         }
         broadcastTunnelUpdate(st);
         return jsonResponse(res, 200, { ok: true, ...st });
