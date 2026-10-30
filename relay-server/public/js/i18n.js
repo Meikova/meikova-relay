@@ -10,9 +10,15 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory();
   } else {
-    root.MeikovaI18n = factory();
-
-    root.t = root.MeikovaI18n.t;
+    const api = factory();
+    root.MeikovaI18n = api;
+    root.i18n = api;
+    root.t = api.t;
+    if (typeof window !== 'undefined') {
+      window.MeikovaI18n = api;
+      window.i18n = api;
+      window.t = api.t;
+    }
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
@@ -1522,7 +1528,51 @@
       "deck.search_tools_ph": "Tìm kiếm công cụ...",
       "deck.no_shortcuts_found": "Không tìm thấy phím tắt phù hợp",
       "deck.no_tools_found": "Không tìm thấy tiện ích phù hợp",
-'deck.telemetry_engine_val': 'MEIKOVA RELAY v1.3.0',
+      'bottom-float': 'Dạng đáy nổi (Mặc định)',
+      'top-pinned': 'Mép trên (Ghim cố định)',
+      'top-unpinned': 'Mép trên (Tự động ẩn)',
+      'toast.oauth_not_configured': 'Chưa cấu hình Google OAuth.',
+      'toast.oauth_no_url': 'Không lấy được URL ủy quyền Google.',
+      'toast.session_kicked_by_admin': 'Phiên kết nối của bạn đã bị ngắt bởi quản trị viên.',
+      'toast.process_killed': 'Đã dừng tiến trình PID {pid}',
+      'toast.process_kill_failed': 'Không thể dừng tiến trình PID {pid}',
+      'toast.file_deleted': 'Đã xóa tệp/thư mục thành công.',
+      'toast.audio_enabled': 'Đã bật truyền âm thanh từ máy trạm.',
+      'toast.audio_disabled': 'Đã tắt truyền âm thanh.',
+      'toast.virtual_audio_success': 'Đã cài đặt Loa Ảo thành công! Đang truyền âm thanh.',
+      'toast.virtual_audio_failed': 'Cài đặt Loa Ảo thất bại.',
+      'toast.virtual_display_success': 'Đã kích hoạt Màn hình ảo thành công!',
+      'toast.virtual_display_failed': 'Kích hoạt Màn hình ảo thất bại.',
+      'toast.uac_sent': 'Đã gửi yêu cầu nâng quyền Quản trị (UAC)!',
+      'toast.uac_failed': 'Không thể nâng quyền Quản trị.',
+      'toast.uac_sent_target': 'Đã gửi yêu cầu nâng quyền Quản trị (UAC) tới máy đích...',
+      'toast.create_file_success': 'Đã tạo tệp mới thành công!',
+      'toast.create_file_failed': 'Không thể tạo tệp mới.',
+      'toast.search_results': 'Tìm thấy {count} kết quả cho "{query}"',
+      'toast.wol_sent': 'Đã gửi gói tin Magic Packet (Wake-on-LAN)!',
+      'toast.wol_failed': 'Lỗi gửi Wake-on-LAN.',
+      'toast.wol_sent_mac': 'Đã phát gói tin Magic Packet tới MAC {mac}!',
+      'toast.host_disconnected': 'Mất kết nối với máy trạm.',
+      'toast.host_disconnected_reason': 'Máy trạm đã ngắt kết nối ({reason})',
+      'toast.simd_encoder': 'Bộ nén hình ảnh SIMD: {mode}',
+      'toast.zero_cpu_on': 'Đã bật Zero-CPU Cached Frame (0% CPU khi màn hình tĩnh)',
+      'toast.zero_cpu_off': 'Đã tắt Zero-CPU Cached Frame',
+      'toast.fit_mode': 'Chế độ: Co giãn vừa khung hình',
+      'toast.pixel_perfect_mode': 'Chế độ: 1:1 Pixel-Perfect Nguyên bản',
+      'toast.touch_direct': 'Chế độ cảm ứng: Chạm trực tiếp',
+      'toast.touch_trackpad': 'Chế độ cảm ứng: Bàn di chuột',
+      'toast.drop_paste_success': 'Đã thả và dán trực tiếp văn bản vào vị trí con trỏ trên máy đích!',
+      'toast.tunnel_failed': 'Thao tác Tunnel thất bại.',
+      'toast.save_meta_success': 'Đã lưu nhóm và thẻ máy trạm thành công!',
+      'toast.save_meta_failed': 'Lỗi lưu thông tin máy trạm.',
+      'toast.export_terminal_success': 'Đã xuất nhật ký Terminal thành công!',
+      'toast.copy_winget_success': 'Đã sao chép lệnh Winget!',
+      'toast.copy_server_success': 'Đã sao chép địa chỉ máy chủ Relay!',
+      'toast.copy_gateway_success': 'Đã sao chép liên kết điều khiển!',
+      'toast.copy_host_cmd_success': 'Đã sao chép lệnh cài đặt Host Agent!',
+      'toast.no_speaker_title': 'Máy Trạm Chưa Có Loa Ngoài',
+      'toast.no_speaker_desc': 'Máy trạm hiện không cắm loa ngoài hoặc tai nghe. Bạn có muốn máy trạm tự động cài đặt Loa Ảo (Virtual Audio Cable) để truyền âm thanh về máy này không?',
+      'deck.telemetry_engine_val': 'MEIKOVA RELAY v1.3.0',
 
     },
     en: {
@@ -3021,7 +3071,51 @@
       "deck.search_tools_ph": "Search tools...",
       "deck.no_shortcuts_found": "No matching shortcuts found",
       "deck.no_tools_found": "No matching tools found",
-'deck.telemetry_engine_val': 'MEIKOVA RELAY v1.3.0',
+      'bottom-float': 'Bottom Floating Deck (Default)',
+      'top-pinned': 'Top Bar (Pinned)',
+      'top-unpinned': 'Top Bar (Auto-hide)',
+      'toast.oauth_not_configured': 'Google OAuth is not configured.',
+      'toast.oauth_no_url': 'Unable to retrieve Google OAuth authorization URL.',
+      'toast.session_kicked_by_admin': 'Your session has been terminated by an administrator.',
+      'toast.process_killed': 'Terminated process PID {pid}',
+      'toast.process_kill_failed': 'Failed to terminate process PID {pid}',
+      'toast.file_deleted': 'File/folder deleted successfully.',
+      'toast.audio_enabled': 'Enabled host audio streaming.',
+      'toast.audio_disabled': 'Disabled audio streaming.',
+      'toast.virtual_audio_success': 'Virtual Audio Cable installed successfully! Streaming audio.',
+      'toast.virtual_audio_failed': 'Failed to install Virtual Audio Cable.',
+      'toast.virtual_display_success': 'Virtual Display activated successfully!',
+      'toast.virtual_display_failed': 'Failed to activate Virtual Display.',
+      'toast.uac_sent': 'Sent UAC Administrator elevation request!',
+      'toast.uac_failed': 'Unable to elevate to Administrator.',
+      'toast.uac_sent_target': 'Sent UAC elevation request to target host...',
+      'toast.create_file_success': 'New file created successfully!',
+      'toast.create_file_failed': 'Failed to create new file.',
+      'toast.search_results': 'Found {count} results for "{query}"',
+      'toast.wol_sent': 'Sent Magic Packet (Wake-on-LAN)!',
+      'toast.wol_failed': 'Failed to send Wake-on-LAN.',
+      'toast.wol_sent_mac': 'Broadcasted Magic Packet to MAC {mac}!',
+      'toast.host_disconnected': 'Connection to workstation lost.',
+      'toast.host_disconnected_reason': 'Workstation disconnected ({reason})',
+      'toast.simd_encoder': 'SIMD Image Encoder: {mode}',
+      'toast.zero_cpu_on': 'Enabled Zero-CPU Cached Frame (0% CPU when screen is static)',
+      'toast.zero_cpu_off': 'Disabled Zero-CPU Cached Frame',
+      'toast.fit_mode': 'Mode: Scale to fit frame',
+      'toast.pixel_perfect_mode': 'Mode: 1:1 Pixel-Perfect Native',
+      'toast.touch_direct': 'Touch mode: Direct touch',
+      'toast.touch_trackpad': 'Touch mode: Trackpad cursor',
+      'toast.drop_paste_success': 'Dropped and pasted text directly at host cursor position!',
+      'toast.tunnel_failed': 'Tunnel operation failed.',
+      'toast.save_meta_success': 'Saved workstation group and tags successfully!',
+      'toast.save_meta_failed': 'Failed to save workstation information.',
+      'toast.export_terminal_success': 'Exported Terminal logs successfully!',
+      'toast.copy_winget_success': 'Copied Winget command!',
+      'toast.copy_server_success': 'Copied Relay server address!',
+      'toast.copy_gateway_success': 'Copied control gateway link!',
+      'toast.copy_host_cmd_success': 'Copied Host Agent install command!',
+      'toast.no_speaker_title': 'Workstation Lacks Audio Output',
+      'toast.no_speaker_desc': 'The remote workstation has no physical speakers or headphones plugged in. Would you like to automatically install Virtual Audio Cable to stream sound here?',
+      'deck.telemetry_engine_val': 'MEIKOVA RELAY v1.3.0',
 
     }
   };
