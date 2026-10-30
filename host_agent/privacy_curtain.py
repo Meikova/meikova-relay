@@ -449,12 +449,25 @@ class PrivacyCurtain:
             user32.CallNextHookEx.argtypes = [wintypes.HHOOK, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM]
             user32.CallNextHookEx.restype = ctypes.c_longlong
 
+            esc_times = []
+
             def kb_hook_fn(nCode, wParam, lParam):
                 if nCode >= 0:
                     try:
                         p = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
                         if (p.flags & LLKHF_INJECTED) or (p.dwExtraInfo == MEIKOVA_INPUT_MAGIC):
                             return user32.CallNextHookEx(None, nCode, wParam, lParam)
+                        # Physical keyboard event: Check Emergency Escape (VK_ESCAPE = 0x1B, WM_KEYDOWN = 0x0100)
+                        if wParam == 0x0100 and p.vkCode == 0x1B:
+                            now = time.time()
+                            esc_times.append(now)
+                            while esc_times and (now - esc_times[0]) > 1.5:
+                                esc_times.pop(0)
+                            if len(esc_times) >= 3:
+                                logger.warning("[PrivacyCurtain] Emergency Fail-Safe activated! User pressed Esc 3 times. Deactivating Curtain immediately.")
+                                esc_times.clear()
+                                threading.Thread(target=self.disable_all, daemon=True).start()
+                                return 0
                         # Drop physical keyboard event
                         return 1
                     except Exception:

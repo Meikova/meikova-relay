@@ -21,8 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Meikova Relay">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   
-  <link rel="stylesheet" href="/css/tokens.css?v=1.5.1">
-  <link rel="stylesheet" href="/css/style.css?v=1.5.1">
+  <link rel="stylesheet" href="/css/tokens.css?v=1.5.2">
+  <link rel="stylesheet" href="/css/style.css?v=1.5.2">
 </head>
 <body>
 
@@ -175,7 +175,7 @@
           <div class="landing-hero-left">
             <div class="landing-telemetry-badge mono-font">
               <span class="status-dot online"></span>
-              <span data-i18n="landing.badge">v1.5.1 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
+              <span data-i18n="landing.badge">v1.5.2 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR</span>
             </div>
 
             <h1 class="landing-hero-title brand-font" data-i18n="landing.hero_title">ĐIỀU KHIỂN TỪ XA ĐA NỀN TẢNG CHÍNH XÁC CAO</h1>
@@ -1171,7 +1171,7 @@
           </div>
           <div class="guard-telemetry guard-telemetry--br mono-font" aria-hidden="true">
             <span class="telemetry-label" data-i18n="deck.telemetry_engine">ENGINE</span>
-            <span class="telemetry-val" data-i18n="deck.telemetry_engine_val">MEIKOVA RELAY v1.5.1</span>
+            <span class="telemetry-val" data-i18n="deck.telemetry_engine_val">MEIKOVA RELAY v1.5.2</span>
           </div>
 
           <!-- Central Ambient Glass Instrument Card -->
@@ -4009,13 +4009,13 @@
     </div>
   </div>
 
-  <script src="/js/i18n.js?v=1.5.1"></script>
-  <script src="/js/sync_engine.js?v=1.5.1"></script>
-  <script src="/js/app.js?v=1.5.1"></script>
+  <script src="/js/i18n.js?v=1.5.2"></script>
+  <script src="/js/sync_engine.js?v=1.5.2"></script>
+  <script src="/js/app.js?v=1.5.2"></script>
   <script>
     if ('serviceWorker' in navigator && !window.pywebview) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=1.5.1').then((reg) => {
+        navigator.serviceWorker.register('/sw.js?v=1.5.2').then((reg) => {
           document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
               reg.update().catch(() => {});

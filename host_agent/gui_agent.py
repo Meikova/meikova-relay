@@ -1,3 +1,16 @@
+import secrets
+
+def generate_secure_room_id() -> str:
+    """Generates a 9-digit segmented Room ID (RD-XXX-XXX-XXX) with high entropy."""
+    p1 = secrets.randbelow(900) + 100
+    p2 = secrets.randbelow(900) + 100
+    p3 = secrets.randbelow(900) + 100
+    return f"RD-{p1}-{p2}-{p3}"
+
+def generate_secure_pin() -> str:
+    """Generates a cryptographically strong 6-digit PIN using system entropy."""
+    return f"{secrets.randbelow(900000) + 100000}"
+
 try:
     from .auto_bootstrap import activate_vendor_paths as _activate_vendor_paths
     _activate_vendor_paths()
@@ -35,7 +48,7 @@ from typing import Optional
 import multiprocessing
 multiprocessing.freeze_support()
 
-APP_VERSION = "1.5.1"
+APP_VERSION = "1.5.2"
 
 # Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":
@@ -620,8 +633,8 @@ class MeikovaRelayHostGUI:
             "relay": "wss://meikova-relay.onrender.com",
             "account": "",
             "device_name": default_comp,
-            "room_id": f"RD-{random.randint(1000, 9999)}",
-            "pin": f"{random.randint(100000, 999999)}",
+            "room_id": generate_secure_room_id(),
+            "pin": generate_secure_pin(),
             "keep_awake": True,
             "open_on_boot": False,
             "close_to_tray": True,
@@ -1581,7 +1594,7 @@ class MeikovaRelayHostGUI:
     # RANDOM CODES & CLIPBOARD
     # -------------------------------------------------------------
     def _generate_random_room(self):
-        rand_id = f"RD-{random.randint(1000, 9999)}"
+        rand_id = generate_secure_room_id()
         self.room_var.set(rand_id)
         self.config["room_id"] = rand_id
         self._save_config()
@@ -1590,7 +1603,7 @@ class MeikovaRelayHostGUI:
             self._log(self.t("log_restart_req"))
 
     def _generate_random_pin(self):
-        rand_pin = f"{random.randint(100000, 999999)}"
+        rand_pin = generate_secure_pin()
         self.pin_var.set(rand_pin)
         self.config["pin"] = rand_pin
         self._save_config()
@@ -1822,8 +1835,8 @@ def _load_initial_config(cfg_file: Path) -> dict:
         "relay": "wss://meikova-relay.onrender.com",
         "account": "",
         "device_name": default_comp,
-        "room_id": f"RD-{random.randint(1000, 9999)}",
-        "pin": f"{random.randint(100000, 999999)}",
+        "room_id": generate_secure_room_id(),
+        "pin": generate_secure_pin(),
         "keep_awake": True,
         "start_minimized": False,
         "lang": "vi"
@@ -2189,7 +2202,7 @@ class HostApi:
             self._log(self.t("log_disconnected"))
 
     def renew_room(self) -> str:
-        rand_id = f"RD-{random.randint(1000, 9999)}"
+        rand_id = generate_secure_room_id()
         self._config["room_id"] = rand_id
         self._save_config()
         self._log(self.t("log_new_room", room_id=rand_id))
@@ -2198,7 +2211,7 @@ class HostApi:
         return rand_id
 
     def renew_pin(self) -> str:
-        rand_pin = f"{random.randint(100000, 999999)}"
+        rand_pin = generate_secure_pin()
         self._config["pin"] = rand_pin
         self._save_config()
         self._log(self.t("log_new_pin", pin=rand_pin))
@@ -2786,8 +2799,8 @@ def run_service_headless():
     cfg_file = _get_default_config_path()
     config = _load_initial_config(cfg_file)
     relay_url = config.get("relay") or config.get("relay_url") or "wss://meikova-relay.onrender.com"
-    room_id = config.get("room_id") or f"RD-{random.randint(1000, 9999)}"
-    pin = config.get("pin") or f"{random.randint(100000, 999999)}"
+    room_id = config.get("room_id") or generate_secure_room_id()
+    pin = config.get("pin") or generate_secure_pin()
     account = config.get("account") or ""
     device_name = config.get("device_name") or os.environ.get("COMPUTERNAME", "Workstation")
 

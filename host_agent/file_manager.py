@@ -345,11 +345,65 @@ class FileManager:
             pass
         return False
 
+    @staticmethod
+    def is_sensitive_path(filepath: str) -> bool:
+        """Checks if a target path accesses restricted system secrets or credentials."""
+        if not filepath:
+            return False
+        clean = os.path.abspath(unicodedata.normalize('NFC', str(filepath))).lower()
+        clean_slash = clean.replace('\\', '/')
+        blocked_substrings = [
+            "/system32/config/sam",
+            "/system32/config/system",
+            "/system32/config/security",
+            "/etc/shadow",
+            "/etc/passwd",
+            "/etc/sudoers",
+            "/.ssh/id_rsa",
+            "/.ssh/id_ed25519",
+            "/.ssh/id_ecdsa",
+            "/network/cookies",
+            "/login data",
+            "/web data",
+        ]
+        for sub in blocked_substrings:
+            if sub in clean_slash:
+                return True
+        base = os.path.basename(clean).lower()
+        if base.startswith(".env") or base in ("id_rsa", "id_ed25519", "sam", "shadow", "passwd", "sudoers"):
+            return True
+        return False
+        clean = os.path.abspath(unicodedata.normalize('NFC', str(filepath))).lower()
+        blocked_substrings = [
+            r"\system32\config\sam",
+            r"\system32\config\system",
+            r"\system32\config\security",
+            r"/etc/shadow",
+            r"/etc/passwd",
+            r"/etc/sudoers",
+            r"\.ssh\id_rsa",
+            r"\.ssh\id_ed25519",
+            r"/.ssh/id_rsa",
+            r"/.ssh/id_ed25519",
+            r"\network\cookies",
+            r"\login data",
+            r"\web data",
+        ]
+        for sub in blocked_substrings:
+            if sub in clean:
+                return True
+        base = os.path.basename(clean).lower()
+        if base.startswith(".env") or base in ("id_rsa", "id_ed25519", "sam", "shadow"):
+            return True
+        return False
+
     def read_file_content(self, filepath: str, max_size: int = 5 * 1024 * 1024) -> Dict[str, Any]:
         """Reads text content of a file directly with automatic encoding detection and binary guard."""
         try:
             filepath = unicodedata.normalize('NFC', filepath)
             target = os.path.abspath(filepath)
+            if self.is_sensitive_path(target):
+                return {"success": False, "error": "Truy cập tệp bảo mật bị chặn bởi chính sách an toàn (Access Denied)."}
             if not os.path.exists(target) or not os.path.isfile(target):
                 return {"success": False, "error": "Tệp không tồn tại hoặc là thư mục"}
 
@@ -401,6 +455,8 @@ class FileManager:
         try:
             filepath = unicodedata.normalize('NFC', filepath)
             target = os.path.abspath(filepath)
+            if self.is_sensitive_path(target):
+                return {"success": False, "error": "Ghi tệp bảo mật bị chặn bởi chính sách an toàn (Access Denied)."}
             parent_dir = os.path.dirname(target)
             if not os.path.isdir(parent_dir):
                 return {"success": False, "error": "Thư mục đích không tồn tại"}

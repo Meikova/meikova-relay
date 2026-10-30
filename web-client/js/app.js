@@ -3,7 +3,7 @@
   'use strict';
   // PWA Cache Storage Purge on Version Bump
   try {
-    const PWA_VER = '1.5.1';
+    const PWA_VER = '1.5.2';
     const lastPwaVer = localStorage.getItem('meikova_pwa_ver');
     if (lastPwaVer && lastPwaVer !== PWA_VER && 'caches' in window) {
       localStorage.setItem('meikova_pwa_ver', PWA_VER);

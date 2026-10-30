@@ -12,6 +12,7 @@ try {
 
 const DB = require('./db');
 const { tunnelManager } = require('./tunnel_manager');
+const { securityShield } = require('./security_shield');
 
 
 
@@ -32,7 +33,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const FALLBACK_DIR = path.join(__dirname, '..', 'web-client');
 const WEB_CLIENT_DIR = fs.existsSync(path.join(PUBLIC_DIR, 'index.html')) ? PUBLIC_DIR : FALLBACK_DIR;
 
-let APP_VERSION = '1.5.1';
+let APP_VERSION = '1.5.2';
 try {
   const pkgData = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'));
   if (pkgData && pkgData.version) APP_VERSION = pkgData.version;
@@ -166,16 +167,38 @@ function getGoogleCredentials() {
 
 
 
-function parseBody(req) {
-  return new Promise((resolve) => {
+function parseBody(req, maxBytes = 1024 * 1024) {
+  return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', chunk => { body += chunk; });
+    let bytesReceived = 0;
+    let rejected = false;
+
+    function onData(chunk) {
+      if (rejected) return;
+      bytesReceived += chunk.length;
+      if (bytesReceived > maxBytes) {
+        rejected = true;
+        req.removeListener('data', onData);
+        req.pause();
+        const payloadErr = new Error('PAYLOAD_TOO_LARGE');
+        payloadErr.statusCode = 413;
+        reject(payloadErr);
+        return;
+      }
+      body += chunk;
+    }
+
+    req.on('data', onData);
     req.on('end', () => {
+      if (rejected) return;
       try {
         resolve(JSON.parse(body || '{}'));
       } catch {
         resolve({});
       }
+    });
+    req.on('error', (err) => {
+      if (!rejected) resolve({});
     });
   });
 }
@@ -199,6 +222,7 @@ function jsonResponse(res, status, data, isHead = false) {
 // HTTP Server: Serves REST API and Web Client files
 
 const server = http.createServer(async (req, res) => {
+  try {
   // CORS Preflight
 
   if (req.method === 'OPTIONS') {
@@ -2251,7 +2275,23 @@ echo "Meikova Relay Host running in background (PID: $!)."
     });
     fs.createReadStream(filePath).pipe(res);
   });
+  } catch (err) {
+    if (err && (err.statusCode === 413 || err.message === 'PAYLOAD_TOO_LARGE')) {
+      try { req.resume(); } catch (_) { }
+      return jsonResponse(res, 413, {
+        success: false,
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'Dung lượng yêu cầu vượt quá giới hạn an toàn cho phép (Max 1MB).'
+      });
+    }
+    console.error('[HTTP Server Error]', err);
+    if (!res.headersSent) {
+      jsonResponse(res, 500, { success: false, code: 'SYSTEM_INTERNAL_ERROR', message: 'Lỗi máy chủ nội bộ.' });
+    }
+  }
 });
+server.headersTimeout = 10000;
+server.requestTimeout = 30000;
 
 
 
@@ -2441,10 +2481,27 @@ wss.on('connection', (ws, req) => {
   let role = null;
   let currentRoomId = null;
 
+  const rawIp = getClientIp(req);
+  if (!securityShield.trackWsConnection(rawIp, ws)) {
+    console.warn(`[SecurityShield] Rejecting WS connection from ${rawIp}: IP connection cap exceeded.`);
+    try {
+      ws.send(JSON.stringify({
+        status: 'error',
+        code: 'RELAY_CONNECTION_CAP_EXCEEDED',
+        message: 'Đã vượt quá số lượng kết nối WebSocket cho phép trên địa chỉ IP này.'
+      }));
+    } catch (_) { }
+    ws.close(1008, 'Connection cap exceeded');
+    return;
+  }
+  ws.on('close', () => {
+    securityShield.releaseWsConnection(rawIp, ws);
+  });
 
+  securityShield.initTokenBucket(ws);
 
   ws.isAlive = true;
-  ws.clientIp = getClientIp(req);
+  ws.clientIp = rawIp;
   ws.clientDevice = parseClientDevice(req.headers['user-agent']);
   ws.connectTime = Date.now();
   ws.username = 'Khách (Ẩn danh)';
@@ -2459,6 +2516,17 @@ wss.on('connection', (ws, req) => {
 
   ws.on('message', async (message, isBinary) => {
     ws.isAlive = true;
+
+    if (!isBinary && !securityShield.consumeToken(ws, 1)) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'rate_limited',
+          code: 'RELAY_MESSAGE_FLOOD',
+          message: 'Gửi tin nhắn quá nhanh. Vui lòng giảm tần số.'
+        }));
+      } catch (_) { }
+      return;
+    }
 
     // 1. Forward raw binary frames (Screen frames to ALL active clients)
 
@@ -2561,6 +2629,21 @@ wss.on('connection', (ws, req) => {
       currentRoomId = roomId;
       ws.machineId = hostMachineId;
       const room = getOrCreateRoom(roomId);
+
+      const incomingHostSecret = String(data.host_secret || data.hostSecret || '').trim();
+      if (room.hostSecret && incomingHostSecret && room.hostSecret !== incomingHostSecret) {
+        console.warn(`[SecurityShield] Unauthorized host attempt for room ${roomId} from ${ws.clientIp}`);
+        ws.send(JSON.stringify({
+          status: 'error',
+          code: 'RELAY_HOST_UNAUTHORIZED',
+          message: 'Phòng đã tồn tại và thuộc về máy trạm khác (Invalid Host Secret).'
+        }));
+        ws.close(1008, 'Unauthorized host secret');
+        return;
+      }
+      if (!room.hostSecret) {
+        room.hostSecret = incomingHostSecret || securityShield.generateHostSecret();
+      }
       room.pin = pin;
 
       // Cleanly supersede existing host connection for same room if active
@@ -2648,7 +2731,7 @@ wss.on('connection', (ws, req) => {
 
 
       console.log(`[Host Online] Room: ${roomId} | Device: ${room.hostMeta.deviceName} | IP: ${ws.clientIp}`);
-      ws.send(JSON.stringify({ status: 'ok', role: 'host', room_id: roomId }));
+      ws.send(JSON.stringify({ status: 'ok', role: 'host', room_id: roomId, host_secret: room.hostSecret }));
 
 
 
@@ -2711,37 +2794,61 @@ wss.on('connection', (ws, req) => {
 
 
 
-      if (!room || !room.hostWs || room.hostWs.readyState !== WebSocket.OPEN) {
+      // 5-Strike Lockout & Anti-Brute-Force Shield
+      const lockoutKey = securityShield.getLockoutKey(ws.clientIp, roomId);
+      const lockStatus = securityShield.isLockedOut(lockoutKey);
+      if (lockStatus.locked) {
+        await securityShield.uniformDelay(300, 50);
+        ws.send(JSON.stringify({
+          status: 'error',
+          code: 'RELAY_RATE_LIMITED',
+          message: `Quá nhiều lần thử mã PIN thất bại. Vui lòng thử lại sau ${lockStatus.remainingSec} giây.`,
+          retryAfter: lockStatus.remainingSec
+        }));
+        ws.close(4003, 'Too many failed PIN attempts');
+        return;
+      }
+
+      const isRoomOnline = Boolean(room && room.hostWs && room.hostWs.readyState === WebSocket.OPEN);
+      const isPinValid = isRoomOnline && (!room.pin || room.pin === pin);
+
+      if (!isRoomOnline || !isPinValid) {
+        const strike = securityShield.recordFailedAttempt(lockoutKey);
+        await securityShield.uniformDelay(300, 50);
         await DB.logAudit({
-          action: 'CONNECT_FAILED_OFFLINE',
+          action: 'CONNECT_AUTH_FAILED',
           userId: ws.userId,
           username: ws.username,
           clientIp: ws.clientIp,
           clientDevice: ws.clientDevice,
           roomId,
-          details: { status: 'failed', reason: 'Máy trạm đang Offline' }
+          targetDevice: room?.hostMeta?.deviceName,
+          targetOs: room?.hostMeta?.osInfo,
+          details: { status: 'failed', attempts: strike.count, locked: strike.locked }
         });
-        ws.send(JSON.stringify({ status: 'error', code: 'RELAY_ROOM_OFFLINE', message: 'Máy trạm đang Offline hoặc không tồn tại' }));
+
+        if (strike.locked) {
+          ws.send(JSON.stringify({
+            status: 'error',
+            code: 'RELAY_RATE_LIMITED',
+            message: `Quá nhiều lần thử mã PIN thất bại. Vui lòng thử lại sau ${strike.remainingSec} giây.`,
+            retryAfter: strike.remainingSec
+          }));
+          ws.close(4003, 'Too many failed PIN attempts');
+          return;
+        }
+
+        // Uniform Error Timing to eliminate Room Existence Oracle
+        // (Backward taxonomy: 'RELAY_ROOM_OFFLINE', 'RELAY_INVALID_PIN')
+        ws.send(JSON.stringify({
+          status: 'error',
+          code: 'RELAY_AUTH_FAILED',
+          message: 'Thông tin phòng hoặc mã PIN bảo mật không chính xác (hoặc máy trạm đang Offline).'
+        }));
         return;
       }
 
-
-
-      if (room.pin && room.pin !== pin) {
-        await DB.logAudit({
-          action: 'CONNECT_PIN_FAILED',
-          userId: ws.userId,
-          username: ws.username,
-          clientIp: ws.clientIp,
-          clientDevice: ws.clientDevice,
-          roomId,
-          targetDevice: room.hostMeta?.deviceName,
-          targetOs: room.hostMeta?.osInfo,
-          details: { status: 'failed', reason: 'Sai mã PIN bảo mật' }
-        });
-        ws.send(JSON.stringify({ status: 'error', code: 'RELAY_INVALID_PIN', message: 'Mã PIN bảo mật không chính xác' }));
-        return;
-      }
+      securityShield.clearFailedAttempts(lockoutKey);
 
 
 
