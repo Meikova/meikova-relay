@@ -55,8 +55,8 @@ class CloudflaredTunnelManager {
     this.latencyMs = null; // Measured round-trip latency in ms
     this._startPromise = null;
     this.onStateChange = null;
-    this.tunnelToken = process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || null;
-    this.tunnelHostname = process.env.TUNNEL_HOSTNAME || null;
+    this.tunnelToken = (process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || '').trim() || null;
+    this.tunnelHostname = (process.env.TUNNEL_HOSTNAME || '').trim() || null;
   }
 
   findCloudflared() {
@@ -160,8 +160,8 @@ class CloudflaredTunnelManager {
       let resolved = false;
 
       try {
-        const token = this.tunnelToken || process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || null;
-        const hostname = this.tunnelHostname || process.env.TUNNEL_HOSTNAME || null;
+        const token = (this.tunnelToken || process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || '').trim() || null;
+        const hostname = (this.tunnelHostname || process.env.TUNNEL_HOSTNAME || '').trim() || null;
 
         const args = [
           'tunnel',
@@ -214,8 +214,8 @@ class CloudflaredTunnelManager {
           }
         }
 
-        const token = this.tunnelToken || process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || null;
-        const hostname = this.tunnelHostname || process.env.TUNNEL_HOSTNAME || null;
+        const token = (this.tunnelToken || process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || '').trim() || null;
+        const hostname = (this.tunnelHostname || process.env.TUNNEL_HOSTNAME || '').trim() || null;
 
         // Named Tunnel connection
         if (token && (text.includes('Registered tunnel connection') || text.includes('Updated to new configuration')) && !resolved) {
