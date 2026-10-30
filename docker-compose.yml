@@ -11,6 +11,8 @@ services:
       - PORT=${PORT:-8080}
       - HOST=0.0.0.0
       - AUTO_TUNNEL=${AUTO_TUNNEL:-0}
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
+      - TUNNEL_HOSTNAME=${TUNNEL_HOSTNAME:-}
       - TURSO_DATABASE_URL=${TURSO_DATABASE_URL:-}
       - TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN:-}
       - DATA_DIR=/app/relay-server/data

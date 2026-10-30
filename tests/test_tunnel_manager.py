@@ -111,5 +111,26 @@ class TestTunnelManager(unittest.TestCase):
         self.assertEqual(p.returncode, 0, f"Node script failed: {p.stderr}")
         self.assertIn("COLO_MAP_OK", p.stdout)
 
+    def test_named_tunnel_token_and_hostname(self):
+        js_code = """
+        process.env.TUNNEL_TOKEN = 'test-mock-token-xyz';
+        process.env.TUNNEL_HOSTNAME = 'relay.meikova.com';
+        const { CloudflaredTunnelManager } = require('./tunnel_manager.js');
+        const m = new CloudflaredTunnelManager();
+        const st = m.getStatus();
+        if (!st.isNamedTunnel || st.hostname !== 'relay.meikova.com') {
+            process.exit(1);
+        }
+        console.log('NAMED_TUNNEL_OK');
+        """
+        p = subprocess.run(
+            ["node", "-e", js_code],
+            cwd=str(REPO_ROOT / "relay-server"),
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(p.returncode, 0, f"Node script failed: {p.stderr}")
+        self.assertIn("NAMED_TUNNEL_OK", p.stdout)
+
 if __name__ == "__main__":
     unittest.main()

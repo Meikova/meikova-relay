@@ -55,6 +55,8 @@ class CloudflaredTunnelManager {
     this.latencyMs = null; // Measured round-trip latency in ms
     this._startPromise = null;
     this.onStateChange = null;
+    this.tunnelToken = process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || null;
+    this.tunnelHostname = process.env.TUNNEL_HOSTNAME || null;
   }
 
   findCloudflared() {
@@ -122,11 +124,13 @@ class CloudflaredTunnelManager {
       edgeIpVersion: this.edgeIpVersion,
       edgeColo: this.edgeColo,
       edgeLocation: this.edgeLocation,
-      latencyMs: this.latencyMs
+      latencyMs: this.latencyMs,
+      isNamedTunnel: !!(this.tunnelToken || process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN),
+      hostname: this.tunnelHostname || process.env.TUNNEL_HOSTNAME || null
     };
   }
 
-  async start(port = 8080, ipVersion = 'auto') {
+  async start(port = 8080, ipVersion = 'auto', customToken = null, customHostname = null) {
     if (this.status === 'running' && this.tunnelUrl) {
       return this.getStatus();
     }
@@ -148,19 +152,30 @@ class CloudflaredTunnelManager {
     this.latencyMs = null;
     this.status = 'starting';
     this.error = null;
+    if (customToken) this.tunnelToken = customToken;
+    if (customHostname) this.tunnelHostname = customHostname;
     this._notifyState();
 
     this._startPromise = new Promise((resolve, reject) => {
       let resolved = false;
 
       try {
+        const token = this.tunnelToken || process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || null;
+        const hostname = this.tunnelHostname || process.env.TUNNEL_HOSTNAME || null;
+
         const args = [
           'tunnel',
           '--protocol', 'http2',
           '--edge-ip-version', this.edgeIpVersion,
-          '--no-autoupdate',
-          '--url', `http://127.0.0.1:${port}`
+          '--no-autoupdate'
         ];
+
+        if (token) {
+          args.push('run', '--token', token);
+        } else {
+          args.push('--url', `http://127.0.0.1:${port}`);
+        }
+
         this.process = spawn(bin, args, {
           windowsHide: true,
           stdio: ['ignore', 'pipe', 'pipe']
@@ -199,6 +214,26 @@ class CloudflaredTunnelManager {
           }
         }
 
+        const token = this.tunnelToken || process.env.TUNNEL_TOKEN || process.env.CLOUDFLARE_TUNNEL_TOKEN || null;
+        const hostname = this.tunnelHostname || process.env.TUNNEL_HOSTNAME || null;
+
+        // Named Tunnel connection
+        if (token && (text.includes('Registered tunnel connection') || text.includes('Updated to new configuration')) && !resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          const targetHost = hostname || 'relay.meikova.com';
+          this.tunnelUrl = targetHost.startsWith('http') ? targetHost : `https://${targetHost}`;
+          this.status = 'running';
+          this.startedAt = Date.now();
+          this._startPromise = null;
+          this._notifyState();
+          Promise.resolve(this._measureLatency()).finally(() => {
+            resolve(this.getStatus());
+          });
+          return;
+        }
+
+        // Quick Tunnel connection
         const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
         if (match && !resolved) {
           resolved = true;

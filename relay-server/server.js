@@ -324,11 +324,17 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/tunnel/start' && req.method === 'POST') {
       try {
         let ipVersion = url.searchParams.get('ipVersion') || 'auto';
+        let token = url.searchParams.get('token') || null;
+        let hostname = url.searchParams.get('hostname') || null;
         try {
           const body = await parseJsonBody(req);
-          if (body && body.ipVersion) ipVersion = body.ipVersion;
+          if (body) {
+            if (body.ipVersion) ipVersion = body.ipVersion;
+            if (body.token) token = body.token;
+            if (body.hostname) hostname = body.hostname;
+          }
         } catch (_) {}
-        const st = await tunnelManager.start(PORT, ipVersion);
+        const st = await tunnelManager.start(PORT, ipVersion, token, hostname);
         broadcastTunnelUpdate(st);
         return jsonResponse(res, 200, { ok: true, ...st });
       } catch (err) {
@@ -345,15 +351,21 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/tunnel/toggle' && req.method === 'POST') {
       try {
         let ipVersion = url.searchParams.get('ipVersion') || 'auto';
+        let token = url.searchParams.get('token') || null;
+        let hostname = url.searchParams.get('hostname') || null;
         try {
           const body = await parseJsonBody(req);
-          if (body && body.ipVersion) ipVersion = body.ipVersion;
+          if (body) {
+            if (body.ipVersion) ipVersion = body.ipVersion;
+            if (body.token) token = body.token;
+            if (body.hostname) hostname = body.hostname;
+          }
         } catch (_) {}
         let st;
         if (tunnelManager.status === 'running') {
           st = tunnelManager.stop();
         } else {
-          st = await tunnelManager.start(PORT, ipVersion);
+          st = await tunnelManager.start(PORT, ipVersion, token, hostname);
         }
         broadcastTunnelUpdate(st);
         return jsonResponse(res, 200, { ok: true, ...st });
