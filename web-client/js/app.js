@@ -3325,10 +3325,13 @@
           (isAdv && getBool('admin', 'dlAdvAdmin') === '1' ? '1' : '0')));
     params.set('admin', admin || '0');
 
+    // Service mode is strictly 0 (disabled) by default.
+    // Only 1 if advanced mode is active AND dlAdvService is explicitly checked.
     const service = opts.service !== undefined ? (opts.service ? '1' : '0') :
       (opts.serviceMode !== undefined ? (opts.serviceMode ? '1' : '0') :
-        (opts.run_as_service !== undefined ? (opts.run_as_service ? '1' : '0') : getBool('service', 'dlAdvService')));
-    if (service !== null) params.set('service', service);
+        (opts.run_as_service !== undefined ? (opts.run_as_service ? '1' : '0') :
+          (isAdv && getBool('service', 'dlAdvService') === '1' ? '1' : '0')));
+    params.set('service', service || '0');
 
     const autostart = opts.autostart !== undefined ? (opts.autostart ? '1' : '0') : getBool('autostart', 'dlAdvAutostart');
     if (autostart !== null) params.set('autostart', autostart);
