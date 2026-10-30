@@ -34,7 +34,7 @@ class AudioCapture:
             return
         self.running = False
         if self.thread and self.thread.is_alive():
-            self.thread.join(timeout=1.0)
+            self.thread.join(timeout=0.08)
         self.thread = None
         logger.info("[AudioCapture] Stopped loopback capture.")
 

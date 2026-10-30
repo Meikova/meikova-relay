@@ -306,6 +306,7 @@ class HostService:
         # Audio Capture & Stream
         self.audio_capture = AudioCapture(on_chunk=self._on_audio_chunk, on_status=self._on_audio_status)
         self.audio_enabled = False
+        self.has_audio_output = True
         self.audio_queue: Optional[asyncio.Queue] = None
 
         # Audio Playback (Client Mic -> Host Speakers)
@@ -1237,6 +1238,7 @@ class HostService:
                         "config": self.get_host_config_snapshot()
                     }))
                     has_output = is_audio_output_available()
+                    self.has_audio_output = has_output
                     await ws.send(json.dumps({
                         "type": "audio_capabilities",
                         "available": self.audio_capture.is_wasapi_available,
@@ -1650,7 +1652,7 @@ class HostService:
                 # Audio Stream Control (Host Speakers -> Client Browser)
                 elif ev_type == "audio_stream_toggle":
                     self.audio_enabled = bool(event.get("enabled", False))
-                    has_output = is_audio_output_available()
+                    has_output = getattr(self, "has_audio_output", True)
                     if self.audio_enabled:
                         self.audio_capture.start()
                     else:

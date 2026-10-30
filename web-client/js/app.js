@@ -6936,6 +6936,8 @@
     if (targetState) {
       initAudioContext();
     }
+    // Optimistic UI update: instantly toggle deck icon and toast (0ms feedback)
+    updateAudioStreamUi(targetState);
     ws.send(JSON.stringify({
       type: 'audio_stream_toggle',
       enabled: targetState
