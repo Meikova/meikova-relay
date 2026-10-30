@@ -4457,46 +4457,23 @@
           }
         } else if (msg.type === 'block_input_response') {
           if (msg.requires_admin) {
-            isInputBlocked = false;
-            btnToggleBlockInput?.classList.remove('btn-active', 'is-locked');
-            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            updateBlockInputUi(false);
             showToast(t('toast.requires_admin_block_input') || t('toast.requires_admin'), 'warning');
-          } else if (msg.success !== false) {
-            isInputBlocked = !!msg.blocked;
-            btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
-            btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
-            if (btnToggleBlockInput) {
-              btnToggleBlockInput.title = isInputBlocked
-                ? (typeof t === 'function' ? t('toast.block_input_on') : 'Đang khóa chuột & phím máy đích')
-                : (typeof t === 'function' ? t('toast.block_input_off') : 'Khóa chuột & phím máy đích');
-            }
-            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
-            showToast(isInputBlocked ? t('toast.block_input_on') : t('toast.block_input_off'), isInputBlocked ? 'warning' : 'success');
-          } else {
-            btnToggleBlockInput?.classList.toggle('btn-active', isInputBlocked);
-            btnToggleBlockInput?.classList.toggle('is-locked', isInputBlocked);
-            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+          } else if (msg.success === false) {
+            updateBlockInputUi(false);
             showToast(t('toast.block_input_error') || 'Không thể thay đổi trạng thái khóa bàn phím & chuột', 'error');
+          } else {
+            updateBlockInputUi(!!msg.blocked);
           }
         } else if (msg.type === 'privacy_curtain_response') {
           if (msg.requires_admin) {
-            isCurtainActive = false;
-            btnToggleCurtain?.classList.remove('is-curtain-active', 'btn-active');
-            curtainSvgOff?.classList.remove('hidden');
-            curtainSvgOn?.classList.add('hidden');
-            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+            updateCurtainUi(false);
             showToast(t('toast.requires_admin_curtain') || t('toast.requires_admin'), 'warning');
+          } else if (msg.success === false) {
+            updateCurtainUi(false);
+            showToast(t('toast.curtain_error', { error: msg.error || 'Failed' }), 'error');
           } else {
-            isCurtainActive = !!msg.enabled;
-            btnToggleCurtain?.classList.toggle('is-curtain-active', isCurtainActive);
-            curtainSvgOff?.classList.toggle('hidden', isCurtainActive);
-            curtainSvgOn?.classList.toggle('hidden', !isCurtainActive);
-            if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
-            if (msg.success) {
-              showToast(isCurtainActive ? t('toast.curtain_enabled') : t('toast.curtain_disabled'), isCurtainActive ? 'warning' : 'success');
-            } else {
-              showToast(t('toast.curtain_error', { error: msg.error || 'Failed' }), 'error');
-            }
+            updateCurtainUi(!!msg.enabled);
           }
         } else if (msg.type === 'system_hotkey_response') {
           if (msg.requires_admin) {
@@ -8783,13 +8760,26 @@
 
 
   // ------------------------------------------------------------------ ADVANCED UTILITIES IMPLEMENTATION
-  // 1. Privacy Curtain Toggle
+  // 1. Privacy Curtain Toggle (Optimistic UI: 0ms)
+  function updateCurtainUi(active) {
+    isCurtainActive = active;
+    if (btnToggleCurtain) {
+      btnToggleCurtain.classList.toggle('is-curtain-active', isCurtainActive);
+      btnToggleCurtain.classList.toggle('btn-active', isCurtainActive);
+    }
+    curtainSvgOff?.classList.toggle('hidden', isCurtainActive);
+    curtainSvgOn?.classList.toggle('hidden', !isCurtainActive);
+    if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+  }
+
   btnToggleCurtain?.addEventListener('click', () => {
     if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
       showToast(t('toast.not_connected'), 'info');
       return;
     }
     const nextState = !isCurtainActive;
+    updateCurtainUi(nextState);
+    showToast(nextState ? t('toast.curtain_enabled') : t('toast.curtain_disabled'), nextState ? 'warning' : 'success');
     ws.send(JSON.stringify({
       type: 'toggle_privacy_curtain',
       enabled: nextState
@@ -9237,13 +9227,27 @@
     }
   });
 
-  // --- BLOCK HOST INPUT TOGGLE ---
+  // --- BLOCK HOST INPUT TOGGLE (Optimistic UI: 0ms) ---
+  function updateBlockInputUi(blocked) {
+    isInputBlocked = blocked;
+    if (btnToggleBlockInput) {
+      btnToggleBlockInput.classList.toggle('btn-active', isInputBlocked);
+      btnToggleBlockInput.classList.toggle('is-locked', isInputBlocked);
+      btnToggleBlockInput.title = isInputBlocked
+        ? (typeof t === 'function' ? t('toast.block_input_on') : 'Đang khóa chuột & phím máy đích')
+        : (typeof t === 'function' ? t('toast.block_input_off') : 'Khóa chuột & phím máy đích');
+    }
+    if (typeof updateToolsMenuState === 'function') updateToolsMenuState();
+  }
+
   btnToggleBlockInput?.addEventListener('click', () => {
-    if (!isConnected) {
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
       showToast(t('toast.not_connected'), 'info');
       return;
     }
     const nextState = !isInputBlocked;
+    updateBlockInputUi(nextState);
+    showToast(nextState ? (t('toast.block_input_on') || 'Đang khóa chuột & phím máy đích') : (t('toast.block_input_off') || 'Khóa chuột & phím máy đích'), nextState ? 'warning' : 'info');
     ws.send(JSON.stringify({
       type: 'block_input',
       blocked: nextState
