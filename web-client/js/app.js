@@ -11145,6 +11145,12 @@
             if (tunnelLatencyDot) tunnelLatencyDot.style.background = 'var(--accent)';
           }
         }
+        if (!st.edgeColo || !st.latencyMs) {
+          clearTimeout(window._tunnelColoRetryTimer);
+          window._tunnelColoRetryTimer = setTimeout(fetchTunnelStatus, 800);
+        } else {
+          clearTimeout(window._tunnelColoRetryTimer);
+        }
       } else if (st.status === 'starting') {
         if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
         if (tunnelStatusBadgeDot) tunnelStatusBadgeDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
@@ -11203,6 +11209,9 @@
           renderTunnelStatus(data);
           if (data.running) {
             showToast(t('toast.tunnel_started'), 'success');
+            if (!data.edgeColo || !data.latencyMs) {
+              setTimeout(fetchTunnelStatus, 600);
+            }
           } else {
             showToast(t('toast.tunnel_stopped'), 'info');
           }

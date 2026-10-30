@@ -208,8 +208,9 @@ class CloudflaredTunnelManager {
           this.startedAt = Date.now();
           this._startPromise = null;
           this._notifyState();
-          this._measureLatency();
-          resolve(this.getStatus());
+          Promise.resolve(this._measureLatency()).finally(() => {
+            resolve(this.getStatus());
+          });
         }
       };
 
@@ -254,24 +255,33 @@ class CloudflaredTunnelManager {
   }
 
   _measureLatency(retries = 2) {
-    if (this.status !== 'running') return;
-    try {
+    if (this.status !== 'running') return Promise.resolve();
+    return new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (!settled) {
+          settled = true;
+          this._notifyState();
+          resolve();
+        }
+      };
+
       // 1. Measure pure 1-RTT TCP Handshake Latency directly to Cloudflare Anycast IP
       const pingStart = Date.now();
-      const socket = net.connect({ host: '1.1.1.1', port: 443, timeout: 3000 }, () => {
+      const socket = net.connect({ host: '1.1.1.1', port: 443, timeout: 2000 }, () => {
         this.latencyMs = Date.now() - pingStart;
         socket.destroy();
-        this._notifyState();
+        if (this.edgeColo) done();
       });
-      socket.on('error', () => { socket.destroy(); });
-      socket.on('timeout', () => { socket.destroy(); });
+      socket.on('error', () => { socket.destroy(); done(); });
+      socket.on('timeout', () => { socket.destroy(); done(); });
 
       // 2. Fetch Colo identity from Cloudflare trace
       const req = https.get({
         hostname: '1.1.1.1',
         port: 443,
         path: '/cdn-cgi/trace',
-        timeout: 4000,
+        timeout: 2500,
         headers: { 'User-Agent': 'MeikovaRelay-ColoCheck' }
       }, (res) => {
         let body = '';
@@ -282,17 +292,16 @@ class CloudflaredTunnelManager {
             const code = match[1].toUpperCase();
             this.edgeColo = code;
             this.edgeLocation = COLO_LOCATIONS[code] || code;
-            this._notifyState();
           }
+          done();
         });
       });
-      req.on('error', () => {
-        if (retries > 0 && this.status === 'running') {
-          setTimeout(() => this._measureLatency(retries - 1), 1500);
-        }
-      });
-      req.on('timeout', () => { req.destroy(); });
-    } catch (_) {}
+      req.on('error', () => { done(); });
+      req.on('timeout', () => { req.destroy(); done(); });
+
+      // Hard safety timeout: never block tunnel readiness longer than 1200ms
+      setTimeout(done, 1200);
+    });
   }
 
   stop() {
