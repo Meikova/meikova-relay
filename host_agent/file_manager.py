@@ -350,8 +350,9 @@ class FileManager:
         """Checks if a target path accesses restricted system secrets or credentials."""
         if not filepath:
             return False
-        clean = os.path.abspath(unicodedata.normalize('NFC', str(filepath))).lower()
-        clean_slash = clean.replace('\\', '/')
+        import posixpath
+        clean_slash = unicodedata.normalize('NFC', str(filepath)).replace('\\', '/').lower()
+        norm_slash = posixpath.normpath(clean_slash)
         blocked_substrings = [
             "/system32/config/sam",
             "/system32/config/system",
@@ -367,33 +368,10 @@ class FileManager:
             "/web data",
         ]
         for sub in blocked_substrings:
-            if sub in clean_slash:
+            if sub in norm_slash or norm_slash.startswith(sub.lstrip('/')):
                 return True
-        base = os.path.basename(clean).lower()
-        if base.startswith(".env") or base in ("id_rsa", "id_ed25519", "sam", "shadow", "passwd", "sudoers"):
-            return True
-        return False
-        clean = os.path.abspath(unicodedata.normalize('NFC', str(filepath))).lower()
-        blocked_substrings = [
-            r"\system32\config\sam",
-            r"\system32\config\system",
-            r"\system32\config\security",
-            r"/etc/shadow",
-            r"/etc/passwd",
-            r"/etc/sudoers",
-            r"\.ssh\id_rsa",
-            r"\.ssh\id_ed25519",
-            r"/.ssh/id_rsa",
-            r"/.ssh/id_ed25519",
-            r"\network\cookies",
-            r"\login data",
-            r"\web data",
-        ]
-        for sub in blocked_substrings:
-            if sub in clean:
-                return True
-        base = os.path.basename(clean).lower()
-        if base.startswith(".env") or base in ("id_rsa", "id_ed25519", "sam", "shadow"):
+        base = norm_slash.rstrip('/').split('/')[-1]
+        if base.startswith(".env") or base in ("id_rsa", "id_ed25519", "id_ecdsa", "sam", "shadow", "passwd", "sudoers"):
             return True
         return False
 
@@ -401,6 +379,8 @@ class FileManager:
         """Reads text content of a file directly with automatic encoding detection and binary guard."""
         try:
             filepath = unicodedata.normalize('NFC', filepath)
+            if self.is_sensitive_path(filepath):
+                return {"success": False, "error": "Truy cập tệp bảo mật bị chặn bởi chính sách an toàn (Access Denied)."}
             target = os.path.abspath(filepath)
             if self.is_sensitive_path(target):
                 return {"success": False, "error": "Truy cập tệp bảo mật bị chặn bởi chính sách an toàn (Access Denied)."}
@@ -454,6 +434,8 @@ class FileManager:
         """Saves text content directly to workstation disk with UTF-8 encoding."""
         try:
             filepath = unicodedata.normalize('NFC', filepath)
+            if self.is_sensitive_path(filepath):
+                return {"success": False, "error": "Ghi tệp bảo mật bị chặn bởi chính sách an toàn (Access Denied)."}
             target = os.path.abspath(filepath)
             if self.is_sensitive_path(target):
                 return {"success": False, "error": "Ghi tệp bảo mật bị chặn bởi chính sách an toàn (Access Denied)."}

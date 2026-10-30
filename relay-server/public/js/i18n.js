@@ -992,7 +992,7 @@
 
       'nav.home': 'Trang chủ',
       'ro.landing': 'TRANG CHỦ // GIỚI THIỆU',
-      'landing.badge': 'v1.5.2 // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
+      'landing.badge': 'v1.5.2 // OWASP HARDENED // ĐA NỀN TẢNG // WINDOWS • LINUX • MACOS • IPADOS',
       'landing.hero_title': 'ĐIỀU KHIỂN TỪ XA ĐA NỀN TẢNG CHÍNH XÁC CAO',
       'landing.hero_subtitle': 'Màn hình 120 FPS, âm thanh 2 chiều, kéo thả bố cục đa màn hình, thanh Deck 3 chế độ thông minh và quản trị máy trạm Windows, macOS, Linux an toàn qua Outbound Relay.',
       'landing.os_support_lbl': 'MÁY TRẠM HỖ TRỢ:',
@@ -1062,6 +1062,10 @@
       'landing.feat_winlogon_desc': 'Triệt tiêu hoàn toàn màn hình đen khi máy trạm khóa (Win + L) hoặc hiện xác nhận quyền quản trị UAC, hỗ trợ mở khóa từ xa 1 chạm an toàn.',
       'landing.feat_power_telemetry_title': 'Quản trị Nguồn & Xung nhịp Phần cứng',
       'landing.feat_power_telemetry_desc': 'Smart Keep-Awake chống ngủ khi có kết nối, đánh thức RTC Wakeup, theo dõi CPU, RAM, Pin định kỳ 2 giây trực tiếp trên thanh điều khiển.',
+      'landing.feat_security_title': 'Lá chắn Bảo mật OWASP Top 10 & Chống Brute-Force',
+      'landing.feat_security_desc': '5-Strike Lockout 15 phút, chống DDoS body limiter 1MB, CSPRNG 9 chữ số, chống chiếm quyền host secret, thoát rèm che khẩn cấp Esc x3.',
+      'landing.feat_db_title': 'Cơ sở dữ liệu Tự trị Không Cấu hình (Zero-Config DB)',
+      'landing.feat_db_desc': 'Tự động dự phòng SQLite WAL nội bộ tốc độ cao khi không thiết lập biến môi trường, khởi động 1-click không phụ thuộc dịch vụ ngoài.',
 
       // Landing Download Hub
 
@@ -2487,7 +2491,7 @@
 
       'nav.home': 'Home',
       'ro.landing': 'HOME // OVERVIEW',
-      'landing.badge': 'v1.5.2 // CROSS-PLATFORM // WINDOWS • LINUX • MACOS • IPADOS // MULTI-MONITOR',
+      'landing.badge': 'v1.5.2 // OWASP HARDENED // CROSS-PLATFORM // WINDOWS • LINUX • MACOS • IPADOS',
       'landing.hero_title': 'PRECISION CROSS-PLATFORM REMOTE CONTROL',
       'landing.hero_subtitle': '120 FPS display, 2-way audio, multi-monitor grid layout, 3-mode smart deck, and secure remote control for Windows, macOS, and Linux workstations via Outbound Relay.',
       'landing.os_support_lbl': 'SUPPORTED WORKSTATIONS:',
@@ -2557,6 +2561,10 @@
       'landing.feat_winlogon_desc': 'Eliminates remote black screen on Winlogon lock screen (Win + L) or UAC prompt, with secure 1-click remote unlock.',
       'landing.feat_power_telemetry_title': 'Power Management & 2s Hardware Telemetry',
       'landing.feat_power_telemetry_desc': 'Smart Keep-Awake while connected, BIOS RTC wake timer, and real-time CPU, RAM, and Battery pulse every 2s on control dock.',
+      'landing.feat_security_title': 'OWASP Top 10 Hardened Security Shield',
+      'landing.feat_security_desc': '5-Strike IP lockout for 15m, 1MB DDoS payload limiter, CSPRNG 9-digit Room ID & PIN, anti-superseding host secret, and physical Esc x3 curtain escape.',
+      'landing.feat_db_title': 'Zero-Config Autonomous Database Engine',
+      'landing.feat_db_desc': 'Automatic fallback to local high-speed SQLite WAL when cloud database is unconfigured; true 1-click startup without external dependencies.',
 
       // Landing Download Hub
 
