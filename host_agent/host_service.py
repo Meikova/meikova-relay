@@ -197,6 +197,10 @@ def is_current_user_admin() -> bool:
 class HostService:
     """Manages outbound WebSocket connection to Relay Server and streams desktop + handles all remote events."""
 
+    @property
+    def is_running(self) -> bool:
+        return self.running
+
     def __init__(
         self,
         relay_url: str,
@@ -252,6 +256,7 @@ class HostService:
         self._capture_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="MeikovaCapture")
         self.file_manager = FileManager()
         self.running = True
+        self._superseded = False
         self.has_active_client = False
         self._allow_insecure_ssl = False
         self.ws: Optional[Any] = None
@@ -552,7 +557,7 @@ class HostService:
             except ImportError:
                 return
 
-        while self.is_running and not ws.closed:
+        while self.running and not ws.closed:
             try:
                 if self.has_active_client:
                     telemetry_data = get_system_telemetry()
@@ -1179,12 +1184,13 @@ class HostService:
                 if ev_type == "superseded":
                     msg = event.get("message", "Phiên kết nối máy trạm đã được thay thế bởi phiên mới")
                     logger.warning(f"[Relay] Superseded by newer session: {msg}")
+                    self._superseded = True
+                    self.running = False
                     if self.on_status_change:
                         try:
-                            self.on_status_change("reconnecting", detail=msg)
+                            self.on_status_change("superseded", detail=msg)
                         except Exception:
                             pass
-                    self.running = False
                     break
 
                 # System & Room Control
@@ -2547,6 +2553,7 @@ class HostService:
                             self._update_congestion_control(rtt_ms)
 
     async def start(self):
+        self._superseded = False
         self.loop = asyncio.get_running_loop()
         w, h = self.capture.resolution
         os_display = self.get_os_info()
@@ -2655,9 +2662,23 @@ class HostService:
                         if self.ack_event is not None and not self.ack_event.is_set():
                             self.ack_event.set()
                     await self.tunnel_manager.close_all()
+                    if getattr(self, "_superseded", False) or not self.running:
+                        break
 
                 except (websockets.ConnectionClosed, ConnectionRefusedError, OSError, ssl.SSLError) as e:
-                    if not self.running:
+                    if not self.running or getattr(self, "_superseded", False):
+                        break
+                    close_code = getattr(e, "code", None)
+                    close_reason = str(getattr(e, "reason", "") or "").lower()
+                    if close_code == 1000 and "superseded" in close_reason:
+                        logger.warning(f"[Relay] Session superseded by newer instance ({close_reason}). Stopping reconnect loop.")
+                        self._superseded = True
+                        self.running = False
+                        if self.on_status_change:
+                            try:
+                                self.on_status_change("superseded", detail="Phiên kết nối đã được thay thế bởi phiên mới")
+                            except Exception:
+                                pass
                         break
                     err_str = str(e) or type(e).__name__
                     is_ssl_err = isinstance(e, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in err_str or "self-signed certificate" in err_str or "certificate verify failed" in err_str

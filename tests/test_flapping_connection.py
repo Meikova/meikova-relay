@@ -183,5 +183,41 @@ class TestFlappingAndSuperseded(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(host.capture.quality, 45)
         self.assertEqual(host.capture.max_width, 960)
 
+    async def test_host_service_stops_when_superseded(self):
+        """HostService must gracefully stop worker loop when superseded by newer session to prevent ping-pong loop."""
+        room_id = f"RD-S-{uuid.uuid4().hex[:4].upper()}"
+        pin = "123456"
+        uri = f"ws://127.0.0.1:{self.server_port}"
+
+        from host_agent.host_service import HostService
+        host = HostService(relay_url=uri, room_id=room_id, pin=pin)
+        task = asyncio.create_task(host.start())
+
+        # Wait until host is connected
+        for _ in range(30):
+            if host.ws and not host.ws.closed:
+                break
+            await asyncio.sleep(0.05)
+        self.assertTrue(host.ws and not host.ws.closed)
+
+        # Connect a second host on same room_id to supersede it
+        ws2 = await websockets.connect(uri)
+        await ws2.send(json.dumps({
+            "type": "init_host",
+            "room_id": room_id,
+            "pin": pin,
+            "width": 1920,
+            "height": 1080,
+            "device_name": "Host-Newer"
+        }))
+        ack = json.loads(await ws2.recv())
+        self.assertEqual(ack.get("status"), "ok")
+
+        # The first host task must terminate cleanly within 3 seconds without reconnecting
+        await asyncio.wait_for(task, timeout=3.0)
+        self.assertFalse(host.running)
+        self.assertTrue(getattr(host, "_superseded", False))
+        await ws2.close()
+
 if __name__ == "__main__":
     unittest.main()

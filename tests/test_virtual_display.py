@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -81,7 +82,8 @@ class TestVirtualDisplay(unittest.TestCase):
         self.assertTrue(IDDCX_DRIVER_URL.startswith("https://"))
         self.assertTrue(IDDCX_DRIVER_URL.endswith(".zip"))
 
-    def test_auto_activate_virtual_display_when_headless_or_empty_monitors(self):
+    @mock.patch("host_agent.virtual_display.download_and_install_virtual_display", return_value={"success": True, "installed": True, "activated": True})
+    def test_auto_activate_virtual_display_when_headless_or_empty_monitors(self, mock_dl):
         """Tests that auto_activate_virtual_display executes properly for empty monitors list."""
         from host_agent.virtual_display import auto_activate_virtual_display
         res = auto_activate_virtual_display(monitors=[])

@@ -2186,6 +2186,11 @@ class HostApi:
             if detail:
                 msg = f"{msg} (Chi tiết: {detail})"
             self._log(msg)
+        elif status == "superseded":
+            msg = "Phiên kết nối máy trạm đã được thay thế bởi phiên mới. Đã tạm dừng kết nối để tránh xung đột."
+            if detail:
+                msg = f"{msg} (Chi tiết: {detail})"
+            self._log(msg)
 
     def _on_client_connected(self, event: dict):
         client_user = event.get("clientUser") or event.get("username") or ("Người điều khiển từ xa" if self._lang == "vi" else "Remote Operator")
@@ -2510,7 +2515,8 @@ class SingleInstanceLock:
                 kernel32.CreateMutexW.restype = wintypes.HANDLE
                 self.mutex = kernel32.CreateMutexW(None, True, f"Local\\{self.name}")
                 last_err = kernel32.GetLastError()
-                if last_err == ERROR_ALREADY_EXISTS:
+                # 183 = ERROR_ALREADY_EXISTS, 5 = ERROR_ACCESS_DENIED (already owned by another integrity tier)
+                if last_err in (ERROR_ALREADY_EXISTS, 5) or not self.mutex:
                     if self.mutex:
                         kernel32.CloseHandle(self.mutex)
                         self.mutex = None
@@ -2796,6 +2802,13 @@ def launch_webview_app(autostart: bool = False):
 
 def run_service_headless():
     """Runs the host service headless in background (for Windows Service or CLI daemon)."""
+    global _single_instance_lock
+    if _single_instance_lock is None:
+        _single_instance_lock = SingleInstanceLock("MeikovaRelayHost_AppMutex")
+    if not _single_instance_lock.acquire():
+        logger.warning("[SingleInstance] Another MeikovaRelayHost instance is already active. Terminating duplicate headless service.")
+        sys.exit(0)
+
     cfg_file = _get_default_config_path()
     config = _load_initial_config(cfg_file)
     relay_url = config.get("relay") or config.get("relay_url") or "wss://meikova-relay.onrender.com"
