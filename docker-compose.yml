@@ -16,6 +16,9 @@ services:
       - DATA_DIR=/app/relay-server/data
     volumes:
       - ./data:/app/relay-server/data
+      - ./relay-server/public:/app/relay-server/public
+      - ./web-client:/app/web-client
+      - ./dist:/app/dist
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/tunnel/status"]
       interval: 30s

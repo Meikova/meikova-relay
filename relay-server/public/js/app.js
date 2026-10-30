@@ -3317,10 +3317,13 @@
         (opts.keep_awake !== undefined ? (opts.keep_awake ? '1' : '0') : getBool('keepAwake', 'dlAdvAntiSleep')));
     if (keepAwake !== null) params.set('keepAwake', keepAwake);
 
+    // Admin is strictly 0 (disabled) by default.
+    // Only 1 if advanced mode is active AND dlAdvAdmin is explicitly checked.
     const admin = opts.admin !== undefined ? (opts.admin ? '1' : '0') :
       (opts.requireAdmin !== undefined ? (opts.requireAdmin ? '1' : '0') :
-        (opts.admin_elevated !== undefined ? (opts.admin_elevated ? '1' : '0') : getBool('admin', 'dlAdvAdmin')));
-    if (admin !== null) params.set('admin', admin);
+        (opts.admin_elevated !== undefined ? (opts.admin_elevated ? '1' : '0') :
+          (isAdv && getBool('admin', 'dlAdvAdmin') === '1' ? '1' : '0')));
+    params.set('admin', admin || '0');
 
     const service = opts.service !== undefined ? (opts.service ? '1' : '0') :
       (opts.serviceMode !== undefined ? (opts.serviceMode ? '1' : '0') :
