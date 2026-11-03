@@ -11519,13 +11519,65 @@ select,
   align-items: center !important;
   justify-content: space-between !important;
   gap: 8px !important;
-  padding: 4px 10px !important;
-  min-height: 36px !important;
-  height: 36px !important;
-  max-height: 36px !important;
+  padding: 6px 12px !important;
+  min-height: 42px !important;
+  height: auto !important;
   background: var(--ink-1) !important;
   border-bottom: 1px solid var(--line) !important;
   box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+#filesSection .explorer-toolbar-left {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex: 0 1 auto !important;
+}
+
+#filesSection .explorer-toolbar-left .btn-pill {
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  padding: 0 11px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-family: var(--font-ui), system-ui, sans-serif !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  border-radius: 9999px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+#filesSection #btnExpUpload {
+  border-color: rgba(131, 232, 172, 0.45) !important;
+  color: var(--accent, #83E8AC) !important;
+  background: rgba(131, 232, 172, 0.08) !important;
+  padding: 0 13px !important;
+}
+
+#filesSection #btnExpUpload:hover {
+  border-color: var(--accent, #83E8AC) !important;
+  background: rgba(131, 232, 172, 0.16) !important;
+  box-shadow: 0 0 12px -2px var(--accent-glow) !important;
+}
+
+#filesSection #btnExpPaste {
+  border-color: rgba(131, 232, 172, 0.45) !important;
+  color: var(--accent, #83E8AC) !important;
+  background: rgba(131, 232, 172, 0.08) !important;
+  padding: 0 11px !important;
+}
+
+#filesSection #btnExpPaste:hover {
+  border-color: var(--accent, #83E8AC) !important;
+  background: rgba(131, 232, 172, 0.16) !important;
+  box-shadow: 0 0 12px -2px var(--accent-glow) !important;
 }
 
 #filesSection .explorer-toolbar-right {
@@ -11626,6 +11678,45 @@ select,
 #filesSection #viewModeSeg button svg {
   width: 12px !important;
   height: 12px !important;
+}
+
+@media (max-width: 900px), (max-height: 520px) {
+  #filesSection .explorer-toolbar {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 4px 8px !important;
+    gap: 6px !important;
+  }
+  #filesSection .explorer-toolbar-left .btn-pill {
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 !important;
+  }
+  #filesSection .explorer-toolbar-left .btn-pill span {
+    display: none !important;
+  }
+}
+
+@media (orientation: portrait), (max-width: 480px) {
+  #filesSection .explorer-toolbar {
+    min-height: 32px !important;
+    height: 32px !important;
+    padding: 3px 6px !important;
+    gap: 4px !important;
+  }
+  #filesSection .explorer-toolbar-left .btn-pill {
+    width: 26px !important;
+    min-width: 26px !important;
+    max-width: 26px !important;
+    height: 26px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+    padding: 0 !important;
+  }
 }
 
 /* ------------------------------------------------------------------ Unified Input Typography SSOT */
@@ -11893,7 +11984,10 @@ input[type="password"],
 #btnExpUp,
 #btnExpRefresh,
 #btnExpNewFolder,
-#btnUploadFile,
+#btnExpNewFile,
+#btnExpDeepSearch,
+#btnExpUpload,
+#btnExpPaste,
 #btnSaveFile,
 #btnCloseFileEditor,
 #btnOpenAddModal,
