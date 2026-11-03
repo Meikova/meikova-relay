@@ -4135,6 +4135,17 @@ input:-webkit-autofill:active {
   border-radius: 8px !important;
 }
 
+.modal-overlay .dl-role-hint:not(:has(.dl-advanced-toggle-wrap)) {
+  justify-content: flex-start !important;
+}
+
+.modal-overlay .dl-role-hint-lead {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
 .modal-overlay .dl-advanced-toggle-wrap {
   display: inline-flex !important;
   align-items: center !important;
