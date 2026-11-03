@@ -1272,8 +1272,10 @@
     } else if (authToken) {
       if (route.view === 'auth') {
         targetView = 'dashboard';
+      } else if (route.view === 'landing') {
+        targetView = 'landing';
       } else {
-        targetView = (route.view && ['landing', 'dashboard', 'remote', 'files', 'terminal', 'tasks', 'audit'].includes(route.view)) ? route.view : 'dashboard';
+        targetView = (route.view && ['dashboard', 'remote', 'files', 'terminal', 'tasks', 'audit'].includes(route.view)) ? route.view : 'dashboard';
       }
     } else {
       if (route.view === 'auth') {
