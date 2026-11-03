@@ -50,17 +50,68 @@ multiprocessing.freeze_support()
 
 APP_VERSION = "1.5.2"
 
+class SafeStreamWriter:
+    """Resilient stream proxy that prevents crashes when console handles are invalidated."""
+    def __init__(self, target):
+        self._target = target
+        self._devnull = None
+
+    def write(self, s):
+        try:
+            if self._target and hasattr(self._target, "write"):
+                return self._target.write(s)
+        except Exception:
+            pass
+        if self._devnull is None:
+            try:
+                self._devnull = open(os.devnull, "w", encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+        if self._devnull:
+            try:
+                return self._devnull.write(s)
+            except Exception:
+                pass
+        return len(s) if s else 0
+
+    def flush(self):
+        try:
+            if self._target and hasattr(self._target, "flush"):
+                return self._target.flush()
+        except Exception:
+            pass
+
+    def isatty(self):
+        try:
+            if self._target and hasattr(self._target, "isatty"):
+                return self._target.isatty()
+        except Exception:
+            pass
+        return False
+
+    def __getattr__(self, name):
+        return getattr(self._target, name)
+
 # Ensure stdout/stderr exist and use UTF-8 on Windows
 if sys.platform == "win32":
     try:
         if sys.stdout is None:
             sys.stdout = open(os.devnull, "w", encoding="utf-8", errors="replace")
         elif hasattr(sys.stdout, "reconfigure"):
-            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            try:
+                sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+        sys.stdout = SafeStreamWriter(sys.stdout)
+
         if sys.stderr is None:
             sys.stderr = open(os.devnull, "w", encoding="utf-8", errors="replace")
         elif hasattr(sys.stderr, "reconfigure"):
-            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+            try:
+                sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+        sys.stderr = SafeStreamWriter(sys.stderr)
     except Exception:
         pass
 
@@ -70,6 +121,8 @@ _interactive_desktop_attached = False
 current_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(current_dir))
 sys.path.insert(0, str(current_dir.parent))
+if (current_dir / "host_agent").is_dir():
+    sys.path.insert(0, str(current_dir / "host_agent"))
 
 try:
     from host_agent.engines import create_platform_engine, get_active_os_engine
@@ -2496,6 +2549,8 @@ class HostApi:
             self._save_config()
             self._log(f"Switched language to {'Tiếng Việt' if lang == 'vi' else 'English'}")
 
+_single_instance_lock = None
+
 class SingleInstanceLock:
     """System-wide single instance lock using Win32 Named Mutex on Windows and flock/lockfile on POSIX."""
     def __init__(self, name: str = "MeikovaRelayHost_AppMutex"):
@@ -2919,9 +2974,9 @@ def main():
             import ctypes
             if ctypes.windll.kernel32.AttachConsole(-1):
                 if sys.stdout is None or not hasattr(sys.stdout, "write"):
-                    sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace")
+                    sys.stdout = SafeStreamWriter(open("CONOUT$", "w", encoding="utf-8", errors="replace"))
                 if sys.stderr is None or not hasattr(sys.stderr, "write"):
-                    sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace")
+                    sys.stderr = SafeStreamWriter(open("CONOUT$", "w", encoding="utf-8", errors="replace"))
         except Exception:
             pass
 
@@ -3025,10 +3080,15 @@ def main():
             except Exception:
                 pass
 
-    # Tắt chế độ headless mặc định theo yêu cầu người dùng.
-    # Chỉ chạy headless khi có cờ CLI chỉ định rõ ràng (--headless hoặc --service-headless).
+    # Chế độ headless cho background daemon / Windows service
+    # Chạy headless khi có cờ CLI chỉ định (--headless, --service-headless, --service, --service-mode)
     if (
-        ("--headless" in sys.argv or "--service-headless" in sys.argv) and
+        (
+            "--headless" in sys.argv or
+            "--service-headless" in sys.argv or
+            "--service" in sys.argv or
+            "--service-mode" in sys.argv
+        ) and
         "--gui" not in sys.argv and
         "--window" not in sys.argv
     ):

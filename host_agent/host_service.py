@@ -558,7 +558,7 @@ class HostService:
             except ImportError:
                 return
 
-        while self.running and not ws.closed:
+        while self.running and not getattr(ws, "closed", False) and getattr(ws, "close_code", None) is None:
             try:
                 if self.has_active_client:
                     telemetry_data = get_system_telemetry()

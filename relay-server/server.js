@@ -1644,7 +1644,7 @@ powershell -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::Security
 if not exist "%TARGET_DIR%\\agent-package.zip" goto :DOWNLOAD_FAIL
 powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path '%TARGET_DIR%\\agent-package.zip' -DestinationPath '%TARGET_DIR%' -Force"
 del /f /q "%TARGET_DIR%\\agent-package.zip" >nul 2>&1
-if exist "%TARGET_DIR%\\host_agent\\gui_agent.py" copy /y "%TARGET_DIR%\\host_agent\\*.*" "%TARGET_DIR%" >nul 2>&1
+if exist "%TARGET_DIR%\\host_agent" powershell -ExecutionPolicy Bypass -Command "Copy-Item -Path '%TARGET_DIR%\\host_agent\\*' -Destination '%TARGET_DIR%' -Recurse -Force -ErrorAction SilentlyContinue"
 
 python -m pip install websockets Pillow pystray pywebview --quiet >nul 2>&1
 goto :WRITE_CONFIG
@@ -1707,11 +1707,11 @@ if not "%~1"=="" (
 echo [4/4] Khoi chay tien trinh Meikova Relay Host...
 if "%USE_STANDALONE%"=="1" (
     powershell -ExecutionPolicy Bypass -Command "Stop-Process -Name MeikovaRelayHost -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 300"
-    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\"%TARGET_DIR%\\MeikovaRelayHost.exe\" --autostart" /f >nul 2>&1
-    start "" /D "%TARGET_DIR%" "%TARGET_DIR%\\MeikovaRelayHost.exe" %APP_FLAGS% %*
+    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "\\\"%TARGET_DIR%\\MeikovaRelayHost.exe\\\" --autostart" /f >nul 2>&1
+    powershell -ExecutionPolicy Bypass -Command "$a = '%APP_FLAGS% %*'.Trim(); if ($a) { Start-Process -FilePath '%TARGET_DIR%\\MeikovaRelayHost.exe' -ArgumentList $a -WorkingDirectory '%TARGET_DIR%' } else { Start-Process -FilePath '%TARGET_DIR%\\MeikovaRelayHost.exe' -WorkingDirectory '%TARGET_DIR%' }"
 ) else (
-    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \"%TARGET_DIR%\\gui_agent.py\" --autostart" /f >nul 2>&1
-    start "" /D "%TARGET_DIR%" pythonw.exe "%TARGET_DIR%\\gui_agent.py" %APP_FLAGS% %*
+    reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MeikovaRelayHost" /t REG_SZ /d "pythonw.exe \\\"%TARGET_DIR%\\gui_agent.py\\\" --autostart" /f >nul 2>&1
+    powershell -ExecutionPolicy Bypass -Command "$a = '%APP_FLAGS% %*'.Trim(); if ($a) { Start-Process -FilePath 'pythonw.exe' -ArgumentList ('\"%TARGET_DIR%\\gui_agent.py\" ' + $a) -WorkingDirectory '%TARGET_DIR%' } else { Start-Process -FilePath 'pythonw.exe' -ArgumentList '\"%TARGET_DIR%\\gui_agent.py\"' -WorkingDirectory '%TARGET_DIR%' }"
 )
 
 if "%HEADLESS_MODE%"=="1" (
@@ -1722,6 +1722,7 @@ if "%HEADLESS_MODE%"=="1" (
     echo   Room ID:    %CONF_ROOM%   ^|   PIN: %CONF_PIN%
     echo   Che do:     Dich vu chay ngam (Headless Service)
     echo ==============================================================
+    timeout /t 2 /nobreak >nul 2>&1
     exit /b 0
 )
 
