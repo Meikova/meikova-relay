@@ -11036,6 +11036,9 @@
       dlTabPaneClient.classList.remove('hidden');
       dlTabPaneHost.classList.add('hidden');
       if (dlSeg) placeIndicator(dlSeg);
+      const activePlatformBtn = dlTabPaneClient.querySelector('.platform-tab.is-active, .platform-tab.on');
+      const platform = activePlatformBtn?.getAttribute('data-viewer-platform') || 'desktop';
+      setRelayViewerPlatformTab(platform);
     });
   }
 
