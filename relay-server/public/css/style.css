@@ -1102,10 +1102,18 @@ body.is-desktop-app .topbar {
 
   #btnClearTerminal,
   #btnExportTerminalLog {
+    width: 30px !important;
+    min-width: 30px !important;
+    max-width: 30px !important;
     height: 30px !important;
-    padding: 0 10px !important;
-    font-size: 0.72rem !important;
-    white-space: nowrap !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 9999px !important;
+    flex-shrink: 0 !important;
   }
 
   /* Toasts at Bottom-Left corner: clean & never blocks topbar/tabs */
@@ -8375,10 +8383,16 @@ body.is-desktop-app .desktop-titlebar {
   #btnClearTerminal,
   #btnExportTerminalLog {
     flex-shrink: 0 !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    max-width: 30px !important;
     height: 30px !important;
-    padding: 0 10px !important;
-    font-size: 0.72rem !important;
-    white-space: nowrap !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     border-radius: 9999px !important;
   }
 
@@ -10730,9 +10744,17 @@ main.hidden {
 
   #terminalSection #btnExportTerminalLog,
   #terminalSection #btnClearTerminal {
+    width: 26px !important;
+    min-width: 26px !important;
+    max-width: 26px !important;
     height: 26px !important;
-    font-size: 0.7rem !important;
-    padding: 0 8px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 9999px !important;
   }
 
   #terminalSection .terminal-quick-bar {
@@ -11977,8 +11999,6 @@ input[type="password"],
 #btnNavLogin,
 #btnRefreshAudit,
 #btnExportAuditCsv,
-#btnExportTerminalLog,
-#btnClearTerminal,
 #btnRefreshTasks,
 #btnEndProcess,
 #btnExpUp,
@@ -12021,11 +12041,61 @@ input[type="password"],
 }
 
 #btnRefreshAudit:hover,
-#btnExportTerminalLog:hover,
-#btnClearTerminal:hover,
 #btnRefreshTasks:hover {
   border-color: var(--accent) !important;
   box-shadow: 0 0 10px var(--accent-glow) !important;
+}
+
+/* --- TIER 1B: CIRCULAR ICON-ONLY ACTION PILLS (30px) --- */
+#btnRefreshTasks,
+#btnExportTerminalLog,
+#btnClearTerminal {
+  width: 30px !important;
+  min-width: 30px !important;
+  max-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 9999px !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+#btnExportTerminalLog svg,
+#btnClearTerminal svg {
+  width: 14px !important;
+  height: 14px !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+  stroke: var(--accent) !important;
+  opacity: 0.9 !important;
+  transition: all var(--dur-fast) var(--ease-out) !important;
+}
+
+#btnExportTerminalLog:hover {
+  border-color: var(--accent) !important;
+  background: rgba(131, 232, 172, 0.12) !important;
+  box-shadow: 0 0 12px -2px var(--accent-glow) !important;
+}
+
+#btnExportTerminalLog:hover svg {
+  stroke: var(--accent-hi, var(--accent)) !important;
+  opacity: 1 !important;
+}
+
+#btnClearTerminal:hover {
+  border-color: rgba(255, 107, 107, 0.5) !important;
+  background: rgba(255, 107, 107, 0.1) !important;
+  box-shadow: 0 0 12px -2px rgba(255, 107, 107, 0.45) !important;
+}
+
+#btnClearTerminal:hover svg {
+  stroke: #ff6b6b !important;
+  opacity: 1 !important;
 }
 
 /* --- TIER 2: COMPACT / SUB / PAGINATION PILLS (24px) --- */

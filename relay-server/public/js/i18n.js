@@ -588,6 +588,7 @@
       'terminal.badge_connected': 'ĐÃ KẾT NỐI (POWERSHELL UTF-8)',
       'terminal.hint': 'Enter: Thực thi | ↑/↓: Lịch sử | Ctrl+L: Xóa',
       'terminal.btn_clear': 'Xóa màn hình',
+      'terminal.btn_clear_title': 'Xóa sạch màn hình terminal (Ctrl+L)',
       'terminal.screen_title': 'Nhấn vào màn hình để gõ lệnh trực tiếp',
       'terminal.welcome': 'Meikova Relay PowerShell Console sẵn sàng. Đang chạy trong môi trường UTF-8.',
 
@@ -893,6 +894,7 @@
       'proto.direct_sftp_title': 'Mở trực tiếp trình truyền tệp SFTP / WebSocket ngay trên trình duyệt',
       'proto.btn_open_sftp': 'Mở SFTP',
       'terminal.btn_export': 'Xuất Log',
+      'terminal.btn_export_title': 'Xuất log terminal ra tệp tin',
       'terminal.quick_label': 'LỆNH NHANH:',
       'tasks.sort_ram': 'Theo RAM',
       'tasks.sort_name': 'Theo Tên',
@@ -2137,6 +2139,7 @@
       'terminal.badge_connected': 'CONNECTED (POWERSHELL UTF-8)',
       'terminal.hint': 'Enter: Execute | ↑/↓: History | Ctrl+L: Clear',
       'terminal.btn_clear': 'Clear Screen',
+      'terminal.btn_clear_title': 'Clear terminal screen (Ctrl+L)',
       'terminal.screen_title': 'Click screen to type commands directly',
       'terminal.welcome': 'Meikova Relay PowerShell Console ready. Running in UTF-8 environment.',
 
@@ -2442,6 +2445,7 @@
       'proto.direct_sftp_title': 'Open SFTP / WebSocket File Manager directly in browser',
       'proto.btn_open_sftp': 'Open SFTP',
       'terminal.btn_export': 'Export Log',
+      'terminal.btn_export_title': 'Export terminal output to file',
       'terminal.quick_label': 'QUICK CMDS:',
       'tasks.sort_ram': 'By RAM',
       'tasks.sort_name': 'By Name',
