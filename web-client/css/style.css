@@ -6925,12 +6925,14 @@ input:-webkit-autofill:active {
 .platform-tabs {
   position: relative;
   display: flex;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
   border-bottom: 1px solid var(--line);
-  padding: 3px;
-  gap: 3px;
+  padding: 4px;
+  gap: 4px;
   isolation: isolate;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .platform-tab {
@@ -6940,12 +6942,13 @@ input:-webkit-autofill:active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 7px;
+  padding: 8px 12px;
+  min-height: 34px;
   background: transparent;
   border: none;
   border-radius: 7px;
-  color: var(--text-faint);
+  color: var(--text-muted) !important;
   font-size: 0.78rem;
   font-weight: 500;
   cursor: pointer;
@@ -6955,6 +6958,9 @@ input:-webkit-autofill:active {
 
 .platform-tab svg {
   flex-shrink: 0;
+  stroke: currentColor;
+  opacity: 0.85;
+  transition: opacity var(--dur-fast) var(--ease-out), stroke var(--dur-fast) var(--ease-out);
 }
 
 .platform-tab span {
@@ -6962,18 +6968,32 @@ input:-webkit-autofill:active {
 }
 
 .platform-tab:hover {
-  color: var(--text);
+  color: var(--text) !important;
+}
+
+.platform-tab:hover svg {
+  opacity: 1;
 }
 
 .platform-tab.is-active,
-.platform-tab.on {
-  color: var(--accent);
-  font-weight: 600;
+.platform-tab.on,
+.platform-tabs .platform-tab.is-active,
+.platform-tabs .platform-tab.on {
+  color: var(--accent, #83E8AC) !important;
+  font-weight: 700 !important;
+}
+
+.platform-tab.is-active svg,
+.platform-tab.on svg,
+.platform-tabs .platform-tab.is-active svg,
+.platform-tabs .platform-tab.on svg {
+  stroke: var(--accent, #83E8AC) !important;
+  opacity: 1 !important;
 }
 
 .platform-tabs:not(:has(.seg__ind)) .platform-tab.is-active,
 .platform-tabs:not(:has(.seg__ind)) .platform-tab.on {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
@@ -6989,8 +7009,11 @@ input:-webkit-autofill:active {
   top: 3px;
   bottom: 3px;
   left: 0;
+  width: var(--ind-w, 0);
+  transform: translateX(var(--ind-x, 0));
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   pointer-events: none;
   transition:
