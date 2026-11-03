@@ -11439,9 +11439,98 @@ select,
   color: inherit !important;
 }
 
-/* ------------------------------------------------------------------ Audit Section Toolbar SSOT */
-#auditSection .explorer-card {
+/* ------------------------------------------------------------------ Audit Section Viewport & Toolbar SSOT */
+#auditSection.dashboard-container:not(.hidden) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  max-height: 100% !important;
   overflow: hidden !important;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)) !important;
+  box-sizing: border-box !important;
+}
+
+#auditSection .dashboard-header {
+  flex-shrink: 0 !important;
+  margin-bottom: 10px !important;
+}
+
+#auditSection .explorer-card {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  border-radius: var(--round-lg, 12px) !important;
+  border: 1px solid var(--line) !important;
+  background: var(--ink-1) !important;
+}
+
+#auditSection .table-scroll-area {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+#auditSection .process-table thead {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 5 !important;
+  background: var(--ink-1) !important;
+}
+
+#auditSection .explorer-footer {
+  flex-shrink: 0 !important;
+  margin-top: auto !important;
+}
+
+/* ------------------------------------------------------------------ Tasks Section Viewport SSOT */
+#tasksSection.tasks-container:not(.hidden) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)) !important;
+  box-sizing: border-box !important;
+}
+
+#tasksSection .tasks-header {
+  flex-shrink: 0 !important;
+  margin-bottom: 10px !important;
+}
+
+#tasksSection .telemetry-grid {
+  flex-shrink: 0 !important;
+  margin-bottom: 10px !important;
+}
+
+#tasksSection .process-table-card {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+}
+
+#tasksSection .table-scroll-area {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+}
+
+#tasksSection .process-table thead {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 5 !important;
+  background: var(--ink-1) !important;
 }
 
 #auditSection .explorer-toolbar {

@@ -1273,7 +1273,7 @@
       if (route.view === 'auth') {
         targetView = 'dashboard';
       } else {
-        targetView = (route.view && ['dashboard', 'remote', 'files', 'terminal', 'tasks', 'audit'].includes(route.view)) ? route.view : 'dashboard';
+        targetView = (route.view && ['landing', 'dashboard', 'remote', 'files', 'terminal', 'tasks', 'audit'].includes(route.view)) ? route.view : 'dashboard';
       }
     } else {
       if (route.view === 'auth') {
@@ -10517,6 +10517,7 @@
   }
 
   function getActionBadge(action) {
+    if (!action) action = 'UNKNOWN';
     let color = '#94A3B8';
     let bg = 'rgba(148, 163, 184, 0.12)';
     let text = action;
@@ -10526,8 +10527,12 @@
         color = '#22C55E'; bg = 'rgba(34, 197, 94, 0.15)'; text = t('audit.badge_session_conn'); break;
       case 'SESSION_DISCONNECTED':
         color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = t('audit.badge_session_disc'); break;
+      case 'SESSION_KILLED':
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = t('audit.badge_session_killed'); break;
       case 'CONNECT_PIN_FAILED':
         color = '#F43F5E'; bg = 'rgba(244, 63, 94, 0.15)'; text = t('audit.badge_pin_fail'); break;
+      case 'CONNECT_AUTH_FAILED':
+        color = '#F43F5E'; bg = 'rgba(244, 63, 94, 0.15)'; text = t('audit.badge_connect_auth_failed'); break;
       case 'HOST_ONLINE':
         color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = t('audit.badge_host_online'); break;
       case 'HOST_OFFLINE':
@@ -10536,6 +10541,10 @@
         color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = t('audit.badge_cmd'); break;
       case 'FILE_BROWSE':
         color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = t('audit.badge_file_browse'); break;
+      case 'FILE_READ':
+        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = t('audit.badge_file_read'); break;
+      case 'FILE_SAVE':
+        color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = t('audit.badge_file_save'); break;
       case 'FILE_DOWNLOAD':
         color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)'; text = t('audit.badge_file_dl'); break;
       case 'FILE_UPLOAD':
@@ -10551,18 +10560,49 @@
       case 'BLOCK_INPUT':
         color = '#EAB308'; bg = 'rgba(234, 179, 8, 0.15)'; text = t('audit.badge_input_lock'); break;
       case 'CLIPBOARD_SYNC':
-        color = '#06B6D4'; bg = 'rgba(6, 182, 212, 0.15)'; text = 'CLIPBOARD'; break;
+        color = '#06B6D4'; bg = 'rgba(6, 182, 212, 0.15)'; text = t('audit.badge_clipboard_sync'); break;
       case 'AUTH_LOGIN':
         color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = t('audit.badge_login'); break;
       case 'AUTH_LOGIN_FAILED':
         color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = t('audit.badge_login_fail'); break;
+      case 'AUTH_LOGOUT':
+        color = '#94A3B8'; bg = 'rgba(148, 163, 184, 0.15)'; text = t('audit.badge_auth_logout'); break;
       case 'AUTH_REGISTER':
         color = '#10B981'; bg = 'rgba(16, 185, 129, 0.15)'; text = t('audit.badge_register'); break;
+      case 'AUTH_GOOGLE':
+        color = '#3B82F6'; bg = 'rgba(59, 130, 246, 0.15)'; text = t('audit.badge_auth_google'); break;
       case 'DEVICE_LINKED':
         color = '#83E8AC'; bg = 'rgba(131, 232, 172, 0.15)'; text = t('audit.badge_device_link'); break;
+      case 'DEVICE_DELETED':
+        color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)'; text = t('audit.badge_device_deleted'); break;
+      case 'DEVICE_META_UPDATED':
+        color = '#3B82F6'; bg = 'rgba(59, 130, 246, 0.15)'; text = t('audit.badge_device_meta_updated'); break;
+      case 'TUNNEL_OPEN':
+        color = '#06B6D4'; bg = 'rgba(6, 182, 212, 0.15)'; text = t('audit.badge_tunnel_open'); break;
+      case 'TEST_TURSO_INTEGRATION':
+        color = '#3B82F6'; bg = 'rgba(59, 130, 246, 0.15)'; text = t('audit.badge_test_turso_integration'); break;
+      default: {
+        const badgeKey = 'audit.badge_' + action.toLowerCase();
+        const translated = t(badgeKey);
+        text = (translated && translated !== badgeKey) ? translated : action.replace(/_/g, ' ');
+        if (/FAIL|ERR|DELETE|KILL|BLOCK|DISC/i.test(action)) {
+          color = '#EF4444'; bg = 'rgba(239, 68, 68, 0.15)';
+        } else if (/LOGIN|ONLINE|CONN|LINK|REGISTER|UPLOAD/i.test(action)) {
+          color = '#22C55E'; bg = 'rgba(34, 197, 94, 0.15)';
+        } else if (/FILE|READ|SAVE|DIR|BROWSE|COPY|MOVE|RENAME|MKDIR/i.test(action)) {
+          color = '#A855F7'; bg = 'rgba(168, 85, 247, 0.15)';
+        } else if (/POWER|LOCK|WOL|UAC|ELEV|CONFIG/i.test(action)) {
+          color = '#F59E0B'; bg = 'rgba(245, 158, 11, 0.15)';
+        } else if (/TUNNEL|CLIP|CHAT|CMD/i.test(action)) {
+          color = '#06B6D4'; bg = 'rgba(6, 182, 212, 0.15)';
+        } else if (/TEST|TURSO|META|RESOLV/i.test(action)) {
+          color = '#3B82F6'; bg = 'rgba(59, 130, 246, 0.15)';
+        }
+        break;
+      }
     }
 
-    return `<span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: ${color}; background: ${bg}; border: 1px solid ${color}40;">${text}</span>`;
+    return `<span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: ${color}; background: ${bg}; border: 1px solid ${color}40; letter-spacing: 0.02em;">${escapeHtml(text)}</span>`;
   }
 
   function formatAuditDetails(action, detailsStr) {
@@ -10577,32 +10617,62 @@
     if (action === 'CMD_EXEC') {
       return `<code style="color: var(--accent); background: var(--ink-2); padding: 2px 6px; border-radius: 4px;">${escapeHtml(d.command || '')}</code>`;
     }
-    if (action === 'FILE_BROWSE') {
-      return `Thư mục: <code style="color: var(--text);">${escapeHtml(d.path || '')}</code>`;
+    if (action === 'FILE_BROWSE' || action === 'FILE_MKDIR') {
+      return `${t('audit.detail_folder')}: <code style="color: var(--text);">${escapeHtml(d.path || '')}</code>`;
+    }
+    if (action === 'FILE_READ' || action === 'FILE_SAVE') {
+      return `${t('audit.detail_file')}: <strong style="color: var(--text);">${escapeHtml(d.filename || d.path || '')}</strong>`;
     }
     if (action === 'FILE_DOWNLOAD') {
-      return `Tệp: <strong style="color: var(--text);">${escapeHtml(d.filename || '')}</strong> (${escapeHtml(d.path || '')})`;
+      return `${t('audit.detail_file')}: <strong style="color: var(--text);">${escapeHtml(d.filename || '')}</strong> (${escapeHtml(d.path || '')})`;
     }
     if (action === 'FILE_UPLOAD') {
-      return `Tệp: <strong style="color: var(--text);">${escapeHtml(d.filename || '')}</strong> (${formatBytes(d.size || 0)}) → ${escapeHtml(d.path || '')}`;
+      return `${t('audit.detail_file')}: <strong style="color: var(--text);">${escapeHtml(d.filename || '')}</strong> (${formatBytes(d.size || 0)}) → ${escapeHtml(d.path || '')}`;
     }
     if (action === 'FILE_DELETE') {
-      return `Đã xóa: <code style="color: #EF4444;">${escapeHtml(d.path || '')}</code>`;
+      return `${t('audit.detail_deleted')}: <code style="color: #EF4444;">${escapeHtml(d.path || '')}</code>`;
     }
     if (action === 'PROCESS_KILL') {
       return `PID: <strong>${d.pid}</strong> (${escapeHtml(d.name || '')})`;
     }
     if (action === 'POWER_ACTION') {
-      return `Hành động: <strong>${escapeHtml(d.action || '')}</strong>`;
+      return `${t('audit.detail_action')}: <strong>${escapeHtml(d.action || '')}</strong>`;
     }
     if (action === 'BLOCK_INPUT') {
-      return `Trạng thái: <strong>${d.blocked ? 'Đã khóa chuột/phím' : 'Đã mở khóa'}</strong>`;
+      return `${t('audit.detail_status')}: <strong>${d.blocked ? t('audit.detail_input_blocked') : t('audit.detail_input_unblocked')}</strong>`;
     }
     if (action === 'SESSION_DISCONNECTED') {
-      return `Thời lượng phiên: <strong>${escapeHtml(d.durationText || (d.durationSec + 's'))}</strong>`;
+      return `${t('audit.detail_duration')}: <strong>${escapeHtml(d.durationText || (d.durationSec + 's'))}</strong>`;
+    }
+    if (action === 'DEVICE_DELETED') {
+      return `${t('audit.detail_unlinked_device')}: <code style="color: #EF4444;">${escapeHtml(d.deviceId || d.id || '')}</code>`;
+    }
+    if (action === 'TEST_TURSO_INTEGRATION') {
+      return `<span style="color: var(--accent); font-weight: 500;">${t('audit.detail_turso_ok')}</span>`;
+    }
+    if (action === 'DEVICE_LINKED') {
+      return `${t('audit.detail_device_id')}: <code style="color: var(--accent);">${escapeHtml(d.deviceId || d.id || '')}</code>`;
     }
 
-    const items = Object.entries(d).map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(String(v))}`);
+    const items = Object.entries(d).map(([k, v]) => {
+      let keyLabel = k;
+      if (k === 'status') keyLabel = t('audit.detail_status');
+      else if (k === 'method') keyLabel = t('audit.detail_method');
+      else if (k === 'deviceId') keyLabel = t('audit.detail_device_id');
+      else if (k === 'reason') keyLabel = t('audit.detail_reason');
+      else if (k === 'clientIp') keyLabel = t('audit.detail_client_ip');
+      else if (k === 'width' && d.height) return `${t('audit.detail_resolution')}: <strong>${d.width}×${d.height}</strong> (${d.monitors || 1} ${t('audit.detail_monitors')})`;
+      else if (k === 'height' || k === 'monitors') return null;
+      else if (k === 'machineId' && !v) return null;
+
+      let valText = String(v);
+      if (v === 'success') valText = `<span style="color: #22C55E;">${t('audit.detail_success')}</span>`;
+      else if (v === 'failed' || v === 'failure') valText = `<span style="color: #EF4444;">${t('audit.detail_failure')}</span>`;
+      else if (v === 'password') valText = t('audit.detail_password');
+
+      return `${escapeHtml(keyLabel)}: ${valText}`;
+    }).filter(Boolean);
+
     return items.join(' | ') || '--';
   }
 
