@@ -4097,7 +4097,6 @@ input:-webkit-autofill:active {
 .modal-overlay .field-hint,
 .modal-overlay small,
 .modal-overlay .form-hint,
-.modal-overlay .install-card-desc,
 .modal-overlay .dl-role-hint,
 .tunnel-desc,
 .confirm-dialog-msg {
@@ -4107,6 +4106,17 @@ input:-webkit-autofill:active {
   color: var(--text-faint) !important;
   display: block !important;
   margin-top: 1px !important;
+  margin-bottom: 4px !important;
+  font-weight: 400 !important;
+}
+
+.modal-overlay .install-card-desc {
+  font-family: var(--font-ui) !important;
+  font-size: 0.74rem !important;
+  line-height: 1.45 !important;
+  color: var(--text-faint) !important;
+  display: block !important;
+  margin-top: 10px !important;
   margin-bottom: 4px !important;
   font-weight: 400 !important;
 }
@@ -10213,8 +10223,7 @@ main.hidden {
   }
   .modal-overlay .field-hint,
   .modal-overlay small,
-  .modal-overlay .form-hint,
-  .modal-overlay .install-card-desc {
+  .modal-overlay .form-hint {
     font-size: 0.60rem !important;
     line-height: 1.25 !important;
     margin-top: 1px !important;
@@ -11108,7 +11117,6 @@ main.hidden {
   .modal-overlay .field-hint,
   .modal-overlay small,
   .modal-overlay .form-hint,
-  .modal-overlay .install-card-desc,
   .modal-overlay .dl-role-hint,
   .tunnel-desc,
   .confirm-dialog-msg {
